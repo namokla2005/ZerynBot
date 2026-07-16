@@ -26,6 +26,7 @@
   }
   /* Banner card itself */
   .banner-outer {
+    --bg-url: url('/static/bg.png');
     position: relative;
     width: 100%;
     max-width: 440px;
@@ -43,7 +44,7 @@
     content: "";
     position: absolute;
     top: -10px; left: -10px; right: -10px; bottom: -10px;
-    background: url('/static/bg.png') center/cover;
+    background: var(--bg-url) center/cover;
     filter: blur(4px) brightness(0.55);
     z-index: 0;
   }
@@ -213,6 +214,16 @@
             </label>
           </div>
 
+          <!-- Background URL -->
+          <div class="form-group" style="margin-top: 15px;">
+            <label class="form-label">URL Ảnh nền (Tùy chọn)</label>
+            <input type="url" name="welcome_bg_url" class="form-control" id="w-bg-url"
+                   value="{{ settings.welcome_bg_url or '' }}"
+                   placeholder="https://example.com/image.png"
+                   oninput="updateWelcomePreview()">
+            <div class="form-hint">Để trống để sử dụng ảnh nền mặc định.</div>
+          </div>
+
           <!-- Message content -->
           <div class="form-group">
             <label class="form-label">Tin nhắn kèm theo</label>
@@ -322,6 +333,16 @@
             </label>
           </div>
 
+          <!-- Background URL -->
+          <div class="form-group" style="margin-top: 15px;">
+            <label class="form-label">URL Ảnh nền (Tùy chọn)</label>
+            <input type="url" name="goodbye_bg_url" class="form-control" id="g-bg-url"
+                   value="{{ settings.goodbye_bg_url or '' }}"
+                   placeholder="https://example.com/image.png"
+                   oninput="updateGoodbyePreview()">
+            <div class="form-hint">Để trống để sử dụng ảnh nền mặc định.</div>
+          </div>
+
           <!-- Message content -->
           <div class="form-group">
             <label class="form-label">Tin nhắn kèm theo</label>
@@ -419,9 +440,16 @@ function applyVars(text) {
 function updateWelcomePreview() {
   const useCard = document.getElementById('w-embed-toggle').checked;
   const msg = document.getElementById('w-message').value;
+  const bgUrl = document.getElementById('w-bg-url').value;
 
   document.getElementById('w-banner-wrap').style.display   = useCard ? '' : 'none';
   document.getElementById('w-plain-preview').style.display = useCard ? 'none' : '';
+
+  if (bgUrl) {
+    document.getElementById('w-banner-outer').style.setProperty('--bg-url', `url('${bgUrl}')`);
+  } else {
+    document.getElementById('w-banner-outer').style.setProperty('--bg-url', `url('/static/bg.png')`);
+  }
 
   document.getElementById('w-preview-msg').innerHTML = msg
     ? applyVars(msg)
@@ -435,9 +463,16 @@ function updateWelcomePreview() {
 function updateGoodbyePreview() {
   const useCard = document.getElementById('g-embed-toggle').checked;
   const msg = document.getElementById('g-message').value;
+  const bgUrl = document.getElementById('g-bg-url').value;
 
   document.getElementById('g-banner-wrap').style.display   = useCard ? '' : 'none';
   document.getElementById('g-plain-preview').style.display = useCard ? 'none' : '';
+
+  if (bgUrl) {
+    document.getElementById('g-banner-outer').style.setProperty('--bg-url', `url('${bgUrl}')`);
+  } else {
+    document.getElementById('g-banner-outer').style.setProperty('--bg-url', `url('/static/bg.png')`);
+  }
 
   document.getElementById('g-preview-msg').innerHTML = msg
     ? applyVars(msg)
@@ -458,12 +493,13 @@ async function sendTestCard(type) {
 
   const useEmbed = document.getElementById(`${prefix}-embed-toggle`).checked;
   const message  = document.getElementById(`${prefix}-message`).value;
+  const bgUrl    = document.getElementById(`${prefix}-bg-url`).value;
 
   try {
     const resp = await fetch(`/api/guild/${GUILD_ID_W}/send-test-card`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ type, use_embed: useEmbed, message: message }),
+      body:    JSON.stringify({ type, use_embed: useEmbed, message: message, bg_url: bgUrl }),
     });
     const data = await resp.json();
     if (data.ok) {

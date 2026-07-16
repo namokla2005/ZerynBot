@@ -499,6 +499,21 @@ def send_test_card(guild_id: str):
             except Exception:
                 pass
 
+        bg_bytes = None
+        # get bg_url from frontend request, fallback to db
+        bg_url = data.get("bg_url")
+        if bg_url is None:
+            bg_url = settings.get(f"{card_type}_bg_url")
+
+        if bg_url:
+            try:
+                import requests as _req
+                r = _req.get(bg_url, timeout=8)
+                if r.status_code == 200:
+                    bg_bytes = r.content
+            except Exception:
+                pass
+
         try:
             from bot.card_generator import _render_card
             if card_type == "welcome":
@@ -508,8 +523,9 @@ def send_test_card(guild_id: str):
                     username      = f"Welcome {display_name}",
                     preposition   = "to",
                     server_name   = guild_name,
-                    accent_color  = (0, 132, 255),    # Blue top-left
-                    accent_color2 = (0, 212, 255),    # Cyan bottom-right
+                    accent_color  = (0, 132, 255),    # Ignored now
+                    accent_color2 = (0, 212, 255),    # Ignored now
+                    bg_bytes      = bg_bytes,
                 )
             else:
                 buf = _render_card(
@@ -518,8 +534,9 @@ def send_test_card(guild_id: str):
                     username      = f"Goodbye {display_name}",
                     preposition   = "from",
                     server_name   = guild_name,
-                    accent_color  = (237, 66, 69),    # Red top-left
-                    accent_color2 = (255, 120, 120),  # Lighter Red bottom-right
+                    accent_color  = (237, 66, 69),    # Ignored now
+                    accent_color2 = (255, 120, 120),  # Ignored now
+                    bg_bytes      = bg_bytes,
                 )
         except Exception as e:
             return jsonify({"error": f"Lỗi tạo card: {e}"}), 500

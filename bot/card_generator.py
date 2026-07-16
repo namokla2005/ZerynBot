@@ -126,6 +126,7 @@ def _render_card(
     accent_color: tuple,       # RGB tuple e.g. (88, 237, 135)
     accent_color2: tuple = None,
     card_bg: tuple = (15, 10, 25), # Slightly darker for the main card like Discord's new UI
+    bg_bytes: bytes | None = None,
 ) -> io.BytesIO:
     from PIL import Image, ImageDraw, ImageFilter
 
@@ -143,12 +144,16 @@ def _render_card(
     img  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Load bg.png if it exists
-    bg_path = Path("dashboard/static/bg.png")
+    # Load bg image
     bg_img = None
-    if bg_path.exists():
-        try:
-            raw_bg = Image.open(bg_path).convert("RGBA")
+    try:
+        raw_bg = None
+        if bg_bytes:
+            raw_bg = Image.open(io.BytesIO(bg_bytes)).convert("RGBA")
+        elif Path("dashboard/static/bg.png").exists():
+            raw_bg = Image.open("dashboard/static/bg.png").convert("RGBA")
+            
+        if raw_bg:
             # Crop/resize bg to WxH
             bg_ratio = raw_bg.width / raw_bg.height
             target_ratio = W / H
@@ -235,10 +240,11 @@ def _render_card(
 
 
 # ─── Public async API ──────────────────────────────────────────────────────────
-async def generate_welcome_card(member) -> io.BytesIO | None:
+async def generate_welcome_card(member, bg_url: str = None) -> io.BytesIO | None:
     """Generate a welcome banner card for the given member. Returns PNG BytesIO."""
     try:
         avatar_bytes = await _download_avatar(str(member.display_avatar.url))
+        bg_bytes     = await _download_avatar(bg_url) if bg_url else None
         top_label    = f"Member #{member.guild.member_count}"
         username     = f"Welcome {member.display_name}"
         server       = member.guild.name
@@ -255,6 +261,7 @@ async def generate_welcome_card(member) -> io.BytesIO | None:
                 accent_color  = (255, 183, 197),    # Pastel Pink left
                 accent_color2 = (255, 158, 194),    # Pastel Pink right
                 card_bg       = (15, 10, 25),
+                bg_bytes      = bg_bytes,
             )
         )
         return buf
@@ -263,10 +270,11 @@ async def generate_welcome_card(member) -> io.BytesIO | None:
         return None
 
 
-async def generate_goodbye_card(member) -> io.BytesIO | None:
+async def generate_goodbye_card(member, bg_url: str = None) -> io.BytesIO | None:
     """Generate a goodbye banner card for the given member. Returns PNG BytesIO."""
     try:
         avatar_bytes = await _download_avatar(str(member.display_avatar.url))
+        bg_bytes     = await _download_avatar(bg_url) if bg_url else None
         top_label    = "Sad to see you go!"
         username     = f"Goodbye {member.display_name}"
         server       = member.guild.name
@@ -283,6 +291,7 @@ async def generate_goodbye_card(member) -> io.BytesIO | None:
                 accent_color  = (255, 179, 71),    # Pastel orange left
                 accent_color2 = (255, 204, 51),    # Pastel yellow right
                 card_bg       = (15, 10, 25),
+                bg_bytes      = bg_bytes,
             )
         )
         return buf

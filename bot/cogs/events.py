@@ -138,7 +138,7 @@ class Events(commands.Cog):
             # Try to generate a banner card image first
             try:
                 from bot.card_generator import generate_welcome_card
-                buf = await generate_welcome_card(member)
+                buf = await generate_welcome_card(member, s.get("welcome_bg_url"))
                 if buf:
                     file = discord.File(fp=buf, filename="welcome.png")
                     await channel.send(
@@ -200,7 +200,7 @@ class Events(commands.Cog):
             # Try to generate a banner card image first
             try:
                 from bot.card_generator import generate_goodbye_card
-                buf = await generate_goodbye_card(member)
+                buf = await generate_goodbye_card(member, s.get("goodbye_bg_url"))
                 if buf:
                     file = discord.File(fp=buf, filename="goodbye.png")
                     await channel.send(

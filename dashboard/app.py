@@ -176,11 +176,13 @@ def server_welcome(guild_id: str):
             "welcome_use_embed":   1 if form.get("welcome_use_embed") else 0,
             "welcome_embed_color": form.get("welcome_embed_color", "#57F287"),
             "welcome_embed_title": form.get("welcome_embed_title", ""),
+            "welcome_bg_url":      form.get("welcome_bg_url", ""),
             "goodbye_channel_id":  form.get("goodbye_channel_id") or None,
             "goodbye_message":     form.get("goodbye_message", ""),
             "goodbye_use_embed":   1 if form.get("goodbye_use_embed") else 0,
             "goodbye_embed_color": form.get("goodbye_embed_color", "#ED4245"),
             "goodbye_embed_title": form.get("goodbye_embed_title", ""),
+            "goodbye_bg_url":      form.get("goodbye_bg_url", ""),
         }
         db.upsert_guild(guild_id, **fields)
         flash("✅ Đã lưu cài đặt Welcome & Goodbye!", "success")
