@@ -33,9 +33,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border-radius: 6px;
+    background: url('/static/bg.png') center/cover;
+    border-radius: 12px;
     margin: 15px auto;
+    overflow: hidden;
   }
   .banner-accent {
     position: absolute;
@@ -56,8 +57,10 @@
   .banner-card {
     width: calc(100% - 30px);
     height: calc(100% - 30px);
-    background: #1e1f22;
-    border-radius: 20px;
+    background: rgba(15, 10, 25, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -251,8 +254,8 @@
             <!-- Banner card -->
             <div id="w-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
               <div class="banner-outer" id="w-banner-outer">
-                <div class="banner-accent left" id="w-accent-left" style="background:#0084FF;"></div>
-                <div class="banner-accent right" id="w-accent-right" style="background:#00D4FF;"></div>
+                <div class="banner-accent left" id="w-accent-left" style="background:#ffb7c5;"></div>
+                <div class="banner-accent right" id="w-accent-right" style="background:#ff9ec2;"></div>
                 <div class="banner-card">
                   <div class="banner-badge" id="w-badge">Member #{{ meta.get('member_count', '???') if meta else '???' }}</div>
                   <div class="banner-avatar">
@@ -361,8 +364,8 @@
 
             <div id="g-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
               <div class="banner-outer" id="g-banner-outer">
-                <div class="banner-accent left" id="g-accent-left" style="background:#ED4245;"></div>
-                <div class="banner-accent right" id="g-accent-right" style="background:#FF7878;"></div>
+                <div class="banner-accent left" id="g-accent-left" style="background:#ffb347;"></div>
+                <div class="banner-accent right" id="g-accent-right" style="background:#ffcc33;"></div>
                 <div class="banner-card">
                   <div class="banner-badge" id="g-badge">Sad to see you go!</div>
                   <div class="banner-avatar">

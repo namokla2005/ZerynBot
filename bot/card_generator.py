@@ -125,9 +125,9 @@ def _render_card(
     server_name: str,
     accent_color: tuple,       # RGB tuple e.g. (88, 237, 135)
     accent_color2: tuple = None,
-    card_bg: tuple = (30, 31, 34), # Slightly darker for the main card like Discord's new UI
+    card_bg: tuple = (15, 10, 25), # Slightly darker for the main card like Discord's new UI
 ) -> io.BytesIO:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFilter
 
     if not accent_color2:
         accent_color2 = accent_color
@@ -142,6 +142,37 @@ def _render_card(
     # Transparent background!
     img  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
+
+    # Load bg.png if it exists
+    bg_path = Path("dashboard/static/bg.png")
+    bg_img = None
+    if bg_path.exists():
+        try:
+            raw_bg = Image.open(bg_path).convert("RGBA")
+            # Crop/resize bg to WxH
+            bg_ratio = raw_bg.width / raw_bg.height
+            target_ratio = W / H
+            if bg_ratio > target_ratio:
+                # crop width
+                new_w = int(target_ratio * raw_bg.height)
+                x = (raw_bg.width - new_w) // 2
+                raw_bg = raw_bg.crop((x, 0, x + new_w, raw_bg.height))
+            else:
+                new_h = int(raw_bg.width / target_ratio)
+                y = (raw_bg.height - new_h) // 2
+                raw_bg = raw_bg.crop((0, y, raw_bg.width, y + new_h))
+            bg_img = raw_bg.resize((W, H), Image.LANCZOS)
+        except Exception as e:
+            log.warning(f"[Card] Failed to load bg.png: {e}")
+
+    # Draw rounded background image
+    if bg_img:
+        mask = Image.new("L", (W, H), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        _draw_rounded_rect(mask_draw, (0, 0, W, H), radius=20, fill=255)
+        img.paste(bg_img, (0, 0), mask)
+    else:
+        _draw_rounded_rect(draw, (0, 0, W, H), radius=20, fill=(30, 31, 34, 255))
 
     # ─── Accent Background Panels (Offset shadows) ──────────────────────────
     offset = 20
@@ -164,7 +195,7 @@ def _render_card(
     )
 
     # ─── Main card background ────────────────────────────────────────────────
-    _draw_rounded_rect(draw, (CARD_X, CARD_Y, CARD_X + CARD_W, CARD_Y + CARD_H), radius=radius, fill=(*card_bg, 255))
+    _draw_rounded_rect(draw, (CARD_X, CARD_Y, CARD_X + CARD_W, CARD_Y + CARD_H), radius=radius, fill=(*card_bg, 165))
 
     # ─── Avatar ──────────────────────────────────────────────────────────────
     AV_SIZE = 110
@@ -236,9 +267,9 @@ async def generate_welcome_card(member) -> io.BytesIO | None:
                 username      = username,
                 preposition   = "to",
                 server_name   = server,
-                accent_color  = (0, 132, 255),    # Blue top-left
-                accent_color2 = (0, 212, 255),    # Cyan bottom-right
-                card_bg       = (30, 31, 34),
+                accent_color  = (255, 183, 197),    # Pastel Pink left
+                accent_color2 = (255, 158, 194),    # Pastel Pink right
+                card_bg       = (15, 10, 25),
             )
         )
         return buf
@@ -264,9 +295,9 @@ async def generate_goodbye_card(member) -> io.BytesIO | None:
                 username      = username,
                 preposition   = "from",
                 server_name   = server,
-                accent_color  = (237, 66, 69),    # Red top-left
-                accent_color2 = (255, 120, 120),  # Lighter Red bottom-right
-                card_bg       = (30, 31, 34),
+                accent_color  = (255, 179, 71),    # Pastel orange left
+                accent_color2 = (255, 204, 51),    # Pastel yellow right
+                card_bg       = (15, 10, 25),
             )
         )
         return buf
