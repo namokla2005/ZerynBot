@@ -175,8 +175,8 @@ def _render_card(
             dark_overlay = Image.new("RGBA", (W, H), (0, 0, 0, 110))
             bg_img = Image.alpha_composite(bg_img, dark_overlay)
             
-        except Exception as e:
-            log.warning(f"[Card] Failed to load bg.png: {e}")
+    except Exception as e:
+        log.warning(f"[Card] Failed to load bg.png: {e}")
 
     # Draw rounded background image
     if bg_img:

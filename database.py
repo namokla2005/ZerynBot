@@ -25,11 +25,13 @@ def init_db():
                 welcome_use_embed     INTEGER DEFAULT 1,
                 welcome_embed_color   TEXT DEFAULT '#57F287',
                 welcome_embed_title   TEXT DEFAULT '🎉 Chào mừng thành viên mới!',
+                welcome_bg_url        TEXT,
                 goodbye_channel_id    TEXT,
                 goodbye_message       TEXT DEFAULT 'Tạm biệt **{user_name}**, chúc bạn nhiều may mắn! 👋',
                 goodbye_use_embed     INTEGER DEFAULT 1,
                 goodbye_embed_color   TEXT DEFAULT '#ED4245',
                 goodbye_embed_title   TEXT DEFAULT '👋 Tạm biệt!',
+                goodbye_bg_url        TEXT,
                 updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -87,6 +89,16 @@ def init_db():
                 support_role_id TEXT,
                 message_id     TEXT,
                 created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS reaction_roles (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                message_id  TEXT NOT NULL,
+                channel_id  TEXT NOT NULL,
+                emoji       TEXT NOT NULL,
+                role_id     TEXT NOT NULL,
+                FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
             );
 
             CREATE TABLE IF NOT EXISTS ticket_buttons (
@@ -183,6 +195,10 @@ def init_db():
             conn.execute("ALTER TABLE guilds ADD COLUMN autoroles_bot TEXT DEFAULT '[]'")
         if "bot_admin_roles" not in cols:
             conn.execute("ALTER TABLE guilds ADD COLUMN bot_admin_roles TEXT DEFAULT '[]'")
+        if "welcome_bg_url" not in cols:
+            conn.execute("ALTER TABLE guilds ADD COLUMN welcome_bg_url TEXT")
+        if "goodbye_bg_url" not in cols:
+            conn.execute("ALTER TABLE guilds ADD COLUMN goodbye_bg_url TEXT")
             
         cursor.execute("PRAGMA table_info(automod_settings)")
         am_cols = [row[1] for row in cursor.fetchall()]
@@ -213,11 +229,13 @@ _DEFAULT_SETTINGS = {
     "welcome_use_embed":   1,
     "welcome_embed_color": "#57F287",
     "welcome_embed_title": "🎉 Chào mừng thành viên mới!",
+    "welcome_bg_url":      "",
     "goodbye_channel_id":  None,
     "goodbye_message":     "Tạm biệt **{user_name}**, chúc bạn nhiều may mắn! 👋",
     "goodbye_use_embed":   1,
     "goodbye_embed_color": "#ED4245",
     "goodbye_embed_title": "👋 Tạm biệt!",
+    "goodbye_bg_url":      "",
     "autoroles_enabled":   0,
     "autoroles_user":      "[]",
     "autoroles_bot":       "[]",
