@@ -11,6 +11,7 @@
     margin-bottom: 24px;
     color: #e5e5e5;
   }
+
   .warning-title {
     color: #ED4245;
     font-weight: 600;
@@ -19,12 +20,14 @@
     align-items: center;
     gap: 8px;
   }
+
   .module-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
   }
+
   .module-title {
     font-size: 1.5rem;
     font-weight: 700;
@@ -33,6 +36,7 @@
     align-items: center;
     gap: 12px;
   }
+
   .card {
     background: #1e1f22;
     border: 1px solid #3f4147;
@@ -40,6 +44,7 @@
     padding: 24px;
     margin-bottom: 24px;
   }
+
   .card-title {
     font-size: 1.25rem;
     font-weight: 600;
@@ -49,9 +54,11 @@
     align-items: center;
     gap: 8px;
   }
+
   .form-group {
     margin-bottom: 20px;
   }
+
   .form-label {
     display: block;
     color: #b5bac1;
@@ -59,6 +66,7 @@
     font-size: 0.9rem;
     font-weight: 500;
   }
+
   .form-control {
     width: 100%;
     background: #2b2d31;
@@ -68,43 +76,54 @@
     border-radius: 4px;
     transition: border-color 0.2s;
   }
+
   .form-control:focus {
     outline: none;
     border-color: #5865F2;
   }
+
   textarea.form-control {
     min-height: 80px;
     resize: vertical;
   }
+
   .switch-container {
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
   }
+
   .switch-text {
     color: #dbdee1;
     font-weight: 500;
   }
+
   .switch {
     position: relative;
     display: inline-block;
     width: 44px;
     height: 24px;
   }
+
   .switch input {
     opacity: 0;
     width: 0;
     height: 0;
   }
+
   .slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: #80848e;
     transition: .3s;
     border-radius: 24px;
   }
+
   .slider:before {
     position: absolute;
     content: "";
@@ -116,12 +135,15 @@
     transition: .3s;
     border-radius: 50%;
   }
-  input:checked + .slider {
+
+  input:checked+.slider {
     background-color: #5865F2;
   }
-  input:checked + .slider:before {
+
+  input:checked+.slider:before {
     transform: translateX(20px);
   }
+
   .btn-primary {
     background: #5865F2;
     color: #fff;
@@ -132,16 +154,18 @@
     cursor: pointer;
     transition: background 0.2s;
   }
+
   .btn-primary:hover {
     background: #4752c4;
   }
-  
+
   /* Custom Select */
   .custom-select-wrapper {
     position: relative;
     user-select: none;
     width: 100%;
   }
+
   .custom-select-display {
     background: #2b2d31;
     border: 1px solid #1e1f22;
@@ -155,13 +179,24 @@
     cursor: pointer;
     transition: border-color 0.2s;
   }
-  .custom-select-display:hover { border-color: #5865F2; }
+
+  .custom-select-display:hover {
+    border-color: #5865F2;
+  }
+
   .custom-select-display.open {
     border-color: #5865F2;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
-  .chips-container { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+  .chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
   .chip {
     background: #1e1f22;
     border: 1px solid #3f4147;
@@ -173,13 +208,35 @@
     gap: 6px;
     color: #dbdee1;
   }
-  .chip .role-color { width: 10px; height: 10px; border-radius: 50%; }
-  .chip .chip-remove { cursor: pointer; opacity: 0.6; margin-left: 2px; }
-  .chip .chip-remove:hover { opacity: 1; color: #ED4245; }
-  .custom-select-arrow { margin-left: auto; color: #b5bac1; font-size: 0.8rem; }
+
+  .chip .role-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .chip .chip-remove {
+    cursor: pointer;
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+
+  .chip .chip-remove:hover {
+    opacity: 1;
+    color: #ED4245;
+  }
+
+  .custom-select-arrow {
+    margin-left: auto;
+    color: #b5bac1;
+    font-size: 0.8rem;
+  }
+
   .custom-select-dropdown {
     position: absolute;
-    top: 100%; left: 0; right: 0;
+    top: 100%;
+    left: 0;
+    right: 0;
     background: #2b2d31;
     border: 1px solid #1e1f22;
     border-top: none;
@@ -190,8 +247,15 @@
     z-index: 10;
     display: none;
   }
-  .custom-select-wrapper.open { z-index: 99; }
-  .custom-select-wrapper.open .custom-select-dropdown { display: block; }
+
+  .custom-select-wrapper.open {
+    z-index: 99;
+  }
+
+  .custom-select-wrapper.open .custom-select-dropdown {
+    display: block;
+  }
+
   .custom-option {
     padding: 10px 12px;
     cursor: pointer;
@@ -201,19 +265,28 @@
     color: #dbdee1;
     transition: background 0.2s;
   }
-  .custom-option:hover { background: #3f4147; }
+
+  .custom-option:hover {
+    background: #3f4147;
+  }
+
   .custom-option.selected {
     background: rgba(88, 101, 242, 0.1);
     color: #5865F2;
     font-weight: bold;
   }
+
   .role-color {
     width: 12px;
     height: 12px;
     border-radius: 50%;
     display: inline-block;
   }
-  .placeholder-text { color: #80848e; font-size: 0.9rem; }
+
+  .placeholder-text {
+    color: #80848e;
+    font-size: 0.9rem;
+  }
 </style>
 {% endblock %}
 
@@ -237,7 +310,7 @@
 </div>
 
 <form method="POST" action="{{ url_for('server_automod', guild_id=guild_id) }}">
-  
+
   <div class="card">
     <div class="card-title">⚙️ Cài đặt chung</div>
     <div class="form-group" style="display: flex; flex-direction: column; gap: 16px;">
@@ -248,18 +321,20 @@
         </div>
         <span class="switch-text">Bật chống Spam (Gửi quá nhiều tin nhắn liên tục)</span>
       </label>
-      
+
       <label class="switch-container">
         <div class="switch">
-          <input type="checkbox" name="bad_words_enabled" value="1" {% if settings.get('bad_words_enabled') %}checked{% endif %}>
+          <input type="checkbox" name="bad_words_enabled" value="1" {% if settings.get('bad_words_enabled') %}checked{%
+            endif %}>
           <span class="slider"></span>
         </div>
         <span class="switch-text">Bật lọc Từ ngữ xấu / Từ cấm</span>
       </label>
-      
+
       <label class="switch-container">
         <div class="switch">
-          <input type="checkbox" name="links_enabled" value="1" {% if settings.get('links_enabled') %}checked{% endif %}>
+          <input type="checkbox" name="links_enabled" value="1" {% if settings.get('links_enabled') %}checked{% endif
+            %}>
           <span class="slider"></span>
         </div>
         <span class="switch-text">Bật lọc Link Fake / Blacklist</span>
@@ -269,24 +344,27 @@
 
   <div class="card">
     <div class="card-title">📝 Cấu hình Bộ lọc</div>
-    
+
     <div class="form-group">
       <label class="form-label">Từ ngữ xấu (Cách nhau bằng dấu phẩy)</label>
-      <textarea name="bad_words" class="form-control" placeholder="VD: dm, ngu, cc, lz...">{{ bad_words_str }}</textarea>
+      <textarea name="bad_words" class="form-control"
+        placeholder="VD: dm, ngu, cc, lz...">{{ bad_words_str }}</textarea>
     </div>
-    
+
     <div class="form-group">
       <label class="form-label">Link Whitelist (Link an toàn luôn được phép gửi, cách nhau bằng dấu phẩy)</label>
-      <textarea name="whitelist_links" class="form-control" placeholder="VD: youtube.com, facebook.com...">{{ whitelist_links_str }}</textarea>
+      <textarea name="whitelist_links" class="form-control"
+        placeholder="VD: youtube.com, facebook.com...">{{ whitelist_links_str }}</textarea>
       <div class="form-hint" style="color: #b5bac1; font-size: 0.85rem; margin-top: 8px;">
-        <em>Lưu ý: Bot đã được tích hợp sẵn bộ lọc chặn hàng ngàn Link lừa đảo, giả mạo, và không rõ nguồn gốc. Bạn chỉ cần cấu hình Whitelist nếu cần!</em>
+        <em>Lưu ý: Bot đã được tích hợp sẵn bộ lọc chặn hàng ngàn Link lừa đảo, giả mạo, và không rõ nguồn gốc. Bạn chỉ
+          cần cấu hình Whitelist nếu cần!</em>
       </div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-title">🛡️ Ngoại lệ (Whitelist)</div>
-    
+
     <div class="form-group">
       <label class="form-label">Role Whitelist (Bỏ qua tất cả quy tắc Automods)</label>
       <div id="hidden-inputs-immune_roles"></div>
@@ -299,7 +377,7 @@
         <div class="custom-select-dropdown" id="dropdown-immune_roles"></div>
       </div>
     </div>
-    
+
     <div class="form-group">
       <label class="form-label">Kênh Whitelist (Cho phép Spam, nhưng CHẶN Link & Từ cấm)</label>
       <div id="hidden-inputs-spam_allowed_channels"></div>
@@ -316,7 +394,7 @@
 
   <div class="card">
     <div class="card-title">📢 Kênh & Thông báo</div>
-    
+
     <div class="form-group">
       <label class="form-label">Role được tag khi có vi phạm lần 2</label>
       <div id="hidden-inputs-notify_role_id"></div>
@@ -329,7 +407,7 @@
         <div class="custom-select-dropdown" id="dropdown-notify_role_id"></div>
       </div>
     </div>
-    
+
     <div class="form-group">
       <label class="form-label">Kênh gửi log Automods (Bắt buộc để tag Role)</label>
       <div id="hidden-inputs-log_channel_id"></div>
@@ -352,34 +430,34 @@
 <script>
   const allRoles = [
     {% for r in roles %}
-      { id: "{{ r.role_id }}", name: {{ r.role_name|tojson|safe }}, color: "{{ r.color_hex }}" }{% if not loop.last %},{% endif %}
-    {% endfor %}
-  ];
-  
-  const allChannels = [
-    {% for ch in channels %}
-      { id: "{{ ch.channel_id }}", name: {{ ch.channel_name|tojson|safe }} }{% if not loop.last %},{% endif %}
-    {% endfor %}
+  { id: "{{ r.role_id }}", name: { { r.role_name | tojson | safe } }, color: "{{ r.color_hex }}" } {% if not loop.last %}, {% endif %}
+  {% endfor %}
   ];
 
-  let selectedRole = {% if settings.get('notify_role_id') %}"{{ settings.get('notify_role_id') }}"{% else %}null{% endif %};
-  let selectedChannel = {% if settings.get('log_channel_id') %}"{{ settings.get('log_channel_id') }}"{% else %}null{% endif %};
-  
+  const allChannels = [
+    {% for ch in channels %}
+  { id: "{{ ch.channel_id }}", name: { { ch.channel_name | tojson | safe } } } {% if not loop.last %}, {% endif %}
+  {% endfor %}
+  ];
+
+  let selectedRole = {% if settings.get('notify_role_id') %}"{{ settings.get('notify_role_id') }}"{% else %} null{% endif %};
+  let selectedChannel = {% if settings.get('log_channel_id') %}"{{ settings.get('log_channel_id') }}"{% else %} null{% endif %};
+
   let immuneRolesList = {{ settings.get('immune_roles', []) | tojson | safe }};
   let spamAllowedChannelsList = {{ settings.get('spam_allowed_channels', []) | tojson | safe }};
 
-  function createMultiSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedList, isChannel=false) {
+  function createMultiSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedList, isChannel = false) {
     const wrapper = document.getElementById(wrapperId);
     const display = wrapper.querySelector('.custom-select-display');
     const dropdown = wrapper.querySelector('.custom-select-dropdown');
     const chipsContainer = wrapper.querySelector('.chips-container');
     const placeholder = wrapper.querySelector('.placeholder-text');
     const hiddenContainer = document.getElementById(hiddenContainerId);
-    
+
     function renderChips() {
       chipsContainer.innerHTML = '';
       hiddenContainer.innerHTML = '';
-      
+
       if (selectedList.length === 0) {
         placeholder.style.display = 'block';
       } else {
@@ -387,23 +465,23 @@
         selectedList.forEach(id => {
           const optData = optionsList.find(r => r.id === id);
           if (!optData) return;
-          
+
           const chip = document.createElement('div');
           chip.className = 'chip';
-          
+
           let prefix = '';
           if (isChannel) {
             prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
           } else if (optData.color) {
             prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
           }
-          
+
           chip.innerHTML = `
             ${prefix}${optData.name}
             <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
           `;
           chipsContainer.appendChild(chip);
-          
+
           const hiddenInput = document.createElement('input');
           hiddenInput.type = 'hidden';
           hiddenInput.name = inputName;
@@ -411,7 +489,7 @@
           hiddenContainer.appendChild(hiddenInput);
         });
       }
-      
+
       const options = dropdown.querySelectorAll('.custom-option');
       options.forEach(opt => {
         if (selectedList.includes(opt.dataset.id)) {
@@ -421,25 +499,25 @@
         }
       });
     }
-    
+
     function renderDropdown() {
       dropdown.innerHTML = '';
       optionsList.forEach(optData => {
         if (optData.name === '@everyone') return;
-        
+
         const option = document.createElement('div');
         option.className = 'custom-option';
         option.dataset.id = optData.id;
-        
+
         let prefix = '';
         if (isChannel) {
           prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
         } else if (optData.color) {
           prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
         }
-        
+
         option.innerHTML = `${prefix}${optData.name}`;
-        
+
         option.addEventListener('click', (e) => {
           e.stopPropagation();
           const idx = selectedList.indexOf(optData.id);
@@ -450,18 +528,18 @@
           }
           renderChips();
         });
-        
+
         dropdown.appendChild(option);
       });
     }
-    
+
     display.addEventListener('click', () => {
       document.querySelectorAll('.custom-select-wrapper').forEach(w => {
         if (w !== wrapper) w.classList.remove('open');
       });
       wrapper.classList.toggle('open');
     });
-    
+
     chipsContainer.addEventListener('click', (e) => {
       if (e.target.classList.contains('chip-remove')) {
         e.stopPropagation();
@@ -473,25 +551,25 @@
         }
       }
     });
-    
+
     renderDropdown();
     renderChips();
   }
 
-  function createSingleSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedId, isChannel=false) {
+  function createSingleSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedId, isChannel = false) {
     const wrapper = document.getElementById(wrapperId);
     const display = wrapper.querySelector('.custom-select-display');
     const dropdown = wrapper.querySelector('.custom-select-dropdown');
     const chipsContainer = wrapper.querySelector('.chips-container');
     const placeholder = wrapper.querySelector('.placeholder-text');
     const hiddenContainer = document.getElementById(hiddenContainerId);
-    
+
     let currentSelectedId = selectedId;
 
     function renderChips() {
       chipsContainer.innerHTML = '';
       hiddenContainer.innerHTML = '';
-      
+
       if (!currentSelectedId) {
         placeholder.style.display = 'block';
       } else {
@@ -500,20 +578,20 @@
         if (optData) {
           const chip = document.createElement('div');
           chip.className = 'chip';
-          
+
           let prefix = '';
           if (isChannel) {
             prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
           } else if (optData.color) {
             prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
           }
-          
+
           chip.innerHTML = `
             ${prefix}${optData.name}
             <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
           `;
           chipsContainer.appendChild(chip);
-          
+
           const hiddenInput = document.createElement('input');
           hiddenInput.type = 'hidden';
           hiddenInput.name = inputName;
@@ -521,7 +599,7 @@
           hiddenContainer.appendChild(hiddenInput);
         }
       }
-      
+
       const options = dropdown.querySelectorAll('.custom-option');
       options.forEach(opt => {
         if (opt.dataset.id === currentSelectedId) {
@@ -531,47 +609,47 @@
         }
       });
     }
-    
+
     function renderDropdown() {
       dropdown.innerHTML = '';
       optionsList.forEach(optData => {
         if (optData.name === '@everyone') return;
-        
+
         const option = document.createElement('div');
         option.className = 'custom-option';
         option.dataset.id = optData.id;
-        
+
         let prefix = '';
         if (isChannel) {
           prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
         } else if (optData.color) {
           prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
         }
-        
+
         option.innerHTML = `${prefix}${optData.name}`;
-        
+
         option.addEventListener('click', (e) => {
           e.stopPropagation();
           if (currentSelectedId === optData.id) {
-             currentSelectedId = null;
+            currentSelectedId = null;
           } else {
-             currentSelectedId = optData.id;
+            currentSelectedId = optData.id;
           }
           renderChips();
           wrapper.classList.remove('open');
         });
-        
+
         dropdown.appendChild(option);
       });
     }
-    
+
     display.addEventListener('click', () => {
       document.querySelectorAll('.custom-select-wrapper').forEach(w => {
         if (w !== wrapper) w.classList.remove('open');
       });
       wrapper.classList.toggle('open');
     });
-    
+
     chipsContainer.addEventListener('click', (e) => {
       if (e.target.classList.contains('chip-remove')) {
         e.stopPropagation();
@@ -579,14 +657,14 @@
         renderChips();
       }
     });
-    
+
     renderDropdown();
     renderChips();
   }
 
   createSingleSelector('select-notify_role_id', 'notify_role_id', allRoles, 'hidden-inputs-notify_role_id', selectedRole, false);
   createSingleSelector('select-log_channel_id', 'log_channel_id', allChannels, 'hidden-inputs-log_channel_id', selectedChannel, true);
-  
+
   createMultiSelector('select-immune_roles', 'immune_roles', allRoles, 'hidden-inputs-immune_roles', immuneRolesList, false);
   createMultiSelector('select-spam_allowed_channels', 'spam_allowed_channels', allChannels, 'hidden-inputs-spam_allowed_channels', spamAllowedChannelsList, true);
 

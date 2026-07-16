@@ -25,15 +25,20 @@ import aiohttp
 log = logging.getLogger("BotV2")
 
 # ─── System font discovery ─────────────────────────────────────────────────────
-# Prefer Segoe UI (Windows) → Arial → Calibri → all of which support Vietnamese
+# Prefer bundled NotoSans for guaranteed Unicode support, then fallback
 _WIN_FONTS = r"C:\Windows\Fonts"
-_BOLD_CANDIDATES = ["tahomabd.ttf", "segoeuib.ttf", "arialbd.ttf", "calibrib.ttf", "verdanab.ttf"]
-_REG_CANDIDATES  = ["tahoma.ttf", "segoeui.ttf",  "arial.ttf",   "calibri.ttf",  "verdana.ttf"]
+_BUNDLED_FONTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+
+_BOLD_CANDIDATES = ["NotoSans-Bold.ttf", "tahomabd.ttf", "segoeuib.ttf", "arialbd.ttf"]
+_REG_CANDIDATES  = ["NotoSans-Regular.ttf", "tahoma.ttf", "segoeui.ttf",  "arial.ttf"]
 
 
 def _find_system_font(candidates: list[str]) -> str | None:
     for name in candidates:
-        path = os.path.join(_WIN_FONTS, name)
+        if name.startswith("Noto"):
+            path = os.path.join(_BUNDLED_FONTS, name)
+        else:
+            path = os.path.join(_WIN_FONTS, name)
         if os.path.exists(path):
             return path
     return None
