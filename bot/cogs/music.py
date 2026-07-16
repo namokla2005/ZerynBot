@@ -34,6 +34,7 @@ YDL_OPTS_PLAY = {
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
     "socket_timeout": 5,
+    "extractor_args": {"youtube": {"player_client": ["android"]}},
 }
 
 YDL_OPTS_LIVE = {
@@ -46,6 +47,7 @@ YDL_OPTS_LIVE = {
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
     "socket_timeout": 5,
+    "extractor_args": {"youtube": {"player_client": ["android"]}},
 }
 
 YDL_OPTS_SEARCH = {
@@ -57,6 +59,7 @@ YDL_OPTS_SEARCH = {
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
     "socket_timeout": 3,
+    "extractor_args": {"youtube": {"player_client": ["android"]}},
 }
 
 FFMPEG_OPTS = {
@@ -736,7 +739,7 @@ class Music(commands.Cog, name="Music"):
             "webpage_url": webpage_url,
             "duration": raw_track.get("duration"),
             "uploader": raw_track.get("uploader") or raw_track.get("channel"),
-            "url": None # Quan trọng: Set None để lúc phát nhạc, hàm _play_track sẽ tự đi lấy stream URL mới nhất
+            "url": "" # Quan trọng: Set rỗng thay vì None để không bị lỗi database (NOT NULL constraint)
         }
         
         await db.async_add_track_to_playlist(pl["id"], track)
