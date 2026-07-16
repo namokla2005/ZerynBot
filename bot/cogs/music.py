@@ -226,13 +226,17 @@ class Music(commands.Cog, name="Music"):
         # Danh sách node: https://lavalink.darrennathanael.com/No-TTS/Public-Lavalink/
         try:
             import aiohttp
-            connector = aiohttp.TCPConnector(ssl=False)
-            session = aiohttp.ClientSession(connector=connector)
+            
+            # Khắc phục triệt để lỗi SSL trên Termux bằng cách ép aiohttp bỏ qua SSL
+            original_init = aiohttp.TCPConnector.__init__
+            def new_init(self, *args, **kwargs):
+                kwargs['ssl'] = False
+                original_init(self, *args, **kwargs)
+            aiohttp.TCPConnector.__init__ = new_init
             
             node = wavelink.Node(
                 uri="https://lavalinkv4.serenetia.com:443", 
-                password="https://dsc.gg/ajidevserver",
-                client_session=session
+                password="https://dsc.gg/ajidevserver"
             )
             
             await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
