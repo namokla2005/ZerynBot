@@ -27,8 +27,8 @@ log = logging.getLogger("BotV2")
 # ─── System font discovery ─────────────────────────────────────────────────────
 # Prefer Segoe UI (Windows) → Arial → Calibri → all of which support Vietnamese
 _WIN_FONTS = r"C:\Windows\Fonts"
-_BOLD_CANDIDATES = ["segoeuib.ttf", "arialbd.ttf", "calibrib.ttf", "verdanab.ttf"]
-_REG_CANDIDATES  = ["segoeui.ttf",  "arial.ttf",   "calibri.ttf",  "verdana.ttf"]
+_BOLD_CANDIDATES = ["tahomabd.ttf", "segoeuib.ttf", "arialbd.ttf", "calibrib.ttf", "verdanab.ttf"]
+_REG_CANDIDATES  = ["tahoma.ttf", "segoeui.ttf",  "arial.ttf",   "calibri.ttf",  "verdana.ttf"]
 
 
 def _find_system_font(candidates: list[str]) -> str | None:

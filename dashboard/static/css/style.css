@@ -397,6 +397,24 @@ select.form-control option { background: #1a1c1f; }
 }
 .discord-preview-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #80848e; margin-bottom: 12px; }
 .discord-msg { display: flex; gap: 12px; }
+.discord-blur {
+  bottom: -40px;
+  right: 15%;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--accent);
+  filter: blur(120px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Fix dropdown overlap for cards */
+.card:has(.custom-select-wrapper.open) {
+  position: relative;
+  z-index: 999;
+}
 .discord-bot-ava {
   width: 38px; height: 38px; border-radius: 50%; background: var(--accent);
   display: flex; align-items: center; justify-content: center;
