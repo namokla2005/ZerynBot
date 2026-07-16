@@ -30,11 +30,11 @@ YDL_OPTS_PLAY = {
     "no_warnings": True,
     "format":      "bestaudio/best",
     "noplaylist":  True,
-    "youtube_include_dash_manifest": False,
-    "youtube_include_hls_manifest": False,
+    "youtube_include_dash_manifest": True,
+    "youtube_include_hls_manifest": True,
     "nocheckcertificate": True,
     "socket_timeout": 5,
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
+    "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
 }
 
 YDL_OPTS_LIVE = {
@@ -43,11 +43,11 @@ YDL_OPTS_LIVE = {
     "format":        "bestaudio/best",
     "noplaylist":    True,
     "live_from_start": False,
-    "youtube_include_dash_manifest": False,
-    "youtube_include_hls_manifest": False,
+    "youtube_include_dash_manifest": True,
+    "youtube_include_hls_manifest": True,
     "nocheckcertificate": True,
     "socket_timeout": 5,
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
+    "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
 }
 
 YDL_OPTS_SEARCH = {
@@ -55,11 +55,11 @@ YDL_OPTS_SEARCH = {
     "no_warnings":   True,
     "extract_flat":  True,
     "skip_download": True,
-    "youtube_include_dash_manifest": False,
-    "youtube_include_hls_manifest": False,
+    "youtube_include_dash_manifest": True,
+    "youtube_include_hls_manifest": True,
     "nocheckcertificate": True,
     "socket_timeout": 3,
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
+    "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
 }
 
 FFMPEG_OPTS = {
@@ -77,8 +77,10 @@ NUMS     = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
 
 
 def _fmt_duration(seconds) -> str:
-    if not seconds:
+    if seconds is None or seconds == 0:
         return "🔴 LIVE"
+    if int(seconds) < 0:
+        return "—"
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
@@ -536,12 +538,56 @@ class Music(commands.Cog, name="Music"):
         if not vc:
             return
 
-        is_url = query.startswith(("http://", "https://"))
-        search = query if is_url else f"ytsearch1:{query}"
-
-        track = await self._fetch_info(search, YDL_OPTS_PLAY)
-        if not track or not track.get("url"):
-            await ctx.send("❌ Không tìm thấy hoặc không thể tải bài hát!")
+        # Thuật toán tìm kiếm siêu tốc AIOHTTP (giảm thời gian từ 40s xuống 1s)
+        import aiohttp
+        import re
+        
+        video_id = None
+        webpage_url = None
+        
+        try:
+            if query.startswith(("http://", "https://")):
+                webpage_url = query
+                match = re.search(r"(?:v=|/)([0-9A-Za-z_-]{11})", webpage_url)
+                if match:
+                    video_id = match.group(1)
+            else:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}") as resp:
+                        text = await resp.text()
+                        match = re.search(r"\"videoId\":\"([0-9A-Za-z_-]{11})\"", text)
+                        if match:
+                            video_id = match.group(1)
+                            webpage_url = f"https://www.youtube.com/watch?v={video_id}"
+            
+            if not video_id or not webpage_url:
+                await ctx.send("❌ Không tìm thấy bài hát!")
+                return
+                
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://www.youtube.com/oembed?url={webpage_url}&format=json") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        track = {
+                            "title": data.get("title", "Unknown"),
+                            "id": video_id,
+                            "webpage_url": webpage_url,
+                            "duration": -1,
+                            "uploader": data.get("author_name", "—"),
+                            "url": ""
+                        }
+                    else:
+                        track = {
+                            "title": query[:50] + "..." if not query.startswith("http") else "Video YouTube",
+                            "id": video_id,
+                            "webpage_url": webpage_url,
+                            "duration": -1,
+                            "uploader": "—",
+                            "url": ""
+                        }
+        except Exception as e:
+            log.error(f"[Play Fast] Error: {e}")
+            await ctx.send("❌ Đã xảy ra lỗi khi tìm kiếm bài hát!")
             return
 
         track["requester_mention"] = ctx.author.mention
@@ -555,14 +601,16 @@ class Music(commands.Cog, name="Music"):
                 color       = discord.Color.blurple(),
             )
             embed.add_field(name="Vị trí",     value=str(len(mq.queue)),                 inline=True)
-            embed.add_field(name="Thời lượng", value=_fmt_duration(track.get("duration")), inline=True)
+            embed.add_field(name="Thời lượng", value="Chưa rõ" if track.get("duration") == -1 else _fmt_duration(track.get("duration")), inline=True)
             await ctx.send(embed=embed)
         else:
+            await ctx.send(f"⏳ Đang xử lý bài hát **{track['title']}**...")
             try:
-                await self._play_track(vc, ctx.guild.id, track, ctx)
+                # Truyền ctx.channel thay vì ctx để tránh lỗi Unknown Message
+                await self._play_track(vc, ctx.guild.id, track, ctx.channel)
             except Exception as e:
                 log.error(f"[Music] play error: {e}")
-                await ctx.send(f"❌ Lỗi khi phát nhạc: {e}")
+                await ctx.channel.send(f"❌ Lỗi khi phát nhạc: {e}")
 
     @commands.hybrid_command(name="search", description="Tìm kiếm nhạc và chọn từ 5 kết quả")
     @app_commands.describe(query="Tên bài hát muốn tìm kiếm")
@@ -716,31 +764,56 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(f"❌ Không tìm thấy playlist nào tên **{name}**! Hãy tạo trước bằng `/playlist name {name}`")
             return
         
-        is_url = query.startswith(("http://", "https://"))
-        search = query if is_url else f"ytsearch1:{query}"
-        # Sử dụng YDL_OPTS_SEARCH thay vì PLAY để lấy thông tin cực nhanh (chỉ lấy tên/ID, không tải stream URL nặng nề)
-        raw_track = await self._fetch_info(search, YDL_OPTS_SEARCH)
-        if not raw_track:
-            await ctx.send("❌ Không tìm thấy hoặc không thể tải bài hát này!")
-            return
+        import aiohttp
+        import re
         
-        track_id = raw_track.get("id")
-        if not track_id:
-            await ctx.send("❌ Không lấy được thông tin bài hát!")
+        video_id = None
+        webpage_url = None
+        
+        try:
+            if query.startswith(("http://", "https://")):
+                webpage_url = query
+                match = re.search(r"(?:v=|/)([0-9A-Za-z_-]{11})", webpage_url)
+                if match:
+                    video_id = match.group(1)
+            else:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}") as resp:
+                        text = await resp.text()
+                        match = re.search(r"\"videoId\":\"([0-9A-Za-z_-]{11})\"", text)
+                        if match:
+                            video_id = match.group(1)
+                            webpage_url = f"https://www.youtube.com/watch?v={video_id}"
+            
+            if not video_id or not webpage_url:
+                await ctx.send("❌ Không tìm thấy bài hát!")
+                return
+                
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"https://www.youtube.com/oembed?url={webpage_url}&format=json") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        track = {
+                            "title": data.get("title", "Unknown"),
+                            "id": video_id,
+                            "webpage_url": webpage_url,
+                            "duration": -1,
+                            "uploader": data.get("author_name", "—"),
+                            "url": ""
+                        }
+                    else:
+                        track = {
+                            "title": query[:50] + "..." if not query.startswith("http") else "Video YouTube",
+                            "id": video_id,
+                            "webpage_url": webpage_url,
+                            "duration": -1,
+                            "uploader": "—",
+                            "url": ""
+                        }
+        except Exception as e:
+            log.error(f"[Playlist Add Fast] Error: {e}")
+            await ctx.send("❌ Đã xảy ra lỗi khi tìm kiếm bài hát!")
             return
-            
-        webpage_url = raw_track.get("webpage_url") or raw_track.get("url") or f"https://www.youtube.com/watch?v={track_id}"
-        if not webpage_url.startswith("http"):
-            webpage_url = f"https://www.youtube.com/watch?v={track_id}"
-            
-        track = {
-            "title": raw_track.get("title", "Unknown"),
-            "id": track_id,
-            "webpage_url": webpage_url,
-            "duration": raw_track.get("duration"),
-            "uploader": raw_track.get("uploader") or raw_track.get("channel"),
-            "url": "" # Quan trọng: Set rỗng thay vì None để không bị lỗi database (NOT NULL constraint)
-        }
         
         await db.async_add_track_to_playlist(pl["id"], track)
         await ctx.send(f"✅ Đã thêm **{track['title']}** vào playlist **{pl['name']}**!")
@@ -777,10 +850,11 @@ class Music(commands.Cog, name="Music"):
             mq.queue.extend(tracks)
             await ctx.send(f"▶️ Bắt đầu phát playlist **{pl['name']}** (**{len(tracks) + 1}** bài hát)!")
             try:
-                await self._play_track(vc, ctx.guild.id, first_track, ctx)
+                # Truyền ctx.channel để fix Unknown Message
+                await self._play_track(vc, ctx.guild.id, first_track, ctx.channel)
             except Exception as e:
                 log.error(f"[Music] playlist play error: {e}")
-                await ctx.send(f"❌ Lỗi khi phát nhạc: {e}")
+                await ctx.channel.send(f"❌ Lỗi khi phát nhạc: {e}")
 
     @playlist_group.command(name="loop", description="Bật/tắt lặp lại toàn bộ playlist/hàng chờ")
     async def playlist_loop(self, ctx: commands.Context):

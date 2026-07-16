@@ -775,42 +775,56 @@ def server_reactionroles(guild_id: str):
 
 
 def fetch_track_info_simple(query: str) -> dict:
-    import yt_dlp
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "format": "bestaudio/best",
-        "noplaylist": True,
-        "extract_flat": True,
-        "socket_timeout": 5,
-    }
-    is_url = query.startswith(("http://", "https://"))
-    search = query if is_url else f"ytsearch1:{query}"
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        try:
-            info = ydl.extract_info(search, download=False)
-            if info and "entries" in info:
-                entry = info["entries"][0] if info["entries"] else None
-            else:
-                entry = info
-            if entry:
-                return {
-                    "title": entry.get("title") or "Unknown Title",
-                    "url": entry.get("url") or query,
-                    "duration": entry.get("duration") or 0,
-                    "webpage_url": entry.get("webpage_url") or (f"https://www.youtube.com/watch?v={entry['id']}" if entry.get("id") else query),
-                    "thumbnail": entry.get("thumbnail") or "",
-                    "uploader": entry.get("uploader") or entry.get("channel") or "—"
-                }
-        except Exception as e:
-            print(f"[Dashboard] Fetch error: {e}")
+    import requests
+    import re
+    
+    video_id = None
+    webpage_url = None
+    
+    try:
+        if query.startswith(("http://", "https://")):
+            webpage_url = query
+            match = re.search(r"(?:v=|/)([0-9A-Za-z_-]{11})", webpage_url)
+            if match:
+                video_id = match.group(1)
+        else:
+            resp = requests.get(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}", timeout=5)
+            match = re.search(r"\"videoId\":\"([0-9A-Za-z_-]{11})\"", resp.text)
+            if match:
+                video_id = match.group(1)
+                webpage_url = f"https://www.youtube.com/watch?v={video_id}"
+                
+        if not video_id or not webpage_url:
+            return {
+                "title": "Video YouTube" if query.startswith("http") else query[:50] + "...",
+                "url": "", # Set rỗng để tránh lỗi database
+                "duration": -1,
+                "webpage_url": webpage_url or query,
+                "thumbnail": "",
+                "uploader": "Unknown"
+            }
+            
+        resp = requests.get(f"https://www.youtube.com/oembed?url={webpage_url}&format=json", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "title": data.get("title", "Unknown"),
+                "url": "", # Set rỗng để khi phát nhạc (_play_track) bot tự đi tìm stream URL
+                "duration": -1,
+                "webpage_url": webpage_url,
+                "thumbnail": data.get("thumbnail_url", ""),
+                "uploader": data.get("author_name", "—")
+            }
+    except Exception as e:
+        print(f"Web fetch track error: {e}")
+
     return {
-        "title": query,
-        "url": query,
-        "duration": 0,
-        "webpage_url": query,
+        "title": "Video YouTube" if query.startswith("http") else query[:50] + "...",
+        "url": "",
+        "duration": -1,
+        "webpage_url": webpage_url or query,
         "thumbnail": "",
-        "uploader": "—"
+        "uploader": "Unknown"
     }
 
 
