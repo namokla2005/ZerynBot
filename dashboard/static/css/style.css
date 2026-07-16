@@ -3,25 +3,25 @@
 /* ─── CSS Variables ─────────────────────────────────────────────────────────── */
 :root {
   --bg-body:      #0d0e11;
-  --bg-sidebar:   #111214;
-  --bg-card:      #1a1c1f;
-  --bg-card2:     #212326;
-  --bg-input:     #2b2d31;
-  --bg-hover:     #232529;
-  --bg-active:    #404249;
-  --border:       #2f3136;
-  --border-focus: #5865f2;
+  --bg-sidebar:   rgba(15, 10, 20, 0.55);
+  --bg-card:      rgba(20, 15, 30, 0.55);
+  --bg-card2:     rgba(30, 25, 45, 0.45);
+  --bg-input:     rgba(0, 0, 0, 0.4);
+  --bg-hover:     rgba(255, 255, 255, 0.08);
+  --bg-active:    rgba(255, 255, 255, 0.15);
+  --border:       rgba(255, 255, 255, 0.12);
+  --border-focus: #ff9ec2;
 
-  --accent:        #5865f2;
-  --accent-hover:  #4752c4;
-  --accent-light:  rgba(88,101,242,0.15);
+  --accent:        #ff9ec2;
+  --accent-hover:  #ff7aa8;
+  --accent-light:  rgba(255, 158, 194, 0.25);
 
-  --success:      #23a55a;
-  --success-bg:   rgba(35,165,90,0.15);
-  --danger:       #f23f43;
-  --danger-bg:    rgba(242,63,67,0.15);
-  --warning:      #f0b232;
-  --warning-bg:   rgba(240,178,50,0.15);
+  --success:      #43b581;
+  --success-bg:   rgba(67, 181, 129, 0.2);
+  --danger:       #f04747;
+  --danger-bg:    rgba(240, 71, 71, 0.2);
+  --warning:      #faa61a;
+  --warning-bg:   rgba(250, 166, 26, 0.2);
 
   --text-primary:   #f2f3f5;
   --text-secondary: #b5bac1;
@@ -42,7 +42,8 @@
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--bg-body);
+  background: url('../bg.png') no-repeat center center fixed;
+  background-size: cover;
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
@@ -69,6 +70,8 @@ button { cursor: pointer; }
   min-height: 100vh;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -147,6 +150,7 @@ button { cursor: pointer; }
 /* ─── Cards ─────────────────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card); border: 1px solid var(--border);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-radius: var(--radius-lg); padding: 24px;
   transition: border-color var(--transition);
   margin-bottom: 20px;
