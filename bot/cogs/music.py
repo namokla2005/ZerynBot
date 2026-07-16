@@ -71,15 +71,22 @@ class MusicControlView(discord.ui.View):
             return None
         player: wavelink.Player = interaction.guild.voice_client
         if not player:
-            await interaction.response.send_message("❌ Bot không phát nhạc ở server này!", ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send("❌ Bot không phát nhạc ở server này!", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Bot không phát nhạc ở server này!", ephemeral=True)
             return None
         if not interaction.user.voice or interaction.user.voice.channel != player.channel:
-            await interaction.response.send_message("❌ Bạn phải ở trong cùng kênh thoại với bot!", ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send("❌ Bạn phải ở trong cùng kênh thoại với bot!", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Bạn phải ở trong cùng kênh thoại với bot!", ephemeral=True)
             return None
         return player
 
     @discord.ui.button(label="Autoplay", style=discord.ButtonStyle.secondary, emoji="🔀")
     async def btn_autoplay(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         player = await self.get_player(interaction)
         if not player: return
         
@@ -87,18 +94,18 @@ class MusicControlView(discord.ui.View):
             player.queue.mode = wavelink.QueueMode.normal
         else:
             player.queue.mode = wavelink.QueueMode.auto_play
-        await interaction.response.defer()
 
     @discord.ui.button(label="Stop", style=discord.ButtonStyle.secondary, emoji="⏹️")
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         player = await self.get_player(interaction)
         if not player: return
         player.queue.clear()
         await player.disconnect()
-        await interaction.response.defer()
 
     @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji="⏸️")
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         player = await self.get_player(interaction)
         if not player: return
         
@@ -111,22 +118,22 @@ class MusicControlView(discord.ui.View):
             button.label = "Resume"
             button.emoji = "▶️"
             
-        await interaction.response.edit_message(view=self)
+        await interaction.edit_original_response(view=self)
 
     @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji="⏭️")
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         player = await self.get_player(interaction)
         if not player: return
         await player.skip(force=True)
-        await interaction.response.defer()
 
     @discord.ui.button(label="Like", style=discord.ButtonStyle.secondary, emoji="❤️")
     async def btn_like(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
         player = await self.get_player(interaction)
         if not player or not player.current:
             return
             
-        await interaction.response.defer(ephemeral=True)
         import database as db
         guild_id_str = str(self.guild_id)
         pl = await db.async_get_playlist_by_name(guild_id_str, "Yêu thích")
