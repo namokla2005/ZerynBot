@@ -224,16 +224,18 @@ class Music(commands.Cog, name="Music"):
         await self.bot.wait_until_ready()
         # Thay thế bằng public lavalink node
         # Danh sách node: https://lavalink.darrennathanael.com/No-TTS/Public-Lavalink/
-        node = wavelink.Node(
-            uri="https://lavalinkv4.serenetia.com:443", 
-            password="https://dsc.gg/ajidevserver"
-        )
         try:
             import aiohttp
             connector = aiohttp.TCPConnector(ssl=False)
             session = aiohttp.ClientSession(connector=connector)
             
-            await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100, client_session=session)
+            node = wavelink.Node(
+                uri="https://lavalinkv4.serenetia.com:443", 
+                password="https://dsc.gg/ajidevserver",
+                client_session=session
+            )
+            
+            await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
             log.info("[Wavelink] Connected to Lavalink Node!")
         except Exception as e:
             log.error(f"[Wavelink] Failed to connect: {e}")
