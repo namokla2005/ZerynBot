@@ -33,7 +33,6 @@ YDL_OPTS_PLAY = {
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
-    "extractor_args": {"youtube": ["player_client=android,ios,web"]},
     "socket_timeout": 5,
 }
 
@@ -46,7 +45,6 @@ YDL_OPTS_LIVE = {
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
-    "extractor_args": {"youtube": ["player_client=android,ios,web"]},
     "socket_timeout": 5,
 }
 
@@ -58,7 +56,6 @@ YDL_OPTS_SEARCH = {
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
-    "extractor_args": {"youtube": ["player_client=android,ios,web"]},
     "socket_timeout": 3,
 }
 
@@ -371,7 +368,7 @@ class Music(commands.Cog, name="Music"):
         mq.current = track
         mq._transitioning = False
 
-        if track.get("webpage_url") and not track.get("is_live"):
+        if not track.get("url") and track.get("webpage_url") and not track.get("is_live"):
             fresh = await self._fetch_info(track["webpage_url"], YDL_OPTS_PLAY)
             if fresh and fresh.get("url"):
                 track = {**mq.current, **{k: v for k, v in fresh.items() if v}}
@@ -390,7 +387,8 @@ class Music(commands.Cog, name="Music"):
 
         headers = track.get("http_headers") or {}
         if "User-Agent" not in headers:
-            headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        
         headers_list = []
         for k, v in headers.items():
             if k and v:
