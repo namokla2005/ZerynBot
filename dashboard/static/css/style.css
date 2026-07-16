@@ -3,10 +3,10 @@
 /* ─── CSS Variables ─────────────────────────────────────────────────────────── */
 :root {
   --bg-body:      #0d0e11;
-  --bg-sidebar:   rgba(15, 10, 20, 0.55);
-  --bg-card:      rgba(20, 15, 30, 0.55);
-  --bg-card2:     rgba(30, 25, 45, 0.45);
-  --bg-input:     rgba(0, 0, 0, 0.4);
+  --bg-sidebar:   rgba(10, 5, 15, 0.75);
+  --bg-card:      rgba(15, 10, 25, 0.75);
+  --bg-card2:     rgba(25, 20, 35, 0.65);
+  --bg-input:     rgba(0, 0, 0, 0.5);
   --bg-hover:     rgba(255, 255, 255, 0.08);
   --bg-active:    rgba(255, 255, 255, 0.15);
   --border:       rgba(255, 255, 255, 0.12);
@@ -42,13 +42,22 @@
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: url('../bg.png') no-repeat center center fixed;
-  background-size: cover;
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: -20px; left: -20px; right: -20px; bottom: -20px;
+  background: url('../bg.png') no-repeat center center;
+  background-size: cover;
+  filter: blur(4px) brightness(0.65);
+  z-index: -1;
 }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
