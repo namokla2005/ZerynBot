@@ -225,8 +225,8 @@ class Music(commands.Cog, name="Music"):
         # Thay thế bằng public lavalink node
         # Danh sách node: https://lavalink.darrennathanael.com/No-TTS/Public-Lavalink/
         node = wavelink.Node(
-            uri="http://lavalink.serenetia.com:80", 
-            password="https://dsc.gg/ajidevserver"
+            uri="https://lavalink.lexnet.cc:443", 
+            password="lexn3t_@!"
         )
         try:
             await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
