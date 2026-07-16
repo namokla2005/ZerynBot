@@ -42,14 +42,20 @@ class HelpSelect(discord.ui.Select):
             embed.description = (
                 "`/ping` — Kiểm tra độ trễ kết nối của bot\n"
                 "`/membercount` — Thống kê số lượng thành viên và bot trong server\n"
-                "`/help` — Danh sách tất cả các lệnh của bot"
+                "`/help` — Danh sách tất cả các lệnh của bot\n"
+                "`/poll [câu hỏi]` — Tạo một cuộc bình chọn nhanh\n"
+                "`/roll [số]` — Tung xúc xắc (mặc định 1-100)\n"
+                "`/choose [opt1, opt2]` — Bot sẽ chọn ngẫu nhiên giúp bạn"
             )
         elif val == "info":
             embed.title = "ℹ️ Thông tin"
             embed.description = (
                 "`/serverinfo` — Hiển thị thông tin chi tiết về server\n"
                 "`/userinfo [@user]` — Hiển thị thông tin chi tiết về người dùng\n"
-                "`/avatar [@user]` — Hiển thị avatar full-size của người dùng"
+                "`/avatar [@user]` — Hiển thị avatar full-size của người dùng\n"
+                "`/botinfo` — Hiển thị thông số kỹ thuật của bot\n"
+                "`/roleinfo [@role]` — Hiển thị thông tin về một Role\n"
+                "`/channelinfo [#channel]` — Hiển thị thông tin về một Kênh"
             )
         elif val == "music":
             embed.title = "🎵 Âm nhạc"
@@ -208,6 +214,55 @@ class Utility(commands.Cog):
 
         view = HelpView(self.bot, ctx)
         view.message = await ctx.send(embed=embed, view=view)
+
+    # ─── poll ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="poll", description="Tạo một cuộc bình chọn nhanh")
+    @discord.app_commands.describe(question="Câu hỏi bình chọn")
+    async def poll(self, ctx: commands.Context, *, question: str):
+        embed = discord.Embed(
+            title="📊 Bình chọn",
+            description=f"**{question}**\n\nThả cảm xúc bên dưới để bình chọn!",
+            color=config.COLOR_INFO,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=f"Tạo bởi {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        msg = await ctx.send(embed=embed)
+        await msg.add_reaction("👍")
+        await msg.add_reaction("👎")
+        await msg.add_reaction("🤷")
+
+    # ─── roll ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="roll", description="Tung xúc xắc (ngẫu nhiên từ 1 đến số chỉ định)")
+    @discord.app_commands.describe(max_number="Số lớn nhất (mặc định là 100)")
+    async def roll(self, ctx: commands.Context, max_number: int = 100):
+        if max_number <= 1:
+            await ctx.send("❌ Số lớn nhất phải lớn hơn 1!")
+            return
+        import random
+        result = random.randint(1, max_number)
+        embed = discord.Embed(
+            title="🎲 Tung xúc xắc",
+            description=f"Bạn đã tung ra số: **{result}** (1 - {max_number})",
+            color=0xFEE75C
+        )
+        await ctx.send(embed=embed)
+
+    # ─── choose ────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="choose", description="Bot sẽ chọn ngẫu nhiên giúp bạn một phương án")
+    @discord.app_commands.describe(options="Các phương án cách nhau bởi dấu phẩy (VD: Ăn cơm, Ăn phở, Nhịn)")
+    async def choose(self, ctx: commands.Context, *, options: str):
+        import random
+        opts = [o.strip() for o in options.split(",") if o.strip()]
+        if len(opts) < 2:
+            await ctx.send("❌ Vui lòng nhập ít nhất 2 phương án, cách nhau bằng dấu phẩy!")
+            return
+        result = random.choice(opts)
+        embed = discord.Embed(
+            title="🤔 Lựa chọn ngẫu nhiên",
+            description=f"Giữa các phương án: `{', '.join(opts)}`\n\n🎯 Mình chọn: **{result}**",
+            color=config.COLOR_INFO
+        )
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: commands.Bot):

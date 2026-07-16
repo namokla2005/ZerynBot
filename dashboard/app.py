@@ -366,6 +366,36 @@ _COMMANDS_DATA = [
                     "type": "embed", "color": "#5865f2", "title": "👥 Thành viên server",
                     "desc": "**Tổng cộng:** `142`<br>**Đang online:** `38`<br>**Bot:** `4`"
                 }
+            },
+            {
+                "name": "poll", "emoji": "📊",
+                "desc": "Tạo một cuộc bình chọn nhanh",
+                "usage": "/poll [câu hỏi]", "example": "/poll Tối nay ăn gì?",
+                "args": [{"name": "question", "type": "Text", "required": True, "desc": "Câu hỏi bình chọn"}],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "📊 Bình chọn",
+                    "desc": "**Tối nay ăn gì?**<br><br>Thả cảm xúc bên dưới để bình chọn!"
+                }
+            },
+            {
+                "name": "roll", "emoji": "🎲",
+                "desc": "Tung xúc xắc (ngẫu nhiên từ 1 đến số chỉ định)",
+                "usage": "/roll [số]", "example": "/roll 100",
+                "args": [{"name": "max_number", "type": "Number", "required": False, "desc": "Số lớn nhất (mặc định: 100)"}],
+                "preview": {
+                    "type": "embed", "color": "#FEE75C", "title": "🎲 Tung xúc xắc",
+                    "desc": "Bạn đã tung ra số: **42** (1 - 100)"
+                }
+            },
+            {
+                "name": "choose", "emoji": "🤔",
+                "desc": "Bot sẽ chọn ngẫu nhiên giúp bạn một phương án",
+                "usage": "/choose [các lựa chọn]", "example": "/choose Ăn cơm, Ăn phở",
+                "args": [{"name": "options", "type": "Text", "required": True, "desc": "Các phương án (cách nhau bởi dấu phẩy)"}],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🤔 Lựa chọn ngẫu nhiên",
+                    "desc": "Giữa các phương án: `Ăn cơm, Ăn phở`<br><br>🎯 Mình chọn: **Ăn phở**"
+                }
             }
         ]
     },
@@ -506,6 +536,36 @@ _COMMANDS_DATA = [
                     "image": "https://cdn.discordapp.com/embed/avatars/0.png"
                 }
             },
+            {
+                "name": "botinfo", "emoji": "🤖",
+                "desc": "Hiển thị thông số kỹ thuật và trạng thái của bot",
+                "usage": "/botinfo", "example": "/botinfo",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🤖 Thông tin Bot",
+                    "desc": "**⚙️ CPU:** `2.5%` | **🗄️ RAM:** `45.2 MB`<br>**🐍 Python:** `3.10.0` | **🏰 Servers:** `5`"
+                }
+            },
+            {
+                "name": "roleinfo", "emoji": "🎭",
+                "desc": "Hiển thị thông tin về một Role",
+                "usage": "/roleinfo [@role]", "example": "/roleinfo @Admin",
+                "args": [{"name": "role", "type": "Mention", "required": True, "desc": "Role cần xem thông tin"}],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🎭 Thông tin Role: Admin",
+                    "desc": "**🪪 ID:** `123456789`<br>**👥 Số người có:** `5`<br>**📌 Có thể tag:** ✅"
+                }
+            },
+            {
+                "name": "channelinfo", "emoji": "📺",
+                "desc": "Hiển thị thông tin về một Kênh",
+                "usage": "/channelinfo [#channel]", "example": "/channelinfo #general",
+                "args": [{"name": "channel", "type": "Mention", "required": False, "desc": "Kênh cần xem thông tin (mặc định: kênh hiện tại)"}],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "📺 Thông tin Kênh: general",
+                    "desc": "**🪪 ID:** `987654321`<br>**📂 Thể loại:** `text`<br>**🔞 NSFW:** ❌"
+                }
+            }
         ]
     },
     {
