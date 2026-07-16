@@ -409,7 +409,7 @@ class Music(commands.Cog, name="Music"):
             f'-headers "{headers_str}"'
         )
 
-        source = discord.FFmpegPCMAudio(track["url"], before_options=before_opts, options="-vn -b:a 128k")
+        source = discord.FFmpegPCMAudio(track["url"], before_options=before_opts, options="-vn -b:a 128k -threads 1")
         source = discord.PCMVolumeTransformer(source, volume=0.5)
 
         def _after(error):
