@@ -493,7 +493,7 @@ def send_test_card(guild_id: str):
         if avatar_url:
             try:
                 import requests as _req
-                r = _req.get(avatar_url, timeout=8)
+                r = _req.get(avatar_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
                 if r.status_code == 200:
                     avatar_bytes = r.content
             except Exception:
@@ -508,7 +508,7 @@ def send_test_card(guild_id: str):
         if bg_url:
             try:
                 import requests as _req
-                r = _req.get(bg_url, timeout=8)
+                r = _req.get(bg_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
                 if r.status_code == 200:
                     bg_bytes = r.content
             except Exception:

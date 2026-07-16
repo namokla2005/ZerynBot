@@ -67,7 +67,8 @@ def _get_pil_font(size: int, bold: bool = False):
 # ─── Avatar download ───────────────────────────────────────────────────────────
 async def _download_avatar(url: str) -> bytes | None:
     try:
-        async with aiohttp.ClientSession() as session:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        async with aiohttp.ClientSession(headers=headers) as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 200:
                     return await resp.read()
@@ -80,7 +81,8 @@ async def _download_avatar(url: str) -> bytes | None:
 def _download_avatar_sync(url: str) -> bytes | None:
     try:
         import requests as _req
-        r = _req.get(url, timeout=8)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        r = _req.get(url, headers=headers, timeout=8)
         if r.status_code == 200:
             return r.content
     except Exception as e:
