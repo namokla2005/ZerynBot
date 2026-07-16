@@ -331,5 +331,60 @@ class Music(commands.Cog, name="Music"):
             player.queue.mode = wavelink.QueueMode.normal
             await ctx.send("➡️ Đã TẮT lặp lại!")
 
+    @commands.hybrid_command(name="stop", description="Dừng nhạc và xóa toàn bộ hàng chờ")
+    async def stop(self, ctx: commands.Context):
+        player = await self._ensure_voice(ctx)
+        if not player: return
+        player.queue.clear()
+        await player.disconnect()
+        await ctx.send("⏹️ Đã dừng nhạc và rời kênh!")
+
+    @commands.hybrid_command(name="pause", description="Tạm dừng phát nhạc")
+    async def pause(self, ctx: commands.Context):
+        player = await self._ensure_voice(ctx)
+        if not player: return
+        await player.pause(True)
+        await ctx.send("⏸️ Đã tạm dừng nhạc!")
+
+    @commands.hybrid_command(name="resume", description="Tiếp tục phát nhạc đang tạm dừng")
+    async def resume(self, ctx: commands.Context):
+        player = await self._ensure_voice(ctx)
+        if not player: return
+        await player.pause(False)
+        await ctx.send("▶️ Đã tiếp tục phát nhạc!")
+
+    @commands.hybrid_command(name="loop", description="Bật/tắt chế độ lặp lại bài hiện tại")
+    async def loop(self, ctx: commands.Context):
+        player = await self._ensure_voice(ctx)
+        if not player: return
+        if player.queue.mode == wavelink.QueueMode.loop:
+            player.queue.mode = wavelink.QueueMode.normal
+            await ctx.send("➡️ Đã TẮT lặp lại bài hát!")
+        else:
+            player.queue.mode = wavelink.QueueMode.loop
+            await ctx.send("🔂 Đã BẬT lặp lại bài hát hiện tại!")
+
+    @commands.hybrid_command(name="autoplay", description="Bật/tắt tự động phát bài tiếp theo")
+    async def autoplay(self, ctx: commands.Context):
+        player = await self._ensure_voice(ctx)
+        if not player: return
+        if player.queue.mode == wavelink.QueueMode.auto_play:
+            player.queue.mode = wavelink.QueueMode.normal
+            await ctx.send("➡️ Đã TẮT Autoplay!")
+        else:
+            player.queue.mode = wavelink.QueueMode.auto_play
+            await ctx.send("🔀 Đã BẬT Autoplay (Tự động phát nhạc tương tự)!")
+
+    @commands.hybrid_command(name="replay", description="Phát lại bài hát hiện tại từ đầu")
+    async def replay(self, ctx: commands.Context):
+        player = await self._ensure_voice(ctx)
+        if not player or not player.current: return
+        await player.seek(0)
+        await ctx.send("⏪ Đã phát lại bài hát từ đầu!")
+
+    @commands.hybrid_command(name="lofi", description="Phát kênh Lofi Girl 24/7")
+    async def lofi(self, ctx: commands.Context):
+        await self.play(ctx, query="https://www.youtube.com/c/LofiGirl/live")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Music(bot))
