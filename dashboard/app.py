@@ -722,7 +722,7 @@ def fetch_track_info_simple(query: str) -> dict:
         "format": "bestaudio/best",
         "noplaylist": True,
         "extract_flat": True,
-        "socket_timeout": 10,
+        "socket_timeout": 5,
     }
     is_url = query.startswith(("http://", "https://"))
     search = query if is_url else f"ytsearch1:{query}"

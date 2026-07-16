@@ -30,7 +30,7 @@ YDL_OPTS_PLAY = {
     "no_warnings": True,
     "format":      "bestaudio/best",
     "noplaylist":  True,
-    "socket_timeout": 15,
+    "socket_timeout": 5,
 }
 
 YDL_OPTS_LIVE = {
@@ -39,7 +39,7 @@ YDL_OPTS_LIVE = {
     "format":        "bestaudio/best",
     "noplaylist":    True,
     "live_from_start": False,
-    "socket_timeout": 15,
+    "socket_timeout": 5,
 }
 
 YDL_OPTS_SEARCH = {
@@ -47,7 +47,7 @@ YDL_OPTS_SEARCH = {
     "no_warnings":   True,
     "extract_flat":  True,
     "skip_download": True,
-    "socket_timeout": 10,
+    "socket_timeout": 3,
 }
 
 FFMPEG_OPTS = {
