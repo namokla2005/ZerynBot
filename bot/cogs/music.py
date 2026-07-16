@@ -24,33 +24,30 @@ def _fmt_duration(seconds) -> str:
     return f"{m:02d}:{s:02d}"
 
 def _now_playing_embed(track: wavelink.Playable, queue: wavelink.Queue) -> discord.Embed:
-    embed = discord.Embed(
-        title       = "🎶 Đang phát",
-        description = f"[{track.title}]({track.uri})",
-        color       = discord.Color.purple(),
+    title_link = f"[{track.title}]({track.uri})"
+    duration_str = _fmt_duration(track.length / 1000) if track.length else "🔴 LIVE"
+    requester = getattr(track, "requester_mention", "@Người ẩn danh")
+    
+    # Calculate queue statistics
+    queue_len = len(queue)
+    total_seconds = sum((t.length / 1000) for t in queue if getattr(t, "length", None))
+    if track.length:
+        total_seconds += (track.length / 1000)
+    total_duration_str = _fmt_duration(total_seconds)
+    
+    desc = f"**{title_link}**\n"
+    desc += f"CLOUD MUSIC — `{duration_str}` — {requester}\n\n"
+    desc += f"**Volume:** `100%` — **Queue:** `{queue_len} songs` — **Total duration:** `{total_duration_str}`\n\n"
+    desc += "▬▬▬▬▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+    
+    e = discord.Embed(
+        title       = "Now Playing",
+        description = desc,
+        color       = 0x5865F2,
     )
-    embed.add_field(name="Kênh", value=track.author or "—", inline=True)
-    embed.add_field(name="Thời lượng", value=_fmt_duration(track.length / 1000) if track.length else "—", inline=True)
-    
-    requester = getattr(track, "requester_mention", "Người ẩn danh")
-    embed.add_field(name="Yêu cầu bởi", value=requester, inline=True)
-    
     if track.artwork:
-        embed.set_thumbnail(url=track.artwork)
-
-    if not queue.is_empty:
-        up_next = queue[0]
-        embed.set_footer(text=f"Tiếp theo: {up_next.title}")
-    else:
-        if queue.mode == wavelink.QueueMode.loop_all:
-            embed.set_footer(text="Chế độ: Lặp lại danh sách")
-        elif queue.mode == wavelink.QueueMode.loop:
-            embed.set_footer(text="Chế độ: Lặp lại 1 bài")
-        elif queue.mode == wavelink.QueueMode.auto_play:
-            embed.set_footer(text="Chế độ: Tự động phát nhạc tương tự")
-        else:
-            embed.set_footer(text="Hết hàng chờ")
-    return embed
+        e.set_thumbnail(url=track.artwork)
+    return e
 # ─── UI Components ─────────────────────────────────────────────────────────────
 class MusicControlView(discord.ui.View):
     def __init__(self, cog: "Music", guild_id: int):
@@ -167,7 +164,7 @@ class Music(commands.Cog, name="Music"):
         view = MusicControlView(self, player.guild.id)
         embed = _now_playing_embed(payload.track, player.queue)
         
-        # Xóa tin nhắn cũ nếu có (cần lưu lại message_id vào đâu đó, ta dùng getattr)
+        # Xóa tin nhắn cũ nếu có
         old_msg = getattr(player, "now_playing_msg", None)
         if old_msg:
             try:
@@ -175,10 +172,16 @@ class Music(commands.Cog, name="Music"):
             except Exception:
                 pass
         
-        channel = self.bot.get_channel(player.channel.id)
+        channel = getattr(player, "text_channel", None)
+        if not channel:
+            channel = self.bot.get_channel(player.channel.id)
+        
         if channel:
-            msg = await channel.send(embed=embed, view=view)
-            player.now_playing_msg = msg
+            try:
+                msg = await channel.send(embed=embed, view=view)
+                player.now_playing_msg = msg
+            except Exception as e:
+                log.error(f"[Wavelink] Lỗi gửi embed: {e}")
 
     async def _ensure_voice(self, ctx: commands.Context) -> wavelink.Player:
         if not ctx.author.voice:
@@ -193,6 +196,8 @@ class Music(commands.Cog, name="Music"):
             except Exception as e:
                 await ctx.send(f"❌ Không thể vào voice: {e}")
                 return None
+        
+        player.text_channel = ctx.channel
         return player
 
     @commands.hybrid_command(name="join", description="Gọi bot vào kênh voice")
@@ -237,7 +242,12 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(embed=embed)
         else:
             await player.play(track)
-            await ctx.send(f"▶️ Bắt đầu phát: **{track.title}**")
+            embed = discord.Embed(
+                title       = "▶️ Đã nhận yêu cầu",
+                description = f"Đang tải dữ liệu cho **[{track.title}]({track.uri})**...",
+                color       = discord.Color.blurple(),
+            )
+            await ctx.send(embed=embed)
     playlist_group = app_commands.Group(name="playlist", description="Quản lý playlist cá nhân")
 
     @playlist_group.command(name="name", description="Đổi tên playlist của server")
