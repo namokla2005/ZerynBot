@@ -54,6 +54,17 @@ class MusicControlView(discord.ui.View):
         super().__init__(timeout=None)
         self.cog = cog
         self.guild_id = guild_id
+        
+        # Cập nhật trạng thái nút Pause/Resume
+        guild = cog.bot.get_guild(guild_id)
+        if guild:
+            player: wavelink.Player = guild.voice_client
+            if player and player.paused:
+                self.btn_pause.label = "Resume"
+                self.btn_pause.emoji = "▶️"
+            else:
+                self.btn_pause.label = "Pause"
+                self.btn_pause.emoji = "⏸️"
 
     async def get_player(self, interaction: discord.Interaction) -> wavelink.Player:
         if not interaction.guild:
@@ -67,45 +78,49 @@ class MusicControlView(discord.ui.View):
             return None
         return player
 
-    @discord.ui.button(label="Autoplay", style=discord.ButtonStyle.blurple, emoji="🔀")
+    @discord.ui.button(label="Autoplay", style=discord.ButtonStyle.secondary, emoji="🔀")
     async def btn_autoplay(self, interaction: discord.Interaction, button: discord.ui.Button):
         player = await self.get_player(interaction)
         if not player: return
         
         if player.queue.mode == wavelink.QueueMode.auto_play:
             player.queue.mode = wavelink.QueueMode.normal
-            await interaction.response.send_message("Tắt tự động phát nhạc tương tự.", ephemeral=True)
         else:
             player.queue.mode = wavelink.QueueMode.auto_play
-            await interaction.response.send_message("Đã BẬT tự động phát nhạc tương tự (Autoplay)!", ephemeral=True)
+        await interaction.response.defer()
 
-    @discord.ui.button(label="Stop", style=discord.ButtonStyle.danger, emoji="⏹️")
+    @discord.ui.button(label="Stop", style=discord.ButtonStyle.secondary, emoji="⏹️")
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         player = await self.get_player(interaction)
         if not player: return
         player.queue.clear()
         await player.disconnect()
-        await interaction.response.send_message("⏹️ Đã dừng nhạc và rời kênh!", ephemeral=True)
+        await interaction.response.defer()
 
-    @discord.ui.button(label="Pause/Resume", style=discord.ButtonStyle.success, emoji="⏯️")
+    @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji="⏸️")
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
         player = await self.get_player(interaction)
         if not player: return
+        
         if player.paused:
             await player.pause(False)
-            await interaction.response.send_message("▶️ Đã tiếp tục phát nhạc!", ephemeral=True)
+            button.label = "Pause"
+            button.emoji = "⏸️"
         else:
             await player.pause(True)
-            await interaction.response.send_message("⏸️ Đã tạm dừng nhạc!", ephemeral=True)
+            button.label = "Resume"
+            button.emoji = "▶️"
+            
+        await interaction.response.edit_message(view=self)
 
     @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji="⏭️")
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         player = await self.get_player(interaction)
         if not player: return
         await player.skip(force=True)
-        await interaction.response.send_message("⏭️ Đã bỏ qua bài hát hiện tại!", ephemeral=True)
+        await interaction.response.defer()
 
-    @discord.ui.button(label="Like", style=discord.ButtonStyle.danger, emoji="❤️")
+    @discord.ui.button(label="Like", style=discord.ButtonStyle.secondary, emoji="❤️")
     async def btn_like(self, interaction: discord.Interaction, button: discord.ui.Button):
         player = await self.get_player(interaction)
         if not player or not player.current:
@@ -248,7 +263,9 @@ class Music(commands.Cog, name="Music"):
                 color       = discord.Color.blurple(),
             )
             await ctx.send(embed=embed)
-    playlist_group = app_commands.Group(name="playlist", description="Quản lý playlist cá nhân")
+    @commands.hybrid_group(name="playlist", description="Quản lý playlist cá nhân")
+    async def playlist_group(self, ctx: commands.Context):
+        pass
 
     @playlist_group.command(name="name", description="Đổi tên playlist của server")
     @app_commands.describe(name="Tên mới cho playlist")
