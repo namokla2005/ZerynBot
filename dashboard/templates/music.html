@@ -1,0 +1,302 @@
+{% extends "base_server.html" %}
+{% block title %}Cấu hình Music{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Premium Playlist Layout ────────────────────────────────────────── */
+  .playlist-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .playlist-card {
+    background: #202225;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .playlist-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .playlist-header {
+    background: rgba(255,255,255,0.02);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .playlist-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .playlist-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #fff;
+  }
+  .playlist-badge {
+    background: rgba(88, 101, 242, 0.15);
+    color: #5865f2;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+  .playlist-body {
+    padding: 18px 20px;
+    background: #18191c;
+  }
+  .track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .track-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.01);
+  }
+  .track-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+  .track-details {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+  .track-thumb {
+    width: 48px;
+    height: 32px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: #36393f;
+    flex-shrink: 0;
+  }
+  .track-info {
+    min-width: 0;
+    flex: 1;
+  }
+  .track-title {
+    font-size: 0.825rem;
+    font-weight: 600;
+    color: #f2f3f5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .track-actions {
+    margin-left: 10px;
+  }
+  .track-delete-btn {
+    background: none;
+    border: none;
+    color: #ed4245;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  .track-delete-btn:hover {
+    background: rgba(237, 66, 69, 0.15);
+  }
+  .playlist-add-form {
+    display: flex;
+    gap: 8px;
+  }
+  .accordion-icon {
+    transition: transform 0.2s;
+  }
+  .collapsed .accordion-icon {
+    transform: rotate(-90deg);
+  }
+  .playlist-body-collapsed {
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🎵 Cấu hình Music</h1>
+    <p class="page-subtitle">Quản lý tính năng phát nhạc trong server của bạn</p>
+  </div>
+</div>
+
+<div class="builder-layout">
+  
+  <!-- Left Panel: Settings & Status -->
+  <div class="builder-panel">
+    <div class="section-header">
+      <div class="section-title">⚙️ Cài đặt chung</div>
+    </div>
+    
+    <div class="card" style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:600; font-size:0.95rem; margin-bottom:4px;">Kích hoạt module Music</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Cho phép thành viên sử dụng các lệnh nhạc (/play, /search, /lofi,...)</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" class="module-toggle"
+                 data-guild="{{ guild_id }}" data-module="music"
+                 {% if modules.get('music', False) %}checked{% endif %}>
+          <span class="switch-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="section-header" style="margin-top:24px;">
+      <div class="section-title">🛠️ Trạng thái hệ thống (Bot Host)</div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
+          <span style="font-size:0.875rem;">Voice Encryption (davey)</span>
+          {% if has_davey %}
+            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Sẵn sàng</span>
+          {% else %}
+            <span class="badge badge-danger" style="background:rgba(237,66,69,0.15); color:#ed4245; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">❌ Thiếu</span>
+          {% endif %}
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
+          <span style="font-size:0.875rem;">Audio Decoder (FFmpeg)</span>
+          {% if has_ffmpeg %}
+            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Sẵn sàng</span>
+          {% else %}
+            <span class="badge badge-warning" style="background:rgba(240,178,50,0.15); color:#f0b232; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">⚠️ Chưa cấu hình</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Playlists Manager -->
+  <div class="builder-panel" style="flex: 1.4;">
+    <div class="section-header">
+      <div class="section-title">📂 Quản lý danh sách phát (Playlists)</div>
+    </div>
+
+    <!-- Create Playlist Form -->
+    <div class="card" style="margin-bottom: 20px;">
+      <form action="{{ url_for('create_playlist_route', guild_id=guild_id) }}" method="POST" style="display:flex; gap:10px;">
+        <input type="text" name="playlist_name" class="form-control" placeholder="Tên danh mục playlist mới... (VD: Nhạc trẻ)" required>
+        <button type="submit" class="btn btn-primary" style="white-space:nowrap;">
+          <i class="bi bi-folder-plus"></i> Tạo playlist
+        </button>
+      </form>
+    </div>
+
+    <!-- Playlists list -->
+    <div class="playlist-container">
+      {% if playlists %}
+        {% for pl in playlists %}
+          <div class="playlist-card">
+            <!-- Header -->
+            <div class="playlist-header" onclick="togglePlaylist('pl-body-{{ pl.id }}', this)">
+              <div class="playlist-title-wrap">
+                <i class="bi bi-chevron-down accordion-icon"></i>
+                <i class="bi bi-music-note-list" style="color:var(--accent);"></i>
+                <span class="playlist-name">{{ pl.name }}</span>
+                <span class="playlist-badge">{{ pl.tracks | length }} bài hát</span>
+              </div>
+              <div>
+                <a href="{{ url_for('delete_playlist_route', guild_id=guild_id, playlist_id=pl.id) }}"
+                   class="btn btn-danger btn-sm" onclick="event.stopPropagation(); return confirm('Bạn có chắc chắn muốn xóa playlist này?')">
+                  <i class="bi bi-trash3-fill"></i> Xóa
+                </a>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div class="playlist-body" id="pl-body-{{ pl.id }}">
+              <!-- Track list -->
+              <div class="track-list">
+                {% if pl.tracks %}
+                  {% for track in pl.tracks %}
+                    <div class="track-item">
+                      <div class="track-details">
+                        {% if track.thumbnail %}
+                          <img class="track-thumb" src="{{ track.thumbnail }}" alt="thumbnail">
+                        {% else %}
+                          <div class="track-thumb" style="display:flex; align-items:center; justify-content:center; font-size:0.9rem; background:#2f3136;">🎵</div>
+                        {% endif %}
+                        <div class="track-info">
+                          <div class="track-title" title="{{ track.title }}">{{ track.title }}</div>
+                          <div class="track-meta">Kênh: {{ track.uploader or '—' }} | Thời lượng: {% if track.duration %}{{ (track.duration // 60) }}:{{ "%02d"|format(track.duration % 60) }}{% else %}🔴 LIVE{% endif %}</div>
+                        </div>
+                      </div>
+                      <div class="track-actions">
+                        <a href="{{ url_for('delete_track_route', guild_id=guild_id, track_id=track.id) }}"
+                           class="track-delete-btn" title="Xóa khỏi playlist" onclick="return confirm('Bạn muốn xóa bài hát này?')">
+                          <i class="bi bi-x-circle-fill"></i>
+                        </a>
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">
+                    <i class="bi bi-info-circle"></i> Chưa có bài hát nào trong playlist này. Hãy thêm bài hát bên dưới!
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Add track to playlist -->
+              <form action="{{ url_for('add_track_route', guild_id=guild_id, playlist_id=pl.id) }}" method="POST" class="playlist-add-form">
+                <input type="text" name="track_query" class="form-control form-control-sm" placeholder="Nhập tên bài hát hoặc link YouTube..." required>
+                <button type="submit" class="btn btn-secondary btn-sm" style="white-space:nowrap;">
+                  <i class="bi bi-plus-lg"></i> Thêm bài
+                </button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="card" style="text-align:center; padding:40px; color:var(--text-muted);">
+          <i class="bi bi-folder-symlink-fill" style="font-size:2.5rem; margin-bottom:12px; display:inline-block; color:rgba(255,255,255,0.1);"></i>
+          <div>Chưa có playlist nào được tạo trong server này.</div>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function togglePlaylist(bodyId, headerEl) {
+    const body = document.getElementById(bodyId);
+    if (body.classList.contains('playlist-body-collapsed')) {
+      body.classList.remove('playlist-body-collapsed');
+      headerEl.classList.remove('collapsed');
+    } else {
+      body.classList.add('playlist-body-collapsed');
+      headerEl.classList.add('collapsed');
+    }
+  }
+</script>
+{% endblock %}

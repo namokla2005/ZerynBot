@@ -1,0 +1,495 @@
+{% extends "base_server.html" %}
+{% block title %}Welcome & Goodbye{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Card preview ─────────────────────────────────────────── */
+  .card-preview-wrap {
+    background: #1a1b23;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .card-preview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  /* Banner card itself */
+  .banner-outer {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border-radius: 6px;
+    margin: 15px auto;
+  }
+  .banner-accent {
+    position: absolute;
+    width: calc(100% - 30px);
+    height: calc(100% - 30px);
+    border-radius: 20px;
+    z-index: 0;
+  }
+  .banner-accent.left  {
+    top: 0;
+    left: 0;
+  }
+  .banner-accent.right {
+    bottom: 0;
+    right: 0;
+  }
+
+  .banner-card {
+    width: calc(100% - 30px);
+    height: calc(100% - 30px);
+    background: #1e1f22;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+  }
+  .banner-badge {
+    position: absolute;
+    top: -14px;
+    background: #3b3d4a;
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #c8ccd4;
+    white-space: nowrap;
+  }
+  .banner-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    background: #4e5058;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .banner-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .banner-username {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #fff;
+    margin-top: 4px;
+  }
+  .banner-prep {
+    font-size: 0.72rem;
+    color: #9399a6;
+    margin-top: -4px;
+  }
+  .banner-server {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #e2e4ea;
+    margin-top: -2px;
+  }
+
+  /* Message above the card (Discord style) */
+  .dc-msg-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    max-width: 500px;
+  }
+  .dc-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #5865f2;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+  }
+  .dc-author { font-size: 0.82rem; font-weight: 700; color: #00b0f4; }
+  .dc-bot-tag {
+    font-size: 0.55rem; background: #5865f2; color: #fff;
+    padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle;
+  }
+  .dc-content { font-size: 0.8rem; color: #dbdee1; margin-top: 2px; }
+
+  /* layout: settings left, preview right */
+  .wg-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .wg-layout { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">👋 Welcome & Goodbye</h1>
+  <p class="page-subtitle">Cấu hình tin nhắn chào mừng và tạm biệt thành viên</p>
+</div>
+
+<!-- Variable reference -->
+<div class="vars-box" style="margin-bottom: 24px;">
+  <strong>Biến có thể dùng trong tin nhắn nội dung:</strong><br>
+  <span class="var-tag">{user}</span> mention thành viên &nbsp;
+  <span class="var-tag">{user_name}</span> tên thành viên &nbsp;
+  <span class="var-tag">{user_id}</span> ID thành viên &nbsp;
+  <span class="var-tag">{server}</span> tên server &nbsp;
+  <span class="var-tag">{member_count}</span> tổng số thành viên
+</div>
+
+<!-- Tabs -->
+<div class="welcome-tabs">
+  <button class="tab-btn active" data-tab="tab-welcome">🎉 Welcome</button>
+  <button class="tab-btn" data-tab="tab-goodbye">👋 Goodbye</button>
+</div>
+
+<form method="POST">
+
+  <!-- ── WELCOME TAB ─────────────────────────────────────────────────────── -->
+  <div class="tab-pane active" id="tab-welcome">
+    <div class="wg-layout">
+
+      <!-- Left: settings -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:#57F287"></i> Cài đặt Chào mừng</div>
+              <div class="card-desc">Tin nhắn gửi khi có thành viên mới gia nhập server</div>
+            </div>
+          </div>
+
+          <!-- Channel -->
+          <div class="form-group">
+            <label class="form-label">Kênh chào mừng</label>
+            <select name="welcome_channel_id" class="form-control">
+              <option value="">— Chọn kênh —</option>
+              {% for ch in channels %}
+                <option value="{{ ch.channel_id }}"
+                  {% if settings.welcome_channel_id == ch.channel_id %}selected{% endif %}>
+                  # {{ ch.channel_name }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-hint">Bot sẽ gửi banner card chào mừng vào kênh này</div>
+          </div>
+
+          <!-- Message type toggle -->
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Gửi banner card ảnh</div>
+              <div class="toggle-sublabel">Tắt để gửi tin nhắn thường (plain text)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="welcome_use_embed"
+                     {% if settings.welcome_use_embed %}checked{% endif %}
+                     id="w-embed-toggle"
+                     onchange="updateWelcomePreview()">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+
+          <!-- Message content -->
+          <div class="form-group">
+            <label class="form-label">Tin nhắn kèm theo</label>
+            <textarea name="welcome_message" class="form-control" id="w-message"
+                      placeholder="👋 {user} đã tham gia **{server}**! 🎉"
+                      oninput="updateWelcomePreview()"
+                      rows="2">{{ settings.welcome_message or '' }}</textarea>
+            <div class="form-hint">Dùng markdown Discord: **đậm**, *nghiêng*, `code`</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: live preview -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Xem trước</div>
+              <div class="card-desc">Hình ảnh banner sẽ được gửi khi thành viên tham gia</div>
+            </div>
+          </div>
+          <div class="card-preview-wrap">
+            <!-- Discord message row -->
+            <div class="dc-msg-row">
+              <div class="dc-avatar">🤖</div>
+              <div>
+                <div>
+                  <span class="dc-author">{{ guild.get('name','Bot') }}</span>
+                  <span class="dc-bot-tag">BOT</span>
+                </div>
+                <div class="dc-content" id="w-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> đã tham gia <strong>{{ guild.get('name','Server') }}</strong>!</div>
+              </div>
+            </div>
+
+            <!-- Banner card -->
+            <div id="w-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
+              <div class="banner-outer" id="w-banner-outer">
+                <div class="banner-accent left" id="w-accent-left" style="background:#0084FF;"></div>
+                <div class="banner-accent right" id="w-accent-right" style="background:#00D4FF;"></div>
+                <div class="banner-card">
+                  <div class="banner-badge" id="w-badge">Member #{{ meta.get('member_count', '???') if meta else '???' }}</div>
+                  <div class="banner-avatar">
+                    {% if avatar %}
+                      <img src="{{ avatar }}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                    {% else %}
+                      👤
+                    {% endif %}
+                  </div>
+                  <div class="banner-username" id="w-uname">Welcome {{ user.get('global_name') or user.get('username','User') }}</div>
+                  <div class="banner-prep">to</div>
+                  <div class="banner-server" id="w-server">{{ guild.get('name','Server') }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div id="w-plain-preview" style="display:none; font-size:0.85rem; color:#dbdee1; width:100%;">
+              <div style="background:#2b2d31; border-radius:8px; padding:12px;" id="w-plain-text"></div>
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('welcome')" id="w-test-btn">
+              <i class="bi bi-send"></i> Gửi test đến kênh
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── GOODBYE TAB ─────────────────────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-goodbye">
+    <div class="wg-layout">
+
+      <!-- Left: settings -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="bi bi-door-open-fill" style="color:#ED4245"></i> Cài đặt Tạm biệt</div>
+              <div class="card-desc">Tin nhắn gửi khi thành viên rời server</div>
+            </div>
+          </div>
+
+          <!-- Channel -->
+          <div class="form-group">
+            <label class="form-label">Kênh tạm biệt</label>
+            <select name="goodbye_channel_id" class="form-control">
+              <option value="">— Chọn kênh —</option>
+              {% for ch in channels %}
+                <option value="{{ ch.channel_id }}"
+                  {% if settings.goodbye_channel_id == ch.channel_id %}selected{% endif %}>
+                  # {{ ch.channel_name }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-hint">Bot sẽ gửi banner card tạm biệt vào kênh này</div>
+          </div>
+
+          <!-- Message type toggle -->
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Gửi banner card ảnh</div>
+              <div class="toggle-sublabel">Tắt để gửi tin nhắn thường (plain text)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="goodbye_use_embed"
+                     {% if settings.goodbye_use_embed %}checked{% endif %}
+                     id="g-embed-toggle"
+                     onchange="updateGoodbyePreview()">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+
+          <!-- Message content -->
+          <div class="form-group">
+            <label class="form-label">Tin nhắn kèm theo</label>
+            <textarea name="goodbye_message" class="form-control" id="g-message"
+                      placeholder="👋 **{user_name}** đã rời khỏi {server}."
+                      oninput="updateGoodbyePreview()"
+                      rows="2">{{ settings.goodbye_message or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: live preview -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Xem trước</div>
+              <div class="card-desc">Hình ảnh banner sẽ được gửi khi thành viên rời đi</div>
+            </div>
+          </div>
+          <div class="card-preview-wrap">
+            <div class="dc-msg-row">
+              <div class="dc-avatar">🤖</div>
+              <div>
+                <div>
+                  <span class="dc-author">{{ guild.get('name','Bot') }}</span>
+                  <span class="dc-bot-tag">BOT</span>
+                </div>
+                <div class="dc-content" id="g-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> đã rời khỏi <strong>{{ guild.get('name','Server') }}</strong>.</div>
+              </div>
+            </div>
+
+            <div id="g-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
+              <div class="banner-outer" id="g-banner-outer">
+                <div class="banner-accent left" id="g-accent-left" style="background:#ED4245;"></div>
+                <div class="banner-accent right" id="g-accent-right" style="background:#FF7878;"></div>
+                <div class="banner-card">
+                  <div class="banner-badge" id="g-badge">Sad to see you go!</div>
+                  <div class="banner-avatar">
+                    {% if avatar %}
+                      <img src="{{ avatar }}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                    {% else %}
+                      👤
+                    {% endif %}
+                  </div>
+                  <div class="banner-username" id="g-uname">Goodbye {{ user.get('global_name') or user.get('username','User') }}</div>
+                  <div class="banner-prep">from</div>
+                  <div class="banner-server" id="g-server">{{ guild.get('name','Server') }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div id="g-plain-preview" style="display:none; font-size:0.85rem; color:#dbdee1; width:100%;">
+              <div style="background:#2b2d31; border-radius:8px; padding:12px;" id="g-plain-text"></div>
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('goodbye')" id="g-test-btn">
+              <i class="bi bi-send"></i> Gửi test đến kênh
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Save button -->
+  <div style="display:flex; gap:10px; margin-top: 8px; flex-wrap:wrap;">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-floppy-fill"></i> Lưu thay đổi
+    </button>
+    <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="btn btn-secondary btn-lg">
+      Hủy
+    </a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GUILD_ID_W    = {{ guild_id | tojson }};
+const GUILD_NAME_W  = {{ guild.get('name','Server') | tojson }};
+const USER_NAME_W   = {{ (user.get('global_name') or user.get('username') or 'User') | tojson }};
+const MEMBER_COUNT  = {{ (meta.get('member_count') if meta else '???') | tojson }};
+
+function applyVars(text) {
+  return (text || '')
+    .replace(/\{user\}/g,         `<span style="color:#5865f2;font-weight:600;">@${USER_NAME_W}</span>`)
+    .replace(/\{user_name\}/g,    USER_NAME_W)
+    .replace(/\{user_id\}/g,      '{{ user.get("id", "000") }}')
+    .replace(/\{server\}/g,       GUILD_NAME_W)
+    .replace(/\{member_count\}/g, MEMBER_COUNT)
+    .replace(/\*\*(.+?)\*\*/g,  '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,       '<em>$1</em>')
+    .replace(/`(.+?)`/g,         '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function updateWelcomePreview() {
+  const useCard = document.getElementById('w-embed-toggle').checked;
+  const msg = document.getElementById('w-message').value;
+
+  document.getElementById('w-banner-wrap').style.display   = useCard ? '' : 'none';
+  document.getElementById('w-plain-preview').style.display = useCard ? 'none' : '';
+
+  document.getElementById('w-preview-msg').innerHTML = msg
+    ? applyVars(msg)
+    : `👋 <strong>${USER_NAME_W}</strong> đã tham gia <strong>${GUILD_NAME_W}</strong>!`;
+
+  if (!useCard) {
+    document.getElementById('w-plain-text').innerHTML = applyVars(msg) || '<span style="color:#52555d;font-style:italic;">Nội dung trống</span>';
+  }
+}
+
+function updateGoodbyePreview() {
+  const useCard = document.getElementById('g-embed-toggle').checked;
+  const msg = document.getElementById('g-message').value;
+
+  document.getElementById('g-banner-wrap').style.display   = useCard ? '' : 'none';
+  document.getElementById('g-plain-preview').style.display = useCard ? 'none' : '';
+
+  document.getElementById('g-preview-msg').innerHTML = msg
+    ? applyVars(msg)
+    : `👋 <strong>${USER_NAME_W}</strong> đã rời khỏi <strong>${GUILD_NAME_W}</strong>.`;
+
+  if (!useCard) {
+    document.getElementById('g-plain-text').innerHTML = applyVars(msg) || '<span style="color:#52555d;font-style:italic;">Nội dung trống</span>';
+  }
+}
+
+async function sendTestCard(type) {
+  const prefix = type === 'welcome' ? 'w' : 'g';
+  const btnId = prefix + '-test-btn';
+  const btn   = document.getElementById(btnId);
+  const orig  = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang gửi...';
+
+  const useEmbed = document.getElementById(`${prefix}-embed-toggle`).checked;
+  const message  = document.getElementById(`${prefix}-message`).value;
+
+  try {
+    const resp = await fetch(`/api/guild/${GUILD_ID_W}/send-test-card`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ type, use_embed: useEmbed, message: message }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showToast('✅ Đã gửi banner test đến kênh!', 'success');
+    } else {
+      showToast('❌ ' + (data.error || 'Lỗi không xác định'), 'error');
+    }
+  } catch(e) {
+    showToast('❌ Lỗi kết nối', 'error');
+  }
+
+  btn.innerHTML = orig;
+  btn.disabled  = false;
+}
+
+// Run once on page load
+updateWelcomePreview();
+updateGoodbyePreview();
+</script>
+{% endblock %}

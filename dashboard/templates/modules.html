@@ -1,0 +1,380 @@
+{% extends "base_server.html" %}
+{% block title %}Modules{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">🧩 Modules</h1>
+  <p class="page-subtitle">Bật hoặc tắt từng tính năng của bot trong server này</p>
+</div>
+
+<style>
+  .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
+  .custom-select-display {
+    background: #1e1f22;
+    border: 1px solid #3f4147;
+    border-radius: 6px;
+    padding: 8px 12px;
+    min-height: 42px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .custom-select-display:hover { border-color: #5865F2; }
+  .custom-select-arrow { margin-left: auto; color: #b5bac1; }
+  .chips-container { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .chip {
+    background: #2b2d31;
+    color: #dbdee1;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip-remove { cursor: pointer; color: #ed4245; font-weight: bold; }
+  .chip-remove:hover { color: #ff5c5c; }
+  
+  .custom-select-dropdown {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    margin-top: 4px;
+    background: #2b2d31;
+    border: 1px solid #3f4147;
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.24);
+  }
+  .custom-select-wrapper.open .custom-select-dropdown { display: block; }
+  .custom-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #dbdee1;
+    transition: background 0.2s;
+  }
+  .custom-option:hover { background: #3f4147; }
+  .custom-option.selected { background: rgba(88, 101, 242, 0.1); color: #5865F2; font-weight: bold; }
+  .role-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .placeholder-text { color: #80848e; font-size: 0.9rem; }
+</style>
+
+<div class="card" style="margin-bottom: 24px; border-color: #5865F2;">
+  <div class="card-title">🔐 Phân quyền điều khiển Bot</div>
+  <p style="font-size: 0.85rem; color: #b5bac1; margin-bottom: 12px;">
+    Chỉ định những Role được phép điều chỉnh tính năng của bot và truy cập Dashboard. 
+    <em>Lưu ý: Chủ server (Owner) và các Role có quyền Administrator luôn có toàn quyền truy cập.</em>
+  </p>
+  
+  <form method="POST" action="{{ url_for('server_modules', guild_id=guild_id) }}">
+    <div class="form-group">
+      <label class="form-label">Role Whitelist (Bot Admin)</label>
+      <div id="hidden-inputs-bot_admin_roles"></div>
+      <div class="custom-select-wrapper" id="select-bot_admin_roles">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-bot_admin_roles"></div>
+          <div class="placeholder-text" id="placeholder-bot_admin_roles">Chọn role (Bỏ trống = Ai có quyền Manage Server đều được dùng)</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-bot_admin_roles"></div>
+      </div>
+    </div>
+    <div style="margin-top: 16px; text-align: right;">
+      <button type="submit" style="
+        background-color: #5865F2; 
+        color: white; 
+        border: none; 
+        border-radius: 4px; 
+        padding: 8px 16px; 
+        font-size: 0.9rem; 
+        font-weight: 500; 
+        cursor: pointer; 
+        display: inline-flex; 
+        align-items: center; 
+        gap: 6px; 
+        transition: background-color 0.2s;">
+        <i class="bi bi-floppy-fill" style="font-size: 1rem;"></i> Lưu Quyền
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="modules-grid">
+
+  <!-- Welcome & Goodbye -->
+  <div class="module-card {% if modules.get('welcome_goodbye', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">👋</span> Welcome &amp; Goodbye</div>
+      <div class="mod-desc">Tự động gửi tin nhắn khi thành viên gia nhập hoặc rời server. Hỗ trợ embed và plain text.</div>
+      <a href="{{ url_for('server_welcome', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="welcome_goodbye"
+             {% if modules.get('welcome_goodbye', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Auto Roles -->
+  <div class="module-card {% if modules.get('autoroles', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🪪</span> Auto Roles</div>
+      <div class="mod-desc">Tự động gắn vai trò cho thành viên và bot khi họ tham gia máy chủ.</div>
+      <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="autoroles"
+             {% if modules.get('autoroles', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Utility -->
+  <div class="module-card {% if modules.get('utility', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">⚙️</span> Utility</div>
+      <div class="mod-desc">Các lệnh tiện ích: <code>/ping</code>, <code>/membercount</code>, <code>/help</code>.</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="utility"
+             {% if modules.get('utility', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Info -->
+  <div class="module-card {% if modules.get('info', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">ℹ️</span> Info Commands</div>
+      <div class="mod-desc">Lệnh thông tin: <code>/serverinfo</code>, <code>/userinfo</code>, <code>/avatar</code>.</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="info"
+             {% if modules.get('info', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Music -->
+  <div class="module-card {% if modules.get('music', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🎵</span> Music</div>
+      <div class="mod-desc">Phát nhạc chất lượng cao từ YouTube: <code>/play</code>, <code>/search</code>, <code>/lofi</code>, <code>/stop</code>,...</div>
+      <a href="{{ url_for('server_music', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="music"
+             {% if modules.get('music', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Tickets -->
+  <div class="module-card {% if modules.get('tickets', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🎫</span> Ticket System</div>
+      <div class="mod-desc">Hệ thống hỗ trợ bán hàng, tạo kênh chat riêng tư qua nút bấm.</div>
+      <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="tickets"
+             {% if modules.get('tickets', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Reaction Roles -->
+  <div class="module-card {% if modules.get('reactionroles', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">✨</span> Reaction Roles</div>
+      <div class="mod-desc">Tạo bài viết để thành viên thả cảm xúc và nhận role tự động.</div>
+      <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="reactionroles"
+             {% if modules.get('reactionroles', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Automods -->
+  <div class="module-card {% if modules.get('automods', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🛡️</span> Automods</div>
+      <div class="mod-desc">Bảo vệ server tự động khỏi spam, từ cấm và link độc hại.</div>
+      <a href="{{ url_for('server_automod', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="automods"
+             {% if modules.get('automods', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+</div>
+
+<div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">
+  <div style="display:flex; gap:12px; align-items:flex-start;">
+    <div style="font-size:1.2rem;">💡</div>
+    <div>
+      <div style="font-size:0.875rem; font-weight:600; margin-bottom:4px;">Module hoạt động như thế nào?</div>
+      <div style="font-size:0.8rem; color:var(--text-muted); line-height:1.6;">
+        Khi tắt một module, toàn bộ lệnh và sự kiện thuộc module đó sẽ bị vô hiệu hóa trong server này.
+        Thay đổi có hiệu lực ngay lập tức — không cần khởi động lại bot.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const allRoles = [
+    {% for r in roles %}
+      { id: "{{ r.role_id }}", name: {{ r.role_name|tojson|safe }}, color: "{{ r.color_hex }}" }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  let savedAdminRoles = {{ saved_admin_roles | tojson | safe }};
+  
+  function createMultiSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedList) {
+    const wrapper = document.getElementById(wrapperId);
+    const display = wrapper.querySelector('.custom-select-display');
+    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+    const chipsContainer = wrapper.querySelector('.chips-container');
+    const placeholder = wrapper.querySelector('.placeholder-text');
+    const hiddenContainer = document.getElementById(hiddenContainerId);
+    
+    function renderChips() {
+      chipsContainer.innerHTML = '';
+      hiddenContainer.innerHTML = '';
+      
+      if (selectedList.length === 0) {
+        placeholder.style.display = 'block';
+      } else {
+        placeholder.style.display = 'none';
+        selectedList.forEach(id => {
+          const optData = optionsList.find(r => r.id === id);
+          if (!optData) return;
+          
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          
+          let prefix = '';
+          if (optData.color) {
+            prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
+          }
+          
+          chip.innerHTML = `
+            ${prefix}${optData.name}
+            <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
+          `;
+          chipsContainer.appendChild(chip);
+          
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = inputName;
+          hiddenInput.value = optData.id;
+          hiddenContainer.appendChild(hiddenInput);
+        });
+      }
+      
+      const options = dropdown.querySelectorAll('.custom-option');
+      options.forEach(opt => {
+        if (selectedList.includes(opt.dataset.id)) {
+          opt.classList.add('selected');
+        } else {
+          opt.classList.remove('selected');
+        }
+      });
+    }
+    
+    function renderDropdown() {
+      dropdown.innerHTML = '';
+      optionsList.forEach(optData => {
+        if (optData.name === '@everyone') return;
+        
+        const option = document.createElement('div');
+        option.className = 'custom-option';
+        option.dataset.id = optData.id;
+        
+        let prefix = '';
+        if (optData.color) {
+          prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
+        }
+        
+        option.innerHTML = `${prefix}${optData.name}`;
+        
+        option.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = selectedList.indexOf(optData.id);
+          if (idx > -1) {
+            selectedList.splice(idx, 1);
+          } else {
+            selectedList.push(optData.id);
+          }
+          renderChips();
+        });
+        
+        dropdown.appendChild(option);
+      });
+    }
+    
+    display.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+        if (w !== wrapper) w.classList.remove('open');
+      });
+      wrapper.classList.toggle('open');
+    });
+    
+    chipsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('chip-remove')) {
+        e.stopPropagation();
+        const roleId = e.target.dataset.id;
+        const idx = selectedList.indexOf(roleId);
+        if (idx > -1) {
+          selectedList.splice(idx, 1);
+          renderChips();
+        }
+      }
+    });
+    
+    renderDropdown();
+    renderChips();
+  }
+  
+  createMultiSelector('select-bot_admin_roles', 'bot_admin_roles', allRoles, 'hidden-inputs-bot_admin_roles', savedAdminRoles);
+  
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-select-wrapper')) {
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+    }
+  });
+</script>
+{% endblock %}

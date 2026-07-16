@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Servers của bạn</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="home-body" style="flex-direction:column;">
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <span class="topbar-brand-dot"></span>
+    Bot Dashboard
+  </div>
+  <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
+    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">Điều Khoản</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">Bảo Mật</a>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-user">
+      {% if avatar %}
+        <img class="topbar-avatar" src="{{ avatar }}" alt="avatar">
+      {% endif %}
+      <span>{{ user.get('global_name') or user.get('username', 'User') }}</span>
+    </div>
+    <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-sm">
+      <i class="bi bi-box-arrow-right"></i> Đăng xuất
+    </a>
+  </div>
+</header>
+
+<!-- Content -->
+<div class="home-content">
+  <!-- Greeting -->
+  <div class="page-header" style="margin-bottom: 32px;">
+    <h1 class="page-title">👋 Chào, {{ user.get('global_name') or user.get('username', 'User') }}!</h1>
+    <p class="page-subtitle">Chọn server bạn muốn quản lý bot.</p>
+  </div>
+
+  <!-- Bot-managed servers -->
+  {% set bot_guilds = guilds | selectattr('bot_in_guild') | list %}
+  {% if bot_guilds %}
+    <div class="section-header">
+      <div class="section-title">🤖 Server có Bot</div>
+      <span class="count-chip">{{ bot_guilds | length }} server</span>
+    </div>
+    <div class="servers-grid" style="margin-bottom: 40px;">
+      {% for guild in bot_guilds %}
+        <a href="{{ url_for('server_overview', guild_id=guild.id) }}" class="server-card">
+          {% if guild.get('icon_url') %}
+            <img class="server-icon" src="{{ guild.icon_url }}" alt="icon" loading="lazy">
+          {% else %}
+            <div class="server-icon-placeholder">{{ guild.name[0].upper() }}</div>
+          {% endif %}
+          <div class="server-name">{{ guild.name }}</div>
+          <span class="server-chip chip-bot"><i class="bi bi-robot"></i> Bot đang hoạt động</span>
+          <button class="btn btn-primary btn-sm server-btn">
+            Quản lý <i class="bi bi-arrow-right-short"></i>
+          </button>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Servers without bot -->
+  {% set no_bot_guilds = guilds | rejectattr('bot_in_guild') | list %}
+  {% if no_bot_guilds %}
+    <div class="section-header">
+      <div class="section-title" style="color: var(--text-secondary);">Server chưa có Bot</div>
+      <span class="count-chip">{{ no_bot_guilds | length }} server</span>
+    </div>
+    <div class="servers-grid">
+      {% for guild in no_bot_guilds %}
+        <div class="server-card" style="opacity: 0.65;">
+          {% if guild.get('icon_url') %}
+            <img class="server-icon" src="{{ guild.icon_url }}" alt="icon" loading="lazy">
+          {% else %}
+            <div class="server-icon-placeholder" style="background: linear-gradient(135deg,#3a3d44,#52555d)">
+              {{ guild.name[0].upper() }}
+            </div>
+          {% endif %}
+          <div class="server-name">{{ guild.name }}</div>
+          <span class="server-chip chip-invite"><i class="bi bi-plus-circle"></i> Chưa có bot</span>
+          <a href="https://discord.com/oauth2/authorize?client_id={{ user.get('id','') }}&scope=bot&permissions=395137336320&guild_id={{ guild.id }}"
+             target="_blank" class="btn btn-secondary btn-sm server-btn">
+            Mời Bot <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not guilds %}
+    <div class="empty-state">
+      <div class="empty-icon">🌐</div>
+      <h3>Không tìm thấy server nào</h3>
+      <p>Bạn cần có quyền <strong>Manage Server</strong> để quản lý bot trong server.</p>
+    </div>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

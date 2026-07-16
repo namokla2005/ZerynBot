@@ -1,0 +1,19 @@
+# Môi trường ảo (Virtual Environments)
+venv/
+env/
+.env
+
+# Cache của Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+*.db
+*.sqlite3
+database.db
+
+# File IDE / Hệ điều hành
+.vscode/
+.idea/
+.DS_Store

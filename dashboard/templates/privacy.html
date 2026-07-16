@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chính Sách Bảo Mật — Zeryn Bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .legal-content {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 40px;
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .legal-content h1, .legal-content h2, .legal-content h3 {
+      color: var(--text-primary);
+      margin-top: 32px;
+      margin-bottom: 16px;
+    }
+    .legal-content h1 {
+      margin-top: 0;
+      font-size: 2rem;
+      text-align: center;
+    }
+    .legal-content p, .legal-content ul {
+      margin-bottom: 16px;
+    }
+    .legal-content ul {
+      padding-left: 24px;
+    }
+  </style>
+</head>
+<body class="home-body" style="flex-direction:column; overflow-y: auto;">
+
+<!-- Top bar -->
+<header class="topbar">
+  <a href="{{ url_for('home') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
+    <span class="topbar-brand-dot"></span>
+    Zeryn Bot
+  </a>
+  <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
+    <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Trang chủ</a>
+    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Điều Khoản</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">Bảo Mật</a>
+  </div>
+  <div class="topbar-right">
+    {% if session.get('user') %}
+      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">Dashboard</a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">Đăng nhập</a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- Content -->
+<div class="home-content">
+  <div class="legal-content">
+    <h1>Chính Sách Bảo Mật</h1>
+    <p><em>Cập nhật lần cuối: Hôm nay</em></p>
+
+    <h2>1. Thu thập dữ liệu</h2>
+    <p>Zeryn Bot chỉ thu thập những dữ liệu cần thiết để cung cấp và cải thiện các tính năng cốt lõi. Các dữ liệu này bao gồm:</p>
+    <ul>
+      <li>ID của Người dùng, Máy chủ (Guild) và Kênh (Channel).</li>
+      <li>Cài đặt của Máy chủ (Guild settings) được định cấu hình thông qua bảng điều khiển hoặc các lệnh của bot.</li>
+      <li>Dữ liệu tạm thời cần thiết cho các tính năng như hệ thống hàng đợi nhạc (Music queue), bảng điều khiển hỗ trợ (Tickets), hoặc cấu hình Reaction Roles.</li>
+    </ul>
+
+    <h2>2. Sử dụng dữ liệu</h2>
+    <p>Chúng tôi sử dụng dữ liệu được thu thập để:</p>
+    <ul>
+      <li>Lưu trữ cấu hình của máy chủ và duy trì hoạt động cho các tính năng của bot.</li>
+      <li>Xác thực và cấp quyền cho người quản lý thông qua Dashboard.</li>
+      <li>Cải thiện trải nghiệm người dùng và khắc phục lỗi khi có sự cố xảy ra.</li>
+    </ul>
+
+    <h2>3. Lưu trữ và chia sẻ dữ liệu</h2>
+    <p>Tất cả dữ liệu được lưu trữ an toàn trong cơ sở dữ liệu của chúng tôi. Chúng tôi <strong>không bao giờ</strong> bán, cho thuê, hoặc chia sẻ dữ liệu của bạn cho bất kỳ bên thứ ba nào, ngoại trừ khi được yêu cầu bởi cơ quan có thẩm quyền theo quy định của pháp luật.</p>
+
+    <h2>4. Quyền xóa dữ liệu</h2>
+    <p>Nếu bạn muốn xóa hoàn toàn dữ liệu của máy chủ, bạn có thể thực hiện bằng cách kick (đuổi) bot ra khỏi máy chủ của mình hoặc liên hệ trực tiếp với chúng tôi để yêu cầu xóa dữ liệu hoàn toàn.</p>
+
+    <h2>5. Thông tin liên hệ</h2>
+    <p>Nếu bạn có bất kỳ câu hỏi nào về chính sách bảo mật, vui lòng liên hệ với ban quản trị thông qua máy chủ hỗ trợ của chúng tôi trên Discord.</p>
+  </div>
+</div>
+
+</body>
+</html>

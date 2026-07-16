@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard{% endblock %} — {{ guild.get('name','Server') }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+  <div class="app-wrapper">
+
+    <!-- ─── Sidebar ─────────────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        {% if guild.get('icon_url') %}
+        <img class="sidebar-guild-icon" src="{{ guild.get('icon_url') }}" alt="icon" loading="lazy">
+        {% else %}
+        <div class="sidebar-guild-placeholder">{{ guild.get('name','?')[0].upper() }}</div>
+        {% endif %}
+        <div class="sidebar-guild-name">{{ guild.get('name', 'Server') }}</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <!-- GENERAL -->
+        <div class="nav-section">
+          <div class="nav-section-title">General</div>
+          <a href="{{ url_for('server_overview', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'overview' %}active{% endif %}">
+            <i class="nav-icon bi bi-grid-fill"></i> Overview
+          </a>
+          <a href="{{ url_for('server_embeds', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'embeds' %}active{% endif %}">
+            <i class="nav-icon bi bi-chat-square-text-fill"></i> Embed Messages
+          </a>
+          <a href="{{ url_for('server_commands', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'commands' %}active{% endif %}">
+            <i class="nav-icon bi bi-terminal-fill"></i> Commands
+          </a>
+          <a href="{{ url_for('server_modules', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'modules' %}active{% endif %}">
+            <i class="nav-icon bi bi-toggles"></i> Modules Manager
+          </a>
+        </div>
+
+        <!-- MODULE SETTINGS -->
+        <div class="nav-section">
+          <div class="nav-section-title">Module Settings</div>
+          <a href="{{ url_for('server_welcome', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'welcome' %}active{% endif %}">
+            <i class="nav-icon bi bi-emoji-smile-fill"></i> Welcome &amp; Goodbye
+            <span class="status-dot nav-dot-welcome_goodbye
+            {% if modules.get('welcome_goodbye', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'autoroles' %}active{% endif %}">
+            <i class="nav-icon bi bi-person-badge-fill"></i> Auto Roles
+            <span class="status-dot nav-dot-autoroles
+            {% if modules.get('autoroles', False) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
+            <i class="nav-icon bi bi-info-circle-fill"></i> Info Commands
+            <span class="status-dot nav-dot-info
+            {% if modules.get('info', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
+            <i class="nav-icon bi bi-gear-wide-connected"></i> Utility
+            <span class="status-dot nav-dot-utility
+            {% if modules.get('utility', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_music', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'music' %}active{% endif %}">
+            <i class="nav-icon bi bi-music-note-beamed"></i> Music
+            <span class="status-dot nav-dot-music
+            {% if modules.get('music', False) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_tickets', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'tickets' %}active{% endif %}">
+            <i class="nav-icon bi bi-ticket-detailed-fill"></i> Tickets
+            <span class="status-dot nav-dot-tickets
+            {% if modules.get('tickets', False) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'reactionroles' %}active{% endif %}">
+            <i class="nav-icon bi bi-stars"></i> Reaction Roles
+            <span class="status-dot nav-dot-reactionroles
+            {% if modules.get('reactionroles', False) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_automod', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'automod' %}active{% endif %}">
+            <i class="nav-icon bi bi-shield-lock-fill"></i> Automods
+            <span class="status-dot nav-dot-automods
+            {% if modules.get('automods', False) %}on{% else %}off{% endif %}"></span>
+          </a>
+        </div>
+      </nav>
+
+      <!-- Footer: user info + logout -->
+      <div class="sidebar-footer">
+        <a class="sidebar-user" href="{{ url_for('home') }}">
+          {% if avatar %}
+          <img class="sidebar-avatar" src="{{ avatar }}" alt="avatar">
+          {% endif %}
+          <span class="sidebar-username">{{ user.get('username','User') }}</span>
+          <a href="{{ url_for('logout') }}" class="sidebar-logout" title="Đăng xuất" onclick="event.stopPropagation()">
+            <i class="bi bi-box-arrow-right"></i>
+          </a>
+        </a>
+      </div>
+    </aside>
+
+    <!-- ─── Main ─────────────────────────────────────────────────────────────── -->
+    <main class="main">
+      <div class="main-inner">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+          <i
+            class="bi bi-{% if category == 'success' %}check-circle-fill{% else %}exclamation-triangle-fill{% endif %}"></i>
+          {{ message }}
+          <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+        {% endfor %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+
+</html>

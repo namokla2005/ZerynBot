@@ -1,0 +1,227 @@
+{% extends "base_server.html" %}
+{% block title %}Embed Builder{% endblock %}
+{% block head %}
+<style>
+  .preview-field { display: flex; flex-direction: column; gap: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">💬 Embed Messages</h1>
+  <p class="page-subtitle">Tạo embed tin nhắn đẹp với giao diện kéo-thả trực quan</p>
+</div>
+
+<!-- Builder -->
+<div id="embed-builder" data-guild="{{ guild_id }}" class="builder-layout">
+
+  <!-- ── Left: Editor ────────────────────────────────────────────────────── -->
+  <div>
+    <div class="builder-panel">
+      <div class="builder-panel-title"><i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Editor</div>
+
+      <!-- Color -->
+      <div class="form-group">
+        <label class="form-label">Màu viền</label>
+        <div class="color-row">
+          <div class="color-swatch" id="eb-color-swatch" style="background:#5865f2">
+            <input type="color" id="eb-color" value="#5865f2"
+                   data-swatch="eb-color-swatch">
+          </div>
+          <input type="text" id="eb-color-display" class="form-control color-text-input"
+                 value="#5865f2" data-picker="eb-color" placeholder="#5865f2"
+                 maxlength="7" style="width:110px; flex-shrink:0">
+        </div>
+      </div>
+
+      <!-- Author -->
+      <div class="form-group">
+        <label class="form-label">Tên tác giả (Author)</label>
+        <input id="eb-author-name" type="text" class="form-control" placeholder="Tên tác giả...">
+      </div>
+
+      <!-- Title -->
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tiêu đề</label>
+          <input id="eb-title" type="text" class="form-control" placeholder="Tiêu đề embed...">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">URL tiêu đề (tùy chọn)</label>
+          <input id="eb-title-url" type="url" class="form-control" placeholder="https://...">
+        </div>
+      </div>
+      <div style="margin-bottom:18px"></div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label class="form-label">Mô tả</label>
+        <textarea id="eb-description" class="form-control" rows="4"
+                  placeholder="Nội dung chính của embed..."></textarea>
+        <div class="form-hint">Hỗ trợ markdown Discord: **đậm**, *nghiêng*, `code`, [link](url)</div>
+      </div>
+
+      <!-- Thumbnail & Image -->
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Thumbnail URL</label>
+          <input id="eb-thumbnail" type="url" class="form-control" placeholder="https://...">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Image URL</label>
+          <input id="eb-image" type="url" class="form-control" placeholder="https://...">
+        </div>
+      </div>
+      <div style="margin-bottom:18px"></div>
+
+      <!-- Fields -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <label class="form-label" style="margin:0">Fields</label>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addField()">
+          <i class="bi bi-plus-lg"></i> Thêm field
+        </button>
+      </div>
+      <div id="fields-container"></div>
+
+      <div class="divider"></div>
+
+      <!-- Footer -->
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Footer text</label>
+          <input id="eb-footer" type="text" class="form-control" placeholder="Text footer...">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Footer icon URL</label>
+          <input id="eb-footer-icon" type="url" class="form-control" placeholder="https://...">
+        </div>
+      </div>
+      <div style="margin-bottom: 24px;"></div>
+
+      <!-- Save name + actions -->
+      <div class="divider"></div>
+      <div class="form-group">
+        <label class="form-label">Tên embed (để lưu)</label>
+        <input id="eb-name" type="text" class="form-control" placeholder="VD: Thông báo update...">
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" onclick="saveEmbed()">
+          <i class="bi bi-floppy-fill"></i> Lưu Embed
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="clearBuilder()">
+          <i class="bi bi-trash3"></i> Xóa trắng
+        </button>
+      </div>
+
+      <!-- ── Send to Discord ───────────────────────────────────────────────── -->
+      <div class="send-section">
+        <div class="send-section-title">
+          <i class="bi bi-send-fill"></i> Gửi đến Discord
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">Chọn kênh</label>
+          <select id="send-channel-select" class="form-control">
+            <option value="">— Chọn kênh —</option>
+            {% for ch in channels %}
+              <option value="{{ ch.channel_id }}"># {{ ch.channel_name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">Bot sẽ gửi embed này vào kênh được chọn ngay lập tức</div>
+        </div>
+        <button type="button" id="send-embed-btn" class="btn btn-success btn-full"
+                onclick="sendEmbedToChannel()">
+          <i class="bi bi-send-fill"></i> Gửi Embed đến kênh
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Right: Discord preview ──────────────────────────────────────────── -->
+  <div>
+    <div class="discord-preview">
+      <div class="discord-preview-label">📱 Preview Discord</div>
+      <div class="discord-msg">
+        <div class="discord-bot-ava">🤖</div>
+        <div class="discord-msg-body">
+          <div class="discord-bot-name">
+            Bot
+            <span class="discord-bot-tag">BOT</span>
+            <span class="discord-time">Hôm nay lúc {{ now }}</span>
+          </div>
+          <!-- Embed preview box -->
+          <div class="embed-box" id="prev-bar">
+            <!-- Thumbnail -->
+            <img class="preview-thumbnail" id="prev-thumbnail" src="" alt="" style="display:none">
+            <!-- Author -->
+            <div class="embed-author-row" id="prev-author" style="display:none">
+              <span class="embed-author-name"></span>
+            </div>
+            <!-- Title -->
+            <div class="preview-title" id="prev-title" data-placeholder="Tiêu đề embed" style="display:none"></div>
+            <!-- Description -->
+            <div class="preview-desc"  id="prev-desc"  data-placeholder="Mô tả embed..." style="display:none"></div>
+            <!-- Fields -->
+            <div class="preview-fields" id="prev-fields" style="display:none"></div>
+            <!-- Image -->
+            <img class="preview-image" id="prev-image" src="" alt="" style="display:none">
+            <!-- Footer -->
+            <div class="preview-footer" id="prev-footer" style="display:none">
+              <img class="preview-footer-icon" id="prev-footer-icon" src="" alt="">
+              <span id="prev-footer-text"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Saved embeds ────────────────────────────────────────────────────────── -->
+{% if embeds %}
+<div style="margin-top: 40px;">
+  <div class="section-header">
+    <div class="section-title">💾 Embeds đã lưu</div>
+    <span class="count-chip">{{ embeds | length }}</span>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
+    {% for embed in embeds %}
+    <div class="embed-list-item" data-embed-id="{{ embed.id }}">
+      <div class="embed-color-bar"
+           style="background: {{ embed.embed_data.get('color', '#5865f2') }}"></div>
+      <div class="embed-item-info">
+        <div class="embed-item-name">{{ embed.name }}</div>
+        <div class="embed-item-date">{{ embed.created_at }}</div>
+      </div>
+      <div class="embed-item-actions">
+        <button class="btn btn-secondary btn-sm"
+                onclick='loadEmbed({{ embed.embed_data | tojson }})'>
+          <i class="bi bi-pencil"></i> Sửa
+        </button>
+        <button class="btn btn-danger btn-sm"
+                onclick="deleteEmbed({{ embed.id }})">
+          <i class="bi bi-trash3"></i>
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div style="margin-top: 40px;">
+  <div class="section-title" style="margin-bottom:14px;">💾 Embeds đã lưu</div>
+  <div class="empty-state">
+    <div class="empty-icon">💬</div>
+    <h3>Chưa có embed nào được lưu</h3>
+    <p>Tạo embed ở trên và nhấn <strong>Lưu Embed</strong> để lưu lại</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Pass current time to template
+</script>
+<script src="{{ url_for('static', filename='js/embed_builder.js') }}"></script>
+{% endblock %}

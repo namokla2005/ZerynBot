@@ -1,0 +1,950 @@
+{% extends "base_server.html" %}
+{% block title %}Ticket System{% endblock %}
+
+{% block head %}
+<style>
+  .ticket-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 1024px) {
+    .ticket-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.25s ease;
+  }
+  .panel-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(88,101,242,0.1);
+  }
+  .panel-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .panel-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+  }
+  .panel-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 16px;
+  }
+  .panel-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .panel-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
+  /* Buttons manager */
+  .btn-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 1.2fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  
+  /* Live Discord Preview Styles */
+  .discord-preview-wrap {
+    position: sticky;
+    top: 24px;
+    background: #313338; /* Discord dark background */
+    border-radius: 12px;
+    padding: 16px;
+    color: #dbdee1;
+    font-family: 'Inter', sans-serif;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .discord-header {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #949ba4;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .discord-msg-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .discord-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #5865F2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 1.1rem;
+  }
+  .discord-author-name {
+    font-weight: 600;
+    color: #f2f3f5;
+    font-size: 0.95rem;
+  }
+  .discord-bot-tag {
+    background: #5865F2;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .discord-time {
+    font-size: 0.75rem;
+    color: #949ba4;
+  }
+  
+  .discord-embed-box {
+    margin-left: 48px;
+    background: #2b2d31;
+    border-left: 4px solid #5865F2;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-top: 4px;
+    max-width: 520px;
+  }
+  .discord-embed-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 8px;
+  }
+  .discord-embed-desc {
+    font-size: 0.9rem;
+    color: #dbdee1;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .discord-embed-image {
+    max-width: 100%;
+    border-radius: 4px;
+    margin-top: 10px;
+    max-height: 250px;
+    object-fit: cover;
+  }
+  .discord-embed-thumb {
+    float: right;
+    max-width: 80px;
+    max-height: 80px;
+    border-radius: 4px;
+    margin-left: 10px;
+  }
+  .discord-embed-footer {
+    font-size: 0.75rem;
+    color: #949ba4;
+    margin-top: 8px;
+  }
+  
+  .discord-buttons-row {
+    margin-left: 48px;
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dc-btn {
+    padding: 7px 16px;
+    border-radius: 3px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dc-btn-primary { background: #5865F2; }
+  .dc-btn-secondary { background: #4e5058; }
+  .dc-btn-success { background: #248046; }
+  .dc-btn-danger { background: #da373c; }
+
+  /* Custom Multi-Select */
+  .custom-select-wrapper {
+    position: relative;
+    user-select: none;
+    width: 100%;
+  }
+  .custom-select-display {
+    background: #1e1f22;
+    border: 1px solid #3f4147;
+    border-radius: 6px;
+    padding: 8px 12px;
+    min-height: 42px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .custom-select-display:hover { border-color: #5865F2; }
+  .custom-select-display.open {
+    border-color: #5865F2;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .chip {
+    background: #2b2d31;
+    border: 1px solid #3f4147;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #dbdee1;
+  }
+  .chip .role-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .chip .chip-remove {
+    cursor: pointer;
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+  .chip .chip-remove:hover {
+    opacity: 1;
+    color: #ED4245;
+  }
+  .custom-select-arrow {
+    margin-left: auto;
+    color: #80848e;
+  }
+  .custom-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #2b2d31;
+    border: 1px solid #3f4147;
+    border-top: none;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  }
+  .custom-select-wrapper.open .custom-select-dropdown { display: block; }
+  .custom-option {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #dbdee1;
+    border-bottom: 1px solid #1e1f22;
+  }
+  .custom-option:hover { background: #3f4147; }
+  .custom-option.selected { background: rgba(88, 101, 242, 0.1); }
+  .custom-option.selected:after {
+    content: '\2713';
+    margin-left: auto;
+    color: #5865F2;
+    font-weight: bold;
+  }
+  .placeholder-text {
+    color: #80848e;
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">🎫 Ticket System</h1>
+  <p class="page-subtitle">Tạo các bảng tạo ticket hỗ trợ bằng nút bấm chuyên nghiệp</p>
+</div>
+
+<div style="margin-bottom: 24px;">
+  <button id="btn-create-panel" class="btn btn-primary" onclick="showEditor()">
+    <i class="bi bi-plus-lg"></i> Tạo Ticket Panel mới
+  </button>
+</div>
+
+<!-- Panels List -->
+<div id="panels-list-section">
+  <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-color);">
+    Danh sách Ticket Panels ({{ panels|length }})
+  </h2>
+  {% if not panels %}
+    <div class="card" style="text-align: center; padding: 40px; color: var(--text-muted);">
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">🎫</div>
+      <p style="margin: 0; font-size: 0.95rem;">Bạn chưa tạo Ticket Panel nào.</p>
+    </div>
+  {% else %}
+    {% for p in panels %}
+      <div class="panel-card" id="panel-card-{{ p.id }}">
+        <div class="panel-info">
+          <div class="panel-name">{{ p.name }}</div>
+          <div class="panel-meta">
+            <span><i class="bi bi-chat-left-text"></i> Kênh: 
+              {% set found_ch = namespace(val=None) %}
+              {% for ch in text_channels %}
+                {% if ch.channel_id == p.channel_id %}{% set found_ch.val = ch.channel_name %}{% endif %}
+              {% endfor %}
+              <code>#{{ found_ch.val or p.channel_id }}</code>
+            </span>
+            <span><i class="bi bi-menu-app"></i> Nút bấm: <code>{{ p.buttons|length }} nút</code></span>
+            <span><i class="bi bi-shield-lock"></i> Hỗ trợ: 
+              {% if p.support_role_id %}
+                {% set found_r = namespace(val=None) %}
+                {% for r in roles %}
+                  {% if r.id == p.support_role_id %}{% set found_r.val = r.name %}{% endif %}
+                {% endfor %}
+                <code>@{{ found_r.val or p.support_role_id }}</code>
+              {% else %}
+                <code>Admin/Owner</code>
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editPanel({{ p.id }})">
+            <i class="bi bi-pencil"></i> Sửa
+          </button>
+          <button class="btn btn-success btn-sm" onclick="sendPanel({{ p.id }})">
+            <i class="bi bi-send"></i> Gửi đến Discord
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deletePanel({{ p.id }})">
+            <i class="bi bi-trash"></i> Xóa
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<!-- Editor Layout (hidden by default) -->
+<div id="editor-section" class="ticket-layout" style="display: none; margin-top: 24px;">
+  
+  <!-- Left: Form Editor -->
+  <div class="builder-panel" style="margin: 0;">
+    <div class="builder-panel-title" id="editor-title-text">
+      <i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Soạn thảo Ticket Panel
+    </div>
+    
+    <input type="hidden" id="panel-id" value="">
+
+    <!-- Cấu hình cơ bản -->
+    <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin-bottom: 12px;">
+      1. Cấu hình cơ bản
+    </h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Tên Panel (nhận diện nội bộ)</label>
+        <input type="text" id="panel-name" class="form-control" placeholder="Ví dụ: Panel Hỗ Trợ Shop...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kênh gửi Panel</label>
+        <select id="panel-channel-id" class="form-control">
+          {% for ch in text_channels %}
+            <option value="{{ ch.channel_id }}">#{{ ch.channel_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Role hỗ trợ (được xem và chat trong Ticket)</label>
+      <div id="hidden-inputs-support-roles"></div>
+      <div class="custom-select-wrapper" id="select-ticket-roles">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-ticket-roles"></div>
+          <div class="placeholder-text" id="placeholder-ticket-roles">Chọn vai trò...</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-ticket-roles">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+      <div class="form-hint" style="margin-top: 8px;">Mặc định, chỉ chủ Server và Admin mới xem được Ticket. Chọn thêm Role hỗ trợ nếu cần.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Thiết kế Embed -->
+    <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin-bottom: 12px;">
+      2. Thiết kế nội dung (Embed)
+    </h3>
+    
+    <div class="form-group">
+      <label class="form-label">Màu viền Embed</label>
+      <div class="color-row">
+        <div class="color-swatch" id="panel-color-swatch" style="background:#5865f2">
+          <input type="color" id="panel-color" value="#5865f2" oninput="updateColor(this.value)">
+        </div>
+        <input type="text" id="panel-color-display" class="form-control color-text-input"
+               value="#5865f2" placeholder="#5865f2" maxlength="7" style="width:110px; flex-shrink:0"
+               oninput="updateColor(this.value)">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Tiêu đề (Title)</label>
+      <input type="text" id="panel-title" class="form-control" placeholder="TẠO TICKET MUA HÀNG / HỖ TRỢ" oninput="updatePreview()">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Nội dung mô tả (Description)</label>
+      <textarea id="panel-description" class="form-control" rows="4" 
+                placeholder="Ví dụ: Nhấn vào các nút bên dưới để tạo yêu cầu hỗ trợ tương ứng..."
+                oninput="updatePreview()"></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Ảnh Thumbnail (URL góc nhỏ)</label>
+        <input type="url" id="panel-thumbnail-url" class="form-control" placeholder="https://..." oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ảnh chính (URL ảnh to)</label>
+        <input type="url" id="panel-image-url" class="form-control" placeholder="https://..." oninput="updatePreview()">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Chữ chân trang (Footer)</label>
+      <input type="text" id="panel-footer-text" class="form-control" placeholder="Chân trang..." oninput="updatePreview()">
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Quản lý Nút bấm -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin:0;">
+        3. Quản lý Nút bấm (Buttons)
+      </h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addButtonRow()">
+        <i class="bi bi-plus-lg"></i> Thêm Nút
+      </button>
+    </div>
+    
+    <div id="buttons-container"></div>
+    <div class="form-hint" style="margin-bottom: 24px;">* Tối đa 5 nút bấm trên một Panel.</div>
+
+    <!-- Form Actions -->
+    <div style="display: flex; gap: 12px; margin-top: 30px;">
+      <button class="btn btn-primary" onclick="savePanel()">
+        <i class="bi bi-save"></i> Lưu Panel
+      </button>
+      <button class="btn btn-secondary" onclick="hideEditor()">
+        Hủy
+      </button>
+    </div>
+  </div>
+
+  <!-- Right: Live Discord Preview -->
+  <div>
+    <div class="discord-preview-wrap">
+      <div class="discord-header">
+        <i class="bi bi-eye-fill"></i> Discord Live Preview
+      </div>
+      
+      <div class="discord-msg-author">
+        <div class="discord-avatar">🤖</div>
+        <div>
+          <span class="discord-author-name">{{ guild.get('name', 'Bot') }}</span>
+          <span class="discord-bot-tag">Bot</span>
+          <span class="discord-time">Hôm nay lúc 23:00</span>
+        </div>
+      </div>
+      
+      <div class="discord-embed-box" id="prev-embed-box">
+        <img id="prev-thumb" class="discord-embed-thumb" src="" style="display:none;" alt="">
+        <div class="discord-embed-title" id="prev-title">Tiêu đề Embed</div>
+        <div class="discord-embed-desc" id="prev-desc">Nội dung mô tả chính của panel...</div>
+        <img id="prev-image" class="discord-embed-image" src="" style="display:none;" alt="">
+        <div class="discord-embed-footer" id="prev-footer">Footer text</div>
+      </div>
+      
+      <div class="discord-buttons-row" id="prev-buttons-row">
+        <!-- Buttons preview added via JS -->
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Pass raw categories and panels data for JS access -->
+<script>
+  const CATEGORIES = {{ categories|tojson }};
+  const PANELS_DATA = {{ panels|tojson }};
+</script>
+
+<script>
+  let buttonsList = [];
+
+  function showEditor(isEdit = false) {
+    document.getElementById("panels-list-section").style.display = "none";
+    document.getElementById("btn-create-panel").style.display = "none";
+    document.getElementById("editor-section").style.display = "grid";
+    
+    if (!isEdit) {
+      document.getElementById("editor-title-text").innerHTML = '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Tạo Ticket Panel mới';
+      document.getElementById("panel-id").value = "";
+      document.getElementById("panel-name").value = "";
+      document.getElementById("panel-channel-id").selectedIndex = 0;
+      selectedTicketRoles = [];
+      if (typeof renderTicketRoles === 'function') renderTicketRoles();
+      document.getElementById("panel-color").value = "#5865F2";
+      document.getElementById("panel-color-display").value = "#5865F2";
+      document.getElementById("panel-color-swatch").style.background = "#5865F2";
+      document.getElementById("panel-title").value = "TẠO TICKET MUA HÀNG / HỖ TRỢ";
+      document.getElementById("panel-description").value = "Nếu bạn cần mua hàng hoặc hỗ trợ, hãy ấn nút thích hợp bên dưới!";
+      document.getElementById("panel-thumbnail-url").value = "";
+      document.getElementById("panel-image-url").value = "";
+      document.getElementById("panel-footer-text").value = "";
+      
+      buttonsList = [];
+      document.getElementById("buttons-container").innerHTML = "";
+      // Add default 2 buttons
+      addButtonRow("Mua bán", "success");
+      addButtonRow("Hỗ trợ", "danger");
+    }
+    updatePreview();
+  }
+
+  function hideEditor() {
+    document.getElementById("panels-list-section").style.display = "block";
+    document.getElementById("btn-create-panel").style.display = "inline-block";
+    document.getElementById("editor-section").style.display = "none";
+  }
+
+  function updateColor(val) {
+    if(!val.startsWith("#")) val = "#" + val;
+    document.getElementById("panel-color").value = val;
+    document.getElementById("panel-color-display").value = val;
+    document.getElementById("panel-color-swatch").style.background = val;
+    document.getElementById("prev-embed-box").style.borderColor = val;
+  }
+
+  function updatePreview() {
+    const title = document.getElementById("panel-title").value || "Tiêu đề Panel";
+    const desc = document.getElementById("panel-description").value || "Nội dung mô tả...";
+    const thumb = document.getElementById("panel-thumbnail-url").value;
+    const image = document.getElementById("panel-image-url").value;
+    const footer = document.getElementById("panel-footer-text").value;
+    const color = document.getElementById("panel-color").value;
+
+    document.getElementById("prev-title").innerText = title;
+    document.getElementById("prev-desc").innerText = desc;
+    document.getElementById("prev-embed-box").style.borderColor = color;
+
+    // Thumb
+    const elThumb = document.getElementById("prev-thumb");
+    if (thumb) {
+      elThumb.src = thumb;
+      elThumb.style.display = "block";
+    } else {
+      elThumb.style.display = "none";
+    }
+
+    // Image
+    const elImg = document.getElementById("prev-image");
+    if (image) {
+      elImg.src = image;
+      elImg.style.display = "block";
+    } else {
+      elImg.style.display = "none";
+    }
+
+    // Footer
+    const elFoot = document.getElementById("prev-footer");
+    if (footer) {
+      elFoot.innerText = footer;
+      elFoot.style.display = "block";
+    } else {
+      elFoot.style.display = "none";
+    }
+
+    // Buttons
+    renderButtonsPreview();
+  }
+
+  function renderButtonsPreview() {
+    const container = document.getElementById("prev-buttons-row");
+    container.innerHTML = "";
+    
+    // Read current input values from rows
+    const rows = document.querySelectorAll(".btn-item");
+    rows.forEach(row => {
+      const label = row.querySelector(".btn-label-input").value || "Button";
+      const style = row.querySelector(".btn-style-select").value;
+      
+      const el = document.createElement("div");
+      el.className = `dc-btn dc-btn-${style}`;
+      el.innerText = label;
+      container.appendChild(el);
+    });
+  }
+
+  function addButtonRow(label = "", style = "primary", categoryId = "") {
+    const container = document.getElementById("buttons-container");
+    const count = container.querySelectorAll(".btn-item").length;
+    if (count >= 5) {
+      alert("Chỉ được thêm tối đa 5 nút bấm.");
+      return;
+    }
+
+    const row = document.createElement("div");
+    row.className = "btn-item";
+    
+    // Options categories
+    let catOptions = `<option value="">(Chọn danh mục đích...)</option>`;
+    CATEGORIES.forEach(c => {
+      catOptions += `<option value="${c.channel_id}" ${c.channel_id === categoryId ? 'selected' : ''}>📁 ${c.channel_name}</option>`;
+    });
+
+    row.innerHTML = `
+      <input type="text" class="form-control btn-label-input" placeholder="Chữ hiển thị..." value="${label}" oninput="updatePreview()">
+      <select class="form-control btn-style-select" onchange="updatePreview()">
+        <option value="primary" ${style === 'primary' ? 'selected' : ''}>Xanh dương (Primary)</option>
+        <option value="success" ${style === 'success' ? 'selected' : ''}>Xanh lá (Success)</option>
+        <option value="danger" ${style === 'danger' ? 'selected' : ''}>Màu đỏ (Danger)</option>
+        <option value="secondary" ${style === 'secondary' ? 'selected' : ''}>Màu xám (Secondary)</option>
+      </select>
+      <select class="form-control btn-category-select">
+        ${catOptions}
+      </select>
+      <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); updatePreview();">
+        <i class="bi bi-trash"></i>
+      </button>
+    `;
+    container.appendChild(row);
+    updatePreview();
+  }
+
+  function savePanel() {
+    const id = document.getElementById("panel-id").value;
+    const name = document.getElementById("panel-name").value.trim();
+    const channelId = document.getElementById("panel-channel-id").value;
+    const supportRoleId = selectedTicketRoles.join(",");
+    const color = document.getElementById("panel-color").value;
+    const title = document.getElementById("panel-title").value.trim();
+    const description = document.getElementById("panel-description").value.trim();
+    const thumbnailUrl = document.getElementById("panel-thumbnail-url").value.trim();
+    const imageUrl = document.getElementById("panel-image-url").value.trim();
+    const footerText = document.getElementById("panel-footer-text").value.trim();
+
+    if (!name) {
+      alert("Vui lòng nhập tên Panel!");
+      return;
+    }
+    if (!channelId) {
+      alert("Vui lòng cấu hình kênh gửi Panel!");
+      return;
+    }
+
+    // Collect buttons
+    const btnRows = document.querySelectorAll(".btn-item");
+    const buttons = [];
+    let valid = true;
+
+    btnRows.forEach(row => {
+      const lbl = row.querySelector(".btn-label-input").value.trim();
+      const style = row.querySelector(".btn-style-select").value;
+      const cat = row.querySelector(".btn-category-select").value;
+
+      if (!lbl) {
+        alert("Nút bấm không được để trống chữ hiển thị!");
+        valid = false;
+        return;
+      }
+      if (!cat) {
+        alert("Mỗi nút bấm phải được chọn Danh mục đích tạo kênh!");
+        valid = false;
+        return;
+      }
+      buttons.push({ label: lbl, style: style, category_id: cat });
+    });
+
+    if (!valid) return;
+    if (buttons.length === 0) {
+      alert("Bảng panel phải có ít nhất 1 nút bấm!");
+      return;
+    }
+
+    const payload = {
+      panel: {
+        id: id ? parseInt(id) : null,
+        name: name,
+        channel_id: channelId,
+        support_role_id: supportRoleId || null,
+        color: color,
+        title: title || null,
+        description: description || null,
+        thumbnail_url: thumbnailUrl || null,
+        image_url: imageUrl || null,
+        footer_text: footerText || null
+      },
+      buttons: buttons
+    };
+
+    fetch(`/api/guild/${document.getElementById("embed-builder").dataset.guild}/tickets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        alert("Lưu Ticket Panel thành công!");
+        window.location.reload();
+      } else {
+        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+      }
+    })
+    .catch(e => {
+      console.error(e);
+      alert("Đã xảy ra lỗi mạng.");
+    });
+  }
+
+  function editPanel(panelId) {
+    const p = PANELS_DATA.find(item => item.id === panelId);
+    if (!p) return;
+    showEditor(true);
+    document.getElementById("panel-id").value = p.id;
+    document.getElementById("panel-name").value = p.name || "";
+    document.getElementById("panel-channel-id").value = p.channel_id || "";
+    if (p.support_role_id) {
+      selectedTicketRoles = p.support_role_id.split(",");
+    } else {
+      selectedTicketRoles = [];
+    }
+    if (typeof renderTicketRoles === 'function') renderTicketRoles();
+    
+    const color = p.color || "#5865F2";
+    updateColor(color);
+    
+    document.getElementById("panel-title").value = p.title || "";
+    document.getElementById("panel-description").value = p.description || "";
+    document.getElementById("panel-thumbnail-url").value = p.thumbnail_url || "";
+    document.getElementById("panel-image-url").value = p.image_url || "";
+    document.getElementById("panel-footer-text").value = p.footer_text || "";
+
+    // Load buttons
+    const container = document.getElementById("buttons-container");
+    container.innerHTML = "";
+    if (p.buttons) {
+      p.buttons.forEach(b => {
+        addButtonRow(b.label, b.style, b.category_id);
+      });
+    }
+    updatePreview();
+  }
+
+  function sendPanel(panelId) {
+    if (!confirm("Bạn có chắc chắn muốn gửi Panel này đến Discord? Việc này sẽ tự động xóa tin nhắn Panel cũ của bot trong kênh (nếu có) và đăng tải bản mới.")) {
+      return;
+    }
+    
+    const guildId = document.getElementById("embed-builder").dataset.guild;
+    fetch(`/api/guild/${guildId}/tickets/${panelId}/send`, {
+      method: "POST"
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        alert("Gửi Panel thành công! Đã cập nhật trên Discord.");
+      } else {
+        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+      }
+    })
+    .catch(e => {
+      console.error(e);
+      alert("Đã xảy ra lỗi kết nối.");
+    });
+  }
+
+  function deletePanel(panelId) {
+    if (!confirm("Bạn có chắc chắn muốn xóa Panel này? Thao tác này không thể hoàn tác.")) {
+      return;
+    }
+
+    const guildId = document.getElementById("embed-builder").dataset.guild;
+    fetch(`/api/guild/${guildId}/tickets/${panelId}`, {
+      method: "DELETE"
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        alert("Xóa thành công!");
+        window.location.reload();
+      } else {
+        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+      }
+    })
+    .catch(e => {
+      console.error(e);
+      alert("Lỗi kết nối.");
+    });
+  }
+</script>
+
+<!-- Dummy element for data-guild attribute -->
+<div id="embed-builder" data-guild="{{ guild_id }}" style="display:none;"></div>
+
+<script>
+  const allRoles = [
+    {% for r in roles %}
+      { 
+        id: "{{ r.id }}", 
+        name: {{ r.name|tojson|safe }}, 
+        color: "{% if r.color != 0 %}#{{ '%06x' | format(r.color) }}{% else %}#99aab5{% endif %}" 
+      }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  let selectedTicketRoles = [];
+  let renderTicketRoles = null;
+
+  function createRoleSelector(wrapperId, inputName, hiddenContainerId) {
+    const wrapper = document.getElementById(wrapperId);
+    const display = wrapper.querySelector('.custom-select-display');
+    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+    const chipsContainer = wrapper.querySelector('.chips-container');
+    const placeholder = wrapper.querySelector('.placeholder-text');
+    const hiddenContainer = document.getElementById(hiddenContainerId);
+    
+    renderTicketRoles = function() {
+      chipsContainer.innerHTML = '';
+      hiddenContainer.innerHTML = '';
+      
+      if (selectedTicketRoles.length === 0) {
+        placeholder.style.display = 'block';
+      } else {
+        placeholder.style.display = 'none';
+        selectedTicketRoles.forEach(roleId => {
+          const roleData = allRoles.find(r => r.id === roleId);
+          if (!roleData) return;
+          
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.innerHTML = `
+            <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+            ${roleData.name}
+            <i class="bi bi-x chip-remove" data-id="${roleData.id}"></i>
+          `;
+          chipsContainer.appendChild(chip);
+          
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = inputName;
+          hiddenInput.value = roleData.id;
+          hiddenContainer.appendChild(hiddenInput);
+        });
+      }
+      
+      const options = dropdown.querySelectorAll('.custom-option');
+      options.forEach(opt => {
+        if (selectedTicketRoles.includes(opt.dataset.id)) {
+          opt.classList.add('selected');
+        } else {
+          opt.classList.remove('selected');
+        }
+      });
+    };
+    
+    function renderDropdown() {
+      dropdown.innerHTML = '';
+      allRoles.forEach(roleData => {
+        if (roleData.name === '@everyone') return;
+        
+        const option = document.createElement('div');
+        option.className = 'custom-option';
+        option.dataset.id = roleData.id;
+        option.innerHTML = `
+          <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+          ${roleData.name}
+        `;
+        
+        option.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = selectedTicketRoles.indexOf(roleData.id);
+          if (idx > -1) {
+            selectedTicketRoles.splice(idx, 1);
+          } else {
+            selectedTicketRoles.push(roleData.id);
+          }
+          renderTicketRoles();
+        });
+        
+        dropdown.appendChild(option);
+      });
+    }
+    
+    display.addEventListener('click', () => {
+      wrapper.classList.toggle('open');
+    });
+    
+    chipsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('chip-remove')) {
+        e.stopPropagation();
+        const roleId = e.target.dataset.id;
+        const idx = selectedTicketRoles.indexOf(roleId);
+        if (idx > -1) {
+          selectedTicketRoles.splice(idx, 1);
+          renderTicketRoles();
+        }
+      }
+    });
+    
+    renderDropdown();
+    renderTicketRoles();
+  }
+
+  // Initialize the component
+  createRoleSelector('select-ticket-roles', 'support_role_ids', 'hidden-inputs-support-roles');
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-select-wrapper')) {
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+    }
+  });
+</script>
+{% endblock %}

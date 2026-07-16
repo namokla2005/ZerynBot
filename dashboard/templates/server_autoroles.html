@@ -1,0 +1,368 @@
+{% extends "base_server.html" %}
+{% block title %}Auto Roles{% endblock %}
+
+{% block head %}
+<style>
+  .warning-box {
+    background: rgba(237, 66, 69, 0.1);
+    border-left: 4px solid #ED4245;
+    padding: 16px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    color: #e5e5e5;
+  }
+  .warning-title {
+    color: #ED4245;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .module-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  /* Custom Multi-Select */
+  .custom-select-wrapper {
+    position: relative;
+    user-select: none;
+    width: 100%;
+  }
+  
+  .custom-select-display {
+    background: #1e1f22;
+    border: 1px solid #3f4147;
+    border-radius: 6px;
+    padding: 8px 12px;
+    min-height: 42px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  
+  .custom-select-display:hover {
+    border-color: #5865F2;
+  }
+  
+  .custom-select-display.open {
+    border-color: #5865F2;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  
+  .chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  
+  .chip {
+    background: #2b2d31;
+    border: 1px solid #3f4147;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #dbdee1;
+  }
+  
+  .chip .role-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  
+  .chip .chip-remove {
+    cursor: pointer;
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+  .chip .chip-remove:hover {
+    opacity: 1;
+    color: #ED4245;
+  }
+  
+  .custom-select-arrow {
+    margin-left: auto;
+    color: #80848e;
+  }
+  
+  .custom-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #2b2d31;
+    border: 1px solid #3f4147;
+    border-top: none;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  }
+  
+  .custom-select-wrapper.open .custom-select-dropdown {
+    display: block;
+  }
+  
+  .custom-option {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #dbdee1;
+    border-bottom: 1px solid #1e1f22;
+  }
+  
+  .custom-option:hover {
+    background: #3f4147;
+  }
+  
+  .custom-option.selected {
+    background: rgba(88, 101, 242, 0.1);
+  }
+  
+  .custom-option.selected:after {
+    content: '\2713';
+    margin-left: auto;
+    color: #5865F2;
+    font-weight: bold;
+  }
+
+  .role-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  
+  .placeholder-text {
+    color: #80848e;
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="module-header">
+  <div class="module-title">
+    <i class="bi bi-person-badge-fill" style="color: #5865F2;"></i> Auto Roles
+  </div>
+</div>
+
+<div class="warning-box">
+  <div class="warning-title">
+    <i class="bi bi-exclamation-triangle-fill"></i> Quan trọng
+  </div>
+  <div>
+    - Đảm bảo role của Bot nằm <strong>trên</strong> các role muốn cấp phát trong Cài đặt Máy chủ (Server Settings).<br>
+    - Bot cần có quyền <strong>Quản lý Vai trò (Manage Roles)</strong>.<br>
+    - Nếu server của bạn có tính năng <strong>Sàng lọc Thành viên (Rule Screening)</strong>, role sẽ được cấp cho người dùng <strong>sau khi</strong> họ đồng ý với luật của Server.
+  </div>
+</div>
+
+<form method="POST" id="autoroles-form">
+  <div class="card">
+    <div class="card-header" style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <div>
+        <div class="card-title">Cài đặt Cấp quyền Tự động</div>
+        <div class="card-desc">Tự động gắn vai trò (Role) cho thành viên và bot khi họ tham gia máy chủ của bạn.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" name="autoroles_enabled" {% if settings.autoroles_enabled %}checked{% endif %}>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+
+    <!-- Hiddens to store selected roles -->
+    <div id="hidden-inputs-user"></div>
+    <div id="hidden-inputs-bot"></div>
+
+    <div class="form-group" style="margin-top: 24px;">
+      <label class="form-label">VAI TRÒ CHO NGƯỜI DÙNG</label>
+      <div class="custom-select-wrapper" id="select-user">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-user"></div>
+          <div class="placeholder-text" id="placeholder-user">Chọn vai trò...</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-user">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 32px;">
+      <label class="form-label">VAI TRÒ CHO BOT</label>
+      <div class="custom-select-wrapper" id="select-bot">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-bot"></div>
+          <div class="placeholder-text" id="placeholder-bot">Chọn vai trò...</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-bot">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+      <div class="form-hint" style="margin-top: 8px;">Vai trò này sẽ được cấp cho các Bot khác khi chúng được mời vào máy chủ.</div>
+    </div>
+  </div>
+
+  <div class="bottom-actions">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-save2"></i> Lưu thay đổi
+    </button>
+  </div>
+</form>
+
+<script>
+  // Data passed from backend
+  const allRoles = [
+    {% for r in roles %}
+      { id: "{{ r.role_id }}", name: {{ r.role_name|tojson|safe }}, color: "{{ r.color_hex }}" }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  
+  // Current selections
+  let selectedUserRoles = {{ saved_user_roles|tojson|safe }};
+  let selectedBotRoles = {{ saved_bot_roles|tojson|safe }};
+
+  function createRoleSelector(wrapperId, inputName, selectedList, hiddenContainerId) {
+    const wrapper = document.getElementById(wrapperId);
+    const display = wrapper.querySelector('.custom-select-display');
+    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+    const chipsContainer = wrapper.querySelector('.chips-container');
+    const placeholder = wrapper.querySelector('.placeholder-text');
+    const hiddenContainer = document.getElementById(hiddenContainerId);
+    
+    function renderChips() {
+      chipsContainer.innerHTML = '';
+      hiddenContainer.innerHTML = '';
+      
+      if (selectedList.length === 0) {
+        placeholder.style.display = 'block';
+      } else {
+        placeholder.style.display = 'none';
+        selectedList.forEach(roleId => {
+          const roleData = allRoles.find(r => r.id === roleId);
+          if (!roleData) return;
+          
+          // Add visible chip
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.innerHTML = `
+            <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+            ${roleData.name}
+            <i class="bi bi-x chip-remove" data-id="${roleData.id}"></i>
+          `;
+          chipsContainer.appendChild(chip);
+          
+          // Add hidden input for form submission
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = inputName;
+          hiddenInput.value = roleData.id;
+          hiddenContainer.appendChild(hiddenInput);
+        });
+      }
+      
+      // Update dropdown selections visually
+      const options = dropdown.querySelectorAll('.custom-option');
+      options.forEach(opt => {
+        if (selectedList.includes(opt.dataset.id)) {
+          opt.classList.add('selected');
+        } else {
+          opt.classList.remove('selected');
+        }
+      });
+    }
+    
+    function renderDropdown() {
+      dropdown.innerHTML = '';
+      allRoles.forEach(roleData => {
+        // Skip @everyone (position 0 or name @everyone) usually
+        if (roleData.name === '@everyone') return;
+        
+        const option = document.createElement('div');
+        option.className = 'custom-option';
+        option.dataset.id = roleData.id;
+        option.innerHTML = `
+          <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+          ${roleData.name}
+        `;
+        
+        option.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = selectedList.indexOf(roleData.id);
+          if (idx > -1) {
+            selectedList.splice(idx, 1);
+          } else {
+            selectedList.push(roleData.id);
+          }
+          renderChips();
+        });
+        
+        dropdown.appendChild(option);
+      });
+    }
+    
+    display.addEventListener('click', () => {
+      // close other if open
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+        if (w !== wrapper) w.classList.remove('open');
+      });
+      wrapper.classList.toggle('open');
+    });
+    
+    chipsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('chip-remove')) {
+        e.stopPropagation();
+        const roleId = e.target.dataset.id;
+        const idx = selectedList.indexOf(roleId);
+        if (idx > -1) {
+          selectedList.splice(idx, 1);
+          renderChips();
+        }
+      }
+    });
+    
+    renderDropdown();
+    renderChips();
+  }
+
+  // Initialize both selectors
+  createRoleSelector('select-user', 'autoroles_user', selectedUserRoles, 'hidden-inputs-user');
+  createRoleSelector('select-bot', 'autoroles_bot', selectedBotRoles, 'hidden-inputs-bot');
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-select-wrapper')) {
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+    }
+  });
+</script>
+
+{% endblock %}

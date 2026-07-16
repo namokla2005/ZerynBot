@@ -1,0 +1,214 @@
+"""
+Cog: Utility (v2) — Prefix commands: ping, membercount, help
+"""
+import sys, os, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+import discord
+from discord.ext import commands
+from datetime import datetime, timezone
+import config
+
+
+class HelpSelect(discord.ui.Select):
+    def __init__(self, bot: commands.Bot, ctx: commands.Context):
+        self.bot = bot
+        self.ctx = ctx
+        options = [
+            discord.SelectOption(label="Trang chủ", description="Xem giới thiệu chung", emoji="🏠", value="home"),
+            discord.SelectOption(label="Tiện ích", description="Các lệnh tiện ích cơ bản", emoji="⚙️", value="utility"),
+            discord.SelectOption(label="Thông tin", description="Thông tin server, người dùng", emoji="ℹ️", value="info"),
+            discord.SelectOption(label="Âm nhạc", description="Phát nhạc và quản lý hàng chờ", emoji="🎵", value="music"),
+            discord.SelectOption(label="Cài đặt (Admin)", description="Quản trị viên và cấu hình", emoji="🛠️", value="admin")
+        ]
+        super().__init__(placeholder="Chọn danh mục lệnh để xem chi tiết...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("❌ Bạn không có quyền thao tác menu này!", ephemeral=True)
+        
+        embed = discord.Embed(color=config.COLOR_INFO, timestamp=datetime.now(timezone.utc))
+        embed.set_footer(text=f"Yêu cầu bởi {self.ctx.author.display_name}", icon_url=self.ctx.author.display_avatar.url)
+        
+        val = self.values[0]
+        if val == "home":
+            embed.title = "📖 Danh sách lệnh"
+            embed.description = "Các lệnh dùng bằng cách Tag bot hoặc dùng tiền tố `/` (VD: `@ThienKhong play ...` hoặc `/play ...`)"
+            if self.bot.user.display_avatar:
+                embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+            embed.add_field(name="📢 Hướng dẫn", value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động:**\n🎉 Chào mừng — Khi thành viên gia nhập\n👋 Tạm biệt — Khi thành viên rời đi", inline=False)
+        elif val == "utility":
+            embed.title = "⚙️ Tiện ích"
+            embed.description = (
+                "`/ping` — Kiểm tra độ trễ kết nối của bot\n"
+                "`/membercount` — Thống kê số lượng thành viên và bot trong server\n"
+                "`/help` — Danh sách tất cả các lệnh của bot"
+            )
+        elif val == "info":
+            embed.title = "ℹ️ Thông tin"
+            embed.description = (
+                "`/serverinfo` — Hiển thị thông tin chi tiết về server\n"
+                "`/userinfo [@user]` — Hiển thị thông tin chi tiết về người dùng\n"
+                "`/avatar [@user]` — Hiển thị avatar full-size của người dùng"
+            )
+        elif val == "music":
+            embed.title = "🎵 Âm nhạc"
+            embed.description = (
+                "`/join` — Bot vào kênh voice của bạn\n"
+                "`/leave` — Bot rời kênh voice và xóa hàng chờ\n"
+                "`/play [tên/link]` — Phát nhạc từ YouTube (tên bài hoặc link)\n"
+                "`/search [tên]` — Tìm kiếm nhạc và chọn từ 5 kết quả\n"
+                "`/stop` — Dừng nhạc và xóa toàn bộ hàng chờ\n"
+                "`/resume` — Tiếp tục phát nhạc đang tạm dừng\n"
+                "`/loop` — Bật/tắt chế độ lặp lại bài hiện tại\n"
+                "`/autoplay` — Bật/tắt tự động phát bài tiếp theo\n"
+                "`/replay` — Phát lại bài hát hiện tại từ đầu\n"
+                "`/lofi` — Phát kênh Lofi Girl 24/7\n"
+                "`/playlist name [tên]` — Tạo hoặc hiển thị playlist\n"
+                "`/playlist add [tên] [bài]` — Thêm bài hát vào playlist\n"
+                "`/playlist play [tên]` — Phát toàn bộ bài hát trong playlist\n"
+                "`/playlist loop` — Bật/tắt lặp lại toàn bộ playlist/hàng chờ"
+            )
+        elif val == "admin":
+            embed.title = "🛠️ Cài đặt (Admin)"
+            embed.description = (
+                "`config` — Xem cấu hình hiện tại của server và link dashboard (Dùng text hoặc tag bot)\n"
+                "`/reactionroles` — Link cấu hình Reaction Roles trên Dashboard\n"
+                "`/ticket` — Link cấu hình Ticket System trên Dashboard\n"
+                "`/autorole show` — Xem cấu hình Auto Roles hiện tại\n"
+                "`/automods show` — Xem cấu hình Automods hiện tại"
+            )
+
+        await interaction.response.edit_message(embed=embed, view=self.view)
+
+
+class HelpView(discord.ui.View):
+    def __init__(self, bot: commands.Bot, ctx: commands.Context):
+        super().__init__(timeout=180)
+        self.bot = bot
+        self.ctx = ctx
+        self.message = None
+        self.add_item(HelpSelect(bot, ctx))
+        
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        try:
+            if self.message:
+                await self.message.edit(view=self)
+        except Exception:
+            pass
+
+class Utility(commands.Cog):
+    """Lệnh tiện ích."""
+
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    async def cog_before_invoke(self, ctx: commands.Context):
+        if not ctx.guild:
+            return
+        from database import async_is_module_enabled
+        enabled = await async_is_module_enabled(str(ctx.guild.id), "utility")
+        if not enabled:
+            await ctx.send("❌ Module **Utility** đã bị tắt trong server này!")
+            raise commands.CommandError("Module disabled")
+
+    # ─── ping ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="ping", description="Kiểm tra độ trễ kết nối của bot")
+    async def ping(self, ctx: commands.Context):
+        ws = round(self.bot.latency * 1000)
+        t0 = time.perf_counter()
+        await ctx.defer()
+        rtt = round((time.perf_counter() - t0) * 1000)
+
+        if ws < 80:
+            quality, color = "🟢 Tuyệt vời", config.COLOR_SUCCESS
+        elif ws < 150:
+            quality, color = "🟡 Tốt", 0xFEE75C
+        elif ws < 300:
+            quality, color = "🟠 Trung bình", 0xFF8800
+        else:
+            quality, color = "🔴 Kém", config.COLOR_ERROR
+
+        embed = discord.Embed(title="🏓 Pong!", color=config.COLOR_PING,
+                              timestamp=datetime.now(timezone.utc))
+        embed.add_field(name="📡 WebSocket", value=f"**{ws}** ms", inline=True)
+        embed.add_field(name="↩️ Round-Trip", value=f"**{rtt}** ms", inline=True)
+        embed.add_field(name="📶 Chất lượng", value=quality, inline=True)
+        embed.set_footer(
+            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url,
+        )
+        await ctx.send(embed=embed)
+
+    # ─── membercount ───────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="membercount", description="Thống kê số lượng thành viên và bot trong server")
+    @commands.guild_only()
+    async def membercount(self, ctx: commands.Context):
+        guild  = ctx.guild
+        total  = guild.member_count
+        bots   = sum(1 for m in guild.members if m.bot)
+        humans = total - bots
+        human_pct = round(humans / total * 100, 1) if total else 0
+        bot_pct   = round(bots   / total * 100, 1) if total else 0
+
+        bar_len   = 20
+        filled    = round(human_pct / 100 * bar_len)
+        progress  = f"`{'█' * filled}{'░' * (bar_len - filled)}` {human_pct}% người"
+
+        online  = sum(1 for m in guild.members if m.status == discord.Status.online)
+        idle    = sum(1 for m in guild.members if m.status == discord.Status.idle)
+        dnd     = sum(1 for m in guild.members if m.status == discord.Status.dnd)
+        offline = sum(1 for m in guild.members if m.status == discord.Status.offline)
+
+        embed = discord.Embed(
+            title=f"👥 Thành viên — {guild.name}",
+            color=config.COLOR_SUCCESS,
+            timestamp=datetime.now(timezone.utc),
+        )
+        if guild.icon:
+            embed.set_thumbnail(url=guild.icon.url)
+
+        embed.add_field(name="📊 Tổng",   value=f"**{total}**",              inline=True)
+        embed.add_field(name="👤 Người",  value=f"**{humans}** ({human_pct}%)", inline=True)
+        embed.add_field(name="🤖 Bot",    value=f"**{bots}** ({bot_pct}%)",    inline=True)
+        embed.add_field(name="📈 Tỉ lệ", value=progress,                      inline=False)
+        embed.add_field(name="🟢 Online", value=f"**{online}**",  inline=True)
+        embed.add_field(name="🌙 Idle",   value=f"**{idle}**",    inline=True)
+        embed.add_field(name="🔴 DND",    value=f"**{dnd}**",     inline=True)
+        embed.add_field(name="⚫ Offline", value=f"**{offline}**", inline=True)
+        embed.set_footer(
+            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url,
+        )
+        await ctx.send(embed=embed)
+
+    # ─── help ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="help", description="Danh sách tất cả các lệnh của bot")
+    async def help_cmd(self, ctx: commands.Context):
+        embed = discord.Embed(
+            title="📖 Danh sách lệnh",
+            description="Các lệnh dùng bằng cách Tag bot hoặc dùng tiền tố `/` (VD: `@ThienKhong play ...` hoặc `/play ...`)",
+            color=config.COLOR_INFO,
+            timestamp=datetime.now(timezone.utc),
+        )
+        if self.bot.user.display_avatar:
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+
+        embed.add_field(
+            name="📢 Hướng dẫn",
+            value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động:**\n🎉 Chào mừng — Khi thành viên gia nhập\n👋 Tạm biệt — Khi thành viên rời đi",
+            inline=False,
+        )
+        embed.set_footer(
+            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url,
+        )
+
+        view = HelpView(self.bot, ctx)
+        view.message = await ctx.send(embed=embed, view=view)
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Utility(bot))
