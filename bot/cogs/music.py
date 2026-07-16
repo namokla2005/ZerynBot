@@ -30,6 +30,9 @@ YDL_OPTS_PLAY = {
     "no_warnings": True,
     "format":      "bestaudio/best",
     "noplaylist":  True,
+    "youtube_include_dash_manifest": False,
+    "youtube_include_hls_manifest": False,
+    "nocheckcertificate": True,
     "socket_timeout": 5,
 }
 
@@ -39,6 +42,9 @@ YDL_OPTS_LIVE = {
     "format":        "bestaudio/best",
     "noplaylist":    True,
     "live_from_start": False,
+    "youtube_include_dash_manifest": False,
+    "youtube_include_hls_manifest": False,
+    "nocheckcertificate": True,
     "socket_timeout": 5,
 }
 
@@ -47,6 +53,9 @@ YDL_OPTS_SEARCH = {
     "no_warnings":   True,
     "extract_flat":  True,
     "skip_download": True,
+    "youtube_include_dash_manifest": False,
+    "youtube_include_hls_manifest": False,
+    "nocheckcertificate": True,
     "socket_timeout": 3,
 }
 
