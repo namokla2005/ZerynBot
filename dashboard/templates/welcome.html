@@ -31,36 +31,23 @@
     max-width: 440px;
     height: 260px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: url('/static/bg.png') center/cover;
+    gap: 12px;
     border-radius: 12px;
     margin: 15px auto;
     overflow: hidden;
   }
-  .banner-accent {
+  .banner-outer::before {
+    content: "";
     position: absolute;
-    width: calc(100% - 30px);
-    height: calc(100% - 30px);
-    border-radius: 20px;
+    top: -10px; left: -10px; right: -10px; bottom: -10px;
+    background: url('/static/bg.png') center/cover;
+    filter: blur(4px) brightness(0.55);
     z-index: 0;
   }
-  .banner-accent.left  {
-    top: 0;
-    left: 0;
-  }
-  .banner-accent.right {
-    bottom: 0;
-    right: 0;
-  }
-
-  .banner-card {
-    width: calc(100% - 30px);
-    height: calc(100% - 30px);
-    background: rgba(15, 10, 25, 0.65);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border-radius: 16px;
+  .banner-card { display: none; }
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -71,8 +58,8 @@
     overflow: visible;
   }
   .banner-badge {
-    position: absolute;
-    top: -14px;
+    position: relative;
+    z-index: 1;
     background: #3b3d4a;
     border-radius: 20px;
     padding: 4px 16px;
@@ -82,6 +69,8 @@
     white-space: nowrap;
   }
   .banner-avatar {
+    position: relative;
+    z-index: 1;
     width: 70px;
     height: 70px;
     border-radius: 50%;
@@ -96,22 +85,29 @@
   }
   .banner-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .banner-username {
+    position: relative;
+    z-index: 1;
     font-size: 1.05rem;
     font-weight: 800;
     color: #fff;
     margin-top: 4px;
   }
   .banner-prep {
+    position: relative;
+    z-index: 1;
     font-size: 0.72rem;
     color: #9399a6;
     margin-top: -4px;
   }
   .banner-server {
+    position: relative;
+    z-index: 1;
     font-size: 0.88rem;
     font-weight: 700;
     color: #e2e4ea;
     margin-top: -2px;
   }
+
 
   /* Message above the card (Discord style) */
   .dc-msg-row {
@@ -254,9 +250,6 @@
             <!-- Banner card -->
             <div id="w-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
               <div class="banner-outer" id="w-banner-outer">
-                <div class="banner-accent left" id="w-accent-left" style="background:#ffb7c5;"></div>
-                <div class="banner-accent right" id="w-accent-right" style="background:#ff9ec2;"></div>
-                <div class="banner-card">
                   <div class="banner-badge" id="w-badge">Member #{{ meta.get('member_count', '???') if meta else '???' }}</div>
                   <div class="banner-avatar">
                     {% if avatar %}
@@ -268,7 +261,6 @@
                   <div class="banner-username" id="w-uname">Welcome {{ user.get('global_name') or user.get('username','User') }}</div>
                   <div class="banner-prep">to</div>
                   <div class="banner-server" id="w-server">{{ guild.get('name','Server') }}</div>
-                </div>
               </div>
             </div>
 
@@ -364,9 +356,6 @@
 
             <div id="g-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
               <div class="banner-outer" id="g-banner-outer">
-                <div class="banner-accent left" id="g-accent-left" style="background:#ffb347;"></div>
-                <div class="banner-accent right" id="g-accent-right" style="background:#ffcc33;"></div>
-                <div class="banner-card">
                   <div class="banner-badge" id="g-badge">Sad to see you go!</div>
                   <div class="banner-avatar">
                     {% if avatar %}
@@ -378,7 +367,6 @@
                   <div class="banner-username" id="g-uname">Goodbye {{ user.get('global_name') or user.get('username','User') }}</div>
                   <div class="banner-prep">from</div>
                   <div class="banner-server" id="g-server">{{ guild.get('name','Server') }}</div>
-                </div>
               </div>
             </div>
 

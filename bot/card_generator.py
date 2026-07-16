@@ -133,11 +133,11 @@ def _render_card(
         accent_color2 = accent_color
 
     # ─── Canvas ─────────────────────────────────────────────────────────────
-    W, H    = 800, 440
+    W, H    = 540, 320
     CARD_W  = 540
     CARD_H  = 320
-    CARD_X  = (W - CARD_W) // 2
-    CARD_Y  = (H - CARD_H) // 2
+    CARD_X  = 0
+    CARD_Y  = 0
 
     # Transparent background!
     img  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -162,6 +162,14 @@ def _render_card(
                 y = (raw_bg.height - new_h) // 2
                 raw_bg = raw_bg.crop((0, y, raw_bg.width, y + new_h))
             bg_img = raw_bg.resize((W, H), Image.LANCZOS)
+            
+            # Apply blur 3%
+            bg_img = bg_img.filter(ImageFilter.GaussianBlur(3))
+            
+            # Darken the background
+            dark_overlay = Image.new("RGBA", (W, H), (0, 0, 0, 110))
+            bg_img = Image.alpha_composite(bg_img, dark_overlay)
+            
         except Exception as e:
             log.warning(f"[Card] Failed to load bg.png: {e}")
 
@@ -173,29 +181,6 @@ def _render_card(
         img.paste(bg_img, (0, 0), mask)
     else:
         _draw_rounded_rect(draw, (0, 0, W, H), radius=20, fill=(30, 31, 34, 255))
-
-    # ─── Accent Background Panels (Offset shadows) ──────────────────────────
-    offset = 20
-    radius = 30
-
-    # Top-Left Accent
-    _draw_rounded_rect(
-        draw,
-        (CARD_X - offset, CARD_Y - offset, CARD_X - offset + CARD_W, CARD_Y - offset + CARD_H),
-        radius=radius,
-        fill=(*accent_color, 255),
-    )
-    
-    # Bottom-Right Accent
-    _draw_rounded_rect(
-        draw,
-        (CARD_X + offset, CARD_Y + offset, CARD_X + offset + CARD_W, CARD_Y + offset + CARD_H),
-        radius=radius,
-        fill=(*accent_color2, 255),
-    )
-
-    # ─── Main card background ────────────────────────────────────────────────
-    _draw_rounded_rect(draw, (CARD_X, CARD_Y, CARD_X + CARD_W, CARD_Y + CARD_H), radius=radius, fill=(*card_bg, 165))
 
     # ─── Avatar ──────────────────────────────────────────────────────────────
     AV_SIZE = 110
