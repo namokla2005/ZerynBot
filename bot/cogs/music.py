@@ -565,7 +565,7 @@ class Music(commands.Cog, name="Music"):
 
     @commands.hybrid_command(name="lofi", description="Phát kênh Lofi Girl 24/7")
     async def lofi(self, ctx: commands.Context):
-        await ctx.invoke(self.play, query="https://www.twitch.tv/lofigirl")
+        await ctx.invoke(self.play, query="http://lofi.stream.laut.fm/lofi")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Music(bot))
