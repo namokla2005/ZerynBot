@@ -34,7 +34,7 @@ YDL_OPTS_PLAY = {
     "youtube_include_hls_manifest": True,
     "nocheckcertificate": True,
     "socket_timeout": 5,
-    "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
+    "extractor_args": {"youtube": {"player_client": ["mweb", "web"]}},
 }
 
 YDL_OPTS_LIVE = {
@@ -47,7 +47,7 @@ YDL_OPTS_LIVE = {
     "youtube_include_hls_manifest": True,
     "nocheckcertificate": True,
     "socket_timeout": 5,
-    "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
+    "extractor_args": {"youtube": {"player_client": ["mweb", "web"]}},
 }
 
 YDL_OPTS_SEARCH = {
@@ -59,7 +59,7 @@ YDL_OPTS_SEARCH = {
     "youtube_include_hls_manifest": True,
     "nocheckcertificate": True,
     "socket_timeout": 3,
-    "extractor_args": {"youtube": {"player_client": ["ios", "android", "web"]}},
+    "extractor_args": {"youtube": {"player_client": ["mweb", "web"]}},
 }
 
 FFMPEG_OPTS = {
@@ -604,10 +604,12 @@ class Music(commands.Cog, name="Music"):
             embed.add_field(name="Thời lượng", value="Chưa rõ" if track.get("duration") == -1 else _fmt_duration(track.get("duration")), inline=True)
             await ctx.send(embed=embed)
         else:
-            await ctx.send(f"⏳ Đang xử lý bài hát **{track['title']}**...")
+            await ctx.send(f"⏳ Đang chuẩn bị phát bài hát **{track['title']}**...")
             try:
                 # Truyền ctx.channel thay vì ctx để tránh lỗi Unknown Message
-                await self._play_track(vc, ctx.guild.id, track, ctx.channel)
+                # Chạy ngầm _play_track để lệnh /play trả về kết quả ngay lập tức
+                import asyncio
+                asyncio.create_task(self._play_track(vc, ctx.guild.id, track, ctx.channel))
             except Exception as e:
                 log.error(f"[Music] play error: {e}")
                 await ctx.channel.send(f"❌ Lỗi khi phát nhạc: {e}")
@@ -851,7 +853,8 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(f"▶️ Bắt đầu phát playlist **{pl['name']}** (**{len(tracks) + 1}** bài hát)!")
             try:
                 # Truyền ctx.channel để fix Unknown Message
-                await self._play_track(vc, ctx.guild.id, first_track, ctx.channel)
+                import asyncio
+                asyncio.create_task(self._play_track(vc, ctx.guild.id, first_track, ctx.channel))
             except Exception as e:
                 log.error(f"[Music] playlist play error: {e}")
                 await ctx.channel.send(f"❌ Lỗi khi phát nhạc: {e}")
