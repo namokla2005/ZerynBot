@@ -102,6 +102,8 @@ def init_db():
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
                 guild_id       TEXT NOT NULL,
                 name           TEXT NOT NULL,
+                creator_id     TEXT,
+                creator_name   TEXT,
                 created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -188,6 +190,13 @@ def init_db():
             conn.execute("ALTER TABLE automod_settings ADD COLUMN immune_roles TEXT DEFAULT '[]'")
         if "spam_allowed_channels" not in am_cols:
             conn.execute("ALTER TABLE automod_settings ADD COLUMN spam_allowed_channels TEXT DEFAULT '[]'")
+            
+        cursor.execute("PRAGMA table_info(music_playlists)")
+        pl_cols = [row[1] for row in cursor.fetchall()]
+        if "creator_id" not in pl_cols:
+            conn.execute("ALTER TABLE music_playlists ADD COLUMN creator_id TEXT")
+        if "creator_name" not in pl_cols:
+            conn.execute("ALTER TABLE music_playlists ADD COLUMN creator_name TEXT")
             
         conn.commit()
 
@@ -635,9 +644,9 @@ def get_playlist_by_name(guild_id: str, name: str) -> Optional[Dict]:
             return d
         return None
 
-def create_playlist(guild_id: str, name: str) -> int:
+def create_playlist(guild_id: str, name: str, creator_id: str = "", creator_name: str = "") -> int:
     with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.execute("INSERT INTO music_playlists (guild_id, name) VALUES (?, ?)", (guild_id, name))
+        cursor = conn.execute("INSERT INTO music_playlists (guild_id, name, creator_id, creator_name) VALUES (?, ?, ?, ?)", (guild_id, name, creator_id, creator_name))
         conn.commit()
         return cursor.lastrowid
 
@@ -705,11 +714,16 @@ async def async_get_playlist_by_name(guild_id: str, name: str) -> Optional[Dict]
             return d
         return None
 
-async def async_create_playlist(guild_id: str, name: str) -> int:
+async def async_create_playlist(guild_id: str, name: str, creator_id: str = "", creator_name: str = "") -> int:
     async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute("INSERT INTO music_playlists (guild_id, name) VALUES (?, ?)", (guild_id, name))
+        cursor = await db.execute("INSERT INTO music_playlists (guild_id, name, creator_id, creator_name) VALUES (?, ?, ?, ?)", (guild_id, name, creator_id, creator_name))
         await db.commit()
         return cursor.lastrowid
+
+async def async_delete_playlist(playlist_id: int, guild_id: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM music_playlists WHERE id = ? AND guild_id = ?", (playlist_id, guild_id))
+        await db.commit()
 
 async def async_add_track_to_playlist(playlist_id: int, track: Dict) -> int:
     async with aiosqlite.connect(DB_PATH) as db:

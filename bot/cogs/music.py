@@ -38,7 +38,7 @@ def _now_playing_embed(track: wavelink.Playable, queue: wavelink.Queue) -> disco
     desc = f"**{title_link}**\n"
     desc += f"CLOUD MUSIC — `{duration_str}` — {requester}\n\n"
     desc += f"**Volume:** `100%` — **Queue:** `{queue_len} songs` — **Total duration:** `{total_duration_str}`\n\n"
-    desc += "▬▬▬▬▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+    desc += "▬▬🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
     
     e = discord.Embed(
         title       = "Now Playing",
@@ -267,26 +267,29 @@ class Music(commands.Cog, name="Music"):
     async def playlist_group(self, ctx: commands.Context):
         pass
 
-    @playlist_group.command(name="name", description="Đổi tên playlist của server")
-    @app_commands.describe(name="Tên mới cho playlist")
+    @playlist_group.command(name="name", description="Tạo một playlist mới")
+    @app_commands.describe(name="Tên playlist muốn tạo")
     async def playlist_name(self, ctx: commands.Context, name: str):
         import database as db
         guild_id_str = str(ctx.guild.id)
-        pl = await db.async_get_playlist_by_name(guild_id_str, "Yêu thích")
-        if not pl:
-            pl_id = await db.async_create_playlist(guild_id_str, name)
+        pl = await db.async_get_playlist_by_name(guild_id_str, name)
+        if pl:
+            await ctx.send(f"❌ Playlist **{name}** đã tồn tại trong server!")
         else:
-            await db.async_update_playlist_name(pl["id"], name)
-        await ctx.send(f"✅ Đã đổi tên playlist thành **{name}**!")
+            await db.async_create_playlist(guild_id_str, name, str(ctx.author.id), ctx.author.display_name)
+            await ctx.send(f"✅ Đã tạo playlist mới: **{name}**!")
 
     @playlist_group.command(name="add", description="Thêm một bài hát vào playlist")
-    @app_commands.describe(query="Link hoặc tên bài hát")
-    async def playlist_add(self, ctx: commands.Context, query: str, name: str = "Yêu thích"):
+    @app_commands.describe(query="Link hoặc tên bài hát", name="Tên playlist")
+    async def playlist_add(self, ctx: commands.Context, query: str, name: str):
         await ctx.defer()
         import database as db
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl:
             await ctx.send(f"❌ Không tìm thấy playlist nào tên **{name}**! Hãy tạo trước bằng `/playlist name {name}`")
+            return
+        if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ Bạn không có quyền thêm bài hát vào playlist của người khác!")
             return
         
         tracks: wavelink.Search = await wavelink.Playable.search(query)
@@ -308,7 +311,7 @@ class Music(commands.Cog, name="Music"):
 
     @playlist_group.command(name="play", description="Phát toàn bộ bài hát trong playlist")
     @app_commands.describe(name="Tên của playlist")
-    async def playlist_play(self, ctx: commands.Context, name: str = "Yêu thích"):
+    async def playlist_play(self, ctx: commands.Context, name: str):
         if not ctx.author.voice:
             await ctx.send("❌ Bạn cần vào kênh voice trước!")
             return
@@ -357,6 +360,52 @@ class Music(commands.Cog, name="Music"):
         else:
             player.queue.mode = wavelink.QueueMode.normal
             await ctx.send("➡️ Đã TẮT lặp lại!")
+
+    @playlist_group.command(name="show", description="Xem danh sách bài hát trong playlist")
+    @app_commands.describe(name="Tên của playlist")
+    async def playlist_show(self, ctx: commands.Context, name: str):
+        import database as db
+        guild_id_str = str(ctx.guild.id)
+        pl = await db.async_get_playlist_by_name(guild_id_str, name)
+        if not pl or not pl.get("tracks"):
+            await ctx.send(f"❌ Không tìm thấy hoặc playlist **{name}** đang trống!")
+            return
+            
+        desc = ""
+        for i, track in enumerate(pl["tracks"], 1):
+            title = track.get("title", "Unknown")
+            duration = _fmt_duration(track.get("duration", 0))
+            desc += f"`{i}.` **{title}** `[{duration}]`\n"
+            if i >= 15:
+                desc += f"... và {len(pl['tracks']) - 15} bài khác.\n"
+                break
+                
+        embed = discord.Embed(
+            title=f"🎵 Playlist: {pl['name']}",
+            description=desc,
+            color=discord.Color.blurple()
+        )
+        if pl.get("creator_name"):
+            embed.set_footer(text=f"Tạo bởi: {pl['creator_name']}")
+            
+        await ctx.send(embed=embed)
+
+    @playlist_group.command(name="remove", description="Xóa một playlist do bạn tạo")
+    @app_commands.describe(name="Tên của playlist")
+    async def playlist_remove(self, ctx: commands.Context, name: str):
+        import database as db
+        guild_id_str = str(ctx.guild.id)
+        pl = await db.async_get_playlist_by_name(guild_id_str, name)
+        if not pl:
+            await ctx.send(f"❌ Không tìm thấy playlist nào tên **{name}**!")
+            return
+            
+        if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ Bạn không có quyền xóa playlist của người khác!")
+            return
+            
+        await db.async_delete_playlist(pl["id"], guild_id_str)
+        await ctx.send(f"✅ Đã xóa playlist **{name}**!")
 
     @commands.hybrid_command(name="stop", description="Dừng nhạc và xóa toàn bộ hàng chờ")
     async def stop(self, ctx: commands.Context):

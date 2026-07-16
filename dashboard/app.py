@@ -707,12 +707,20 @@ def server_music(guild_id: str):
 
     has_ffmpeg = shutil.which("ffmpeg") is not None
     playlists = db.get_playlists(guild_id)
+    
+    grouped_playlists = {}
+    for pl in playlists:
+        c_id = pl.get("creator_id") or "Unknown"
+        c_name = pl.get("creator_name") or "Hệ thống"
+        if c_id not in grouped_playlists:
+            grouped_playlists[c_id] = {"name": c_name, "playlists": []}
+        grouped_playlists[c_id]["playlists"].append(pl)
 
     return render_template("music.html", **_server_ctx(
         guild_id, "music",
         has_davey=has_davey,
         has_ffmpeg=has_ffmpeg,
-        playlists=playlists,
+        grouped_playlists=grouped_playlists,
     ))
 
 
@@ -835,7 +843,10 @@ def create_playlist_route(guild_id: str):
     if not name:
         flash("❌ Tên playlist không được để trống!", "error")
     else:
-        db.create_playlist(guild_id, name)
+        user = session.get("user", {})
+        creator_id = user.get("id", "")
+        creator_name = user.get("global_name") or user.get("username", "Unknown")
+        db.create_playlist(guild_id, name, creator_id, creator_name)
         flash(f"✅ Đã tạo playlist '{name}'!", "success")
     return redirect(url_for("server_music", guild_id=guild_id))
 
@@ -844,9 +855,13 @@ def create_playlist_route(guild_id: str):
 @guild_access_required
 def delete_playlist_route(guild_id: str, playlist_id: int):
     playlist = db.get_playlist(playlist_id)
+    user = session.get("user", {})
     if playlist and playlist.get("guild_id") == guild_id:
-        db.delete_playlist(playlist_id, guild_id)
-        flash(f"✅ Đã xóa playlist '{playlist.get('name')}'!", "success")
+        if playlist.get("creator_id") and playlist.get("creator_id") != user.get("id"):
+            flash("❌ Bạn không có quyền xóa playlist của người khác!", "error")
+        else:
+            db.delete_playlist(playlist_id, guild_id)
+            flash(f"✅ Đã xóa playlist '{playlist.get('name')}'!", "success")
     else:
         flash("❌ Không tìm thấy playlist!", "error")
     return redirect(url_for("server_music", guild_id=guild_id))
@@ -856,8 +871,11 @@ def delete_playlist_route(guild_id: str, playlist_id: int):
 @guild_access_required
 def add_track_route(guild_id: str, playlist_id: int):
     playlist = db.get_playlist(playlist_id)
+    user = session.get("user", {})
     if not playlist or playlist.get("guild_id") != guild_id:
         flash("❌ Không tìm thấy playlist!", "error")
+    elif playlist.get("creator_id") and playlist.get("creator_id") != user.get("id"):
+        flash("❌ Bạn không có quyền thêm bài hát vào playlist của người khác!", "error")
         return redirect(url_for("server_music", guild_id=guild_id))
     
     query = request.form.get("track_query", "").strip()

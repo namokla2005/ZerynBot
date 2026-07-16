@@ -211,9 +211,18 @@
 
     <!-- Playlists list -->
     <div class="playlist-container">
-      {% if playlists %}
-        {% for pl in playlists %}
-          <div class="playlist-card">
+      {% if grouped_playlists %}
+        {% for creator_id, group in grouped_playlists.items() %}
+          <div class="creator-group" style="margin-bottom: 20px;">
+            <div class="creator-header" style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:10px; background:var(--bg-secondary); border-radius:8px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; color:white;">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <h5 style="margin:0; font-weight:600; font-size:1.1rem;">{{ group.name }}</h5>
+            </div>
+            
+            {% for pl in group.playlists %}
+              <div class="playlist-card">
             <!-- Header -->
             <div class="playlist-header" onclick="togglePlaylist('pl-body-{{ pl.id }}', this)">
               <div class="playlist-title-wrap">
@@ -270,13 +279,16 @@
                   <i class="bi bi-plus-lg"></i> Thêm bài
                 </button>
               </form>
+              </div>
             </div>
           </div>
         {% endfor %}
+      </div>
+      {% endfor %}
       {% else %}
-        <div class="card" style="text-align:center; padding:40px; color:var(--text-muted);">
-          <i class="bi bi-folder-symlink-fill" style="font-size:2.5rem; margin-bottom:12px; display:inline-block; color:rgba(255,255,255,0.1);"></i>
-          <div>Chưa có playlist nào được tạo trong server này.</div>
+        <div style="text-align:center; padding:40px; color:var(--text-muted); background:var(--bg-secondary); border-radius:8px;">
+          <i class="bi bi-music-note-list" style="font-size:3rem; margin-bottom:10px; display:inline-block;"></i>
+          <p>Chưa có playlist nào. Hãy tạo một playlist mới ở bên trên!</p>
         </div>
       {% endif %}
     </div>
