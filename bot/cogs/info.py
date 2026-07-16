@@ -179,11 +179,6 @@ class Info(commands.Cog):
     @commands.hybrid_command(name="botinfo", description="Hiển thị thông số kỹ thuật và trạng thái của bot")
     async def botinfo(self, ctx: commands.Context):
         import platform
-        import psutil
-        
-        process = psutil.Process()
-        memory_usage = process.memory_info().rss / 1024 ** 2
-        cpu_usage = psutil.cpu_percent()
         
         embed = discord.Embed(
             title="🤖 Thông tin Bot",
@@ -193,9 +188,8 @@ class Info(commands.Cog):
         if self.bot.user.display_avatar:
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
             
-        embed.add_field(name="⚙️ CPU", value=f"`{cpu_usage}%`", inline=True)
-        embed.add_field(name="🗄️ RAM", value=f"`{memory_usage:.2f} MB`", inline=True)
         embed.add_field(name="🐍 Python", value=f"`{platform.python_version()}`", inline=True)
+        embed.add_field(name="🖥️ Hệ điều hành", value=f"`{platform.system()} {platform.release()}`", inline=True)
         embed.add_field(name="🏰 Servers", value=f"`{len(self.bot.guilds)}`", inline=True)
         embed.add_field(name="👥 Users", value=f"`{sum(g.member_count for g in self.bot.guilds)}`", inline=True)
         embed.add_field(name="🏓 Ping", value=f"`{round(self.bot.latency * 1000)} ms`", inline=True)
