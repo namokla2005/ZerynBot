@@ -28,7 +28,7 @@ log = logging.getLogger("BotV2")
 YDL_OPTS_PLAY = {
     "quiet":       True,
     "no_warnings": True,
-    "format":      "bestaudio/best",
+    "format":      "bestaudio[ext=m4a]/bestaudio/best",
     "noplaylist":  True,
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
@@ -39,7 +39,7 @@ YDL_OPTS_PLAY = {
 YDL_OPTS_LIVE = {
     "quiet":         True,
     "no_warnings":   True,
-    "format":        "bestaudio/best",
+    "format":        "bestaudio[ext=m4a]/bestaudio/best",
     "noplaylist":    True,
     "live_from_start": False,
     "youtube_include_dash_manifest": False,
