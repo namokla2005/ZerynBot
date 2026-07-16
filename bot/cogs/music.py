@@ -715,10 +715,29 @@ class Music(commands.Cog, name="Music"):
         
         is_url = query.startswith(("http://", "https://"))
         search = query if is_url else f"ytsearch1:{query}"
-        track = await self._fetch_info(search, YDL_OPTS_PLAY)
-        if not track:
+        # Sử dụng YDL_OPTS_SEARCH thay vì PLAY để lấy thông tin cực nhanh (chỉ lấy tên/ID, không tải stream URL nặng nề)
+        raw_track = await self._fetch_info(search, YDL_OPTS_SEARCH)
+        if not raw_track:
             await ctx.send("❌ Không tìm thấy hoặc không thể tải bài hát này!")
             return
+        
+        track_id = raw_track.get("id")
+        if not track_id:
+            await ctx.send("❌ Không lấy được thông tin bài hát!")
+            return
+            
+        webpage_url = raw_track.get("webpage_url") or raw_track.get("url") or f"https://www.youtube.com/watch?v={track_id}"
+        if not webpage_url.startswith("http"):
+            webpage_url = f"https://www.youtube.com/watch?v={track_id}"
+            
+        track = {
+            "title": raw_track.get("title", "Unknown"),
+            "id": track_id,
+            "webpage_url": webpage_url,
+            "duration": raw_track.get("duration"),
+            "uploader": raw_track.get("uploader") or raw_track.get("channel"),
+            "url": None # Quan trọng: Set None để lúc phát nhạc, hàm _play_track sẽ tự đi lấy stream URL mới nhất
+        }
         
         await db.async_add_track_to_playlist(pl["id"], track)
         await ctx.send(f"✅ Đã thêm **{track['title']}** vào playlist **{pl['name']}**!")
