@@ -33,6 +33,7 @@ YDL_OPTS_PLAY = {
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
+    "extractor_args": {"youtube": ["player_client=android,ios,web"]},
     "socket_timeout": 5,
 }
 
@@ -45,6 +46,7 @@ YDL_OPTS_LIVE = {
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
+    "extractor_args": {"youtube": ["player_client=android,ios,web"]},
     "socket_timeout": 5,
 }
 
@@ -56,6 +58,7 @@ YDL_OPTS_SEARCH = {
     "youtube_include_dash_manifest": False,
     "youtube_include_hls_manifest": False,
     "nocheckcertificate": True,
+    "extractor_args": {"youtube": ["player_client=android,ios,web"]},
     "socket_timeout": 3,
 }
 
