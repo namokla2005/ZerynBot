@@ -48,6 +48,68 @@ def _now_playing_embed(track: wavelink.Playable, queue: wavelink.Queue) -> disco
     if track.artwork:
         e.set_thumbnail(url=track.artwork)
     return e
+class RemoveSongSelect(discord.ui.Select):
+    def __init__(self, tracks):
+        options = []
+        for i, track in enumerate(tracks[:25]):
+            title = track.get("title", "Unknown")
+            if len(title) > 90:
+                title = title[:87] + "..."
+            options.append(discord.SelectOption(
+                label=f"{i+1}. {title}",
+                value=str(i)
+            ))
+        super().__init__(placeholder="Chọn bài hát muốn xóa...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        self.view.selected_index = int(self.values[0])
+        await interaction.response.defer()
+
+class RemoveSongView(discord.ui.View):
+    def __init__(self, ctx, pl, tracks):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.pl = pl
+        self.tracks = tracks
+        self.selected_index = None
+        self.add_item(RemoveSongSelect(tracks))
+
+    @discord.ui.button(label="Xác nhận", style=discord.ButtonStyle.danger, emoji="✅")
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("❌ Bạn không có quyền thao tác!", ephemeral=True)
+        if self.selected_index is None:
+            return await interaction.response.send_message("❌ Vui lòng chọn bài hát từ menu trước!", ephemeral=True)
+            
+        await interaction.response.defer()
+        track_to_delete = self.tracks[self.selected_index]
+        import database as db
+        await db.async_delete_track_from_playlist(track_to_delete["id"])
+        
+        for item in self.children:
+            item.disabled = True
+        await interaction.message.edit(content=f"✅ Đã xóa bài hát **{track_to_delete.get('title', 'Unknown')}** khỏi playlist!", embed=None, view=self)
+        self.stop()
+
+    @discord.ui.button(label="Hủy bỏ", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.ctx.author:
+            return await interaction.response.send_message("❌ Bạn không có quyền thao tác!", ephemeral=True)
+        await interaction.response.defer()
+        for item in self.children:
+            item.disabled = True
+        await interaction.message.edit(content="✅ Đã hủy thao tác.", embed=None, view=self)
+        self.stop()
+        
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        try:
+            if hasattr(self, 'message') and self.message:
+                await self.message.edit(content="⏳ Đã hết thời gian chờ, thao tác bị hủy.", embed=None, view=self)
+        except Exception:
+            pass
+
 # ─── UI Components ─────────────────────────────────────────────────────────────
 class MusicControlView(discord.ui.View):
     def __init__(self, cog: "Music", guild_id: int):
@@ -442,37 +504,13 @@ class Music(commands.Cog, name="Music"):
                 break
                 
         embed = discord.Embed(
-            title=f"🗑️ Chọn bài cần xóa từ: {pl['name']}",
-            description=desc + "\n\n👉 **Hãy nhập số thứ tự của bài hát bạn muốn xóa... (hoặc gõ `huy` để hủy bỏ)**",
+            title=f"🗑️ Xóa bài hát khỏi: {pl['name']}",
+            description=desc + "\n\n👉 **Vui lòng chọn bài hát cần xóa ở menu bên dưới (hỗ trợ hiển thị tối đa 25 bài đầu tiên) và bấm Xác nhận.**",
             color=discord.Color.red()
         )
-        await ctx.send(embed=embed)
         
-        def check(m):
-            return m.author == ctx.author and m.channel == ctx.channel
-            
-        try:
-            msg = await self.bot.wait_for('message', check=check, timeout=30.0)
-        except Exception:
-            await ctx.send("⏳ Đã hết thời gian chờ, thao tác bị hủy.")
-            return
-            
-        if msg.content.lower() == "huy":
-            await ctx.send("✅ Đã hủy thao tác.")
-            return
-            
-        try:
-            index = int(msg.content)
-            if index < 1 or index > len(pl["tracks"]):
-                await ctx.send("❌ Số thứ tự không hợp lệ!")
-                return
-        except ValueError:
-            await ctx.send("❌ Vui lòng nhập một con số hợp lệ!")
-            return
-            
-        track_to_delete = pl["tracks"][index - 1]
-        await db.async_delete_track_from_playlist(track_to_delete["id"])
-        await ctx.send(f"✅ Đã xóa bài hát **{track_to_delete.get('title', 'Unknown')}** khỏi playlist!")
+        view = RemoveSongView(ctx, pl, pl["tracks"])
+        view.message = await ctx.send(embed=embed, view=view)
 
     @commands.hybrid_command(name="stop", description="Dừng nhạc và xóa toàn bộ hàng chờ")
     async def stop(self, ctx: commands.Context):

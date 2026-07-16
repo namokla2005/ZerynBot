@@ -70,10 +70,12 @@ class HelpSelect(discord.ui.Select):
                 "`/autoplay` — Bật/tắt tự động phát bài tiếp theo\n"
                 "`/replay` — Phát lại bài hát hiện tại từ đầu\n"
                 "`/lofi` — Phát kênh Lofi Girl 24/7\n"
-                "`/playlist name [tên]` — Tạo hoặc hiển thị playlist\n"
+                "`/playlist name [tên]` — Tạo một playlist mới\n"
+                "`/playlist show [tên]` — Hiển thị danh sách nhạc trong playlist\n"
                 "`/playlist add [tên] [bài]` — Thêm bài hát vào playlist\n"
                 "`/playlist play [tên]` — Phát toàn bộ bài hát trong playlist\n"
-                "`/playlist loop` — Bật/tắt lặp lại toàn bộ playlist/hàng chờ"
+                "`/playlist remove [tên]` — Xóa playlist của bạn\n"
+                "`/playlist removesong [tên]` — Xóa một bài hát khỏi playlist"
             )
         elif val == "admin":
             embed.title = "🛠️ Cài đặt (Admin)"
