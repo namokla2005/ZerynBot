@@ -64,7 +64,9 @@ FFMPEG_OPTS = {
         "-nostdin "
         "-reconnect 1 "
         "-reconnect_streamed 1 "
-        "-reconnect_delay_max 10"
+        "-reconnect_delay_max 10 "
+        "-analyzeduration 0 "
+        "-probesize 32"
     ),
     "options": "-vn",
 }
@@ -402,10 +404,12 @@ class Music(commands.Cog, name="Music"):
             "-reconnect 1 "
             "-reconnect_streamed 1 "
             "-reconnect_delay_max 10 "
+            "-analyzeduration 0 "
+            "-probesize 32 "
             f'-headers "{headers_str}"'
         )
 
-        source = discord.FFmpegPCMAudio(track["url"], before_options=before_opts, options="-vn")
+        source = discord.FFmpegPCMAudio(track["url"], before_options=before_opts, options="-vn -b:a 128k")
         source = discord.PCMVolumeTransformer(source, volume=0.5)
 
         def _after(error):
