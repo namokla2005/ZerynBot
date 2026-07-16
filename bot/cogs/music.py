@@ -38,7 +38,7 @@ def _now_playing_embed(track: wavelink.Playable, queue: wavelink.Queue) -> disco
     desc = f"**{title_link}**\n"
     desc += f"CLOUD MUSIC — `{duration_str}` — {requester}\n\n"
     desc += f"**Volume:** `100%` — **Queue:** `{queue_len} songs` — **Total duration:** `{total_duration_str}`\n\n"
-    desc += "▬▬🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+    desc += "▬▬🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
     
     e = discord.Embed(
         title       = "Now Playing",
@@ -180,7 +180,7 @@ class MusicControlView(discord.ui.View):
             button.label = "Resume"
             button.emoji = "▶️"
             
-        await interaction.edit_original_response(view=self)
+        await interaction.message.edit(view=self)
 
     @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji="⏭️")
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
