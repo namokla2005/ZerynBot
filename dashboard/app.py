@@ -666,10 +666,10 @@ _COMMANDS_DATA = [
             {
                 "name": "playlist", "emoji": "📂",
                 "desc": "Quản lý và phát danh sách nhạc (playlist)",
-                "usage": "/playlist [name/add/play/loop]", "example": "/playlist play Nhạc Trẻ",
+                "usage": "/playlist [name/add/play/show/remove/removesong]", "example": "/playlist play Nhạc Trẻ",
                 "args": [
                     {"name": "action", "type": "Text", "required": True,
-                     "desc": "Hành động (name, add, play, loop)"},
+                     "desc": "Hành động (name, add, play, show, remove, removesong)"},
                     {"name": "playlist_name", "type": "Text", "required": True,
                      "desc": "Tên playlist"},
                     {"name": "query", "type": "Text", "required": False,

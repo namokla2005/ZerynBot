@@ -407,6 +407,66 @@ class Music(commands.Cog, name="Music"):
         await db.async_delete_playlist(pl["id"], guild_id_str)
         await ctx.send(f"✅ Đã xóa playlist **{name}**!")
 
+    @playlist_group.command(name="removesong", description="Xóa một bài hát khỏi playlist của bạn")
+    @app_commands.describe(name="Tên của playlist")
+    async def playlist_removesong(self, ctx: commands.Context, name: str):
+        import database as db
+        guild_id_str = str(ctx.guild.id)
+        pl = await db.async_get_playlist_by_name(guild_id_str, name)
+        if not pl:
+            await ctx.send(f"❌ Không tìm thấy playlist nào tên **{name}**!")
+            return
+            
+        if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ Bạn không có quyền chỉnh sửa playlist của người khác!")
+            return
+            
+        if not pl.get("tracks"):
+            await ctx.send(f"❌ Playlist **{name}** đang trống!")
+            return
+            
+        desc = ""
+        for i, track in enumerate(pl["tracks"], 1):
+            title = track.get("title", "Unknown")
+            duration = _fmt_duration(track.get("duration", 0))
+            desc += f"`{i}.` **{title}** `[{duration}]`\n"
+            if i >= 20:
+                desc += f"... và {len(pl['tracks']) - 20} bài khác.\n"
+                break
+                
+        embed = discord.Embed(
+            title=f"🗑️ Chọn bài cần xóa từ: {pl['name']}",
+            description=desc + "\n\n👉 **Hãy nhập số thứ tự của bài hát bạn muốn xóa... (hoặc gõ `huy` để hủy bỏ)**",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+            
+        try:
+            msg = await self.bot.wait_for('message', check=check, timeout=30.0)
+        except Exception:
+            await ctx.send("⏳ Đã hết thời gian chờ, thao tác bị hủy.")
+            return
+            
+        if msg.content.lower() == "huy":
+            await ctx.send("✅ Đã hủy thao tác.")
+            return
+            
+        try:
+            index = int(msg.content)
+            if index < 1 or index > len(pl["tracks"]):
+                await ctx.send("❌ Số thứ tự không hợp lệ!")
+                return
+        except ValueError:
+            await ctx.send("❌ Vui lòng nhập một con số hợp lệ!")
+            return
+            
+        track_to_delete = pl["tracks"][index - 1]
+        await db.async_delete_track_from_playlist(track_to_delete["id"])
+        await ctx.send(f"✅ Đã xóa bài hát **{track_to_delete.get('title', 'Unknown')}** khỏi playlist!")
+
     @commands.hybrid_command(name="stop", description="Dừng nhạc và xóa toàn bộ hàng chờ")
     async def stop(self, ctx: commands.Context):
         player = await self._ensure_voice(ctx)

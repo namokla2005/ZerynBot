@@ -749,6 +749,11 @@ async def async_add_track_to_playlist(playlist_id: int, track: Dict) -> int:
         await db.commit()
         return cursor.lastrowid
 
+async def async_delete_track_from_playlist(track_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM music_playlist_tracks WHERE id = ?", (track_id,))
+        await db.commit()
+
 async def async_get_playlist_tracks(playlist_id: int) -> List[Dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
