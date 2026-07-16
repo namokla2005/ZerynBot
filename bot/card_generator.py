@@ -129,6 +129,12 @@ def _render_card(
     bg_bytes: bytes | None = None,
 ) -> io.BytesIO:
     from PIL import Image, ImageDraw, ImageFilter
+    import unicodedata
+
+    top_label   = unicodedata.normalize('NFC', top_label)
+    username    = unicodedata.normalize('NFC', username)
+    preposition = unicodedata.normalize('NFC', preposition)
+    server_name = unicodedata.normalize('NFC', server_name)
 
     if not accent_color2:
         accent_color2 = accent_color
