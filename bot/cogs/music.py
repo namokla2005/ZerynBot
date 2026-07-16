@@ -225,7 +225,7 @@ class Music(commands.Cog, name="Music"):
         # Thay thế bằng public lavalink node
         # Danh sách node: https://lavalink.darrennathanael.com/No-TTS/Public-Lavalink/
         node = wavelink.Node(
-            uri="https://lavalinkv4.serenetia.com", 
+            uri="http://lavalink.serenetia.com:80", 
             password="https://dsc.gg/ajidevserver"
         )
         try:
