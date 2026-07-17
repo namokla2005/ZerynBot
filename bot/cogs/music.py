@@ -254,22 +254,29 @@ class MusicPlayer:
 
 # ─── Embeds ────────────────────────────────────────────────────────────────────
 def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embed:
-    loop_icons = {0: "➡️ Tắt", 1: "🔂 1 bài", 2: "🔁 Tất cả"}
-    desc = (
-        f"### [{track.title}]({track.url})\n"
-        f"```ansi\n"
-        f"\u001b[1;34m⏱ Thời lượng  \u001b[0m {track.duration_str}\n"
-        f"\u001b[1;34m👤 Kênh       \u001b[0m {track.uploader}\n"
-        f"\u001b[1;34m🙋 Yêu cầu bởi\u001b[0m {track.requester_mention}\n"
-        f"\u001b[1;34m🔄 Lặp lại    \u001b[0m {loop_icons[loop_mode]}\n"
-        f"\u001b[1;34m📋 Hàng chờ   \u001b[0m {queue_len} bài\n"
-        f"```\n"
-        f"▬▬▬🔘▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+    loop_icons = {0: "➡️ Tắt", 1: "🔂 Lặp 1 bài", 2: "🔁 Lặp tất cả"}
+    loop_colors = {0: 0x5865F2, 1: 0x57F287, 2: 0xFEE75C}
+
+    embed = discord.Embed(
+        title="🎵  Đang Phát Nhạc",
+        description=(
+            f"## [{track.title}]({track.url})\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        ),
+        color=loop_colors.get(loop_mode, 0x5865F2),
     )
-    embed = discord.Embed(title="🎵 Đang phát nhạc", description=desc, color=0x5865F2)
+
+    embed.add_field(name="⏱️  Thời lượng",   value=f"```{track.duration_str}```",    inline=True)
+    embed.add_field(name="👤  Kênh",          value=f"```{track.uploader[:30]}```",   inline=True)
+    embed.add_field(name="🔄  Lặp lại",       value=loop_icons[loop_mode],            inline=True)
+    embed.add_field(name="🙋  Yêu cầu bởi",  value=track.requester_mention,          inline=True)
+    embed.add_field(name="📋  Hàng chờ",      value=f"`{queue_len} bài`",             inline=True)
+    embed.add_field(name="\u200b",            value="\u200b",                         inline=True)
+
     if track.thumbnail:
-        embed.set_thumbnail(url=track.thumbnail)
-    embed.set_footer(text="Zeryn Music • Powered by yt-dlp")
+        embed.set_image(url=track.thumbnail)
+
+    embed.set_footer(text="Zeryn Music  •  yt-dlp  •  Nhấn nút bên dưới để điều khiển")
     return embed
 
 
