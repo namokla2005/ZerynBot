@@ -48,6 +48,26 @@ class Automod(commands.Cog):
         self.bot = bot
         # Structure: { guild_id: { user_id: [timestamps] } }
         self.spam_cache = defaultdict(lambda: defaultdict(list))
+        # Background task to clean up spam cache every 10 minutes to prevent RAM leak
+        self._cache_cleanup_task = asyncio.create_task(self._cleanup_spam_cache())
+
+    async def _cleanup_spam_cache(self):
+        """Periodically clear stale spam cache entries to prevent memory leak."""
+        while True:
+            await asyncio.sleep(600)  # every 10 minutes
+            now = time.time()
+            for guild_id in list(self.spam_cache.keys()):
+                for user_id in list(self.spam_cache[guild_id].keys()):
+                    self.spam_cache[guild_id][user_id] = [
+                        t for t in self.spam_cache[guild_id][user_id] if now - t < 5
+                    ]
+                    if not self.spam_cache[guild_id][user_id]:
+                        del self.spam_cache[guild_id][user_id]
+                if not self.spam_cache[guild_id]:
+                    del self.spam_cache[guild_id]
+
+    def cog_unload(self):
+        self._cache_cleanup_task.cancel()
 
     async def _handle_violation(self, message: discord.Message, reason: str, settings: dict):
         guild = message.guild
@@ -85,7 +105,10 @@ class Automod(commands.Cog):
                 original_text = message.content[:1000] + ("..." if len(message.content) > 1000 else "")
                 dm_embed.add_field(name="Nội dung vi phạm", value=f"```text\n{original_text}\n```", inline=False)
                 
-                await member.send(embed=dm_embed)
+                try:
+                    await member.send(embed=dm_embed)
+                except discord.Forbidden:
+                    pass  # User has DMs disabled
             except discord.Forbidden:
                 pass
         else:
@@ -198,43 +221,43 @@ class Automod(commands.Cog):
         # 3. Links check
         if settings.get("links_enabled") and ("http://" in content or "https://" in content):
             whitelist = settings.get("whitelist_links", [])
-            
             domains = URL_PATTERN.findall(content)
+            
+            violation_reason = None
             for domain in domains:
                 domain_lower = domain.lower()
-                
+
                 # 3a. Check Whitelist (User + Global)
                 is_whitelisted = False
-                
-                # Check user whitelist
                 for w_link in whitelist:
                     w_link = w_link.lower().replace("https://", "").replace("http://", "").split("/")[0]
                     if domain_lower == w_link or domain_lower.endswith(f".{w_link}"):
                         is_whitelisted = True
                         break
-                        
-                # Check global whitelist
+
                 if not is_whitelisted:
                     for safe_domain in GLOBAL_SAFE_DOMAINS:
                         if domain_lower == safe_domain or domain_lower.endswith(f".{safe_domain}"):
                             is_whitelisted = True
                             break
-                            
+
                 if is_whitelisted:
-                    continue # Safe to allow this link
-                    
-                # 3b. Check Global Blacklist (Fake/Scam)
-                is_fake = False
+                    continue  # This link is safe, check next one
+
+                # 3b. Check Global Blacklist (Fake/Scam) — highest priority
                 for bad_kw in GLOBAL_BLACKLIST_KEYWORDS:
                     if bad_kw in domain_lower:
-                        is_fake = True
+                        violation_reason = f"Gửi link giả mạo/lừa đảo: {domain}"
                         break
-                        
-                if is_fake:
-                    return await self._handle_violation(message, f"Gửi link giả mạo/lừa đảo: {domain}", settings)
+
+                if not violation_reason:
+                    # 3c. Block unknown links
+                    violation_reason = f"Gửi link không rõ nguồn gốc: {domain}"
                 
-                # 3c. Block unknown links
-                return await self._handle_violation(message, f"Gửi link không rõ nguồn gốc: {domain}", settings)
+                break  # Found a violating link, stop checking others
+
+            if violation_reason:
+                return await self._handle_violation(message, violation_reason, settings)
 
     # ─── Commands ──────────────────────────────────────────────────────────────
 

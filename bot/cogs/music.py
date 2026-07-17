@@ -217,28 +217,15 @@ class MusicControlView(discord.ui.View):
 class Music(commands.Cog, name="Music"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Tạo kết nối đến Lavalink
-        self.bot.loop.create_task(self.connect_nodes())
+        asyncio.create_task(self.connect_nodes())
 
     async def connect_nodes(self):
         await self.bot.wait_until_ready()
-        # Thay thế bằng public lavalink node
-        # Danh sách node: https://lavalink.darrennathanael.com/No-TTS/Public-Lavalink/
         try:
-            import aiohttp
-            
-            # Khắc phục triệt để lỗi SSL trên Termux bằng cách ép aiohttp bỏ qua SSL
-            original_init = aiohttp.TCPConnector.__init__
-            def new_init(self, *args, **kwargs):
-                kwargs['ssl'] = False
-                original_init(self, *args, **kwargs)
-            aiohttp.TCPConnector.__init__ = new_init
-            
             node = wavelink.Node(
-                uri="https://lavalinkv4.serenetia.com:443", 
+                uri="https://lavalinkv4.serenetia.com:443",
                 password="https://dsc.gg/ajidevserver"
             )
-            
             await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
             log.info("[Wavelink] Connected to Lavalink Node!")
         except Exception as e:
@@ -247,6 +234,18 @@ class Music(commands.Cog, name="Music"):
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload):
         log.info(f"[Wavelink] Node {payload.node.identifier} is ready!")
+
+    @commands.Cog.listener()
+    async def on_wavelink_inactive_player(self, player: wavelink.Player):
+        """Auto-disconnect bot when nobody is listening."""
+        log.info(f"[Wavelink] Player in guild {player.guild.id} is inactive. Disconnecting.")
+        channel = getattr(player, "text_channel", None)
+        if channel:
+            try:
+                await channel.send("👋 Không có ai nghe nhạc, bot đã tự rời khỏi kênh voice!")
+            except Exception:
+                pass
+        await player.disconnect()
 
     @commands.Cog.listener()
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload):

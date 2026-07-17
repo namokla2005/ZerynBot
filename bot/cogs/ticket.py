@@ -73,6 +73,18 @@ class Ticket(commands.Cog, name="Tickets"):
 
             member = interaction.user
 
+            # ─── Duplicate ticket check ──────────────────────────────────────
+            clean_username_check = "".join(c for c in member.name.lower() if c.isalnum() or c in "-_")
+            existing = discord.utils.get(
+                category.channels,
+                name=f"ticket-{clean_username_check}-{''.join(c for c in btn_data['label'].lower() if c.isalnum() or c in '-_')}"[:100]
+            )
+            if existing:
+                await interaction.followup.send(
+                    f"❌ Bạn đã có một ticket đang mở tại {existing.mention}!", ephemeral=True
+                )
+                return
+
             # Setup Overwrites
             overwrites = {
                 guild.default_role: discord.PermissionOverwrite(view_channel=False),

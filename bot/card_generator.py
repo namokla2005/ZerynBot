@@ -163,8 +163,12 @@ def _render_card(
         raw_bg = None
         if bg_bytes:
             raw_bg = Image.open(io.BytesIO(bg_bytes)).convert("RGBA")
-        elif Path("dashboard/static/bg.png").exists():
-            raw_bg = Image.open("dashboard/static/bg.png").convert("RGBA")
+        else:
+            # Use absolute path so it works regardless of cwd
+            _base = Path(__file__).resolve().parent.parent.parent
+            _fallback = _base / "dashboard" / "static" / "bg.png"
+            if _fallback.exists():
+                raw_bg = Image.open(str(_fallback)).convert("RGBA")
             
         if raw_bg:
             # Crop/resize bg to WxH
@@ -262,7 +266,7 @@ async def generate_welcome_card(member, bg_url: str = None) -> io.BytesIO | None
         username     = f"Welcome {member.display_name}"
         server       = member.guild.name
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         buf = await loop.run_in_executor(
             None,
             lambda: _render_card(
@@ -292,7 +296,7 @@ async def generate_goodbye_card(member, bg_url: str = None) -> io.BytesIO | None
         username     = f"Goodbye {member.display_name}"
         server       = member.guild.name
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         buf = await loop.run_in_executor(
             None,
             lambda: _render_card(
