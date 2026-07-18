@@ -163,7 +163,6 @@ button { cursor: pointer; }
 /* ─── Cards ─────────────────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card); border: 1px solid var(--border);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-radius: var(--radius-lg); padding: 24px;
   transition: border-color var(--transition);
   margin-bottom: 20px;
