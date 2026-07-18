@@ -2,18 +2,18 @@
 
 /* ─── CSS Variables ─────────────────────────────────────────────────────────── */
 :root {
-  --bg-body:      #0a0a0d;
-  --bg-sidebar:   rgba(8, 4, 14, 0.92);
-  --bg-card:      rgba(12, 8, 22, 0.88);
-  --bg-card2:     rgba(20, 14, 32, 0.85);
-  --bg-input:     rgba(0, 0, 0, 0.6);
-  --bg-hover:     rgba(255, 255, 255, 0.09);
-  --bg-active:    rgba(255, 255, 255, 0.16);
-  --border:       rgba(255, 255, 255, 0.14);
+  --bg-body:      #060608;
+  --bg-sidebar:   rgba(8, 4, 14, 0.96);
+  --bg-card:      rgba(12, 8, 22, 0.94);
+  --bg-card2:     rgba(20, 14, 32, 0.90);
+  --bg-input:     rgba(0, 0, 0, 0.7);
+  --bg-hover:     rgba(255, 255, 255, 0.12);
+  --bg-active:    rgba(255, 255, 255, 0.18);
+  --border:       rgba(255, 255, 255, 0.16);
   --border-focus: #ff9ec2;
 
   /* --surface dùng cho legal pages, login card, etc. */
-  --surface:      rgba(10, 6, 20, 0.92);
+  --surface:      rgba(10, 6, 20, 0.96);
 
   --accent:        #ff9ec2;
   --accent-hover:  #ff7aa8;
@@ -27,17 +27,17 @@
   --warning-bg:   rgba(250, 166, 26, 0.18);
 
   /* ★ Text contrast — increased for readability over blurred background */
-  --text-primary:   #f2f3f5;
-  --text-secondary: #d0d3db;   /* was #b5bac1 — brighter */
-  --text-muted:     #9ca3af;   /* was #80848e — brighter */
-  --text-disabled:  #55585f;
+  --text-primary:   #ffffff;
+  --text-secondary: #e0e3e8;
+  --text-muted:     #a7acb8;
+  --text-disabled:  #636770;
 
   --sidebar-width: 240px;
   --radius-sm:     6px;
   --radius-md:     8px;
   --radius-lg:     12px;
-  --shadow:        0 8px 32px rgba(0,0,0,0.6);
-  --shadow-sm:     0 2px 12px rgba(0,0,0,0.35);
+  --shadow:        0 8px 32px rgba(0,0,0,0.8);
+  --shadow-sm:     0 2px 12px rgba(0,0,0,0.4);
   --transition:    all 0.18s ease;
 }
 
@@ -60,7 +60,7 @@ body::before {
   top: -20px; left: -20px; right: -20px; bottom: -20px;
   background: url('../bg.png') no-repeat center center;
   background-size: cover;
-  filter: blur(6px) brightness(0.40);
+  filter: blur(8px) brightness(0.20);
   z-index: -1;
 }
 a { color: inherit; text-decoration: none; }
