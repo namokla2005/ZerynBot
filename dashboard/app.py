@@ -514,6 +514,55 @@ _COMMANDS_DATA = [
         ]
     },
     {
+        "category": "Leveling",
+        "icon": "🌟",
+        "commands": [
+            {
+                "name": "rank", "emoji": "🌟",
+                "desc": "Xem cấp độ và hạng của bạn hoặc người khác",
+                "usage": "/rank [người_dùng]", "example": "/rank @Nam",
+                "args": [{"name": "member", "type": "Mention", "required": False, "desc": "Người dùng cần xem (mặc định: bạn)"}],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "Cấp độ của Nam",
+                    "desc": "**Rank:** #1 | **Level:** 5\n**XP:** 450 / 550\n`[██████████░░░░░░░░░░]` 80%"
+                }
+            },
+            {
+                "name": "leaderboard", "emoji": "🏆",
+                "desc": "Xem bảng xếp hạng cấp độ của server",
+                "usage": "/leaderboard", "example": "/leaderboard",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🏆 Bảng xếp hạng",
+                    "desc": "🥇 **#1** | @Nam • **Lvl 5** (450 XP)\n🥈 **#2** | @User • **Lvl 3** (200 XP)"
+                }
+            },
+            {
+                "name": "xp set", "emoji": "⚙️",
+                "desc": "Thiết lập điểm kinh nghiệm cho một thành viên",
+                "usage": "/xp set [người_dùng] [xp]", "example": "/xp set @Nam 1000",
+                "args": [
+                    {"name": "member", "type": "Mention", "required": True, "desc": "Người dùng"},
+                    {"name": "amount", "type": "Number", "required": True, "desc": "Số điểm XP mới"}
+                ],
+                "preview": {
+                    "type": "text", "content": "✅ Đã đặt XP của @Nam thành **1000** (Cấp độ: **10**)."
+                }
+            },
+            {
+                "name": "xp reset", "emoji": "🗑️",
+                "desc": "Xóa toàn bộ điểm kinh nghiệm của một thành viên",
+                "usage": "/xp reset [người_dùng]", "example": "/xp reset @Nam",
+                "args": [
+                    {"name": "member", "type": "Mention", "required": True, "desc": "Người dùng"}
+                ],
+                "preview": {
+                    "type": "text", "content": "✅ Đã xóa toàn bộ XP của @Nam."
+                }
+            }
+        ]
+    },
+    {
         "category": "Tickets",
         "icon": "🎫",
         "commands": [
