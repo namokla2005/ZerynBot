@@ -183,11 +183,30 @@ def init_db():
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-            CREATE TABLE IF NOT EXISTS guild_blacklist (
-                guild_id    TEXT PRIMARY KEY,
-                guild_name  TEXT,
-                reason      TEXT DEFAULT 'Bị kick bởi Owner',
-                kicked_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            CREATE TABLE IF NOT EXISTS leveling_settings (
+                guild_id            TEXT PRIMARY KEY,
+                message_xp_min      INTEGER DEFAULT 15,
+                message_xp_max      INTEGER DEFAULT 25,
+                voice_xp            INTEGER DEFAULT 10,
+                announce_channel_id TEXT,
+                announce_message    TEXT DEFAULT '🎉 Chúc mừng {user} đã đạt cấp **{level}**!'
+            );
+
+            CREATE TABLE IF NOT EXISTS user_levels (
+                guild_id            TEXT,
+                user_id             TEXT,
+                xp                  INTEGER DEFAULT 0,
+                level               INTEGER DEFAULT 0,
+                last_message_at     TIMESTAMP DEFAULT 0,
+                last_voice_xp_at    TIMESTAMP DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS level_roles (
+                guild_id    TEXT,
+                level       INTEGER,
+                role_id     TEXT,
+                PRIMARY KEY (guild_id, level, role_id)
             );
         """)
         # Schema migration checks
@@ -223,7 +242,7 @@ def init_db():
             
         conn.commit()
 
-DEFAULT_MODULES = ["utility", "welcome_goodbye", "info", "music", "tickets", "autoroles", "reactionroles", "automods"]
+DEFAULT_MODULES = ["utility", "welcome_goodbye", "info", "music", "tickets", "autoroles", "reactionroles", "automods", "leveling"]
 
 # ─── Blacklist (sync — Flask) ──────────────────────────────────────────────────
 
@@ -1042,3 +1061,128 @@ async def async_clear_automod_warnings(guild_id: str, user_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM automod_warnings WHERE guild_id = ? AND user_id = ?", (guild_id, user_id))
         await db.commit()
+
+# ─── Leveling (Sync & Async) ───────────────────────────────────────────────────
+
+_DEFAULT_LEVELING = {
+    "message_xp_min": 15,
+    "message_xp_max": 25,
+    "voice_xp": 10,
+    "announce_channel_id": None,
+    "announce_message": "🎉 Chúc mừng {user} đã đạt cấp **{level}**!"
+}
+
+def get_leveling_settings(guild_id: str) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM leveling_settings WHERE guild_id = ?", (guild_id,)).fetchone()
+        if row:
+            return dict(row)
+        return dict(_DEFAULT_LEVELING)
+
+def set_leveling_settings(guild_id: str, settings: dict):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO leveling_settings (guild_id, message_xp_min, message_xp_max, voice_xp, announce_channel_id, announce_message)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                message_xp_min=excluded.message_xp_min,
+                message_xp_max=excluded.message_xp_max,
+                voice_xp=excluded.voice_xp,
+                announce_channel_id=excluded.announce_channel_id,
+                announce_message=excluded.announce_message
+        """, (
+            guild_id,
+            int(settings.get("message_xp_min", 15)),
+            int(settings.get("message_xp_max", 25)),
+            int(settings.get("voice_xp", 10)),
+            settings.get("announce_channel_id"),
+            settings.get("announce_message", _DEFAULT_LEVELING["announce_message"])
+        ))
+        conn.commit()
+
+def get_level_roles(guild_id: str) -> dict:
+    """Return dict mapping level (int) to role_id (str)"""
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute("SELECT level, role_id FROM level_roles WHERE guild_id = ? ORDER BY level ASC", (guild_id,)).fetchall()
+        return {row[0]: row[1] for row in rows}
+
+def set_level_roles(guild_id: str, roles: dict):
+    """roles is a dict of {level: role_id}"""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM level_roles WHERE guild_id = ?", (guild_id,))
+        for level_str, role_id in roles.items():
+            if not role_id:
+                continue
+            try:
+                level = int(level_str)
+                conn.execute("INSERT INTO level_roles (guild_id, level, role_id) VALUES (?, ?, ?)", (guild_id, level, role_id))
+            except ValueError:
+                pass
+        conn.commit()
+
+async def async_get_leveling_settings(guild_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM leveling_settings WHERE guild_id = ?", (guild_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return dict(row)
+            return dict(_DEFAULT_LEVELING)
+
+async def async_get_level_roles(guild_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT level, role_id FROM level_roles WHERE guild_id = ? ORDER BY level ASC", (guild_id,)) as cursor:
+            rows = await cursor.fetchall()
+            return {row[0]: row[1] for row in rows}
+
+async def async_get_user_level(guild_id: str, user_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM user_levels WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return dict(row)
+            return {"guild_id": guild_id, "user_id": user_id, "xp": 0, "level": 0, "last_message_at": 0, "last_voice_xp_at": 0}
+
+async def async_update_user_xp(guild_id: str, user_id: str, xp: int, level: int, last_message_at: float = None, last_voice_xp_at: float = None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        query = "INSERT INTO user_levels (guild_id, user_id, xp, level"
+        values = [guild_id, user_id, xp, level]
+        updates = ["xp = excluded.xp", "level = excluded.level"]
+        
+        if last_message_at is not None:
+            query += ", last_message_at"
+            values.append(last_message_at)
+            updates.append("last_message_at = excluded.last_message_at")
+            
+        if last_voice_xp_at is not None:
+            query += ", last_voice_xp_at"
+            values.append(last_voice_xp_at)
+            updates.append("last_voice_xp_at = excluded.last_voice_xp_at")
+            
+        query += ") VALUES (" + ", ".join(["?"] * len(values)) + ") ON CONFLICT(guild_id, user_id) DO UPDATE SET " + ", ".join(updates)
+        
+        await db.execute(query, tuple(values))
+        await db.commit()
+
+async def async_reset_user_xp(guild_id: str, user_id: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM user_levels WHERE guild_id = ? AND user_id = ?", (guild_id, user_id))
+        await db.commit()
+
+async def async_get_top_users(guild_id: str, limit: int = 10) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT user_id, xp, level FROM user_levels WHERE guild_id = ? ORDER BY xp DESC LIMIT ?", (guild_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def async_get_user_rank(guild_id: str, user_id: str) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Get rank based on XP
+        async with db.execute("SELECT COUNT(*) + 1 FROM user_levels WHERE guild_id = ? AND xp > (SELECT xp FROM user_levels WHERE guild_id = ? AND user_id = ?)", (guild_id, guild_id, user_id)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row[0]
+            return 1

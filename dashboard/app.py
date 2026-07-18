@@ -237,6 +237,49 @@ def server_autoroles(guild_id: str):
         meta=db.get_guild_meta(guild_id) or {}
     )
 
+@app.route("/dashboard/<guild_id>/leveling", methods=["GET", "POST"])
+@guild_access_required
+def server_leveling(guild_id: str):
+    if request.method == "POST":
+        form = request.form
+        
+        # Save Leveling Settings
+        settings = {
+            "message_xp_min": int(form.get("message_xp_min", 15)),
+            "message_xp_max": int(form.get("message_xp_max", 25)),
+            "voice_xp": int(form.get("voice_xp", 10)),
+            "announce_channel_id": form.get("announce_channel_id") or None,
+            "announce_message": form.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!")
+        }
+        db.set_leveling_settings(guild_id, settings)
+        
+        # Save Level Roles
+        roles = {}
+        for key, value in form.items():
+            if key.startswith("level_role_") and value:
+                level_str = key.replace("level_role_", "")
+                roles[level_str] = value
+                
+        db.set_level_roles(guild_id, roles)
+        
+        flash("✅ Đã lưu cài đặt Leveling & XP!", "success")
+        return redirect(url_for("server_leveling", guild_id=guild_id))
+        
+    settings = db.get_leveling_settings(guild_id)
+    level_roles = db.get_level_roles(guild_id)
+    channels = db.get_guild_channels(guild_id)
+    roles = db.get_guild_roles(guild_id)
+    
+    return render_template(
+        "server_leveling.html",
+        **_server_ctx(guild_id, active_page="leveling"),
+        settings=settings,
+        level_roles=level_roles,
+        channels=channels,
+        roles=roles,
+        meta=db.get_guild_meta(guild_id) or {}
+    )
+
 @app.route("/dashboard/<guild_id>/automod", methods=["GET", "POST"])
 @guild_access_required
 def server_automod(guild_id: str):

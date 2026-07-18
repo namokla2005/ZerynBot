@@ -1,0 +1,195 @@
+{% extends "base_server.html" %}
+{% block title %}Leveling & XP{% endblock %}
+
+{% block head %}
+<style>
+  .module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .module-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .level-role-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+    background: #1e1f22;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #3f4147;
+  }
+  .btn-remove-role {
+    color: #ED4245;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  .btn-remove-role:hover {
+    background: rgba(237, 66, 69, 0.1);
+  }
+</style>
+{% endblock %}
+
+{% block server_content %}
+<form method="POST" action="{{ url_for('server_leveling', guild_id=guild_id) }}">
+  
+  <div class="module-header">
+    <div class="module-title">
+      <i class="bi bi-stars" style="color: #FEE75C;"></i> Leveling & XP
+    </div>
+  </div>
+  
+  <div class="panel">
+    <h5 class="mb-4 text-white">Cấu hình chung</h5>
+    
+    <div class="row">
+      <div class="col-md-4">
+        <div class="form-group">
+          <label class="form-label">XP tối thiểu (Tin nhắn)</label>
+          <input type="number" name="message_xp_min" class="form-control" value="{{ settings.message_xp_min }}" min="0">
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="form-group">
+          <label class="form-label">XP tối đa (Tin nhắn)</label>
+          <input type="number" name="message_xp_max" class="form-control" value="{{ settings.message_xp_max }}" min="0">
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="form-group">
+          <label class="form-label">XP cho Voice (Mỗi phút)</label>
+          <input type="number" name="voice_xp" class="form-control" value="{{ settings.voice_xp }}" min="0">
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-group mt-4">
+      <label class="form-label">Kênh thông báo lên cấp</label>
+      <select name="announce_channel_id" class="form-control">
+        <option value="">-- Không thông báo --</option>
+        {% for ch in channels %}
+          {% if ch.channel_type == 0 %}
+          <option value="{{ ch.channel_id }}" {% if settings.announce_channel_id == ch.channel_id %}selected{% endif %}>
+            #{{ ch.channel_name }}
+          </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    
+    <div class="form-group mt-3">
+      <label class="form-label">Tin nhắn thông báo</label>
+      <input type="text" name="announce_message" class="form-control" value="{{ settings.announce_message }}">
+      <div class="form-hint mt-1">Biến hỗ trợ: <code>{user}</code>, <code>{user_name}</code>, <code>{level}</code>, <code>{server}</code></div>
+    </div>
+  </div>
+  
+  <div class="panel mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h5 class="text-white mb-0">Role thưởng theo Level</h5>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRole">
+        <i class="bi bi-plus-lg"></i> Thêm mốc Level
+      </button>
+    </div>
+    
+    <div id="level-roles-container">
+      {% for lvl, r_id in level_roles.items() %}
+      <div class="level-role-row">
+        <div style="flex: 0 0 100px;">
+          <label class="form-label mb-1">Level</label>
+          <input type="number" name="level_role_{{ lvl }}" class="form-control" value="{{ lvl }}" min="1" readonly>
+        </div>
+        <div style="flex: 1;">
+          <label class="form-label mb-1">Role được nhận</label>
+          <select name="level_role_{{ lvl }}" class="form-control">
+            <option value="">-- Chọn Role --</option>
+            {% for r in roles %}
+              {% if r.role_name != '@everyone' %}
+              <option value="{{ r.role_id }}" {% if r_id == r.role_id %}selected{% endif %}>{{ r.role_name }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex: 0 0 auto; align-self: flex-end;">
+          <button type="button" class="btn-remove-role" onclick="this.parentElement.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    
+    <div id="no-roles-msg" class="text-muted" style="{% if level_roles %}display: none;{% endif %}">
+      Chưa có Role thưởng nào được cấu hình.
+    </div>
+  </div>
+
+  <div class="bottom-actions">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-save2"></i> Lưu thay đổi
+    </button>
+  </div>
+</form>
+
+<script>
+  const roles = [
+    {% for r in roles %}
+      {% if r.role_name != '@everyone' %}
+      { id: "{{ r.role_id }}", name: {{ r.role_name|tojson|safe }} },
+      {% endif %}
+    {% endfor %}
+  ];
+  
+  document.getElementById('btnAddRole').addEventListener('click', () => {
+    document.getElementById('no-roles-msg').style.display = 'none';
+    
+    const lvlStr = prompt("Nhập số Level muốn tặng Role:");
+    if (!lvlStr) return;
+    const lvl = parseInt(lvlStr);
+    if (isNaN(lvl) || lvl <= 0) return alert("Level không hợp lệ!");
+    
+    // Check if level already exists
+    if (document.querySelector(`input[name="level_role_${lvl}"]`)) {
+      return alert("Level này đã được cấu hình!");
+    }
+    
+    let optionsHtml = '<option value="">-- Chọn Role --</option>';
+    roles.forEach(r => {
+      optionsHtml += `<option value="${r.id}">${r.name}</option>`;
+    });
+    
+    const row = document.createElement('div');
+    row.className = 'level-role-row';
+    row.innerHTML = `
+      <div style="flex: 0 0 100px;">
+        <label class="form-label mb-1">Level</label>
+        <input type="number" class="form-control" value="${lvl}" readonly>
+      </div>
+      <div style="flex: 1;">
+        <label class="form-label mb-1">Role được nhận</label>
+        <select name="level_role_${lvl}" class="form-control" required>
+          ${optionsHtml}
+        </select>
+      </div>
+      <div style="flex: 0 0 auto; align-self: flex-end;">
+        <button type="button" class="btn-remove-role" onclick="this.parentElement.parentElement.remove()">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    `;
+    
+    document.getElementById('level-roles-container').appendChild(row);
+  });
+</script>
+{% endblock %}

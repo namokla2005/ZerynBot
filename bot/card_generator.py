@@ -315,3 +315,88 @@ async def generate_goodbye_card(member, bg_url: str = None) -> io.BytesIO | None
     except Exception as e:
         log.error(f"[Card] generate_goodbye_card error: {e}")
         return None
+
+def _render_rank_card(
+    avatar_bytes: bytes | None,
+    username: str,
+    xp: int,
+    level: int,
+    rank: int,
+    next_xp: int,
+    prev_xp: int
+) -> io.BytesIO | None:
+    from PIL import Image, ImageDraw
+    
+    W, H = 600, 200
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Background
+    _draw_rounded_rect(draw, (0, 0, W, H), radius=20, fill=(30, 31, 34, 255))
+    
+    # Avatar
+    AV_SIZE = 120
+    AV_X = 40
+    AV_Y = 40
+    
+    if avatar_bytes:
+        try:
+            av = _make_circle_avatar(avatar_bytes, AV_SIZE)
+            img.paste(av, (AV_X, AV_Y), av)
+        except Exception:
+            pass
+            
+    # Username
+    font_user = _get_pil_font(32, bold=True)
+    draw.text((AV_X + AV_SIZE + 30, AV_Y + 10), username, font=font_user, fill=(255, 255, 255), anchor="lt")
+    
+    # Rank & Level
+    font_lvl = _get_pil_font(24, bold=True)
+    draw.text((W - 40, AV_Y + 10), f"RANK #{rank}  LEVEL {level}", font=font_lvl, fill=(88, 101, 242), anchor="rt")
+    
+    # XP Text
+    font_xp = _get_pil_font(18, bold=False)
+    draw.text((W - 40, AV_Y + 50), f"{xp} / {next_xp} XP", font=font_xp, fill=(180, 180, 180), anchor="rt")
+    
+    # Progress Bar
+    BAR_X = AV_X + AV_SIZE + 30
+    BAR_Y = AV_Y + 90
+    BAR_W = W - BAR_X - 40
+    BAR_H = 18
+    
+    # Empty bar
+    _draw_rounded_rect(draw, (BAR_X, BAR_Y, BAR_X + BAR_W, BAR_Y + BAR_H), radius=9, fill=(70, 70, 75, 255))
+    
+    # Filled bar
+    progress = xp - prev_xp
+    total = next_xp - prev_xp
+    pct = max(0, min(1, progress / total if total > 0 else 1))
+    fill_w = int(BAR_W * pct)
+    if fill_w > 18:
+        _draw_rounded_rect(draw, (BAR_X, BAR_Y, BAR_X + fill_w, BAR_Y + BAR_H), radius=9, fill=(88, 101, 242, 255))
+        
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
+async def generate_rank_card(member, xp: int, level: int, rank: int, next_xp: int, prev_xp: int) -> io.BytesIO | None:
+    try:
+        avatar_bytes = await _download_avatar(str(member.display_avatar.url))
+        loop = asyncio.get_running_loop()
+        buf = await loop.run_in_executor(
+            None,
+            lambda: _render_rank_card(
+                avatar_bytes = avatar_bytes,
+                username     = member.display_name,
+                xp           = xp,
+                level        = level,
+                rank         = rank,
+                next_xp      = next_xp,
+                prev_xp      = prev_xp
+            )
+        )
+        return buf
+    except Exception as e:
+        log.error(f"[Card] generate_rank_card error: {e}")
+        return None

@@ -64,6 +64,12 @@
             <span class="status-dot nav-dot-autoroles
             {% if modules.get('autoroles', False) %}on{% else %}off{% endif %}"></span>
           </a>
+          <a href="{{ url_for('server_leveling', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'leveling' %}active{% endif %}">
+            <i class="nav-icon bi bi-star-fill" style="color: #FEE75C;"></i> Leveling &amp; XP
+            <span class="status-dot nav-dot-leveling
+            {% if modules.get('leveling', False) %}on{% else %}off{% endif %}"></span>
+          </a>
           <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
             <i class="nav-icon bi bi-info-circle-fill"></i> Info Commands
             <span class="status-dot nav-dot-info

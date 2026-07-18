@@ -144,6 +144,23 @@
     </label>
   </div>
 
+  <!-- Leveling & XP -->
+  <div class="module-card {% if modules.get('leveling', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🌟</span> Leveling & XP</div>
+      <div class="mod-desc">Hệ thống cấp độ và kinh nghiệm khi thành viên chat hoặc tham gia Voice.</div>
+      <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="leveling"
+             {% if modules.get('leveling', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
   <!-- Utility -->
   <div class="module-card {% if modules.get('utility', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
