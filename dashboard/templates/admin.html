@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — Bot Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
+  <style>
+    .admin-wrapper{display:flex;flex-direction:column;min-height:100vh;width:100%;}
+    .admin-topbar{display:flex;align-items:center;gap:16px;padding:0 32px;height:60px;background:rgba(10,5,15,.85);border-bottom:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px);position:sticky;top:0;z-index:50;}
+    .admin-topbar-brand{font-weight:800;font-size:1.05rem;color:var(--text-primary);display:flex;align-items:center;gap:10px;}
+    .shield-icon{width:32px;height:32px;background:linear-gradient(135deg,#ff4757,#c0392b);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px rgba(255,71,87,.4);}
+    .admin-topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+    .topbar-user-mini{display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:.88rem;}
+    .topbar-user-mini img{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,71,87,.5);}
+    .admin-main{padding:32px 40px;max-width:1400px;width:100%;margin:0 auto;}
+    .admin-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px;}
+    .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;display:flex;align-items:center;gap:16px;backdrop-filter:blur(12px);transition:var(--transition);}
+    .stat-card:hover{border-color:rgba(255,71,87,.4);transform:translateY(-2px);}
+    .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+    .stat-icon.green{background:rgba(67,181,129,.2);color:#43b581;}
+    .stat-icon.red{background:rgba(240,71,71,.2);color:#f04747;}
+    .stat-icon.blue{background:rgba(88,101,242,.2);color:#5865f2;}
+    .stat-value{font-size:2rem;font-weight:800;line-height:1;}
+    .stat-label{font-size:.8rem;color:var(--text-muted);margin-top:4px;}
+    .admin-tabs{display:flex;gap:4px;margin-bottom:24px;}
+    .admin-tab{padding:8px 20px;border-radius:var(--radius-md);font-size:.9rem;font-weight:600;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--text-secondary);transition:var(--transition);}
+    .admin-tab:hover{background:var(--bg-hover);color:var(--text-primary);}
+    .admin-tab.active{background:rgba(255,71,87,.15);border-color:rgba(255,71,87,.4);color:#ff4757;}
+    .tab-panel{display:none;}.tab-panel.active{display:block;}
+    .flash-container{margin-bottom:20px;}
+    .flash-msg{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);margin-bottom:8px;font-size:.9rem;font-weight:500;}
+    .flash-msg.success{background:var(--success-bg);border:1px solid var(--success);color:var(--success);}
+    .flash-msg.error{background:var(--danger-bg);border:1px solid var(--danger);color:var(--danger);}
+    .flash-close{margin-left:auto;cursor:pointer;background:none;border:none;color:inherit;font-size:1.1rem;padding:0;}
+    .server-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;backdrop-filter:blur(12px);}
+    .server-table-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+    .server-table-title{font-weight:700;font-size:1rem;display:flex;align-items:center;gap:8px;}
+    .search-input{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);padding:7px 12px;font-size:.85rem;width:240px;transition:var(--transition);}
+    .search-input:focus{outline:none;border-color:rgba(255,71,87,.5);}
+    .search-input::placeholder{color:var(--text-muted);}
+    table.admin-tbl{width:100%;border-collapse:collapse;}
+    table.admin-tbl thead{background:rgba(255,255,255,.03);}
+    table.admin-tbl thead th{padding:11px 16px;text-align:left;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);border-bottom:1px solid var(--border);}
+    table.admin-tbl tbody tr{border-bottom:1px solid rgba(255,255,255,.05);transition:var(--transition);}
+    table.admin-tbl tbody tr:last-child{border-bottom:none;}
+    table.admin-tbl tbody tr:hover{background:var(--bg-hover);}
+    table.admin-tbl tbody td{padding:12px 16px;font-size:.88rem;vertical-align:middle;}
+    .guild-cell{display:flex;align-items:center;gap:10px;}
+    .guild-icon-sm{width:36px;height:36px;border-radius:10px;object-fit:cover;flex-shrink:0;}
+    .guild-icon-sm-placeholder{width:36px;height:36px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,#3a3d44,#52555d);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;}
+    .guild-name-cell{font-weight:600;color:var(--text-primary);}
+    .guild-id-cell{font-size:.78rem;color:var(--text-muted);margin-top:2px;font-family:monospace;}
+    .member-count{color:var(--text-secondary);font-size:.85rem;}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.75rem;font-weight:600;}
+    .badge-active{background:rgba(67,181,129,.15);color:#43b581;border:1px solid rgba(67,181,129,.3);}
+    .badge-black{background:rgba(240,71,71,.15);color:#f04747;border:1px solid rgba(240,71,71,.3);}
+    .action-btns{display:flex;gap:6px;}
+    .btn-icon{padding:6px 12px;border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;transition:var(--transition);display:flex;align-items:center;gap:5px;background:none;text-decoration:none;}
+    .btn-icon.kick{color:#f04747;border-color:rgba(240,71,71,.3);background:rgba(240,71,71,.08);}
+    .btn-icon.kick:hover{background:rgba(240,71,71,.2);border-color:#f04747;}
+    .btn-icon.broadcast{color:#5865f2;border-color:rgba(88,101,242,.3);background:rgba(88,101,242,.08);}
+    .btn-icon.broadcast:hover{background:rgba(88,101,242,.2);border-color:#5865f2;}
+    .btn-icon.unblacklist{color:#43b581;border-color:rgba(67,181,129,.3);background:rgba(67,181,129,.08);}
+    .btn-icon.unblacklist:hover{background:rgba(67,181,129,.2);border-color:#43b581;}
+    .broadcast-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;background:rgba(88,101,242,.07);border-bottom:1px solid rgba(88,101,242,.15);}
+    .selected-count{background:rgba(88,101,242,.2);color:#5865f2;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:700;}
+    .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal-box{background:#1a1624;border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:28px 32px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,.8);animation:modalIn .2s ease;}
+    .modal-box.broadcast-box{max-width:560px;}
+    @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+    .modal-title{font-weight:800;font-size:1.1rem;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+    .modal-title.danger{color:#f04747;}.modal-title.broadcast{color:#5865f2;}
+    .modal-subtitle{font-size:.88rem;color:var(--text-secondary);margin-bottom:20px;}
+    .modal-field{margin-bottom:14px;}
+    .modal-label{font-size:.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:.04em;}
+    .modal-input{width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);padding:9px 12px;font-size:.88rem;transition:var(--transition);}
+    .modal-input:focus{outline:none;border-color:rgba(88,101,242,.5);}
+    .modal-input.danger:focus{border-color:rgba(240,71,71,.5);}
+    textarea.modal-input{resize:vertical;min-height:90px;}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+    .btn-cancel{padding:9px 18px;border-radius:var(--radius-md);background:var(--bg-hover);border:1px solid var(--border);color:var(--text-secondary);font-weight:600;cursor:pointer;transition:var(--transition);font-size:.88rem;}
+    .btn-cancel:hover{background:var(--bg-active);color:var(--text-primary);}
+    .btn-confirm-kick{padding:9px 18px;border-radius:var(--radius-md);background:rgba(240,71,71,.15);border:1px solid rgba(240,71,71,.4);color:#f04747;font-weight:700;cursor:pointer;transition:var(--transition);font-size:.88rem;}
+    .btn-confirm-kick:hover{background:rgba(240,71,71,.3);border-color:#f04747;}
+    .btn-confirm-broadcast{padding:9px 18px;border-radius:var(--radius-md);background:rgba(88,101,242,.2);border:1px solid rgba(88,101,242,.5);color:#5865f2;font-weight:700;cursor:pointer;transition:var(--transition);font-size:.88rem;}
+    .btn-confirm-broadcast:hover{background:rgba(88,101,242,.35);border-color:#5865f2;}
+    .warn-box{background:rgba(240,71,71,.08);border:1px solid rgba(240,71,71,.25);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:16px;font-size:.84rem;color:#f79797;}
+    .warn-box strong{color:#f04747;}
+    .color-row{display:flex;align-items:center;gap:10px;}
+    .color-preview{width:36px;height:36px;border-radius:8px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;transition:var(--transition);}
+    .empty-tbl{text-align:center;padding:48px 24px;color:var(--text-muted);}
+    .empty-tbl-icon{font-size:2.5rem;margin-bottom:8px;}
+    .empty-tbl p{font-size:.9rem;}
+    @media(max-width:768px){.admin-main{padding:20px 16px;}.admin-stats{grid-template-columns:repeat(2,1fr);}}
+  </style>
+</head>
+<body>
+<div class="admin-wrapper">
+
+  <header class="admin-topbar">
+    <div class="admin-topbar-brand">
+      <div class="shield-icon">🛡️</div>
+      Admin Panel
+    </div>
+    <span style="color:var(--text-muted);font-size:.8rem;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);padding:3px 10px;border-radius:20px;font-weight:600;">OWNER ONLY</span>
+    <div class="admin-topbar-right">
+      <a href="{{ url_for('home') }}" class="btn-icon broadcast" style="text-decoration:none;padding:6px 14px;"><i class="bi bi-grid-fill"></i> Dashboard</a>
+      <div class="topbar-user-mini">
+        {% if avatar %}<img src="{{ avatar }}" alt="avatar">{% endif %}
+        <span>{{ user.get('global_name') or user.get('username','User') }}</span>
+      </div>
+      <a href="{{ url_for('logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
+        <i class="bi bi-box-arrow-right"></i> Đăng xuất
+      </a>
+    </div>
+  </header>
+
+  <div class="admin-main">
+    <div class="flash-container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash-msg {{ 'success' if category == 'success' else 'error' }}">
+        <i class="bi bi-{% if category == 'success' %}check-circle-fill{% else %}exclamation-triangle-fill{% endif %}"></i>
+        {{ message }}
+        <button class="flash-close" onclick="this.parentElement.remove()">x</button>
+      </div>
+      {% endfor %}{% endwith %}
+    </div>
+
+    <div style="margin-bottom:28px;">
+      <h1 style="font-size:1.7rem;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
+        🛡️ Bot Admin Panel
+      </h1>
+      <p style="color:var(--text-muted);margin-top:6px;font-size:.9rem;">
+        Quản lý tất cả server mà bot đang hoạt động. Kick, Blacklist và Broadcast thông báo toàn cầu.
+      </p>
+    </div>
+
+    <div class="admin-stats">
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-robot"></i></div>
+        <div><div class="stat-value">{{ total_servers }}</div><div class="stat-label">Server đang hoạt động</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="bi bi-slash-circle-fill"></i></div>
+        <div><div class="stat-value">{{ total_blacklist }}</div><div class="stat-label">Server bị Blacklist</div></div>
+      </div>
+      <div class="stat-card" style="cursor:pointer;" onclick="openBroadcastModal(null,null,true)">
+        <div class="stat-icon blue"><i class="bi bi-megaphone-fill"></i></div>
+        <div><div class="stat-value" style="font-size:1.4rem;">Broadcast</div><div class="stat-label">Gửi thông báo toàn bộ server</div></div>
+      </div>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchTab('servers',this)">
+        <i class="bi bi-robot"></i> Servers đang hoạt động
+        <span style="background:rgba(67,181,129,.2);color:#43b581;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_servers }}</span>
+      </button>
+      <button class="admin-tab" onclick="switchTab('blacklist',this)">
+        <i class="bi bi-slash-circle-fill"></i> Blacklist
+        {% if total_blacklist > 0 %}
+        <span style="background:rgba(240,71,71,.2);color:#f04747;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_blacklist }}</span>
+        {% endif %}
+      </button>
+    </div>
+
+    <div class="tab-panel active" id="panel-servers">
+      <div class="server-table-wrap">
+        <div class="server-table-header">
+          <div class="server-table-title"><i class="bi bi-list-ul"></i> Danh sách Servers</div>
+          <input type="text" class="search-input" id="serverSearch" placeholder="Tìm server..." oninput="filterServers()">
+        </div>
+        <div class="broadcast-bar" id="broadcastBar" style="display:none;">
+          <i class="bi bi-megaphone-fill" style="color:#5865f2;"></i>
+          <span class="selected-count" id="selectedCountLabel">0 đã chọn</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--text-secondary);cursor:pointer;margin-left:4px;">
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="accent-color:#5865f2;"> Chọn tất cả
+          </label>
+          <button class="btn-icon broadcast" style="margin-left:auto;" onclick="openBroadcastModal(null,null,false)">
+            <i class="bi bi-send-fill"></i> Gửi thông báo đến đã chọn
+          </button>
+        </div>
+        <table class="admin-tbl" id="serverTable">
+          <thead>
+            <tr>
+              <th style="width:36px;"><input type="checkbox" id="masterCheck" onchange="toggleSelectAll(this)" style="accent-color:#f04747;cursor:pointer;"></th>
+              <th>Server</th><th>Thành viên</th><th>Trạng thái</th>
+              <th style="text-align:right;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="serverTableBody">
+            {% for guild in guilds %}{% set is_bl = guild.id in blacklist_ids %}
+            <tr data-name="{{ (guild.get('cached_name') or guild.get('name',''))|lower }}" data-id="{{ guild.id }}">
+              <td><input type="checkbox" class="guild-check" value="{{ guild.id }}" onchange="updateSelected()" style="accent-color:#f04747;cursor:pointer;"></td>
+              <td>
+                <div class="guild-cell">
+                  {% if guild.get('icon_url') %}<img class="guild-icon-sm" src="{{ guild.icon_url }}" alt="icon" loading="lazy">
+                  {% else %}<div class="guild-icon-sm-placeholder">{{ (guild.get('cached_name') or guild.get('name','?'))[0].upper() }}</div>{% endif %}
+                  <div>
+                    <div class="guild-name-cell">{{ guild.get('cached_name') or guild.get('name','Unknown') }}</div>
+                    <div class="guild-id-cell">{{ guild.id }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="member-count"><i class="bi bi-people-fill" style="color:var(--text-muted);"></i> {{ guild.get('member_count',0) }}</td>
+              <td>
+                {% if is_bl %}<span class="badge badge-black"><i class="bi bi-slash-circle-fill"></i> Blacklisted</span>
+                {% else %}<span class="badge badge-active"><i class="bi bi-check-circle-fill"></i> Hoạt động</span>{% endif %}
+              </td>
+              <td>
+                <div class="action-btns" style="justify-content:flex-end;">
+                  <button class="btn-icon broadcast" onclick="openBroadcastModal('{{ guild.id }}', guildNames['{{ guild.id }}'], false)">
+                    <i class="bi bi-megaphone-fill"></i> Broadcast
+                  </button>
+                  {% if not is_bl %}
+                  <button class="btn-icon kick" onclick="openKickModal('{{ guild.id }}', guildNames['{{ guild.id }}'])">
+                    <i class="bi bi-box-arrow-right"></i> Kick
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="empty-tbl"><div class="empty-tbl-icon">🤖</div><p>Bot chưa có mặt trong server nào.</p></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-blacklist">
+      <div class="server-table-wrap">
+        <div class="server-table-header">
+          <div class="server-table-title"><i class="bi bi-slash-circle-fill" style="color:#f04747;"></i> Danh sách Blacklist</div>
+        </div>
+        <table class="admin-tbl">
+          <thead>
+            <tr><th>Server</th><th>Lý do</th><th>Thời gian kick</th><th style="text-align:right;">Hành động</th></tr>
+          </thead>
+          <tbody>
+            {% for item in blacklist %}
+            <tr>
+              <td>
+                <div class="guild-cell">
+                  <div class="guild-icon-sm-placeholder" style="background:linear-gradient(135deg,#3a1010,#6b2020);">{{ (item.guild_name or '?')[0].upper() }}</div>
+                  <div>
+                    <div class="guild-name-cell">{{ item.guild_name or 'Server không rõ' }}</div>
+                    <div class="guild-id-cell">{{ item.guild_id }}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="color:var(--text-secondary);font-size:.85rem;">{{ item.reason or '—' }}</td>
+              <td style="color:var(--text-muted);font-size:.82rem;">{{ item.kicked_at or '—' }}</td>
+              <td>
+                <div class="action-btns" style="justify-content:flex-end;">
+                  <form method="POST" action="{{ url_for('admin_unblacklist', guild_id=item.guild_id) }}" onsubmit="return confirm('Xóa server này khỏi blacklist?')">
+                    <button type="submit" class="btn-icon unblacklist"><i class="bi bi-unlock-fill"></i> Xóa khỏi Blacklist</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="empty-tbl"><div class="empty-tbl-icon">✅</div><p>Chưa có server nào trong Blacklist.</p></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Kick -->
+<div class="modal-overlay" id="kickModal">
+  <div class="modal-box">
+    <div class="modal-title danger"><i class="bi bi-box-arrow-right"></i> Xác nhận Kick Bot</div>
+    <p class="modal-subtitle">Bot sẽ rời khỏi server này và server sẽ bị thêm vào Blacklist ngay lập tức.</p>
+    <div class="warn-box">⚠️ Server <strong id="kickGuildName"></strong> sẽ bị <strong>Blacklist</strong>. Bot sẽ tự động rời nếu được mời lại.</div>
+    <form method="POST" id="kickForm">
+      <input type="hidden" name="guild_name" id="kickGuildNameInput">
+      <div class="modal-field">
+        <label class="modal-label">Lý do (tùy chọn)</label>
+        <input type="text" name="reason" class="modal-input danger" placeholder="VD: Vi phạm điều khoản sử dụng..." maxlength="200">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeKickModal()"><i class="bi bi-x-lg"></i> Hủy</button>
+        <button type="submit" class="btn-confirm-kick"><i class="bi bi-box-arrow-right"></i> Kick Bot &amp; Blacklist</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Broadcast -->
+<div class="modal-overlay" id="broadcastModal">
+  <div class="modal-box broadcast-box">
+    <div class="modal-title broadcast"><i class="bi bi-megaphone-fill"></i> Gửi thông báo Broadcast</div>
+    <p class="modal-subtitle" id="broadcastSubtitle">Soạn nội dung thông báo sẽ được gửi đến server đã chọn.</p>
+    <form method="POST" action="{{ url_for('admin_broadcast') }}" id="broadcastForm">
+      <input type="hidden" name="send_all" id="broadcastSendAll" value="0">
+      <div id="broadcastTargetInputs"></div>
+      <div class="modal-field">
+        <label class="modal-label">Tiêu đề</label>
+        <input type="text" name="broadcast_title" class="modal-input" placeholder="Thông báo từ Bot Owner" value="Thông báo từ Bot Owner" maxlength="256">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Nội dung *</label>
+        <textarea name="broadcast_message" class="modal-input" placeholder="Nhập nội dung thông báo..." rows="4" required maxlength="4000"></textarea>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Màu Embed</label>
+        <div class="color-row">
+          <input type="color" id="broadcastColorPicker" value="#5865F2" onchange="document.getElementById('broadcastColorHex').value=this.value" class="color-preview">
+          <input type="text" name="broadcast_color" id="broadcastColorHex" class="modal-input" value="#5865F2" maxlength="7" oninput="syncColor(this)" style="flex:1;">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeBroadcastModal()"><i class="bi bi-x-lg"></i> Hủy</button>
+        <button type="submit" class="btn-confirm-broadcast"><i class="bi bi-send-fill"></i> Gửi Broadcast</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Guild name map (safe JS object)
+  const guildNames = {
+    {% for guild in guilds %}
+    "{{ guild.id }}": {{ (guild.get('cached_name') or guild.get('name','Unknown')) | tojson }},
+    {% endfor %}
+  };
+  const TOTAL_SERVERS = {{ total_servers }};
+
+  function switchTab(tab, el) {
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+  }
+
+  function filterServers() {
+    const q = document.getElementById('serverSearch').value.toLowerCase().trim();
+    document.querySelectorAll('#serverTableBody tr[data-name]').forEach(row => {
+      const match = !q || (row.dataset.name||'').includes(q) || (row.dataset.id||'').includes(q);
+      row.style.display = match ? '' : 'none';
+    });
+  }
+
+  function updateSelected() {
+    const checks = document.querySelectorAll('.guild-check:checked');
+    const count = checks.length;
+    const allCount = document.querySelectorAll('.guild-check').length;
+    document.getElementById('broadcastBar').style.display = count > 0 ? 'flex' : 'none';
+    document.getElementById('selectedCountLabel').textContent = count + ' đã chọn';
+    const allChk = count === allCount && allCount > 0;
+    document.getElementById('masterCheck').checked = allChk;
+    document.getElementById('selectAll').checked = allChk;
+  }
+
+  function toggleSelectAll(el) {
+    document.querySelectorAll('.guild-check').forEach(c => c.checked = el.checked);
+    document.getElementById('masterCheck').checked = el.checked;
+    document.getElementById('selectAll').checked = el.checked;
+    updateSelected();
+  }
+
+  function openKickModal(guildId, guildName) {
+    document.getElementById('kickGuildName').textContent = guildName;
+    document.getElementById('kickGuildNameInput').value = guildName;
+    document.getElementById('kickForm').action = '/admin/kick/' + guildId;
+    document.getElementById('kickModal').classList.add('open');
+  }
+  function closeKickModal() { document.getElementById('kickModal').classList.remove('open'); }
+  document.getElementById('kickModal').addEventListener('click', function(e) { if(e.target===this) closeKickModal(); });
+
+  function openBroadcastModal(guildId, guildName, useAll) {
+    const targetInputs = document.getElementById('broadcastTargetInputs');
+    targetInputs.innerHTML = '';
+    const subtitle = document.getElementById('broadcastSubtitle');
+    if (useAll) {
+      document.getElementById('broadcastSendAll').value = '1';
+      subtitle.textContent = 'Gửi đến TẤT CẢ ' + TOTAL_SERVERS + ' server đang hoạt động.';
+    } else if (guildId) {
+      document.getElementById('broadcastSendAll').value = '0';
+      const inp = document.createElement('input');
+      inp.type='hidden'; inp.name='target_guilds'; inp.value=guildId;
+      targetInputs.appendChild(inp);
+      subtitle.textContent = 'Gửi đến server: ' + (guildName || guildId);
+    } else {
+      const checks = document.querySelectorAll('.guild-check:checked');
+      document.getElementById('broadcastSendAll').value = '0';
+      checks.forEach(c => {
+        const inp = document.createElement('input');
+        inp.type='hidden'; inp.name='target_guilds'; inp.value=c.value;
+        targetInputs.appendChild(inp);
+      });
+      subtitle.textContent = 'Gửi đến ' + checks.length + ' server đã chọn.';
+    }
+    document.getElementById('broadcastModal').classList.add('open');
+  }
+  function closeBroadcastModal() { document.getElementById('broadcastModal').classList.remove('open'); }
+  document.getElementById('broadcastModal').addEventListener('click', function(e) { if(e.target===this) closeBroadcastModal(); });
+
+  function syncColor(input) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(input.value))
+      document.getElementById('broadcastColorPicker').value = input.value;
+  }
+  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); } });
+</script>
+</body>
+</html>

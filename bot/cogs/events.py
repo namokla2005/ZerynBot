@@ -21,6 +21,7 @@ from database import (
     async_remove_guild,
     async_cache_channels,
     async_cache_roles,
+    async_is_blacklisted,
 )
 
 
@@ -58,6 +59,27 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
+        import logging
+        logger = logging.getLogger("BotV2")
+        # ─ Kiểm tra blacklist trước ─
+        if await async_is_blacklisted(str(guild.id)):
+            logger.warning(f"[Events] Server ‘{guild.name}’ ({guild.id}) đã bị blacklist. Tự động rời...")
+            try:
+                # Thông báo trước khi rời (nếu có system channel)
+                if guild.system_channel:
+                    embed = discord.Embed(
+                        title="⛔ Bot bị chặn",
+                        description=(
+                            "Server này đã bị **Owner bot** đưa vào danh sách đen.\n"
+                            "Bot sẽ tự động rời ngay lập tức."
+                        ),
+                        color=0xED4245,
+                    )
+                    await guild.system_channel.send(embed=embed)
+            except Exception:
+                pass
+            await guild.leave()
+            return
         await self._cache_guild(guild)
 
     @commands.Cog.listener()

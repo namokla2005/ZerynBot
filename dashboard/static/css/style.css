@@ -579,3 +579,27 @@ select.form-control option { background: #1a1c1f; }
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ─── Admin Panel button (topbar) ────────────────────────────────────────────── */
+.topbar-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #ff4757, #c0392b);
+  border: 1px solid rgba(255, 71, 87, 0.5);
+  text-decoration: none;
+  transition: all 0.18s ease;
+  box-shadow: 0 0 12px rgba(255, 71, 87, 0.3);
+  letter-spacing: 0.02em;
+}
+.topbar-admin-btn:hover {
+  background: linear-gradient(135deg, #ff6b81, #e84545);
+  box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+  transform: translateY(-1px);
+  color: #fff;
+}

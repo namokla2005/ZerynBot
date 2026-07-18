@@ -15,6 +15,9 @@ CLIENT_SECRET: str  = os.getenv("DISCORD_CLIENT_SECRET", "")
 _dev = os.getenv("DEV_GUILD_ID", "").strip()
 DEV_GUILD_ID: int   = int(_dev) if _dev.isdigit() else 0
 
+_owner = os.getenv("BOT_OWNER_ID", "").strip()
+BOT_OWNER_ID: int   = int(_owner) if _owner.isdigit() else 0
+
 # ─── Dashboard ─────────────────────────────────────────────────────────────────
 FLASK_SECRET_KEY: str = os.getenv("FLASK_SECRET_KEY", "dev-secret-key-change-me")
 DASHBOARD_URL: str    = os.getenv("DASHBOARD_URL", "http://localhost:5000")

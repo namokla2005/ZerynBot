@@ -132,6 +132,7 @@ def home():
         user=session["user"],
         avatar=session.get("avatar"),
         guilds=guilds,
+        owner_id=str(config.BOT_OWNER_ID),
     )
 
 @app.route("/dashboard/<guild_id>")
@@ -899,6 +900,224 @@ def delete_track_route(guild_id: str, track_id: int):
     return redirect(url_for("server_music", guild_id=guild_id))
 
 
+
+
+# ─── Bot Owner / Admin Panel ───────────────────────────────────────────────────
+
+def owner_required(f):
+    """Decorator: chỉ Bot Owner mới được truy cập."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        user_id = str(session["user"].get("id", ""))
+        owner_id = str(config.BOT_OWNER_ID)
+        if not owner_id or owner_id == "0" or user_id != owner_id:
+            flash("⛔ Bạn không có quyền truy cập khu vực này.", "error")
+            return redirect(url_for("home"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _get_all_bot_guilds_detailed() -> list:
+    """Lấy danh sách tất cả server bot đang có mặt, kèm thông tin chi tiết."""
+    import requests as _req
+    try:
+        resp = _req.get(
+            f"{config.DISCORD_API_BASE}/users/@me/guilds",
+            headers={"Authorization": f"Bot {config.TOKEN}"},
+            timeout=10,
+        )
+        if not resp.ok:
+            return []
+        guilds = resp.json()
+    except Exception as e:
+        print(f"[Admin] Error fetching bot guilds: {e}")
+        return []
+
+    # Bổ sung thông tin icon_url
+    result = []
+    for g in guilds:
+        g["icon_url"] = (
+            f"https://cdn.discordapp.com/icons/{g['id']}/{g['icon']}.png"
+            if g.get("icon") else None
+        )
+        # Lấy member count từ guild_meta cache trong DB
+        meta = db.get_guild_meta(g["id"]) or {}
+        g["member_count"] = meta.get("member_count", 0)
+        g["cached_name"]  = meta.get("guild_name") or g.get("name", "Unknown")
+        result.append(g)
+    return result
+
+
+@app.route("/admin")
+@owner_required
+def admin_panel():
+    guilds    = _get_all_bot_guilds_detailed()
+    blacklist = db.get_blacklist()
+    blacklist_ids = {b["guild_id"] for b in blacklist}
+    return render_template(
+        "admin.html",
+        user=session["user"],
+        avatar=session.get("avatar"),
+        guilds=guilds,
+        blacklist=blacklist,
+        blacklist_ids=blacklist_ids,
+        total_servers=len(guilds),
+        total_blacklist=len(blacklist),
+    )
+
+
+@app.route("/admin/kick/<guild_id>", methods=["POST"])
+@owner_required
+def admin_kick_guild(guild_id: str):
+    """Buộc bot rời khỏi server và thêm vào blacklist."""
+    import requests as _req
+    reason = request.form.get("reason", "Bị kick bởi Owner").strip() or "Bị kick bởi Owner"
+
+    # Lấy tên server trước khi kick
+    guild_name = request.form.get("guild_name", "Unknown")
+
+    # Gọi Discord API để bot rời server
+    try:
+        resp = _req.delete(
+            f"{config.DISCORD_API_BASE}/users/@me/guilds/{guild_id}",
+            headers={"Authorization": f"Bot {config.TOKEN}"},
+            timeout=10,
+        )
+        if resp.status_code not in (200, 204):
+            flash(f"❌ Discord API trả về lỗi: {resp.status_code} — {resp.text}", "error")
+            return redirect(url_for("admin_panel"))
+    except Exception as e:
+        flash(f"❌ Không thể kết nối đến Discord API: {e}", "error")
+        return redirect(url_for("admin_panel"))
+
+    # Thêm vào blacklist
+    db.add_to_blacklist(guild_id, guild_name, reason)
+    flash(f"✅ Bot đã rời khỏi **{guild_name}** và server đã được thêm vào Blacklist!", "success")
+    return redirect(url_for("admin_panel"))
+
+
+@app.route("/admin/unblacklist/<guild_id>", methods=["POST"])
+@owner_required
+def admin_unblacklist(guild_id: str):
+    """Xóa server khỏi blacklist."""
+    db.remove_from_blacklist(guild_id)
+    flash("✅ Đã xóa server khỏi Blacklist!", "success")
+    return redirect(url_for("admin_panel"))
+
+
+@app.route("/admin/broadcast", methods=["POST"])
+@owner_required
+def admin_broadcast():
+    """Gửi thông báo broadcast đến các server đã chọn."""
+    import requests as _req
+
+    title   = request.form.get("broadcast_title", "📢 Thông báo từ Bot Owner").strip()
+    message = request.form.get("broadcast_message", "").strip()
+    color   = request.form.get("broadcast_color", "#5865F2").strip()
+    targets = request.form.getlist("target_guilds")   # danh sách guild_id được chọn
+    send_all = request.form.get("send_all") == "1"
+
+    if not message:
+        flash("❌ Nội dung thông báo không được để trống!", "error")
+        return redirect(url_for("admin_panel"))
+
+    # Chuyển hex color → int
+    try:
+        color_int = int(color.lstrip("#"), 16)
+    except Exception:
+        color_int = 0x5865F2
+
+    # Lấy danh sách guild cần gửi
+    all_guilds = _get_all_bot_guilds_detailed()
+    blacklist_ids = {b["guild_id"] for b in db.get_blacklist()}
+
+    if send_all:
+        target_guilds = [g for g in all_guilds if g["id"] not in blacklist_ids]
+    else:
+        target_guilds = [g for g in all_guilds if g["id"] in targets and g["id"] not in blacklist_ids]
+
+    if not target_guilds:
+        flash("❌ Không có server nào để gửi thông báo!", "error")
+        return redirect(url_for("admin_panel"))
+
+    success_count = 0
+    fail_count    = 0
+
+    for guild in target_guilds:
+        guild_id = guild["id"]
+        # Lấy system channel hoặc kênh text đầu tiên bot có thể gửi
+        channel_id = None
+
+        # Thử lấy guild info từ Discord API để có system_channel_id
+        try:
+            gr = _req.get(
+                f"{config.DISCORD_API_BASE}/guilds/{guild_id}",
+                headers={"Authorization": f"Bot {config.TOKEN}"},
+                timeout=5,
+            )
+            if gr.ok:
+                gdata = gr.json()
+                channel_id = gdata.get("system_channel_id")
+        except Exception:
+            pass
+
+        # Nếu không có system channel, thử kênh text đầu tiên
+        if not channel_id:
+            try:
+                cr = _req.get(
+                    f"{config.DISCORD_API_BASE}/guilds/{guild_id}/channels",
+                    headers={"Authorization": f"Bot {config.TOKEN}"},
+                    timeout=5,
+                )
+                if cr.ok:
+                    channels = cr.json()
+                    text_channels = [c for c in channels if c.get("type") == 0]
+                    if text_channels:
+                        # Sắp xếp theo position
+                        text_channels.sort(key=lambda c: c.get("position", 999))
+                        channel_id = text_channels[0]["id"]
+            except Exception:
+                pass
+
+        if not channel_id:
+            fail_count += 1
+            continue
+
+        # Gửi embed
+        try:
+            payload = {
+                "embeds": [{
+                    "title": title,
+                    "description": message,
+                    "color": color_int,
+                    "footer": {"text": "Thông báo từ Bot Owner"},
+                }]
+            }
+            mr = _req.post(
+                f"{config.DISCORD_API_BASE}/channels/{channel_id}/messages",
+                headers={
+                    "Authorization": f"Bot {config.TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=8,
+            )
+            if mr.status_code in (200, 201):
+                success_count += 1
+            else:
+                fail_count += 1
+        except Exception:
+            fail_count += 1
+
+    flash(
+        f"📢 Đã gửi thông báo: ✅ {success_count} server thành công"
+        + (f", ❌ {fail_count} thất bại." if fail_count else "."),
+        "success" if success_count else "error",
+    )
+    return redirect(url_for("admin_panel"))
 
 
 if __name__ == "__main__":

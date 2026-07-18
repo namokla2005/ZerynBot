@@ -20,6 +20,11 @@
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
     <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">Điều Khoản</a>
     <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">Bảo Mật</a>
+    {% if user.get('id') == owner_id %}
+    <a href="{{ url_for('admin_panel') }}" class="topbar-admin-btn">
+      <i class="bi bi-shield-fill-check"></i> Admin
+    </a>
+    {% endif %}
   </div>
   <div class="topbar-right">
     <div class="topbar-user">
@@ -33,6 +38,7 @@
     </a>
   </div>
 </header>
+
 
 <!-- Content -->
 <div class="home-content">

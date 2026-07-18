@@ -182,6 +182,13 @@ def init_db():
                 user_id     TEXT,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS guild_blacklist (
+                guild_id    TEXT PRIMARY KEY,
+                guild_name  TEXT,
+                reason      TEXT DEFAULT 'Bị kick bởi Owner',
+                kicked_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -217,6 +224,72 @@ def init_db():
         conn.commit()
 
 DEFAULT_MODULES = ["utility", "welcome_goodbye", "info", "music", "tickets", "autoroles", "reactionroles", "automods"]
+
+# ─── Blacklist (sync — Flask) ──────────────────────────────────────────────────
+
+def get_blacklist() -> List[Dict]:
+    """Return all blacklisted guilds."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM guild_blacklist ORDER BY kicked_at DESC"
+        ).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
+def add_to_blacklist(guild_id: str, guild_name: str = "", reason: str = "Bị kick bởi Owner"):
+    """Add a guild to the blacklist."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO guild_blacklist (guild_id, guild_name, reason)
+            VALUES (?, ?, ?)
+            """,
+            (guild_id, guild_name, reason),
+        )
+        conn.commit()
+
+
+def remove_from_blacklist(guild_id: str):
+    """Remove a guild from the blacklist."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM guild_blacklist WHERE guild_id = ?", (guild_id,))
+        conn.commit()
+
+
+def is_blacklisted(guild_id: str) -> bool:
+    """Check if a guild is blacklisted (sync)."""
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM guild_blacklist WHERE guild_id = ?", (guild_id,)
+        ).fetchone()
+    return row is not None
+
+
+# ─── Blacklist (async — discord.py bot) ───────────────────────────────────────
+
+async def async_is_blacklisted(guild_id: str) -> bool:
+    """Check if a guild is blacklisted (async)."""
+    async with aiosqlite.connect(DB_PATH) as conn:
+        cursor = await conn.execute(
+            "SELECT 1 FROM guild_blacklist WHERE guild_id = ?", (guild_id,)
+        )
+        row = await cursor.fetchone()
+    return row is not None
+
+
+async def async_add_to_blacklist(guild_id: str, guild_name: str = "", reason: str = "Bị kick bởi Owner"):
+    """Add a guild to the blacklist (async)."""
+    async with aiosqlite.connect(DB_PATH) as conn:
+        await conn.execute(
+            """
+            INSERT OR REPLACE INTO guild_blacklist (guild_id, guild_name, reason)
+            VALUES (?, ?, ?)
+            """,
+            (guild_id, guild_name, reason),
+        )
+        await conn.commit()
+
 
 # ─── Sync helpers (Flask / dashboard) ─────────────────────────────────────────
 
