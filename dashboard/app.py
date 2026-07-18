@@ -72,9 +72,13 @@ def _get_guild_from_session(guild_id: str) -> dict:
 
 @app.route("/")
 def index():
-    if "user" in session:
-        return redirect(url_for("home"))
-    return redirect(url_for("login"))
+    return render_template("landing.html")
+
+@app.route("/invite")
+def invite():
+    client_id = config.CLIENT_ID
+    url = f"https://discord.com/api/oauth2/authorize?client_id={client_id}&permissions=8&scope=bot%20applications.commands"
+    return redirect(url)
 
 @app.route("/tos")
 def tos():
