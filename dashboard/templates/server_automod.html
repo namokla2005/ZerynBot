@@ -311,7 +311,12 @@
 <form method="POST" action="{{ url_for('server_automod', guild_id=guild_id) }}">
 
   <div class="card">
-    <div class="card-title">⚙️ Cài đặt chung</div>
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="bi bi-gear-fill" style="color:var(--accent)"></i> Cài đặt chung</div>
+        <div class="card-desc">Bật tắt các hệ thống bảo vệ chính.</div>
+      </div>
+    </div>
     <div class="form-group" style="display: flex; flex-direction: column; gap: 16px;">
       <label class="switch-container">
         <div class="switch">
@@ -342,12 +347,17 @@
   </div>
 
   <div class="card">
-    <div class="card-title">📝 Cấu hình Bộ lọc</div>
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="bi bi-funnel-fill" style="color:var(--accent)"></i> Cấu hình Bộ lọc</div>
+        <div class="card-desc">Thiết lập từ ngữ và liên kết để lọc.</div>
+      </div>
+    </div>
 
     <div class="form-group">
       <label class="form-label">Từ ngữ xấu (Cách nhau bằng dấu phẩy)</label>
       <textarea name="bad_words" class="form-control"
-        placeholder="VD: dm, ngu, cc, lz...">{{ bad_words_str }}</textarea>
+        placeholder="VD: dm, ngu, cc, lz...">{{bad_words_str}}</textarea>
     </div>
 
     <div class="form-group">
@@ -362,7 +372,12 @@
   </div>
 
   <div class="card">
-    <div class="card-title">🛡️ Ngoại lệ (Whitelist)</div>
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="bi bi-shield-check" style="color:var(--accent)"></i> Ngoại lệ (Whitelist)</div>
+        <div class="card-desc">Các cá nhân hoặc kênh được miễn trừ khỏi hệ thống chống spam.</div>
+      </div>
+    </div>
 
     <div class="form-group">
       <label class="form-label">Role Whitelist (Bỏ qua tất cả quy tắc Automods)</label>
@@ -392,7 +407,12 @@
   </div>
 
   <div class="card">
-    <div class="card-title">📢 Kênh & Thông báo</div>
+    <div class="card-header">
+      <div>
+        <div class="card-title"><i class="bi bi-megaphone-fill" style="color:var(--accent)"></i> Kênh & Thông báo</div>
+        <div class="card-desc">Thiết lập nơi bot gửi thông báo vi phạm.</div>
+      </div>
+    </div>
 
     <div class="form-group">
       <label class="form-label">Role được tag khi có vi phạm lần 2</label>
@@ -421,22 +441,24 @@
     </div>
   </div>
 
-  <div style="margin-top: 24px;">
-    <button type="submit" class="btn-primary">💾 Lưu Cài Đặt</button>
+  <div class="bottom-actions">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-save2"></i> Lưu Cài Đặt
+    </button>
   </div>
 </form>
 
 <script>
   const allRoles = [
     {% for r in roles %}
-  { id: "{{ r.role_id }}", name: { { r.role_name | tojson | safe } }, color: "{{ r.color_hex }}" } {% if not loop.last %}, {% endif %}
-  {% endfor %}
+    { id: "{{ r.role_id }}", name: {{ r.role_name | tojson | safe }}, color: "{{ r.color_hex }}" } {% if not loop.last %}, {% endif %}
+    {% endfor %}
   ];
 
   const allChannels = [
     {% for ch in channels %}
-  { id: "{{ ch.channel_id }}", name: { { ch.channel_name | tojson | safe } } } {% if not loop.last %}, {% endif %}
-  {% endfor %}
+    { id: "{{ ch.channel_id }}", name: {{ ch.channel_name | tojson | safe }} } {% if not loop.last %}, {% endif %}
+    {% endfor %}
   ];
 
   let selectedRole = {% if settings.get('notify_role_id') %}"{{ settings.get('notify_role_id') }}"{% else %} null{% endif %};
