@@ -3,17 +3,17 @@
 /* ─── CSS Variables ─────────────────────────────────────────────────────────── */
 :root {
   --bg-body:      #060608;
-  --bg-sidebar:   rgba(8, 4, 14, 0.96);
-  --bg-card:      rgba(12, 8, 22, 0.94);
-  --bg-card2:     rgba(20, 14, 32, 0.90);
-  --bg-input:     rgba(0, 0, 0, 0.7);
+  --bg-sidebar:   rgba(8, 4, 14, 0.88);
+  --bg-card:      rgba(12, 8, 22, 0.85);
+  --bg-card2:     rgba(20, 14, 32, 0.80);
+  --bg-input:     rgba(0, 0, 0, 0.65);
   --bg-hover:     rgba(255, 255, 255, 0.12);
   --bg-active:    rgba(255, 255, 255, 0.18);
   --border:       rgba(255, 255, 255, 0.16);
   --border-focus: #ff9ec2;
 
   /* --surface dùng cho legal pages, login card, etc. */
-  --surface:      rgba(10, 6, 20, 0.96);
+  --surface:      rgba(10, 6, 20, 0.90);
 
   --accent:        #ff9ec2;
   --accent-hover:  #ff7aa8;
@@ -60,7 +60,7 @@ body::before {
   top: -20px; left: -20px; right: -20px; bottom: -20px;
   background: url('../bg.png') no-repeat center center;
   background-size: cover;
-  filter: blur(8px) brightness(0.20);
+  filter: blur(8px) brightness(0.28);
   z-index: -1;
 }
 a { color: inherit; text-decoration: none; }
