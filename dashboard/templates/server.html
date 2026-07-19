@@ -1,10 +1,33 @@
 {% extends "base_server.html" %}
 {% block title %}Overview{% endblock %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .chart-container {
+    background: var(--bg-body);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    position: relative;
+    height: 300px;
+  }
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 992px) {
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">⚡ Fast Access</h1>
-  <p class="page-subtitle">Truy cập nhanh đến các tính năng của bot</p>
+  <h1 class="page-title">📊 Dashboard Analytics</h1>
+  <p class="page-subtitle">Thống kê hoạt động của server trong 7 ngày qua</p>
 </div>
 
 <!-- Stats row -->
@@ -26,10 +49,29 @@
     <div class="stat-label">Tổng modules</div>
   </div>
 </div>
+</div>
 {% endif %}
 
-<!-- General section -->
-<div class="section-header" style="margin-bottom: 14px;">
+<!-- Analytics Charts -->
+<div class="charts-grid">
+  <div class="chart-container">
+    <canvas id="memberChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <canvas id="messageChart"></canvas>
+  </div>
+</div>
+<div class="charts-grid">
+  <div class="chart-container">
+    <canvas id="channelChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <canvas id="botChart"></canvas>
+  </div>
+</div>
+
+<!-- General section (Moved down) -->
+<div class="section-header" style="margin-bottom: 14px; margin-top: 32px;">
   <div class="section-title">General</div>
   <span class="count-chip">3 mục</span>
 </div>
@@ -179,4 +221,138 @@
     </a>
   </div>
 </div>
+</div>
+
+<script>
+  // Parse JSON data from backend
+  const rawStats = JSON.parse('{{ raw_stats_json | safe }}');
+  const channelMap = JSON.parse('{{ channel_map_json | safe }}');
+  
+  // Chart.js Default styling for Dark mode
+  Chart.defaults.color = '#b9bbbe';
+  Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+
+  // Data processing helpers
+  // Date hour format: 'YYYY-MM-DD HH:00:00'
+  const last7Days = [];
+  for(let i=6; i>=0; i--) {
+    let d = new Date();
+    d.setDate(d.getDate() - i);
+    last7Days.push(d.toISOString().split('T')[0]); // YYYY-MM-DD
+  }
+
+  // 1. Join / Leave Chart (Line)
+  const joinData = Array(7).fill(0);
+  const leaveData = Array(7).fill(0);
+  
+  rawStats.forEach(stat => {
+    if (stat.event_type === 'member') {
+      const dateStr = stat.date_hour.split(' ')[0];
+      const idx = last7Days.indexOf(dateStr);
+      if (idx !== -1) {
+        if (stat.event_label === 'join') joinData[idx] += stat.count;
+        if (stat.event_label === 'leave') leaveData[idx] += stat.count;
+      }
+    }
+  });
+
+  new Chart(document.getElementById('memberChart'), {
+    type: 'line',
+    data: {
+      labels: last7Days,
+      datasets: [
+        { label: 'Join', data: joinData, borderColor: '#57F287', backgroundColor: 'rgba(87,242,135,0.1)', fill: true, tension: 0.3 },
+        { label: 'Leave', data: leaveData, borderColor: '#ED4245', backgroundColor: 'rgba(237,66,69,0.1)', fill: true, tension: 0.3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: 'Thành viên Join/Leave (7 ngày)' } }
+    }
+  });
+
+  // 2. Message Activity by Hour (Bar)
+  // Aggregate all 'message' events by hour (00-23)
+  const hourlyActivity = Array(24).fill(0);
+  rawStats.forEach(stat => {
+    if (stat.event_type === 'message' && stat.event_label === 'total') {
+      const hour = parseInt(stat.date_hour.split(' ')[1].split(':')[0]);
+      hourlyActivity[hour] += stat.count;
+    }
+  });
+  
+  const hourLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
+  new Chart(document.getElementById('messageChart'), {
+    type: 'bar',
+    data: {
+      labels: hourLabels,
+      datasets: [{ label: 'Tin nhắn', data: hourlyActivity, backgroundColor: '#5865F2', borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: 'Hoạt động Chat theo giờ' } }
+    }
+  });
+
+  // 3. Top 5 Channels (Doughnut)
+  const channelCounts = {};
+  rawStats.forEach(stat => {
+    if (stat.event_type === 'channel_message') {
+      channelCounts[stat.event_label] = (channelCounts[stat.event_label] || 0) + stat.count;
+    }
+  });
+  
+  const sortedChannels = Object.entries(channelCounts)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 5);
+    
+  const chLabels = sortedChannels.map(c => channelMap[c[0]] ? `#${channelMap[c[0]]}` : `Channel ${c[0]}`);
+  const chData = sortedChannels.map(c => c[1]);
+  
+  new Chart(document.getElementById('channelChart'), {
+    type: 'doughnut',
+    data: {
+      labels: chLabels.length ? chLabels : ['Chưa có dữ liệu'],
+      datasets: [{
+        data: chData.length ? chData : [1],
+        backgroundColor: ['#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: 'Top 5 Kênh sôi nổi nhất' } }
+    }
+  });
+
+  // 4. Automod & Ticket Actions (Bar)
+  let automodWarn = 0, automodTimeout = 0, ticketOpen = 0, ticketClose = 0;
+  rawStats.forEach(stat => {
+    if (stat.event_type === 'automod') {
+      if (stat.event_label === 'warn') automodWarn += stat.count;
+      if (stat.event_label === 'timeout') automodTimeout += stat.count;
+    }
+    if (stat.event_type === 'ticket') {
+      if (stat.event_label === 'open') ticketOpen += stat.count;
+      if (stat.event_label === 'close') ticketClose += stat.count;
+    }
+  });
+
+  new Chart(document.getElementById('botChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Cảnh báo', 'Timeout', 'Mở Ticket', 'Đóng Ticket'],
+      datasets: [{
+        label: 'Số lần',
+        data: [automodWarn, automodTimeout, ticketOpen, ticketClose],
+        backgroundColor: ['#FEE75C', '#ED4245', '#57F287', '#99AAB5'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: 'Thống kê Module (Automod & Ticket)' } }
+    }
+  });
+</script>
 {% endblock %}

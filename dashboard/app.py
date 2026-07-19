@@ -145,6 +145,17 @@ def server_overview(guild_id: str):
     guild_info = _get_guild_from_session(guild_id)
     meta       = db.get_guild_meta(guild_id) or {}
     modules    = db.get_guild_modules(guild_id)
+    raw_stats  = db.get_guild_stats(guild_id, days=7)
+    
+    # Process stats for charting
+    # stats format: {event_type: "message", event_label: "total", date_hour: "2026-07-19 14:00:00", count: 5}
+    # We will just pass raw_stats as JSON and let frontend process it for flexibility.
+    import json
+    
+    # Fetch channel names for top channels map
+    channels = db.get_guild_channels(guild_id)
+    channel_map = {str(c['channel_id']): c['channel_name'] for c in channels}
+    
     return render_template("server.html",
         user=session["user"],
         avatar=session.get("avatar"),
@@ -153,6 +164,8 @@ def server_overview(guild_id: str):
         meta=meta,
         modules=modules,
         active_page="overview",
+        raw_stats_json=json.dumps(raw_stats),
+        channel_map_json=json.dumps(channel_map)
     )
 
 # ─── Context helpers ───────────────────────────────────────────────────────────

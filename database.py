@@ -223,6 +223,15 @@ def init_db():
                 log_automod             INTEGER DEFAULT 1,
                 log_ticket              INTEGER DEFAULT 1
             );
+            
+            CREATE TABLE IF NOT EXISTS guild_stats (
+                guild_id    TEXT NOT NULL,
+                event_type  TEXT NOT NULL,
+                event_label TEXT NOT NULL,
+                date_hour   TEXT NOT NULL,
+                count       INTEGER DEFAULT 1,
+                PRIMARY KEY (guild_id, event_type, event_label, date_hour)
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -707,6 +716,43 @@ async def async_get_logger_settings(guild_id: str) -> dict:
         "log_automod": 1,
         "log_ticket": 1
     }
+
+# --- Dashboard Analytics (Stats) --------------------------------------------
+async def async_increment_stat(guild_id: str, event_type: str, event_label: str):
+    """
+    Increment a stat counter for a specific event and label.
+    Aggregated by current hour (YYYY-MM-DD HH:00:00).
+    """
+    import datetime
+    now = datetime.datetime.now(datetime.timezone.utc)
+    date_hour = now.strftime("%Y-%m-%d %H:00:00")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO guild_stats (guild_id, event_type, event_label, date_hour, count)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(guild_id, event_type, event_label, date_hour) 
+            DO UPDATE SET count = count + 1
+        """, (guild_id, event_type, event_label, date_hour))
+        await db.commit()
+
+def get_guild_stats(guild_id: str, days: int = 7) -> list:
+    """
+    Get all stats for a guild within the last N days.
+    """
+    import datetime
+    now = datetime.datetime.now(datetime.timezone.utc)
+    start_date = (now - datetime.timedelta(days=days)).strftime("%Y-%m-%d 00:00:00")
+    
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute("""
+            SELECT event_type, event_label, date_hour, count 
+            FROM guild_stats 
+            WHERE guild_id = ? AND date_hour >= ?
+            ORDER BY date_hour ASC
+        """, (guild_id, start_date))
+        return [_row_to_dict(row) for row in cur.fetchall()]
 
 async def async_is_module_enabled(guild_id: str, module_name: str) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
