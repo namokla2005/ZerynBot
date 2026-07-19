@@ -349,39 +349,6 @@ def server_embeds(guild_id: str):
         now=datetime.now().strftime("%H:%M"),
     ))
 
-@app.route("/dashboard/<guild_id>/api/panel-stats")
-def api_panel_stats(guild_id: str):
-    # API route: phải trả về JSON, không redirect
-    if "user" not in session:
-        return jsonify({"error": "unauthorized"}), 401
-    
-    guild_info = _get_guild_from_session(guild_id)
-    if not guild_info or not guild_info.get("bot_in_guild"):
-        return jsonify({"error": "forbidden"}), 403
-    
-    # 1. Bot status
-    bot_status = {
-        "online": True,
-        "ping": "N/A",
-    }
-    
-    # 2. Top users
-    try:
-        top_users = db.get_top_users(guild_id, limit=5)
-    except Exception:
-        top_users = []
-    
-    # 3. Modules
-    try:
-        modules = db.get_guild_modules(guild_id)
-    except Exception:
-        modules = {}
-    
-    return jsonify({
-        "bot_status": bot_status,
-        "top_users": top_users,
-        "modules": modules
-    })
 
 @app.route("/dashboard/<guild_id>/modules", methods=["GET", "POST"])
 @guild_access_required
