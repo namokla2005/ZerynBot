@@ -209,6 +209,20 @@ def init_db():
                 role_id     TEXT,
                 PRIMARY KEY (guild_id, level, role_id)
             );
+
+            CREATE TABLE IF NOT EXISTS logger_settings (
+                guild_id                TEXT PRIMARY KEY,
+                log_channel_id          TEXT,
+                log_message_edit        INTEGER DEFAULT 1,
+                log_message_delete      INTEGER DEFAULT 1,
+                log_member_join_leave   INTEGER DEFAULT 1,
+                log_member_kick_ban     INTEGER DEFAULT 1,
+                log_member_role_change  INTEGER DEFAULT 1,
+                log_channel_change      INTEGER DEFAULT 1,
+                log_role_change         INTEGER DEFAULT 1,
+                log_automod             INTEGER DEFAULT 1,
+                log_ticket              INTEGER DEFAULT 1
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
