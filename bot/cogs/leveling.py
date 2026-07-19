@@ -36,7 +36,7 @@ class Leveling(commands.Cog):
     def cog_unload(self):
         self.voice_xp_task.cancel()
 
-    async def _handle_level_up(self, member: discord.Member, old_level: int, new_level: int, settings: dict):
+    async def _handle_level_up(self, member: discord.Member, old_level: int, new_level: int, settings: dict, current_channel=None):
         if new_level <= old_level:
             return
             
@@ -59,15 +59,19 @@ class Leveling(commands.Cog):
                 
         # Announcement
         channel_id = settings.get("announce_channel_id")
-        if channel_id:
+        channel = None
+        if channel_id == "current":
+            channel = current_channel
+        elif channel_id:
             channel = guild.get_channel(int(channel_id))
-            if channel:
-                msg_template = settings.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!")
-                msg = msg_template.replace("{user}", member.mention).replace("{user_name}", member.name).replace("{level}", str(new_level)).replace("{server}", guild.name)
-                try:
-                    await channel.send(msg)
-                except Exception:
-                    pass
+            
+        if channel:
+            msg_template = settings.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!")
+            msg = msg_template.replace("{user}", member.mention).replace("{user_name}", member.name).replace("{level}", str(new_level)).replace("{server}", guild.name)
+            try:
+                await channel.send(msg)
+            except Exception:
+                pass
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -96,7 +100,7 @@ class Leveling(commands.Cog):
         await async_update_user_xp(guild_id, str(message.author.id), new_xp, new_level, last_message_at=now)
         
         if new_level > old_level:
-            await self._handle_level_up(message.author, old_level, new_level, settings)
+            await self._handle_level_up(message.author, old_level, new_level, settings, current_channel=message.channel)
 
     @tasks.loop(seconds=60)
     async def voice_xp_task(self):
@@ -138,8 +142,8 @@ class Leveling(commands.Cog):
                     await async_update_user_xp(guild_id, str(member.id), new_xp, new_level, last_voice_xp_at=now)
                     
                     if new_level > old_level:
-                        await self._handle_level_up(member, old_level, new_level, settings)
-
+                        await self._handle_level_up(member, old_level, new_level, settings, current_channel=vc)
+                        
     @voice_xp_task.before_loop
     async def before_voice_xp_task(self):
         await self.bot.wait_until_ready()
