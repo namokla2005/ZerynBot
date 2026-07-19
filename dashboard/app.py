@@ -510,16 +510,6 @@ _COMMANDS_DATA = [
                     "type": "embed", "color": "#5865f2", "title": "⚙️ Cấu hình Auto Roles",
                     "desc": "**Trạng thái:** ✅ Đã bật<br>**Roles cho Thành viên:** @Member<br>**Roles cho Bot:** @Bot"
                 }
-            },
-            {
-                "name": "autorole toggle", "emoji": "🔄",
-                "desc": "Bật/Tắt tính năng Auto Roles",
-                "usage": "/autorole toggle", "example": "/autorole toggle",
-                "args": [],
-                "preview": {
-                    "type": "text",
-                    "content": "✅ Đã **Bật** tính năng Auto Roles."
-                }
             }
         ]
     },
@@ -535,16 +525,6 @@ _COMMANDS_DATA = [
                 "preview": {
                     "type": "embed", "color": "#5865f2", "title": "🛡️ Automods — My Server",
                     "desc": "**Trạng thái:** 🟢 Đang Hoạt Động<br>*(Để tuỳ chỉnh chi tiết, vui lòng dùng Dashboard)*"
-                }
-            },
-            {
-                "name": "automods toggle", "emoji": "🔄",
-                "desc": "Bật/Tắt hệ thống Automods",
-                "usage": "/automods toggle", "example": "/automods toggle",
-                "args": [],
-                "preview": {
-                    "type": "text",
-                    "content": "✅ Đã **BẬT** hệ thống Automods cho server này!"
                 }
             }
         ]
