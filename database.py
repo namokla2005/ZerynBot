@@ -662,6 +662,15 @@ def update_reaction_roles_message_id(panel_id: int, message_id: str):
 
 # ─── Async helpers (discord.py / bot) ─────────────────────────────────────────
 
+async def async_get_guild_settings(guild_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM guilds WHERE guild_id = ?", (guild_id,)
+        ) as cur:
+            row = await cur.fetchone()
+    return dict(row) if row else {"guild_id": guild_id, **_DEFAULT_SETTINGS}
+
 async def async_get_logger_settings(guild_id: str) -> dict:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
