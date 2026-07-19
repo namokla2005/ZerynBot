@@ -6,6 +6,8 @@ import asyncio
 import logging
 import sys
 import os
+import time
+from collections import defaultdict
 
 # Add v2/ to path so we can import shared modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,6 +25,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger("BotV2")
 
+class DiscordWebhookHandler(logging.Handler):
+    """Sends ERROR and CRITICAL logs to a Discord Webhook."""
+    def __init__(self, webhook_url: str):
+        super().__init__(level=logging.ERROR)
+        self.webhook_url = webhook_url
+        self.last_sent = 0.0
+
+    def emit(self, record: logging.LogRecord):
+        # Rate limit sending to webhook (1 message per 5 seconds max)
+        now = time.time()
+        if now - self.last_sent < 5.0:
+            return
+            
+        import requests
+        try:
+            log_entry = self.format(record)
+            # Truncate if too long
+            if len(log_entry) > 3900:
+                log_entry = log_entry[:3900] + "\n... (truncated)"
+                
+            embed = {
+                "title": f"🚨 Bot Error: {record.levelname}",
+                "description": f"```py\n{log_entry}\n```",
+                "color": 0xED4245 if record.levelno >= logging.ERROR else 0xFEE75C,
+                "footer": {"text": f"File: {record.filename} | Line: {record.lineno}"}
+            }
+            
+            payload = {"embeds": [embed]}
+            requests.post(self.webhook_url, json=payload, timeout=5)
+            self.last_sent = now
+        except Exception:
+            pass # Silently fail if webhook is invalid or network error
+
 # ─── Intents ───────────────────────────────────────────────────────────────────
 intents = discord.Intents.default()
 intents.members = True
@@ -38,8 +73,31 @@ class BotV2(commands.Bot):
             case_insensitive=True,
         )
 
+        # Rate limit state
+        self.last_used = defaultdict(float)
+
     async def setup_hook(self):
         """Load all cogs, then sync slash commands."""
+        
+        # ─── Global Cooldown Check ──────────────────────────────
+        async def global_cooldown_check(interaction: discord.Interaction) -> bool:
+            # Bypass for bot owner
+            if interaction.user.id == config.BOT_OWNER_ID:
+                return True
+                
+            now = time.time()
+            user_id = interaction.user.id
+            if now - self.last_used[user_id] < config.GLOBAL_COOLDOWN:
+                remaining = int(config.GLOBAL_COOLDOWN - (now - self.last_used[user_id]))
+                await interaction.response.send_message(f"⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.", ephemeral=True)
+                return False
+                
+            self.last_used[user_id] = now
+            return True
+            
+        self.tree.add_check(global_cooldown_check)
+        # ────────────────────────────────────────────────────────
+        
         cogs_dir = os.path.join(os.path.dirname(__file__), "cogs")
         for filename in os.listdir(cogs_dir):
             if filename.endswith(".py") and not filename.startswith("_"):
@@ -108,6 +166,12 @@ async def main():
 
     init_db()
     logger.info("✅  Database ready")
+
+    if config.WEBHOOK_LOG_URL:
+        webhook_handler = DiscordWebhookHandler(config.WEBHOOK_LOG_URL)
+        webhook_handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(webhook_handler)
+        logger.info("✅  Webhook logging enabled")
 
     async with bot:
         await bot.start(config.TOKEN)

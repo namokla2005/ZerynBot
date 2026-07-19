@@ -18,6 +18,10 @@ DEV_GUILD_ID: int   = int(_dev) if _dev.isdigit() else 0
 _owner = os.getenv("BOT_OWNER_ID", "").strip()
 BOT_OWNER_ID: int   = int(_owner) if _owner.isdigit() else 0
 
+GLOBAL_COOLDOWN: int = 3 # Giới hạn 3 giây/lệnh
+WEBHOOK_LOG_URL: str = os.getenv("WEBHOOK_LOG_URL", "")
+REDIS_URL: str       = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
 # ─── Dashboard ─────────────────────────────────────────────────────────────────
 FLASK_SECRET_KEY: str = os.getenv("FLASK_SECRET_KEY", "dev-secret-key-change-me")
 DASHBOARD_URL: str    = os.getenv("DASHBOARD_URL", "http://localhost:5000")

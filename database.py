@@ -7,6 +7,7 @@ import sqlite3
 import json
 from typing import Optional, Dict, List, Any
 import aiosqlite
+from cache import cache
 
 # ─── Path setup ────────────────────────────────────────────────────────────────
 # This file lives at v2/database.py
@@ -334,14 +335,23 @@ _DEFAULT_SETTINGS = {
 }
 
 def get_guild_settings(guild_id: str) -> Dict:
+    cache_key = f"settings:{guild_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             "SELECT * FROM guilds WHERE guild_id = ?", (guild_id,)
         ).fetchone()
+    
+    result = {"guild_id": guild_id, **_DEFAULT_SETTINGS}
     if row:
-        return _row_to_dict(row)
-    return {"guild_id": guild_id, **_DEFAULT_SETTINGS}
+        result = _row_to_dict(row)
+        
+    cache.set(cache_key, result, ttl=300)
+    return result
 
 def upsert_guild(guild_id: str, **fields):
     """Insert or update specific guild settings columns."""
@@ -357,8 +367,14 @@ def upsert_guild(guild_id: str, **fields):
             [*fields.values(), guild_id],
         )
         conn.commit()
+    cache.delete(f"settings:{guild_id}")
 
 def get_guild_modules(guild_id: str) -> Dict[str, bool]:
+    cache_key = f"modules:{guild_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     with sqlite3.connect(DB_PATH) as conn:
         rows = conn.execute(
             "SELECT module_name, enabled FROM guild_modules WHERE guild_id = ?",
@@ -367,6 +383,8 @@ def get_guild_modules(guild_id: str) -> Dict[str, bool]:
     result = {m: True for m in DEFAULT_MODULES}
     for module_name, enabled in rows:
         result[module_name] = bool(enabled)
+        
+    cache.set(cache_key, result, ttl=300)
     return result
 
 def set_module(guild_id: str, module_name: str, enabled: bool):
@@ -377,6 +395,7 @@ def set_module(guild_id: str, module_name: str, enabled: bool):
             (guild_id, module_name, int(enabled)),
         )
         conn.commit()
+    cache.delete(f"modules:{guild_id}")
 
 def get_guild_channels(guild_id: str) -> List[Dict]:
     """Return cached text channels (type=0) for a guild."""
@@ -1082,12 +1101,21 @@ _DEFAULT_LEVELING = {
 }
 
 def get_leveling_settings(guild_id: str) -> dict:
+    cache_key = f"leveling:{guild_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM leveling_settings WHERE guild_id = ?", (guild_id,)).fetchone()
         if row:
-            return dict(row)
-        return dict(_DEFAULT_LEVELING)
+            result = dict(row)
+        else:
+            result = dict(_DEFAULT_LEVELING)
+            
+    cache.set(cache_key, result, ttl=300)
+    return result
 
 def set_leveling_settings(guild_id: str, settings: dict):
     with sqlite3.connect(DB_PATH) as conn:
@@ -1109,6 +1137,7 @@ def set_leveling_settings(guild_id: str, settings: dict):
             settings.get("announce_message", _DEFAULT_LEVELING["announce_message"])
         ))
         conn.commit()
+    cache.delete(f"leveling:{guild_id}")
 
 def get_level_roles(guild_id: str) -> dict:
     """Return dict mapping level (int) to role_id (str)"""
@@ -1146,13 +1175,22 @@ async def async_get_level_roles(guild_id: str) -> dict:
             return {row[0]: row[1] for row in rows}
 
 async def async_get_user_level(guild_id: str, user_id: str) -> dict:
+    cache_key = f"level:{guild_id}:{user_id}"
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM user_levels WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)) as cursor:
             row = await cursor.fetchone()
             if row:
-                return dict(row)
-            return {"guild_id": guild_id, "user_id": user_id, "xp": 0, "level": 0, "last_message_at": 0, "last_voice_xp_at": 0}
+                result = dict(row)
+            else:
+                result = {"guild_id": guild_id, "user_id": user_id, "xp": 0, "level": 0, "last_message_at": 0, "last_voice_xp_at": 0}
+                
+    await cache.aset(cache_key, result, ttl=120) # 2 mins TTL
+    return result
 
 async def async_update_user_xp(guild_id: str, user_id: str, xp: int, level: int, last_message_at: float = None, last_voice_xp_at: float = None):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -1174,11 +1212,13 @@ async def async_update_user_xp(guild_id: str, user_id: str, xp: int, level: int,
         
         await db.execute(query, tuple(values))
         await db.commit()
+    await cache.adelete(f"level:{guild_id}:{user_id}")
 
 async def async_reset_user_xp(guild_id: str, user_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM user_levels WHERE guild_id = ? AND user_id = ?", (guild_id, user_id))
         await db.commit()
+    await cache.adelete(f"level:{guild_id}:{user_id}")
 
 async def async_get_top_users(guild_id: str, limit: int = 10) -> list:
     async with aiosqlite.connect(DB_PATH) as db:

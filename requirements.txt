@@ -8,3 +8,4 @@ davey>=0.1.6
 Pillow>=10.0.0
 aiohttp>=3.9.0
 yt-dlp>=2024.1.1
+redis>=5.0.0
