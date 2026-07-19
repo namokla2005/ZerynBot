@@ -219,6 +219,34 @@
       Cấu hình <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
+  <div class="fast-card">
+    <div class="fast-card-icon">⭐</div>
+    <div class="fast-card-title">
+      Leveling &amp; XP
+      <span class="server-chip {% if modules.get('leveling', False) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('leveling', False) %}Bật{% else %}Tắt{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">Hệ thống cấp độ, kinh nghiệm và phần thưởng vai trò cho thành viên.</div>
+    <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" class="fast-card-link">
+      Cấu hình <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+  <div class="fast-card">
+    <div class="fast-card-icon">📖</div>
+    <div class="fast-card-title">
+      Logging &amp; Audit Log
+      <span class="server-chip {% if modules.get('logger', False) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('logger', False) %}Bật{% else %}Tắt{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">Ghi nhật ký sự kiện, kiểm duyệt tin nhắn và lịch sử hoạt động.</div>
+    <a href="{{ url_for('server_logger', guild_id=guild_id) }}" class="fast-card-link">
+      Cấu hình <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
 </div>
 </div>
 
