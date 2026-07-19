@@ -350,22 +350,32 @@ def server_embeds(guild_id: str):
     ))
 
 @app.route("/dashboard/<guild_id>/api/panel-stats")
-@guild_access_required
 def api_panel_stats(guild_id: str):
-    import time
+    # API route: phải trả về JSON, không redirect
+    if "user" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     
-    # 1. Bot status (ping) - can be mocked for now if no easy way to get live ping, or try to get basic stats. 
-    # For now, just return online=True since the dashboard can only load if bot is somewhat alive.
+    guild_info = _get_guild_from_session(guild_id)
+    if not guild_info or not guild_info.get("bot_in_guild"):
+        return jsonify({"error": "forbidden"}), 403
+    
+    # 1. Bot status
     bot_status = {
         "online": True,
-        "ping": "N/A", # We'll just show online status
+        "ping": "N/A",
     }
     
     # 2. Top users
-    top_users = db.get_top_users(guild_id, limit=5)
+    try:
+        top_users = db.get_top_users(guild_id, limit=5)
+    except Exception:
+        top_users = []
     
     # 3. Modules
-    modules = db.get_guild_modules(guild_id)
+    try:
+        modules = db.get_guild_modules(guild_id)
+    except Exception:
+        modules = {}
     
     return jsonify({
         "bot_status": bot_status,
