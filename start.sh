@@ -12,11 +12,13 @@ PID_DASH="data/dashboard.pid"
 # Hàm tắt
 stop_all() {
     echo "🔴 Đang dừng các services..."
-    if [ -f "$PID_BOT" ]; then kill $(cat "$PID_BOT") 2>/dev/null; rm "$PID_BOT"; echo "- Đã dừng Bot"; fi
-    if [ -f "$PID_DASH" ]; then kill $(cat "$PID_DASH") 2>/dev/null; rm "$PID_DASH"; echo "- Đã dừng Dashboard"; fi
+    if [ -f "$PID_BOT" ]; then kill $(cat "$PID_BOT") 2>/dev/null; rm "$PID_BOT"; echo "- Đã dừng Watchdog"; fi
+    if [ -f "$PID_DASH" ]; then kill $(cat "$PID_DASH") 2>/dev/null; rm "$PID_DASH"; echo "- Đã dừng Dashboard script"; fi
     if [ -f "$PID_REDIS" ]; then kill $(cat "$PID_REDIS") 2>/dev/null; rm "$PID_REDIS"; echo "- Đã dừng Redis"; fi
-    # Tắt luôn watchdog nếu đang chạy
+    # Tắt luôn watchdog và các process con
     pkill -f "watchdog.sh" 2>/dev/null
+    pkill -f "run_bot.py" 2>/dev/null
+    pkill -f "run_dashboard.py" 2>/dev/null
     echo "✅ Tất cả services đã tắt."
 }
 
