@@ -257,6 +257,23 @@
     </label>
   </div>
 
+  <!-- Logger -->
+  <div class="module-card {% if modules.get('logger', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">📝</span> Logging & Audit Log</div>
+      <div class="mod-desc">Ghi nhận các sự kiện quan trọng trong server ra kênh riêng.</div>
+      <a href="{{ url_for('server_logger', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        Cấu hình <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="logger"
+             {% if modules.get('logger', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
 </div>
 
 <div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">

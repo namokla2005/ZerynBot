@@ -662,14 +662,28 @@ def update_reaction_roles_message_id(panel_id: int, message_id: str):
 
 # ─── Async helpers (discord.py / bot) ─────────────────────────────────────────
 
-async def async_get_guild_settings(guild_id: str) -> Dict:
+async def async_get_logger_settings(guild_id: str) -> dict:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM guilds WHERE guild_id = ?", (guild_id,)
+            "SELECT * FROM logger_settings WHERE guild_id = ?", (guild_id,)
         ) as cur:
             row = await cur.fetchone()
-    return dict(row) if row else {"guild_id": guild_id, **_DEFAULT_SETTINGS}
+    if row:
+        return dict(row)
+    return {
+        "guild_id": guild_id,
+        "log_channel_id": "",
+        "log_message_edit": 1,
+        "log_message_delete": 1,
+        "log_member_join_leave": 1,
+        "log_member_kick_ban": 1,
+        "log_member_role_change": 1,
+        "log_channel_change": 1,
+        "log_role_change": 1,
+        "log_automod": 1,
+        "log_ticket": 1
+    }
 
 async def async_is_module_enabled(guild_id: str, module_name: str) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -1002,6 +1016,63 @@ _DEFAULT_AUTOMOD = {
     "immune_roles": "[]",
     "spam_allowed_channels": "[]"
 }
+
+def get_logger_settings(guild_id: str) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute("""
+            SELECT * FROM logger_settings WHERE guild_id = ?
+        """, (guild_id,))
+        row = cur.fetchone()
+        if row:
+            return dict(row)
+        return {
+            "guild_id": guild_id,
+            "log_channel_id": "",
+            "log_message_edit": 1,
+            "log_message_delete": 1,
+            "log_member_join_leave": 1,
+            "log_member_kick_ban": 1,
+            "log_member_role_change": 1,
+            "log_channel_change": 1,
+            "log_role_change": 1,
+            "log_automod": 1,
+            "log_ticket": 1
+        }
+
+def set_logger_settings(guild_id: str, settings: dict):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO logger_settings (
+                guild_id, log_channel_id, log_message_edit, log_message_delete,
+                log_member_join_leave, log_member_kick_ban, log_member_role_change,
+                log_channel_change, log_role_change, log_automod, log_ticket
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                log_channel_id=excluded.log_channel_id,
+                log_message_edit=excluded.log_message_edit,
+                log_message_delete=excluded.log_message_delete,
+                log_member_join_leave=excluded.log_member_join_leave,
+                log_member_kick_ban=excluded.log_member_kick_ban,
+                log_member_role_change=excluded.log_member_role_change,
+                log_channel_change=excluded.log_channel_change,
+                log_role_change=excluded.log_role_change,
+                log_automod=excluded.log_automod,
+                log_ticket=excluded.log_ticket
+        """, (
+            guild_id,
+            settings.get("log_channel_id", ""),
+            settings.get("log_message_edit", 1),
+            settings.get("log_message_delete", 1),
+            settings.get("log_member_join_leave", 1),
+            settings.get("log_member_kick_ban", 1),
+            settings.get("log_member_role_change", 1),
+            settings.get("log_channel_change", 1),
+            settings.get("log_role_change", 1),
+            settings.get("log_automod", 1),
+            settings.get("log_ticket", 1)
+        ))
+        conn.commit()
 
 def get_automod_settings(guild_id: str) -> dict:
     with sqlite3.connect(DB_PATH) as conn:

@@ -1,0 +1,134 @@
+{% extends "base_server.html" %}
+{% block title %}Logging & Audit Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title"><i class="bi bi-journal-text" style="color: #00b0f4;"></i> Logging & Audit Log</h1>
+  <p class="page-subtitle">Theo dõi và ghi nhận các sự kiện quan trọng trong server của bạn.</p>
+</div>
+
+<form method="POST" action="{{ url_for('server_logger', guild_id=guild_id) }}">
+  
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Kênh gửi Log</div>
+        <div class="card-desc">Chọn kênh để Bot gửi các thông báo sự kiện</div>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <select name="log_channel_id" class="form-control">
+        <option value="">-- Không bật Logging --</option>
+        {% for ch in channels %}
+          {% if ch.channel_type == 0 %}
+          <option value="{{ ch.channel_id }}" {% if settings.log_channel_id == ch.channel_id %}selected{% endif %}>
+            #{{ ch.channel_name }}
+          </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Cấu hình sự kiện</div>
+        <div class="card-desc">Chọn các sự kiện bạn muốn Bot ghi nhận (cần bật Kênh gửi Log ở trên)</div>
+      </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+      
+      <!-- Tin nhắn -->
+      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+        <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-chat-dots"></i> Tin nhắn</h4>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_message_edit" {% if settings.log_message_edit %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Chỉnh sửa tin nhắn</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_message_delete" {% if settings.log_message_delete %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Xóa tin nhắn</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Thành viên -->
+      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+        <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-person"></i> Thành viên</h4>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_member_join_leave" {% if settings.log_member_join_leave %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Tham gia / Rời server</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_member_kick_ban" {% if settings.log_member_kick_ban %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Kick / Ban / Unban</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_member_role_change" {% if settings.log_member_role_change %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Cập nhật Role của Member</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Server & Kênh -->
+      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+        <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-server"></i> Server</h4>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_channel_change" {% if settings.log_channel_change %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Tạo / Xóa / Sửa Kênh</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_role_change" {% if settings.log_role_change %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Tạo / Xóa / Sửa Role</span>
+          </label>
+        </div>
+      </div>
+      
+      <!-- Bot & Modules -->
+      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+        <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-robot"></i> Bot Modules</h4>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_automod" {% if settings.log_automod %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Vi phạm Automod</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="toggle-switch">
+            <input type="checkbox" name="log_ticket" {% if settings.log_ticket %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+            <span style="margin-left: 12px; font-weight: 500;">Mở / Đóng / Xóa Ticket</span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  
+  <div style="display: flex; justify-content: flex-end; gap: 12px;">
+    <button type="submit" class="btn btn-primary" style="padding: 12px 24px;">Lưu thay đổi</button>
+  </div>
+</form>
+{% endblock %}

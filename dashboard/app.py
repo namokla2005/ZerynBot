@@ -284,6 +284,37 @@ def server_leveling(guild_id: str):
         meta=db.get_guild_meta(guild_id) or {}
     )
 
+@app.route("/dashboard/<guild_id>/logger", methods=["GET", "POST"])
+@guild_access_required
+def server_logger(guild_id: str):
+    if request.method == "POST":
+        form = request.form
+        settings = {
+            "log_channel_id": form.get("log_channel_id") or None,
+            "log_message_edit": 1 if "log_message_edit" in form else 0,
+            "log_message_delete": 1 if "log_message_delete" in form else 0,
+            "log_member_join_leave": 1 if "log_member_join_leave" in form else 0,
+            "log_member_kick_ban": 1 if "log_member_kick_ban" in form else 0,
+            "log_member_role_change": 1 if "log_member_role_change" in form else 0,
+            "log_channel_change": 1 if "log_channel_change" in form else 0,
+            "log_role_change": 1 if "log_role_change" in form else 0,
+            "log_automod": 1 if "log_automod" in form else 0,
+            "log_ticket": 1 if "log_ticket" in form else 0,
+        }
+        db.set_logger_settings(guild_id, settings)
+        flash("✅ Đã lưu cài đặt Logging / Audit Log!", "success")
+        return redirect(url_for("server_logger", guild_id=guild_id))
+
+    settings = db.get_logger_settings(guild_id)
+    channels = db.get_guild_channels(guild_id)
+    return render_template(
+        "server_logger.html",
+        **_server_ctx(guild_id, active_page="logger"),
+        settings=settings,
+        channels=channels,
+        meta=db.get_guild_meta(guild_id) or {}
+    )
+
 @app.route("/dashboard/<guild_id>/automod", methods=["GET", "POST"])
 @guild_access_required
 def server_automod(guild_id: str):

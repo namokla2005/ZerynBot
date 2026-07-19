@@ -109,6 +109,8 @@ class Automod(commands.Cog):
                     await member.send(embed=dm_embed)
                 except discord.Forbidden:
                     pass  # User has DMs disabled
+                    
+                self.bot.dispatch('automod_action', guild, member, "Cảnh báo", reason, message.jump_url)
             except discord.Forbidden:
                 pass
         else:
@@ -137,6 +139,8 @@ class Automod(commands.Cog):
                 dm_embed.add_field(name="Lý do", value=reason, inline=False)
                 dm_embed.add_field(name="Hình phạt", value="Bị cấm chat & câm voice trong 5 phút.", inline=False)
                 await member.send(embed=dm_embed)
+                
+                self.bot.dispatch('automod_action', guild, member, "Timeout 5 phút", reason, message.jump_url)
             except discord.Forbidden:
                 pass
             except Exception as e:

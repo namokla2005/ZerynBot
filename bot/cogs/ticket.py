@@ -158,6 +158,8 @@ class Ticket(commands.Cog, name="Tickets"):
             await interaction.followup.send(
                 f"✅ Đã tạo ticket thành công tại {ticket_channel.mention}!", ephemeral=True
             )
+            
+            self.bot.dispatch('ticket_action', guild, member, "Mở", channel_name)
 
         # ─── Ticket Close Button Click ────────────────────────────────────────
         elif custom_id == "ticket:close":
@@ -194,6 +196,8 @@ class Ticket(commands.Cog, name="Tickets"):
             await channel.send(
                 "🔒 **Kênh hỗ trợ này sẽ bị đóng và xóa hoàn toàn sau 5 giây...**"
             )
+            
+            self.bot.dispatch('ticket_action', guild, member, "Đóng/Xóa", channel.name)
             
             await asyncio.sleep(5)
             try:
