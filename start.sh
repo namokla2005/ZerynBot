@@ -18,7 +18,6 @@ stop_all() {
     # Tắt luôn watchdog nếu đang chạy
     pkill -f "watchdog.sh" 2>/dev/null
     echo "✅ Tất cả services đã tắt."
-    exit 0
 }
 
 # Hàm check status
@@ -30,9 +29,14 @@ status() {
     exit 0
 }
 
-if [ "$1" == "--stop" ]; then stop_all; fi
-if [ "$1" == "--status" ]; then status; fi
-if [ "$1" == "--restart" ]; then stop_all; sleep 2; fi
+if [ "$1" == "--stop" ]; then stop_all; exit 0; fi
+if [ "$1" == "--status" ]; then status; exit 0; fi
+if [ "$1" == "--restart" ]; then 
+    stop_all
+    sleep 2
+    echo ""
+    echo "🔄 Đang khởi động lại..."
+fi
 
 echo "🚀 Bắt đầu khởi động hệ thống Bot v2..."
 
