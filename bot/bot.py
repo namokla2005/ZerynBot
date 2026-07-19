@@ -95,7 +95,7 @@ class BotV2(commands.Bot):
             self.last_used[user_id] = now
             return True
             
-        self.tree.add_check(global_cooldown_check)
+        self.tree.interaction_check = global_cooldown_check
         # ────────────────────────────────────────────────────────
         
         cogs_dir = os.path.join(os.path.dirname(__file__), "cogs")
