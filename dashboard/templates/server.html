@@ -237,7 +237,10 @@
   for(let i=6; i>=0; i--) {
     let d = new Date();
     d.setDate(d.getDate() - i);
-    last7Days.push(d.toISOString().split('T')[0]); // YYYY-MM-DD
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    last7Days.push(`${yyyy}-${mm}-${dd}`);
   }
 
   // 1. Join / Leave Chart (Line)
@@ -246,7 +249,12 @@
   
   rawStats.forEach(stat => {
     if (stat.event_type === 'member') {
-      const dateStr = stat.date_hour.split(' ')[0];
+      const dateObj = new Date(stat.date_hour.replace(' ', 'T') + 'Z');
+      const yyyy = dateObj.getFullYear();
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      
       const idx = last7Days.indexOf(dateStr);
       if (idx !== -1) {
         if (stat.event_label === 'join') joinData[idx] += stat.count;
@@ -275,7 +283,8 @@
   const hourlyActivity = Array(24).fill(0);
   rawStats.forEach(stat => {
     if (stat.event_type === 'message' && stat.event_label === 'total') {
-      const hour = parseInt(stat.date_hour.split(' ')[1].split(':')[0]);
+      const dateObj = new Date(stat.date_hour.replace(' ', 'T') + 'Z');
+      const hour = dateObj.getHours();
       hourlyActivity[hour] += stat.count;
     }
   });
