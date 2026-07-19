@@ -349,6 +349,30 @@ def server_embeds(guild_id: str):
         now=datetime.now().strftime("%H:%M"),
     ))
 
+@app.route("/dashboard/<guild_id>/api/panel-stats")
+@guild_access_required
+def api_panel_stats(guild_id: str):
+    import time
+    
+    # 1. Bot status (ping) - can be mocked for now if no easy way to get live ping, or try to get basic stats. 
+    # For now, just return online=True since the dashboard can only load if bot is somewhat alive.
+    bot_status = {
+        "online": True,
+        "ping": "N/A", # We'll just show online status
+    }
+    
+    # 2. Top users
+    top_users = db.get_top_users(guild_id, limit=5)
+    
+    # 3. Modules
+    modules = db.get_guild_modules(guild_id)
+    
+    return jsonify({
+        "bot_status": bot_status,
+        "top_users": top_users,
+        "modules": modules
+    })
+
 @app.route("/dashboard/<guild_id>/modules", methods=["GET", "POST"])
 @guild_access_required
 def server_modules(guild_id: str):

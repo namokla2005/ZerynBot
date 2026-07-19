@@ -133,3 +133,72 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
     if (!confirm(msg)) e.preventDefault();
   });
 });
+
+// ─── Right Panel Fetch ────────────────────────────────────────────────────────
+if (window.GUILD_ID) {
+  fetch(`/dashboard/${window.GUILD_ID}/api/panel-stats`)
+    .then(r => r.json())
+    .then(data => {
+      // 1. Bot Status
+      const st = data.bot_status;
+      const statusHtml = `
+        <div class="bot-status-item">
+          <span>Status</span>
+          <span class="status-dot-large ${st.online ? 'on' : 'off'}" title="${st.online ? 'Online' : 'Offline'}"></span>
+        </div>
+        <div class="bot-status-item">
+          <span>Ping</span>
+          <span style="color: var(--text-muted)">${st.ping}</span>
+        </div>
+      `;
+      const panelStatus = document.getElementById('panel-bot-status');
+      if (panelStatus) panelStatus.innerHTML = statusHtml;
+
+      // 2. Top Users
+      const users = data.top_users;
+      let usersHtml = '';
+      if (users && users.length > 0) {
+        users.forEach(u => {
+          usersHtml += `
+            <div class="top-user-item">
+              <div class="top-user-avatar" style="background: url(https://cdn.discordapp.com/embed/avatars/0.png) center/cover"></div>
+              <div class="top-user-info">
+                <div class="top-user-name">User ${u.user_id}</div>
+                <div class="top-user-level">Lv.${u.level} &bull; ${u.xp} XP</div>
+              </div>
+            </div>
+          `;
+        });
+      } else {
+        usersHtml = '<div style="color: var(--text-muted); font-size: 0.85rem;">Chưa có dữ liệu XP.</div>';
+      }
+      const panelUsers = document.getElementById('panel-top-users');
+      if (panelUsers) panelUsers.innerHTML = usersHtml;
+
+      // 3. Modules
+      const mods = data.modules;
+      if (mods) {
+        const modKeys = Object.keys(mods).filter(k => !['info', 'utility'].includes(k)); // exclude default ones
+        let modsHtml = '<div class="panel-modules-grid">';
+        modKeys.forEach(k => {
+          modsHtml += `
+            <div class="panel-module-item">
+              <span class="status-dot-large ${mods[k] ? 'on' : 'off'}"></span>
+              <span style="text-transform: capitalize">${k.replace('_', ' ')}</span>
+            </div>
+          `;
+        });
+        modsHtml += '</div>';
+        const panelMods = document.getElementById('panel-modules');
+        if (panelMods) panelMods.innerHTML = modsHtml;
+      }
+    })
+    .catch(err => {
+      console.error('Failed to fetch panel stats:', err);
+      if (document.getElementById('panel-bot-status')) {
+        document.getElementById('panel-bot-status').innerHTML = '<span style="color: var(--danger)">Error loading status</span>';
+        document.getElementById('panel-top-users').innerHTML = '<span style="color: var(--danger)">Error loading users</span>';
+        document.getElementById('panel-modules').innerHTML = '<span style="color: var(--danger)">Error loading modules</span>';
+      }
+    });
+}

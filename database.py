@@ -456,6 +456,15 @@ def delete_embed(embed_id: int, guild_id: str):
         )
         conn.commit()
 
+def get_top_users(guild_id: str, limit: int = 10) -> list:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM user_levels WHERE guild_id = ? ORDER BY level DESC, xp DESC LIMIT ?", 
+            (guild_id, limit)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
 # ─── Ticket helpers (Sync) ────────────────────────────────────────────────────
 
 def get_ticket_panels(guild_id: str) -> List[Dict]:
