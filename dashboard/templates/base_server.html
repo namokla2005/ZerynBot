@@ -67,7 +67,7 @@
           </a>
           <a href="{{ url_for('server_leveling', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'leveling' %}active{% endif %}">
-            <i class="nav-icon bi bi-star-fill" style="color: #FEE75C;"></i> Leveling &amp; XP
+            <i class="nav-icon bi bi-star-fill"></i> Leveling &amp; XP
             <span class="status-dot nav-dot-leveling
             {% if modules.get('leveling', False) %}on{% else %}off{% endif %}"></span>
           </a>
@@ -107,7 +107,7 @@
           </a>
           <a href="{{ url_for('server_logger', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'logger' %}active{% endif %}">
-            <i class="nav-icon bi bi-journal-text" style="color: #00b0f4;"></i> Logging
+            <i class="nav-icon bi bi-journal-text"></i> Logging
             <span class="status-dot nav-dot-logger
             {% if modules.get('logger', False) %}on{% else %}off{% endif %}"></span>
           </a>
