@@ -633,7 +633,7 @@ class Music(commands.Cog, name="Music"):
 
     @commands.hybrid_command(name="lofi", description="Phát kênh Lofi Girl 24/7")
     async def lofi(self, ctx: commands.Context):
-        await ctx.invoke(self.play, query="https://www.youtube.com/watch?v=jfKfPfyJRdk")
+        await ctx.invoke(self.play, query="https://www.youtube.com/@LofiGirl/live")
 
     # ── Playlist commands ──────────────────────────────────────────────────
     @commands.hybrid_group(name="playlist", description="Quản lý playlist nhạc")
