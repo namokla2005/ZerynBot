@@ -150,6 +150,8 @@ class Leveling(commands.Cog):
     @app_commands.describe(member="Người dùng cần xem")
     @commands.guild_only()
     async def rank(self, ctx: commands.Context, member: discord.Member = None):
+        await ctx.defer()
+        
         member = member or ctx.author
         if member.bot:
             return await ctx.send("❌ Bot không có cấp độ!")
@@ -157,9 +159,6 @@ class Leveling(commands.Cog):
         guild_id = str(ctx.guild.id)
         if not await async_is_module_enabled(guild_id, "leveling"):
             return await ctx.send("❌ Module **Leveling** đã bị tắt trong server này!")
-            
-        await ctx.defer()
-        
         user_data = await async_get_user_level(guild_id, str(member.id))
         rank_pos = await async_get_user_rank(guild_id, str(member.id))
         
