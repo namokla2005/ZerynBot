@@ -123,7 +123,7 @@ class BotV2(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} server(s) | /help",
+                name=f"/help | {len(self.guilds)} server(s) | {sum(g.member_count for g in self.guilds)} member(s)",
             )
         )
         logger.info("─" * 55)
