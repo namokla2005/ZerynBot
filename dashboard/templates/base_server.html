@@ -105,6 +105,11 @@
             <span class="status-dot nav-dot-automods
             {% if modules.get('automods', False) %}on{% else %}off{% endif %}"></span>
           </a>
+          <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
+            <i class="nav-icon bi bi-gift-fill"></i> Giveaways
+            <span class="status-dot nav-dot-giveaways
+            {% if modules.get('giveaways', True) %}on{% else %}off{% endif %}"></span>
+          </a>
           <a href="{{ url_for('server_logger', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'logger' %}active{% endif %}">
             <i class="nav-icon bi bi-journal-text"></i> Logging
