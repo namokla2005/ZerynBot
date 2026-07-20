@@ -18,7 +18,7 @@ class Admin(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(name="config", description="Xem cài đặt hiện tại của server và link dashboard")
+    @commands.hybrid_command(name="config", description="Xem cài đặt hiện tại của server và link dashboard")
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     @checks.is_bot_admin()
@@ -34,14 +34,25 @@ class Admin(commands.Cog):
         g_type = "📦 Embed" if s.get("goodbye_use_embed") else "💬 Text"
 
         modules = {
-            "utility":         await async_is_module_enabled(guild_id, "utility"),
             "welcome_goodbye": await async_is_module_enabled(guild_id, "welcome_goodbye"),
+            "autoroles":       await async_is_module_enabled(guild_id, "autoroles"),
+            "leveling":        await async_is_module_enabled(guild_id, "leveling"),
             "info":            await async_is_module_enabled(guild_id, "info"),
+            "utility":         await async_is_module_enabled(guild_id, "utility"),
             "music":           await async_is_module_enabled(guild_id, "music"),
+            "tickets":         await async_is_module_enabled(guild_id, "tickets"),
+            "reactionroles":   await async_is_module_enabled(guild_id, "reactionroles"),
+            "automods":        await async_is_module_enabled(guild_id, "automods"),
+            "logger":          await async_is_module_enabled(guild_id, "logger"),
+            "giveaways":       await async_is_module_enabled(guild_id, "giveaways")
         }
-        mod_str = "\n".join(
-            f"{'✅' if v else '❌'} `{k}`" for k, v in modules.items()
-        )
+        
+        # Split into two columns for better formatting
+        mod_keys = list(modules.keys())
+        half = (len(mod_keys) + 1) // 2
+        
+        mod_col1 = "\n".join(f"{'✅' if modules[k] else '❌'} `{k}`" for k in mod_keys[:half])
+        mod_col2 = "\n".join(f"{'✅' if modules[k] else '❌'} `{k}`" for k in mod_keys[half:])
 
         embed = discord.Embed(
             title=f"⚙️ Cài đặt — {ctx.guild.name}",
@@ -54,14 +65,21 @@ class Admin(commands.Cog):
         embed.add_field(name="👋 Goodbye Channel",  value=g_ch,    inline=True)
         embed.add_field(name="👋 Kiểu tin nhắn",    value=g_type,  inline=True)
         embed.add_field(name="\u200b",               value="\u200b",inline=True)
-        embed.add_field(name="🧩 Modules",           value=mod_str, inline=False)
+        
+        embed.add_field(name="🧩 Modules (1)",      value=mod_col1, inline=True)
+        embed.add_field(name="🧩 Modules (2)",      value=mod_col2, inline=True)
+        embed.add_field(name="\u200b",               value="\u200b",inline=True)
+
         embed.add_field(
             name="🌐 Dashboard",
             value=f"[Mở Dashboard]({config.DASHBOARD_URL}/dashboard/{guild_id})",
             inline=False,
         )
 
-        await ctx.send(embed=embed)
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Mở Dashboard", style=discord.ButtonStyle.link, url=f"{config.DASHBOARD_URL}/dashboard/{guild_id}", emoji="🌐"))
+
+        await ctx.send(embed=embed, view=view)
 
     @commands.hybrid_command(name="reactionroles", description="Truy cập Dashboard để tạo bảng Reaction Roles")
     @commands.guild_only()
