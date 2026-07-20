@@ -20,6 +20,7 @@ BOT_OWNER_ID: int   = int(_owner) if _owner.isdigit() else 0
 
 GLOBAL_COOLDOWN: int = 3 # Giới hạn 3 giây/lệnh
 WEBHOOK_LOG_URL: str = os.getenv("WEBHOOK_LOG_URL", "")
+STATUS_WEBHOOK_URL: str = os.getenv("STATUS_WEBHOOK_URL", "")
 REDIS_URL: str       = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # ─── Dashboard ─────────────────────────────────────────────────────────────────
