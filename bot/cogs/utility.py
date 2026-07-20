@@ -36,7 +36,7 @@ class HelpSelect(discord.ui.Select):
             embed.description = "Các lệnh dùng bằng cách Tag bot hoặc dùng tiền tố `/` (VD: `@ThienKhong play ...` hoặc `/play ...`)"
             if self.bot.user.display_avatar:
                 embed.set_thumbnail(url=self.bot.user.display_avatar.url)
-            embed.add_field(name="📢 Hướng dẫn", value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động:**\n🎉 Chào mừng — Khi thành viên gia nhập\n👋 Tạm biệt — Khi thành viên rời đi", inline=False)
+            embed.add_field(name="📢 Hướng dẫn", value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động & Nâng cao:**\n🎉 **Welcome & Goodbye:** Lời chào, ảnh nền và embed đẹp mắt.\n🪪 **Auto Roles:** Tự động gắn role cho thành viên/bot mới.\n⭐ **Leveling & XP:** Tích luỹ kinh nghiệm, tự động thăng cấp và nhận role thưởng.\n🎵 **Music:** Phát nhạc YouTube, Lofi, Playlist, Autoplay chất lượng cao.\n🎫 **Tickets:** Tạo hệ thống hỗ trợ với menu trực quan.\n✨ **Reaction Roles:** Gắn role bằng cách thả cảm xúc vào tin nhắn.\n🛡️ **Automods:** Chống spam, link độc hại, từ ngữ cấm.\n📝 **Logging:** Ghi nhận mọi hoạt động sửa/xoá tin nhắn, role, kênh...\n🎁 **Giveaways:** Tạo sự kiện tặng quà tự động quay thưởng.", inline=False)
         elif val == "utility":
             embed.title = "⚙️ Tiện ích"
             embed.description = (
@@ -84,7 +84,8 @@ class HelpSelect(discord.ui.Select):
                 "`/reactionroles` — Link cấu hình Reaction Roles trên Dashboard\n"
                 "`/ticket` — Link cấu hình Ticket System trên Dashboard\n"
                 "`/autorole show` — Xem cấu hình Auto Roles hiện tại\n"
-                "`/automods show` — Xem cấu hình Automods hiện tại"
+                "`/automods show` — Xem cấu hình Automods hiện tại\n"
+                "`/giveaway start/end/reroll` — Quản lý Giveaway"
             )
 
         await interaction.response.edit_message(embed=embed, view=self.view)
@@ -98,6 +99,8 @@ class HelpView(discord.ui.View):
         self.message = None
         self.add_item(HelpSelect(bot, ctx))
         
+        self.add_item(discord.ui.Button(label="Join Support Server", style=discord.ButtonStyle.link, url="https://discord.gg/VPybhdNbXC", emoji="💬"))
+        self.add_item(discord.ui.Button(label="View Dashboard", style=discord.ButtonStyle.link, url="https://zerynbot.id.vn", emoji="🌐"))
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
@@ -206,7 +209,7 @@ class Utility(commands.Cog):
 
         embed.add_field(
             name="📢 Hướng dẫn",
-            value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động:**\n🎉 Chào mừng — Khi thành viên gia nhập\n👋 Tạm biệt — Khi thành viên rời đi",
+            value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động & Nâng cao:**\n🎉 **Welcome & Goodbye:** Lời chào, ảnh nền và embed đẹp mắt.\n🪪 **Auto Roles:** Tự động gắn role cho thành viên/bot mới.\n⭐ **Leveling & XP:** Tích luỹ kinh nghiệm, tự động thăng cấp và nhận role thưởng.\n🎵 **Music:** Phát nhạc YouTube, Lofi, Playlist, Autoplay chất lượng cao.\n🎫 **Tickets:** Tạo hệ thống hỗ trợ với menu trực quan.\n✨ **Reaction Roles:** Gắn role bằng cách thả cảm xúc vào tin nhắn.\n🛡️ **Automods:** Chống spam, link độc hại, từ ngữ cấm.\n📝 **Logging:** Ghi nhận mọi hoạt động sửa/xoá tin nhắn, role, kênh...\n🎁 **Giveaways:** Tạo sự kiện tặng quà tự động quay thưởng.",
             inline=False,
         )
         embed.set_footer(
