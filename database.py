@@ -233,6 +233,21 @@ def init_db():
                 count       INTEGER DEFAULT 1,
                 PRIMARY KEY (guild_id, event_type, event_label, date_hour)
             );
+            
+            CREATE TABLE IF NOT EXISTS giveaways (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id             TEXT,
+                channel_id           TEXT,
+                message_id           TEXT,
+                host_id              TEXT,
+                prize                TEXT,
+                winners_count        INTEGER DEFAULT 1,
+                end_at               TIMESTAMP,
+                ended                INTEGER DEFAULT 0,
+                req_role_id          TEXT,
+                req_account_age_days INTEGER DEFAULT 0,
+                participants_json    TEXT DEFAULT '[]'
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -1384,3 +1399,37 @@ async def async_get_user_rank(guild_id: str, user_id: str) -> int:
             if row:
                 return row[0]
             return 1
+
+# ─── Giveaway Functions ────────────────────────────────────────────────────────
+async def async_create_giveaway(guild_id: str, channel_id: str, message_id: str, host_id: str, prize: str, winners_count: int, end_at: int, req_role_id: str = None, req_account_age_days: int = 0):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO giveaways (guild_id, channel_id, message_id, host_id, prize, winners_count, end_at, req_role_id, req_account_age_days)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (guild_id, channel_id, message_id, host_id, prize, winners_count, end_at, req_role_id, req_account_age_days))
+        await db.commit()
+
+async def async_get_giveaway(message_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM giveaways WHERE message_id = ?", (message_id,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def async_update_giveaway(message_id: str, participants_json: str = None, ended: int = None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        if participants_json is not None and ended is not None:
+            await db.execute("UPDATE giveaways SET participants_json = ?, ended = ? WHERE message_id = ?", (participants_json, ended, message_id))
+        elif participants_json is not None:
+            await db.execute("UPDATE giveaways SET participants_json = ? WHERE message_id = ?", (participants_json, message_id))
+        elif ended is not None:
+            await db.execute("UPDATE giveaways SET ended = ? WHERE message_id = ?", (ended, message_id))
+        await db.commit()
+
+async def async_get_active_giveaways() -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM giveaways WHERE ended = 0") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+

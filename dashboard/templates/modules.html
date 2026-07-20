@@ -274,6 +274,23 @@
     </label>
   </div>
 
+  <!-- Giveaways -->
+  <div class="module-card {% if modules.get('giveaways', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🎁</span> Giveaways</div>
+      <div class="mod-desc">Tổ chức sự kiện tặng quà với thời gian đếm ngược và chọn người thắng tự động.</div>
+      <a href="#" style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; display:inline-flex; align-items:center; gap:4px; pointer-events: none;">
+        Tùy chỉnh qua Lệnh Slash
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="giveaways"
+             {% if modules.get('giveaways', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
 </div>
 
 <div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">

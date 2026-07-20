@@ -593,6 +593,48 @@ _COMMANDS_DATA = [
         ]
     },
     {
+        "category": "Giveaways",
+        "icon": "🎁",
+        "commands": [
+            {
+                "name": "giveaway start", "emoji": "🎉",
+                "desc": "Tạo một Giveaway mới",
+                "usage": "/giveaway start [thời_gian] [người_thắng] [giải_thưởng]", "example": "/giveaway start 1h 2 Nitro Classic",
+                "args": [
+                    {"name": "duration", "type": "String", "required": True, "desc": "Thời gian (vd: 1m, 1h, 1d)"},
+                    {"name": "winners", "type": "Number", "required": True, "desc": "Số người thắng"},
+                    {"name": "prize", "type": "String", "required": True, "desc": "Phần thưởng"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🎉 GIVEAWAY: Nitro Classic",
+                    "desc": "Bấm vào nút **🎉 Tham gia** bên dưới để nhận cơ hội trúng giải nhé!\n\n**🎁 Phần thưởng:** Nitro Classic\n**🏆 Số người thắng:** 2\n**👥 Số người tham gia:** 15 người\n**⏰ Kết thúc:** trong 1 giờ"
+                }
+            },
+            {
+                "name": "giveaway reroll", "emoji": "🎲",
+                "desc": "Chọn lại người thắng mới",
+                "usage": "/giveaway reroll [message_id]", "example": "/giveaway reroll 1234567890",
+                "args": [
+                    {"name": "message_id", "type": "String", "required": True, "desc": "ID của tin nhắn Giveaway"}
+                ],
+                "preview": {
+                    "type": "text", "content": "🎉 **REROLL**: Chúc mừng @Nam đã trúng giải **Nitro Classic**!"
+                }
+            },
+            {
+                "name": "giveaway end", "emoji": "🛑",
+                "desc": "Kết thúc sớm một Giveaway",
+                "usage": "/giveaway end [message_id]", "example": "/giveaway end 1234567890",
+                "args": [
+                    {"name": "message_id", "type": "String", "required": True, "desc": "ID của tin nhắn Giveaway"}
+                ],
+                "preview": {
+                    "type": "text", "content": "✅ Đang tiến hành quay số và kết thúc Giveaway..."
+                }
+            }
+        ]
+    },
+    {
         "category": "Tickets",
         "icon": "🎫",
         "commands": [

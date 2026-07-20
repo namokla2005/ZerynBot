@@ -247,6 +247,20 @@
       Cấu hình <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
+  <div class="fast-card">
+    <div class="fast-card-icon">🎁</div>
+    <div class="fast-card-title">
+      Giveaways
+      <span class="server-chip {% if modules.get('giveaways', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('giveaways', True) %}Bật{% else %}Tắt{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">Tổ chức sự kiện tặng quà tự động đếm ngược và chọn người thắng.</div>
+    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+      Cài đặt <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
 </div>
 </div>
 
