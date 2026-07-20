@@ -45,12 +45,42 @@ class Leveling(commands.Cog):
         # Level Roles
         level_roles = await async_get_level_roles(str(guild.id))
         roles_to_add = []
-        for lvl, role_id_str in level_roles.items():
-            if int(lvl) <= new_level:
-                role = guild.get_role(int(role_id_str))
-                if role and role not in member.roles:
-                    roles_to_add.append(role)
+        roles_to_remove = []
         
+        # Determine highest role level earned
+        highest_earned_lvl = 0
+        for lvl in level_roles.keys():
+            if int(lvl) <= new_level and int(lvl) > highest_earned_lvl:
+                highest_earned_lvl = int(lvl)
+                
+        stack_rewards = settings.get("stack_rewards", 0)
+        
+        for lvl, role_id_str in level_roles.items():
+            role = guild.get_role(int(role_id_str))
+            if not role:
+                continue
+                
+            lvl_int = int(lvl)
+            if lvl_int <= new_level:
+                if stack_rewards == 1:
+                    # Keep all earned roles
+                    if role not in member.roles:
+                        roles_to_add.append(role)
+                else:
+                    # Only keep the highest earned role
+                    if lvl_int == highest_earned_lvl:
+                        if role not in member.roles:
+                            roles_to_add.append(role)
+                    else:
+                        if role in member.roles:
+                            roles_to_remove.append(role)
+        
+        if roles_to_remove:
+            try:
+                await member.remove_roles(*roles_to_remove, reason=f"Level Up (remove old)")
+            except Exception:
+                pass
+                
         if roles_to_add:
             try:
                 await member.add_roles(*roles_to_add, reason=f"Level Up to {new_level}")

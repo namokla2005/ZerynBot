@@ -190,7 +190,8 @@ def init_db():
                 message_xp_max      INTEGER DEFAULT 25,
                 voice_xp            INTEGER DEFAULT 10,
                 announce_channel_id TEXT,
-                announce_message    TEXT DEFAULT '🎉 Chúc mừng {user} đã đạt cấp **{level}**!'
+                announce_message    TEXT DEFAULT '🎉 Chúc mừng {user} đã đạt cấp **{level}**!',
+                stack_rewards       INTEGER DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS user_levels (
@@ -249,6 +250,11 @@ def init_db():
             conn.execute("ALTER TABLE guilds ADD COLUMN welcome_bg_url TEXT")
         if "goodbye_bg_url" not in cols:
             conn.execute("ALTER TABLE guilds ADD COLUMN goodbye_bg_url TEXT")
+            
+        cursor.execute("PRAGMA table_info(leveling_settings)")
+        lvl_cols = [row[1] for row in cursor.fetchall()]
+        if "stack_rewards" not in lvl_cols:
+            conn.execute("ALTER TABLE leveling_settings ADD COLUMN stack_rewards INTEGER DEFAULT 0")
             
         cursor.execute("PRAGMA table_info(automod_settings)")
         am_cols = [row[1] for row in cursor.fetchall()]
@@ -1236,8 +1242,9 @@ _DEFAULT_LEVELING = {
     "message_xp_min": 15,
     "message_xp_max": 25,
     "voice_xp": 10,
-    "announce_channel_id": None,
-    "announce_message": "🎉 Chúc mừng {user} đã đạt cấp **{level}**!"
+    "announce_channel_id": "current",
+    "announce_message": "🎉 Chúc mừng {user} đã đạt cấp **{level}**!",
+    "stack_rewards": 0
 }
 
 def get_leveling_settings(guild_id: str) -> dict:
@@ -1260,21 +1267,23 @@ def get_leveling_settings(guild_id: str) -> dict:
 def set_leveling_settings(guild_id: str, settings: dict):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
-            INSERT INTO leveling_settings (guild_id, message_xp_min, message_xp_max, voice_xp, announce_channel_id, announce_message)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO leveling_settings (guild_id, message_xp_min, message_xp_max, voice_xp, announce_channel_id, announce_message, stack_rewards)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(guild_id) DO UPDATE SET
                 message_xp_min=excluded.message_xp_min,
                 message_xp_max=excluded.message_xp_max,
                 voice_xp=excluded.voice_xp,
                 announce_channel_id=excluded.announce_channel_id,
-                announce_message=excluded.announce_message
+                announce_message=excluded.announce_message,
+                stack_rewards=excluded.stack_rewards
         """, (
             guild_id,
             int(settings.get("message_xp_min", 15)),
             int(settings.get("message_xp_max", 25)),
             int(settings.get("voice_xp", 10)),
             settings.get("announce_channel_id"),
-            settings.get("announce_message", _DEFAULT_LEVELING["announce_message"])
+            settings.get("announce_message", _DEFAULT_LEVELING["announce_message"]),
+            int(settings.get("stack_rewards", 0))
         ))
         conn.commit()
     cache.delete(f"leveling:{guild_id}")

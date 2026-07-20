@@ -265,8 +265,9 @@ def server_leveling(guild_id: str):
             "message_xp_min": int(form.get("message_xp_min", 15)),
             "message_xp_max": int(form.get("message_xp_max", 25)),
             "voice_xp": int(form.get("voice_xp", 10)),
-            "announce_channel_id": form.get("announce_channel_id") or None,
-            "announce_message": form.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!")
+            "announce_channel_id": form.get("announce_channel_id") or "current",
+            "announce_message": form.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!"),
+            "stack_rewards": int(form.get("stack_rewards", 0))
         }
         db.set_leveling_settings(guild_id, settings)
         
