@@ -57,7 +57,7 @@ class Giveaway(commands.Cog):
             
         end_time = int(time.time() + seconds)
         
-        embed = discord.Embed(title=f"🎉 GIVEAWAY: {prize}", color=config.COLOR_PRIMARY)
+        embed = discord.Embed(title=f"🎉 GIVEAWAY: {prize}", color=config.COLOR_INFO)
         embed.description = f"Bấm vào nút **🎉 Tham gia** bên dưới để nhận cơ hội trúng giải nhé!"
         embed.add_field(name="🎁 Phần thưởng", value=f"**{prize}**", inline=False)
         embed.add_field(name="🏆 Số người thắng", value=f"**{winners}**", inline=True)
