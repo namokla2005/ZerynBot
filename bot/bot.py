@@ -62,6 +62,7 @@ class DiscordWebhookHandler(logging.Handler):
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
+intents.presences = True
 
 # ─── Bot class ─────────────────────────────────────────────────────────────────
 class BotV2(commands.Bot):
