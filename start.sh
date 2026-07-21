@@ -22,6 +22,7 @@ stop_all() {
     pkill -f "watchdog.sh" 2>/dev/null
     pkill -f "run_bot.py" 2>/dev/null
     pkill -f "run_dashboard.py" 2>/dev/null
+    termux-wake-unlock 2>/dev/null
     echo "✅ Tất cả services đã tắt."
 }
 
@@ -43,6 +44,7 @@ if [ "$1" == "--restart" ]; then
     echo "🔄 Đang khởi động lại..."
 fi
 
+termux-wake-lock 2>/dev/null
 echo "🚀 Bắt đầu khởi động hệ thống Bot v2..."
 
 # 1. Khởi động Redis
