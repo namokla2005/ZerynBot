@@ -37,6 +37,7 @@ YDL_OPTS = {
 
 # ─── URL Cache (TTL 5 phút) ────────────────────────────────────────────────────
 _url_cache: dict[str, tuple] = {}  # {cache_key: (info_dict, expire_at)}
+_cache_lock = asyncio.Lock()
 
 
 def _fmt_duration(seconds) -> str:
@@ -63,22 +64,23 @@ def _extract_sync(query: str) -> dict | None:
 
 
 async def extract_info(query: str) -> dict | None:
-    """Lấy thông tin bài hát (tích hợp Redis + Local Cache RAM limit)."""
+    """Lấy thông tin bài hát (tích hợp Redis + Local Cache Thread-Safe)."""
     key = query.strip().lower()
     cache_key = f"song_info:{key}"
 
-    # 1. Kiểm tra Redis / Local Cache
+    # 1. Kiểm tra Redis / Cache wrapper
     cached = await cache.aget(cache_key)
     if cached is not None:
         return cached
 
-    # 2. Kiểm tra bộ nhớ tạm RAM
-    if key in _url_cache:
-        info, expire = _url_cache[key]
-        if time.time() < expire:
-            return info
-        else:
-            _url_cache.pop(key, None)
+    # 2. Kiểm tra bộ nhớ tạm RAM (Thread-Safe)
+    async with _cache_lock:
+        if key in _url_cache:
+            info, expire = _url_cache[key]
+            if time.time() < expire:
+                return info
+            else:
+                _url_cache.pop(key, None)
 
     # 3. Chạy yt-dlp trong thread pool
     loop = asyncio.get_running_loop()
@@ -88,12 +90,13 @@ async def extract_info(query: str) -> dict | None:
         # Lưu vào Redis
         await cache.aset(cache_key, info, ttl=600)
 
-        # Giới hạn RAM: Nếu bộ nhớ tạm > 100 bài, dọn 20 bài cũ nhất
-        if len(_url_cache) > 100:
-            old_keys = list(_url_cache.keys())[:20]
-            for k in old_keys:
-                _url_cache.pop(k, None)
-        _url_cache[key] = (info, time.time() + 300)
+        # Giới hạn RAM (Thread-Safe)
+        async with _cache_lock:
+            if len(_url_cache) > 100:
+                old_keys = list(_url_cache.keys())[:20]
+                for k in old_keys:
+                    _url_cache.pop(k, None)
+            _url_cache[key] = (info, time.time() + 300)
 
     return info
 
@@ -149,6 +152,7 @@ class MusicPlayer:
         self.guild         = guild
         self.text_channel  = text_channel
         self.vc            = vc
+        self.loop          = asyncio.get_running_loop()
         self.queue         : list[Track] = []
         self.current       : Track | None = None
         self.loop_mode     = 0   # 0=off  1=loop-one  2=loop-all
@@ -172,7 +176,7 @@ class MusicPlayer:
     def _after_play(self, error=None):
         if error:
             log.warning(f"[Music] Player error: {error}")
-        loop = self.guild._state.loop
+        loop = self.loop
         if self.loop_mode == 1 and self.current:
             asyncio.run_coroutine_threadsafe(self._play(self.current), loop)
         elif self.loop_mode == 2 and self.current:
@@ -199,12 +203,12 @@ class MusicPlayer:
         if not self.vc or not self.vc.is_connected():
             return
 
-        # Lấy stream URL nếu chưa có
+        # Lấy stream URL tươi mới nếu chưa có
         if not track.stream_url:
             info = await extract_info(track.url or track.title)
             if not info:
                 log.warning(f"[Music] Cannot get stream URL: {track.title}")
-                self._dispatch_next(self.guild._state.loop)
+                self._dispatch_next(self.loop)
                 return
             track.stream_url = _get_stream_url(info)
 
@@ -513,7 +517,7 @@ class Music(commands.Cog, name="Music"):
         before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        """Tự rời kênh sau 30s nếu không còn ai."""
+        """Tự rời kênh sau 30s nếu không còn ai (có kiểm tra Race Condition)."""
         if member.bot:
             return
         player = self._players.get(member.guild.id)
@@ -522,9 +526,17 @@ class Music(commands.Cog, name="Music"):
         channel = player.vc.channel
         if any(not m.bot for m in channel.members):
             return
+            
         await asyncio.sleep(30)
+        
+        # Sửa Race Condition: Kiểm tra lại player còn tồn tại và nguyên vẹn hay không
+        current_player = self._players.get(member.guild.id)
+        if current_player is not player:
+            return
+            
         if any(not m.bot for m in player.vc.channel.members):
             return
+            
         if player.text_channel:
             try:
                 await player.text_channel.send("👋 Không còn ai trong kênh voice, bot đã tự rời!")
@@ -707,6 +719,22 @@ class Music(commands.Cog, name="Music"):
         })
         await ctx.send(f"✅ Đã thêm **{info.get('title')}** vào playlist **{name}**!")
 
+    async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
+        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ."""
+        for t in tracks:
+            query = t.get("webpage_url") or t.get("title", "")
+            try:
+                info = await extract_info(query)
+                if info:
+                    track = Track(info, requester=requester)
+                    if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
+                        await player.add_and_play(track)
+                    else:
+                        player.queue.append(track)
+            except Exception as e:
+                log.warning(f"[Music] Background load track error: {e}")
+            await asyncio.sleep(0.2)
+
     @playlist_group.command(name="play", description="Phát toàn bộ playlist")
     @app_commands.describe(name="Tên của playlist")
     async def playlist_play(self, ctx: commands.Context, *, name: str):
@@ -719,20 +747,31 @@ class Music(commands.Cog, name="Music"):
         player = await self._ensure(ctx)
         if not player:
             return
-        msg = await ctx.send(f"⏳ Đang tải playlist **{name}**...")
-        added = 0
-        for t in pl["tracks"]:
-            query = t.get("webpage_url") or t.get("title", "")
-            info = await extract_info(query)
-            if not info:
-                continue
-            track = Track(info, requester=ctx.author)
-            if not player.vc.is_playing() and not player.vc.is_paused() and added == 0:
-                await player.add_and_play(track)
+        
+        tracks = pl["tracks"]
+        msg = await ctx.send(f"⏳ Đang tải bài 1 từ playlist **{name}**...")
+        
+        # 1. Phát bài đầu tiên ngay lập tức (không chờ cả playlist)
+        first_track_data = tracks[0]
+        first_query = first_track_data.get("webpage_url") or first_track_data.get("title", "")
+        first_info = await extract_info(first_query)
+        
+        if first_info:
+            first_track = Track(first_info, requester=ctx.author)
+            if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
+                await player.add_and_play(first_track)
             else:
-                player.queue.append(track)
-            added += 1
-        await msg.edit(content=f"▶️ Đã thêm **{added}** bài từ playlist **{name}** vào hàng chờ!")
+                player.queue.append(first_track)
+            if len(tracks) > 1:
+                await msg.edit(content=f"▶️ Đang phát bài 1 và nạp ngầm **{len(tracks) - 1}** bài còn lại từ **{name}**...")
+            else:
+                await msg.edit(content=f"▶️ Đã nạp playlist **{name}**!")
+        else:
+            await msg.edit(content=f"⚠️ Không thể tải bài 1. Đang nạp các bài tiếp theo từ playlist **{name}**...")
+
+        # 2. Nạp ngầm các bài còn lại ở background task
+        if len(tracks) > 1:
+            asyncio.create_task(self._load_playlist_background(player, tracks[1:], ctx.author))
 
     @playlist_group.command(name="show", description="Xem danh sách bài trong playlist")
     @app_commands.describe(name="Tên của playlist")
