@@ -18,6 +18,9 @@ def init_db():
     """Create all tables if they don't exist (sync, called at startup)."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA busy_timeout=5000;")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS guilds (
                 guild_id              TEXT PRIMARY KEY,
@@ -156,14 +159,6 @@ def init_db():
                 FOREIGN KEY (panel_id) REFERENCES reaction_roles_panels(id) ON DELETE CASCADE
             );
 
-            CREATE TABLE IF NOT EXISTS guild_roles (
-                guild_id   TEXT,
-                role_id    TEXT,
-                role_name  TEXT,
-                color_hex  TEXT,
-                position   INTEGER,
-                PRIMARY KEY (guild_id, role_id)
-            );
 
             CREATE TABLE IF NOT EXISTS automod_settings (
                 guild_id        TEXT PRIMARY KEY,
@@ -1002,78 +997,6 @@ async def async_get_playlist_tracks(playlist_id: int) -> List[Dict]:
         async with db.execute("SELECT * FROM music_playlist_tracks WHERE playlist_id = ? ORDER BY position ASC", (playlist_id,)) as cur:
             rows = await cur.fetchall()
         return [dict(r) for r in rows]
-
-# ─── Reaction Roles ───────────────────────────────────────────────────────────
-
-def get_reaction_roles_panels(guild_id: str) -> List[Dict]:
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT * FROM reaction_roles_panels WHERE guild_id = ?", (guild_id,)).fetchall()
-        panels = [_row_to_dict(r) for r in rows]
-        for p in panels:
-            items_rows = conn.execute("SELECT * FROM reaction_roles_items WHERE panel_id = ?", (p["id"],)).fetchall()
-            p["items"] = [_row_to_dict(r) for r in items_rows]
-        return panels
-
-def get_reaction_roles_panel(panel_id: int) -> Optional[Dict]:
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT * FROM reaction_roles_panels WHERE id = ?", (panel_id,)).fetchone()
-        if row:
-            p = _row_to_dict(row)
-            items_rows = conn.execute("SELECT * FROM reaction_roles_items WHERE panel_id = ?", (panel_id,)).fetchall()
-            p["items"] = [_row_to_dict(r) for r in items_rows]
-            return p
-        return None
-
-def save_reaction_roles_panel(guild_id: str, panel_data: dict, items_data: list) -> int:
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        panel_id = panel_data.get("id")
-        
-        if panel_id:
-            cur.execute("""
-                UPDATE reaction_roles_panels
-                SET name = ?, channel_id = ?, color = ?, title = ?, description = ?,
-                    thumbnail_url = ?, image_url = ?, footer_text = ?
-                WHERE id = ? AND guild_id = ?
-            """, (
-                panel_data.get("name"), panel_data.get("channel_id"),
-                panel_data.get("color"), panel_data.get("title"), panel_data.get("description"),
-                panel_data.get("thumbnail_url"), panel_data.get("image_url"), panel_data.get("footer_text"),
-                panel_id, guild_id
-            ))
-            cur.execute("DELETE FROM reaction_roles_items WHERE panel_id = ?", (panel_id,))
-        else:
-            cur.execute("""
-                INSERT INTO reaction_roles_panels 
-                (guild_id, name, channel_id, color, title, description, thumbnail_url, image_url, footer_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                guild_id, panel_data.get("name"), panel_data.get("channel_id"),
-                panel_data.get("color"), panel_data.get("title"), panel_data.get("description"),
-                panel_data.get("thumbnail_url"), panel_data.get("image_url"), panel_data.get("footer_text")
-            ))
-            panel_id = cur.lastrowid
-            
-        for b in items_data:
-            cur.execute("""
-                INSERT INTO reaction_roles_items (panel_id, emoji, role_id)
-                VALUES (?, ?, ?)
-            """, (panel_id, b.get("emoji"), b.get("role_id")))
-            
-        conn.commit()
-        return panel_id
-
-def delete_reaction_roles_panel(panel_id: int, guild_id: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("DELETE FROM reaction_roles_panels WHERE id = ? AND guild_id = ?", (panel_id, guild_id))
-        conn.commit()
-
-def update_reaction_roles_message_id(panel_id: int, message_id: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("UPDATE reaction_roles_panels SET message_id = ? WHERE id = ?", (message_id, panel_id))
-        conn.commit()
 
 
 async def async_get_reaction_role_item(message_id: str, emoji: str) -> Optional[str]:
