@@ -21,7 +21,6 @@ class CacheManager:
                 import redis.asyncio as aioredis
                 self.sync_client = redis.from_url(config.REDIS_URL, decode_responses=True)
                 self.async_client = aioredis.from_url(config.REDIS_URL, decode_responses=True)
-                # Test connection
                 self.sync_client.ping()
                 self.enabled = True
                 logger.info("✅  Redis cache enabled")
