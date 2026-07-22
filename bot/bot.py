@@ -168,6 +168,14 @@ async def main():
     init_db()
     logger.info("✅  Database ready")
 
+    # ─── Self-Diagnostic Tester ─────────────────────────────
+    from bot.tester import SystemTester
+    test_passed = await SystemTester.run_all_tests()
+    if not test_passed:
+        logger.critical("🛑 Self-Diagnostic Test Failed! Aborting bot startup.")
+        sys.exit(1)
+    # ────────────────────────────────────────────────────────
+
     if config.WEBHOOK_LOG_URL:
         webhook_handler = DiscordWebhookHandler(config.WEBHOOK_LOG_URL)
         webhook_handler.setFormatter(logging.Formatter("%(message)s"))
