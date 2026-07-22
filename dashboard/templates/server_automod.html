@@ -493,23 +493,24 @@
 </form>
 
 <script>
-  const allRoles = [
-    {% for r in roles %}
-    { id: "{{ r.role_id }}", name: {{ r.role_name | tojson | safe }}, color: "{{ r.color_hex }}" } {% if not loop.last %}, {% endif %}
-    {% endfor %}
-  ];
+  const allRoles = ({{ roles | tojson | safe }} || []).map(r => ({
+    id: r.role_id || r.id,
+    name: r.role_name || r.name,
+    color: r.color_hex || r.color
+  }));
 
-  const allChannels = [
-    {% for ch in channels %}
-    { id: "{{ ch.channel_id }}", name: {{ ch.channel_name | tojson | safe }} } {% if not loop.last %}, {% endif %}
-    {% endfor %}
-  ];
+  const allChannels = ({{ channels | tojson | safe }} || []).map(c => ({
+    id: c.channel_id || c.id,
+    name: c.channel_name || c.name
+  }));
 
-  let selectedRole = {% if settings.get('notify_role_id') %}"{{ settings.get('notify_role_id') }}"{% else %} null{% endif %};
-  let selectedChannel = {% if settings.get('log_channel_id') %}"{{ settings.get('log_channel_id') }}"{% else %} null{% endif %};
+  const settingsData = {{ settings | tojson | safe }} || {};
 
-  let immuneRolesList = {{ settings.get('immune_roles', []) | tojson | safe }};
-  let spamAllowedChannelsList = {{ settings.get('spam_allowed_channels', []) | tojson | safe }};
+  let selectedRole = settingsData.notify_role_id || null;
+  let selectedChannel = settingsData.log_channel_id || null;
+
+  let immuneRolesList = Array.isArray(settingsData.immune_roles) ? settingsData.immune_roles : [];
+  let spamAllowedChannelsList = Array.isArray(settingsData.spam_allowed_channels) ? settingsData.spam_allowed_channels : [];
 
   function createMultiSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedList, isChannel = false) {
     const wrapper = document.getElementById(wrapperId);
