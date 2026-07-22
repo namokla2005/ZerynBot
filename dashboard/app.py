@@ -346,6 +346,11 @@ def server_automod(guild_id: str):
             "spam_enabled": 1 if form.get("spam_enabled") else 0,
             "bad_words_enabled": 1 if form.get("bad_words_enabled") else 0,
             "links_enabled": 1 if form.get("links_enabled") else 0,
+            "anti_invite_enabled": 1 if form.get("anti_invite_enabled") else 0,
+            "anti_caps_enabled": 1 if form.get("anti_caps_enabled") else 0,
+            "anti_mentions_enabled": 1 if form.get("anti_mentions_enabled") else 0,
+            "max_mentions": int(form.get("max_mentions", 5) or 5),
+            "timeout_duration_minutes": int(form.get("timeout_duration_minutes", 5) or 5),
             "bad_words": json.dumps(bad_words),
             "blacklist_links": json.dumps(blacklist_links),
             "whitelist_links": json.dumps(whitelist_links),
@@ -356,7 +361,9 @@ def server_automod(guild_id: str):
         }
         db.upsert_automod_settings(guild_id, **fields)
         # Enable module if any feature is enabled
-        is_module_active = fields["spam_enabled"] or fields["bad_words_enabled"] or fields["links_enabled"]
+        is_module_active = (fields["spam_enabled"] or fields["bad_words_enabled"] or 
+                            fields["links_enabled"] or fields["anti_invite_enabled"] or 
+                            fields["anti_caps_enabled"] or fields["anti_mentions_enabled"])
         db.set_module(guild_id, "automods", bool(is_module_active))
         
         flash("✅ Đã lưu cài đặt Automods!", "success")

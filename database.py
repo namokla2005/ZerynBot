@@ -272,6 +272,16 @@ def init_db():
             conn.execute("ALTER TABLE automod_settings ADD COLUMN immune_roles TEXT DEFAULT '[]'")
         if "spam_allowed_channels" not in am_cols:
             conn.execute("ALTER TABLE automod_settings ADD COLUMN spam_allowed_channels TEXT DEFAULT '[]'")
+        if "anti_invite_enabled" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN anti_invite_enabled INTEGER DEFAULT 0")
+        if "anti_caps_enabled" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN anti_caps_enabled INTEGER DEFAULT 0")
+        if "anti_mentions_enabled" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN anti_mentions_enabled INTEGER DEFAULT 0")
+        if "max_mentions" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN max_mentions INTEGER DEFAULT 5")
+        if "timeout_duration_minutes" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN timeout_duration_minutes INTEGER DEFAULT 5")
             
         cursor.execute("PRAGMA table_info(music_playlists)")
         pl_cols = [row[1] for row in cursor.fetchall()]
@@ -1032,6 +1042,11 @@ _DEFAULT_AUTOMOD = {
     "spam_enabled": 0,
     "bad_words_enabled": 0,
     "links_enabled": 0,
+    "anti_invite_enabled": 0,
+    "anti_caps_enabled": 0,
+    "anti_mentions_enabled": 0,
+    "max_mentions": 5,
+    "timeout_duration_minutes": 5,
     "notify_role_id": None,
     "log_channel_id": None,
     "immune_roles": "[]",
@@ -1124,9 +1139,12 @@ def upsert_automod_settings(guild_id: str, **kwargs):
         conn.execute("""
             INSERT INTO automod_settings (
                 guild_id, bad_words, blacklist_links, whitelist_links, 
-                spam_enabled, bad_words_enabled, links_enabled, notify_role_id, log_channel_id,
+                spam_enabled, bad_words_enabled, links_enabled,
+                anti_invite_enabled, anti_caps_enabled, anti_mentions_enabled,
+                max_mentions, timeout_duration_minutes,
+                notify_role_id, log_channel_id,
                 immune_roles, spam_allowed_channels
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(guild_id) DO UPDATE SET
                 bad_words=excluded.bad_words,
                 blacklist_links=excluded.blacklist_links,
@@ -1134,6 +1152,11 @@ def upsert_automod_settings(guild_id: str, **kwargs):
                 spam_enabled=excluded.spam_enabled,
                 bad_words_enabled=excluded.bad_words_enabled,
                 links_enabled=excluded.links_enabled,
+                anti_invite_enabled=excluded.anti_invite_enabled,
+                anti_caps_enabled=excluded.anti_caps_enabled,
+                anti_mentions_enabled=excluded.anti_mentions_enabled,
+                max_mentions=excluded.max_mentions,
+                timeout_duration_minutes=excluded.timeout_duration_minutes,
                 notify_role_id=excluded.notify_role_id,
                 log_channel_id=excluded.log_channel_id,
                 immune_roles=excluded.immune_roles,
@@ -1141,6 +1164,8 @@ def upsert_automod_settings(guild_id: str, **kwargs):
         """, (
             guild_id, bad_words, blacklist_links, whitelist_links,
             int(s.get("spam_enabled", 0)), int(s.get("bad_words_enabled", 0)), int(s.get("links_enabled", 0)),
+            int(s.get("anti_invite_enabled", 0)), int(s.get("anti_caps_enabled", 0)), int(s.get("anti_mentions_enabled", 0)),
+            int(s.get("max_mentions", 5)), int(s.get("timeout_duration_minutes", 5)),
             s.get("notify_role_id"), s.get("log_channel_id"),
             immune_roles, spam_allowed_channels
         ))

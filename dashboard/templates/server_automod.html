@@ -302,8 +302,8 @@
   </div>
   <p style="margin: 0; font-size: 0.95rem;">
     Hệ thống sẽ <strong>xóa tin nhắn</strong> ngay lập tức nếu vi phạm.<br>
-    - <strong>Lần 1:</strong> Gửi tin nhắn cảnh báo (DM).<br>
-    - <strong>Lần 2:</strong> Timeout cấm chat/voice trong 5 phút + Gửi DM + Thông báo vào kênh Log (nếu có).<br>
+    - <strong>Lần 1:</strong> Gửi tin nhắn cảnh báo công khai & qua DM.<br>
+    - <strong>Lần 2 trở đi:</strong> Timeout cấm chat/voice theo thời gian cấu hình + Thông báo vào kênh Log (nếu có).<br>
     <em>Chủ server và những người có quyền "Manage Messages" / "Administrator" sẽ không bị ảnh hưởng.</em>
   </p>
 </div>
@@ -323,7 +323,7 @@
           <input type="checkbox" name="spam_enabled" value="1" {% if settings.get('spam_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật chống Spam (Gửi quá nhiều tin nhắn liên tục)</span>
+        <span class="switch-text">Bật chống Spam (Gửi quá nhiều tin nhắn liên tục trong 5s)</span>
       </label>
 
       <label class="switch-container">
@@ -339,7 +339,31 @@
           <input type="checkbox" name="links_enabled" value="1" {% if settings.get('links_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật lọc Link Fake / Blacklist</span>
+        <span class="switch-text">Bật lọc Link Fake / Blacklist độc hại</span>
+      </label>
+
+      <label class="switch-container">
+        <div class="switch">
+          <input type="checkbox" name="anti_invite_enabled" value="1" {% if settings.get('anti_invite_enabled') %}checked{% endif %}>
+          <span class="slider"></span>
+        </div>
+        <span class="switch-text">Bật chống Link mời Server khác (Anti-Invite)</span>
+      </label>
+
+      <label class="switch-container">
+        <div class="switch">
+          <input type="checkbox" name="anti_caps_enabled" value="1" {% if settings.get('anti_caps_enabled') %}checked{% endif %}>
+          <span class="slider"></span>
+        </div>
+        <span class="switch-text">Bật chống Spam Chữ IN HOA (> 70% Caps)</span>
+      </label>
+
+      <label class="switch-container">
+        <div class="switch">
+          <input type="checkbox" name="anti_mentions_enabled" value="1" {% if settings.get('anti_mentions_enabled') %}checked{% endif %}>
+          <span class="slider"></span>
+        </div>
+        <span class="switch-text">Bật chống Mass Ping (Tag quá nhiều người/role)</span>
       </label>
     </div>
   </div>
@@ -416,6 +440,22 @@
         <div class="card-title"><i class="bi bi-megaphone-fill" style="color:var(--accent)"></i> Kênh & Thông báo</div>
         <div class="card-desc">Thiết lập nơi bot gửi thông báo vi phạm.</div>
       </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Số lượng Tag tối đa được phép trong 1 tin nhắn (Max Mentions)</label>
+      <input type="number" name="max_mentions" class="form-control" min="1" max="50" value="{{ settings.get('max_mentions', 5) }}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Thời gian Timeout khi tái phạm vi phạm</label>
+      <select name="timeout_duration_minutes" class="form-control">
+        <option value="1" {% if settings.get('timeout_duration_minutes') == 1 %}selected{% endif %}>1 phút</option>
+        <option value="5" {% if settings.get('timeout_duration_minutes', 5) == 5 %}selected{% endif %}>5 phút (Mặc định)</option>
+        <option value="15" {% if settings.get('timeout_duration_minutes') == 15 %}selected{% endif %}>15 phút</option>
+        <option value="60" {% if settings.get('timeout_duration_minutes') == 60 %}selected{% endif %}>1 giờ</option>
+        <option value="1440" {% if settings.get('timeout_duration_minutes') == 1440 %}selected{% endif %}>24 giờ</option>
+      </select>
     </div>
 
     <div class="form-group">

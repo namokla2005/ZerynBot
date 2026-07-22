@@ -21,6 +21,7 @@ from bot import checks
 
 # Extract domains from URLs
 URL_PATTERN = re.compile(r'https?://(?:www\.)?([a-zA-Z0-9.-]+)\.[a-zA-Z]{2,}')
+DISCORD_INVITE_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]+)', re.IGNORECASE)
 
 GLOBAL_SAFE_DOMAINS = {
     "discord.com", "discord.gg", "discordapp.com", "discord.media",
@@ -114,14 +115,15 @@ class Automod(commands.Cog):
             except discord.Forbidden:
                 pass
         else:
-            # 2nd or more time: Timeout for 5 mins
+            # 2nd or more time: Timeout
             try:
-                until = discord.utils.utcnow() + timedelta(minutes=5)
+                timeout_mins = int(settings.get("timeout_duration_minutes", 5) or 5)
+                until = discord.utils.utcnow() + timedelta(minutes=timeout_mins)
                 await member.timeout(until, reason=f"Automod: {reason}")
                 
                 # Public notification
                 embed = discord.Embed(
-                    description=f"⛔ {member.mention} đã bị **Timeout 5 phút** do liên tục vi phạm quy định.",
+                    description=f"⛔ {member.mention} đã bị **Timeout {timeout_mins} phút** do liên tục vi phạm quy định.",
                     color=config.COLOR_ERROR
                 )
                 msg = await message.channel.send(embed=embed)
@@ -137,10 +139,10 @@ class Automod(commands.Cog):
                     color=config.COLOR_ERROR
                 )
                 dm_embed.add_field(name="Lý do", value=reason, inline=False)
-                dm_embed.add_field(name="Hình phạt", value="Bị cấm chat & câm voice trong 5 phút.", inline=False)
+                dm_embed.add_field(name="Hình phạt", value=f"Bị cấm chat & câm voice trong {timeout_mins} phút.", inline=False)
                 await member.send(embed=dm_embed)
                 
-                self.bot.dispatch('automod_action', guild, member, "Timeout 5 phút", reason, message.jump_url)
+                self.bot.dispatch('automod_action', guild, member, f"Timeout {timeout_mins} phút", reason, message.jump_url)
             except discord.Forbidden:
                 pass
             except Exception as e:
@@ -263,6 +265,28 @@ class Automod(commands.Cog):
             if violation_reason:
                 return await self._handle_violation(message, violation_reason, settings)
 
+        # 4. Anti-Invite links check
+        if settings.get("anti_invite_enabled"):
+            invite_matches = DISCORD_INVITE_PATTERN.findall(message.content)
+            if invite_matches:
+                return await self._handle_violation(message, "Gửi link mời Discord server khác (Anti-Invite)", settings)
+
+        # 5. Anti-CAPS check
+        if settings.get("anti_caps_enabled") and len(message.content) > 10:
+            letters = [c for c in message.content if c.isalpha()]
+            if letters:
+                uppercase_count = sum(1 for c in letters if c.isupper())
+                ratio = uppercase_count / len(letters)
+                if ratio > 0.7:
+                    return await self._handle_violation(message, f"Spam chữ IN HOA ({int(ratio*100)}% Caps)", settings)
+
+        # 6. Anti-Mention spam check
+        if settings.get("anti_mentions_enabled"):
+            max_mentions = int(settings.get("max_mentions", 5) or 5)
+            total_mentions = len(message.mentions) + len(message.role_mentions)
+            if total_mentions > max_mentions:
+                return await self._handle_violation(message, f"Tag quá nhiều người/role ({total_mentions}/{max_mentions} tags)", settings)
+
     # ─── Commands ──────────────────────────────────────────────────────────────
 
     @commands.hybrid_group(name="automods", description="Quản lý hệ thống tự động bảo vệ (Automods)")
@@ -292,10 +316,14 @@ class Automod(commands.Cog):
         spam = "✅ Bật" if settings.get("spam_enabled") else "❌ Tắt"
         bw = "✅ Bật" if settings.get("bad_words_enabled") else "❌ Tắt"
         lnk = "✅ Bật" if settings.get("links_enabled") else "❌ Tắt"
+        inv = "✅ Bật" if settings.get("anti_invite_enabled") else "❌ Tắt"
+        caps = "✅ Bật" if settings.get("anti_caps_enabled") else "❌ Tắt"
+        ment = "✅ Bật" if settings.get("anti_mentions_enabled") else "❌ Tắt"
         
         embed.add_field(
             name="⚙️ Tính Năng",
-            value=f"**Chống Spam:** {spam}\n**Lọc Từ Cấm:** {bw}\n**Lọc Link Fake:** {lnk}",
+            value=f"**Chống Spam:** {spam} | **Lọc Từ Cấm:** {bw} | **Lọc Link Fake:** {lnk}\n"
+                  f"**Chống Link Mời:** {inv} | **Chống CAPS:** {caps} | **Chống Mass Ping:** {ment}",
             inline=False
         )
         
