@@ -328,8 +328,7 @@
 
       <label class="switch-container">
         <div class="switch">
-          <input type="checkbox" name="bad_words_enabled" value="1" {% if settings.get('bad_words_enabled') %}checked{%
-            endif %}>
+          <input type="checkbox" name="bad_words_enabled" value="1" {% if settings.get('bad_words_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
         <span class="switch-text">Bật lọc Từ ngữ xấu / Từ cấm</span>
@@ -337,8 +336,7 @@
 
       <label class="switch-container">
         <div class="switch">
-          <input type="checkbox" name="links_enabled" value="1" {% if settings.get('links_enabled') %}checked{% endif
-            %}>
+          <input type="checkbox" name="links_enabled" value="1" {% if settings.get('links_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
         <span class="switch-text">Bật lọc Link Fake / Blacklist</span>
@@ -358,6 +356,12 @@
       <label class="form-label">Từ ngữ xấu (Cách nhau bằng dấu phẩy)</label>
       <textarea name="bad_words" class="form-control"
         placeholder="VD: dm, ngu, cc, lz...">{{bad_words_str}}</textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Link Blacklist (Link độc hại / cấm thủ công, cách nhau bằng dấu phẩy)</label>
+      <textarea name="blacklist_links" class="form-control"
+        placeholder="VD: badsite.com, scam-link.org...">{{ blacklist_links_str }}</textarea>
     </div>
 
     <div class="form-group">
@@ -479,36 +483,39 @@
       chipsContainer.innerHTML = '';
       hiddenContainer.innerHTML = '';
 
-      if (selectedList.length === 0) {
+      let renderedCount = 0;
+      selectedList.forEach(id => {
+        const optData = optionsList.find(r => r.id === id);
+        if (!optData) return;
+
+        renderedCount++;
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+
+        let prefix = '';
+        if (isChannel) {
+          prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
+        } else if (optData.color) {
+          prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
+        }
+
+        chip.innerHTML = `
+          ${prefix}${optData.name}
+          <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
+        `;
+        chipsContainer.appendChild(chip);
+
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = inputName;
+        hiddenInput.value = optData.id;
+        hiddenContainer.appendChild(hiddenInput);
+      });
+
+      if (renderedCount === 0) {
         placeholder.style.display = 'block';
       } else {
         placeholder.style.display = 'none';
-        selectedList.forEach(id => {
-          const optData = optionsList.find(r => r.id === id);
-          if (!optData) return;
-
-          const chip = document.createElement('div');
-          chip.className = 'chip';
-
-          let prefix = '';
-          if (isChannel) {
-            prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
-          } else if (optData.color) {
-            prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
-          }
-
-          chip.innerHTML = `
-            ${prefix}${optData.name}
-            <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
-          `;
-          chipsContainer.appendChild(chip);
-
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.name = inputName;
-          hiddenInput.value = optData.id;
-          hiddenContainer.appendChild(hiddenInput);
-        });
       }
 
       const options = dropdown.querySelectorAll('.custom-option');
@@ -591,34 +598,32 @@
       chipsContainer.innerHTML = '';
       hiddenContainer.innerHTML = '';
 
-      if (!currentSelectedId) {
+      const optData = currentSelectedId ? optionsList.find(r => r.id === currentSelectedId) : null;
+      if (!optData) {
         placeholder.style.display = 'block';
       } else {
         placeholder.style.display = 'none';
-        const optData = optionsList.find(r => r.id === currentSelectedId);
-        if (optData) {
-          const chip = document.createElement('div');
-          chip.className = 'chip';
+        const chip = document.createElement('div');
+        chip.className = 'chip';
 
-          let prefix = '';
-          if (isChannel) {
-            prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
-          } else if (optData.color) {
-            prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
-          }
-
-          chip.innerHTML = `
-            ${prefix}${optData.name}
-            <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
-          `;
-          chipsContainer.appendChild(chip);
-
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.name = inputName;
-          hiddenInput.value = optData.id;
-          hiddenContainer.appendChild(hiddenInput);
+        let prefix = '';
+        if (isChannel) {
+          prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
+        } else if (optData.color) {
+          prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
         }
+
+        chip.innerHTML = `
+          ${prefix}${optData.name}
+          <i class="bi bi-x chip-remove" data-id="${optData.id}"></i>
+        `;
+        chipsContainer.appendChild(chip);
+
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = inputName;
+        hiddenInput.value = optData.id;
+        hiddenContainer.appendChild(hiddenInput);
       }
 
       const options = dropdown.querySelectorAll('.custom-option');
