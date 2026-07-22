@@ -12,6 +12,7 @@ COLOR_UPDATE = 0xFEE75C
 COLOR_JOIN = 0x57F287
 COLOR_LEAVE = 0xED4245
 COLOR_MOD = 0xEB459E
+COLOR_INFO = 0x3498DB
 
 class Logger(commands.Cog):
     """Ghi lại nhật ký các hoạt động trong server."""

@@ -711,6 +711,11 @@ async def async_get_guild_settings(guild_id: str) -> dict:
     return dict(row) if row else {"guild_id": guild_id, **_DEFAULT_SETTINGS}
 
 async def async_get_logger_settings(guild_id: str) -> dict:
+    cache_key = f"logger_settings:{guild_id}"
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
@@ -718,20 +723,23 @@ async def async_get_logger_settings(guild_id: str) -> dict:
         ) as cur:
             row = await cur.fetchone()
     if row:
-        return dict(row)
-    return {
-        "guild_id": guild_id,
-        "log_channel_id": "",
-        "log_message_edit": 1,
-        "log_message_delete": 1,
-        "log_member_join_leave": 1,
-        "log_member_kick_ban": 1,
-        "log_member_role_change": 1,
-        "log_channel_change": 1,
-        "log_role_change": 1,
-        "log_automod": 1,
-        "log_ticket": 1
-    }
+        result = dict(row)
+    else:
+        result = {
+            "guild_id": guild_id,
+            "log_channel_id": "",
+            "log_message_edit": 1,
+            "log_message_delete": 1,
+            "log_member_join_leave": 1,
+            "log_member_kick_ban": 1,
+            "log_member_role_change": 1,
+            "log_channel_change": 1,
+            "log_role_change": 1,
+            "log_automod": 1,
+            "log_ticket": 1
+        }
+    await cache.aset(cache_key, result, ttl=300)
+    return result
 
 # --- Dashboard Analytics (Stats) --------------------------------------------
 async def async_increment_stat(guild_id: str, event_type: str, event_label: str):
@@ -1086,6 +1094,7 @@ def set_logger_settings(guild_id: str, settings: dict):
             settings.get("log_ticket", 1)
         ))
         conn.commit()
+    cache.delete(f"logger_settings:{guild_id}")
 
 def get_automod_settings(guild_id: str) -> dict:
     with sqlite3.connect(DB_PATH) as conn:
