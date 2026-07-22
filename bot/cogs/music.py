@@ -24,7 +24,7 @@ log = logging.getLogger("BotV2")
 
 # ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
 FFMPEG_BEFORE = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 32k -analyzeduration 0 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
-FFMPEG_OPTS   = "-vn -sn -b:a 128k -ar 48000 -ac 2 -af aresample=async=1 -threads 1"
+FFMPEG_OPTS   = "-vn -sn -b:a 64k -ar 48000 -ac 2 -af aresample=async=1 -threads 1"
 
 YDL_OPTS = {
     "format": "bestaudio[acodec=opus]/bestaudio/best",
