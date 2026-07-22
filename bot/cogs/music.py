@@ -719,10 +719,14 @@ class Music(commands.Cog, name="Music"):
         player = await self._ensure(ctx)
         if not player:
             return
-        msg = await ctx.send(f"⏳ Đang nạp playlist **{name}**...")
+        msg = await ctx.send(f"⏳ Đang tải playlist **{name}**...")
         added = 0
         for t in pl["tracks"]:
-            track = Track(t, requester=ctx.author)
+            query = t.get("webpage_url") or t.get("title", "")
+            info = await extract_info(query)
+            if not info:
+                continue
+            track = Track(info, requester=ctx.author)
             if not player.vc.is_playing() and not player.vc.is_paused() and added == 0:
                 await player.add_and_play(track)
             else:
