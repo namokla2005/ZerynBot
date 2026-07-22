@@ -18,10 +18,12 @@ from discord import app_commands
 from discord.ext import commands
 import yt_dlp
 
+from cache import cache
+
 log = logging.getLogger("BotV2")
 
 # ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
-FFMPEG_BEFORE = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+FFMPEG_BEFORE = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
 FFMPEG_OPTS   = "-vn -b:a 96k -ar 48000 -ac 2 -threads 1"
 
 YDL_OPTS = {
@@ -61,21 +63,37 @@ def _extract_sync(query: str) -> dict | None:
 
 
 async def extract_info(query: str) -> dict | None:
-    """Lấy thông tin bài hát (có cache). Không block event loop."""
+    """Lấy thông tin bài hát (tích hợp Redis + Local Cache RAM limit)."""
     key = query.strip().lower()
+    cache_key = f"song_info:{key}"
 
-    # Cache hit
+    # 1. Kiểm tra Redis / Local Cache
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
+    # 2. Kiểm tra bộ nhớ tạm RAM
     if key in _url_cache:
         info, expire = _url_cache[key]
         if time.time() < expire:
             return info
+        else:
+            _url_cache.pop(key, None)
 
-    # Cache miss → extract trong thread riêng
+    # 3. Chạy yt-dlp trong thread pool
     loop = asyncio.get_running_loop()
     info = await loop.run_in_executor(None, _extract_sync, query)
 
     if info:
-        _url_cache[key] = (info, time.time() + 300)  # 5 phút TTL
+        # Lưu vào Redis
+        await cache.aset(cache_key, info, ttl=600)
+
+        # Giới hạn RAM: Nếu bộ nhớ tạm > 100 bài, dọn 20 bài cũ nhất
+        if len(_url_cache) > 100:
+            old_keys = list(_url_cache.keys())[:20]
+            for k in old_keys:
+                _url_cache.pop(k, None)
+        _url_cache[key] = (info, time.time() + 300)
 
     return info
 
@@ -106,7 +124,14 @@ class Track:
         self.stream_url = _get_stream_url(info)
         self.duration   = info.get("duration")
         self.uploader   = info.get("uploader") or info.get("channel") or "—"
-        self.thumbnail  = info.get("thumbnail")
+        
+        # Lấy thumbnail chất lượng tốt nhất
+        thumbnails = info.get("thumbnails", [])
+        if thumbnails and isinstance(thumbnails, list):
+            self.thumbnail = thumbnails[-1].get("url")
+        else:
+            self.thumbnail = info.get("thumbnail")
+            
         self.requester  = requester
 
     @property
@@ -640,7 +665,7 @@ class Music(commands.Cog, name="Music"):
     async def playlist_group(self, ctx: commands.Context):
         pass
 
-    @playlist_group.command(name="name", description="Tạo một playlist mới")
+    @playlist_group.command(name="create", description="Tạo một playlist mới")
     @app_commands.describe(name="Tên playlist muốn tạo")
     async def playlist_create(self, ctx: commands.Context, *, name: str):
         import database as db
@@ -658,7 +683,7 @@ class Music(commands.Cog, name="Music"):
         import database as db
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl:
-            await ctx.send(f"❌ Không tìm thấy playlist **{name}**! Tạo bằng `/playlist name {name}`")
+            await ctx.send(f"❌ Không tìm thấy playlist **{name}**! Tạo bằng `/playlist create {name}`")
             return
         if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
             await ctx.send("❌ Bạn không có quyền thêm vào playlist của người khác!")
@@ -667,12 +692,17 @@ class Music(commands.Cog, name="Music"):
         if not info:
             await ctx.send("❌ Không tìm thấy bài hát!")
             return
+
+        thumbnails = info.get("thumbnails", [])
+        thumbnail = thumbnails[-1].get("url") if thumbnails and isinstance(thumbnails, list) else info.get("thumbnail", "")
+
         await db.async_add_track_to_playlist(pl["id"], {
             "title": info.get("title", "Unknown"),
             "id":    info.get("id", ""),
             "webpage_url": info.get("webpage_url") or info.get("url", ""),
             "duration": info.get("duration") or -1,
             "uploader": info.get("uploader") or info.get("channel") or "—",
+            "thumbnail": thumbnail,
             "url": "",
         })
         await ctx.send(f"✅ Đã thêm **{info.get('title')}** vào playlist **{name}**!")
@@ -689,14 +719,10 @@ class Music(commands.Cog, name="Music"):
         player = await self._ensure(ctx)
         if not player:
             return
-        msg = await ctx.send(f"⏳ Đang tải playlist **{name}**...")
+        msg = await ctx.send(f"⏳ Đang nạp playlist **{name}**...")
         added = 0
         for t in pl["tracks"]:
-            query = t.get("webpage_url") or t.get("title", "")
-            info  = await extract_info(query)
-            if not info:
-                continue
-            track = Track(info, requester=ctx.author)
+            track = Track(t, requester=ctx.author)
             if not player.vc.is_playing() and not player.vc.is_paused() and added == 0:
                 await player.add_and_play(track)
             else:
