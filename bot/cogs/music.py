@@ -283,29 +283,28 @@ class MusicPlayer:
 
 # ─── Embeds ────────────────────────────────────────────────────────────────────
 def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embed:
-    loop_icons = {0: "➡️ Tắt", 1: "🔂 Lặp 1 bài", 2: "🔁 Lặp tất cả"}
+    loop_icons = {0: "➡️ Tắt", 1: "🔂 1 Bài", 2: "🔁 Tất cả"}
     loop_colors = {0: 0x5865F2, 1: 0x57F287, 2: 0xFEE75C}
 
     embed = discord.Embed(
         title="🎵  Đang Phát Nhạc",
         description=(
-            f"## [{track.title}]({track.url})\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            f"### [{track.title}]({track.url})\n"
+            f"─────────────────────────────"
         ),
         color=loop_colors.get(loop_mode, 0x5865F2),
     )
 
-    embed.add_field(name="⏱️  Thời lượng",   value=f"```{track.duration_str}```",    inline=True)
-    embed.add_field(name="👤  Kênh",          value=f"```{track.uploader[:30]}```",   inline=True)
-    embed.add_field(name="🔄  Lặp lại",       value=loop_icons[loop_mode],            inline=True)
-    embed.add_field(name="🙋  Yêu cầu bởi",  value=track.requester_mention,          inline=True)
-    embed.add_field(name="📋  Hàng chờ",      value=f"`{queue_len} bài`",             inline=True)
-    embed.add_field(name="\u200b",            value="\u200b",                         inline=True)
+    embed.add_field(name="⏱️ Thời lượng",  value=f"`{track.duration_str}`", inline=True)
+    embed.add_field(name="👤 Kênh",         value=f"`{track.uploader[:25]}`", inline=True)
+    embed.add_field(name="🔄 Lặp lại",      value=f"`{loop_icons[loop_mode]}`", inline=True)
+    embed.add_field(name="🙋 Yêu cầu bởi", value=track.requester_mention, inline=True)
+    embed.add_field(name="📋 Hàng chờ",     value=f"`{queue_len} bài`", inline=True)
 
     if track.thumbnail:
         embed.set_image(url=track.thumbnail)
 
-    embed.set_footer(text="Zeryn Music  •  yt-dlp  •  Nhấn nút bên dưới để điều khiển")
+    embed.set_footer(text="Zeryn Music  •  yt-dlp  •  Điều khiển bằng các nút bấm bên dưới")
     return embed
 
 
@@ -330,7 +329,7 @@ class MusicControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="⏸️ Tạm dừng", style=discord.ButtonStyle.secondary, emoji=None, row=0)
+    @discord.ui.button(label="⏸️ Tạm dừng", style=discord.ButtonStyle.secondary, row=0)
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -357,9 +356,7 @@ class MusicControlView(discord.ui.View):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
-        guild_id = self.player.guild.id
         await self.player.stop()
-        # Cleanup will happen in cog
 
     @discord.ui.button(label="🔄 Lặp lại", style=discord.ButtonStyle.secondary, row=0)
     async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -373,31 +370,6 @@ class MusicControlView(discord.ui.View):
         button.style = styles[self.player.loop_mode]
         embed = _make_np_embed(self.player.current, len(self.player.queue), self.player.loop_mode)
         await interaction.message.edit(embed=embed, view=self)
-
-    @discord.ui.button(label="❤️ Yêu thích", style=discord.ButtonStyle.secondary, row=1)
-    async def btn_like(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True)
-        if not self.player.current:
-            await interaction.followup.send("❌ Không có bài nào đang phát!", ephemeral=True)
-            return
-        import database as db
-        guild_id_str = str(self.player.guild.id)
-        pl = await db.async_get_playlist_by_name(guild_id_str, "Yêu thích")
-        if not pl:
-            pl_id = await db.async_create_playlist(
-                guild_id_str, "Yêu thích",
-                str(interaction.user.id), interaction.user.display_name
-            )
-        else:
-            pl_id = pl["id"]
-        t = self.player.current
-        await db.async_add_track_to_playlist(pl_id, {
-            "title": t.title, "id": "", "webpage_url": t.url,
-            "duration": t.duration or -1, "uploader": t.uploader, "url": "",
-        })
-        await interaction.followup.send(
-            f"❤️ Đã lưu **{t.title}** vào playlist **Yêu thích**!", ephemeral=True
-        )
 
 
 # ─── Remove Song UI ────────────────────────────────────────────────────────────
