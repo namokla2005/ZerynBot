@@ -283,19 +283,17 @@ class MusicPlayer:
 
 # ─── Embeds ────────────────────────────────────────────────────────────────────
 def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embed:
-    loop_icons = {0: "Tắt", 1: "1 bài", 2: "Tất cả"}
-    loop_colors = {0: 0x5865F2, 1: 0x57F287, 2: 0xFEE75C}
-    loop_str = loop_icons.get(loop_mode, "Tắt")
+    loop_str = {0: "Tắt", 1: "1 bài", 2: "Tất cả"}[loop_mode]
 
     embed = discord.Embed(
-        title="Now Playing",
+        color=0x3498DB,
         description=(
+            f"**Now Playing**\n"
             f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{track.duration_str}` — {track.requester_mention}\n\n"
             f"**Volume:** `100%` — **Queue:** `{queue_len} bài` — **Loop:** `{loop_str}`\n"
-            f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬"
-        ),
-        color=loop_colors.get(loop_mode, 0x5865F2),
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
     )
 
     if track.thumbnail:
