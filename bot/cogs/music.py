@@ -223,7 +223,7 @@ class MusicPlayer:
             self.vc.play(source, after=self._after_play)
         except Exception as e:
             log.error(f"[Music] FFmpeg error: {e}")
-            self._dispatch_next(self.guild._state.loop)
+            self._dispatch_next(self.loop)
             return
 
         # Gửi embed Now Playing
