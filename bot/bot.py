@@ -7,6 +7,7 @@ import logging
 import sys
 import os
 import time
+import threading
 from collections import defaultdict
 
 # Add v2/ to path so we can import shared modules
@@ -25,8 +26,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("BotV2")
 
+
 class DiscordWebhookHandler(logging.Handler):
-    """Sends ERROR and CRITICAL logs to a Discord Webhook."""
+    """Sends ERROR and CRITICAL logs to a Discord Webhook (Non-blocking)."""
+
     def __init__(self, webhook_url: str):
         super().__init__(level=logging.ERROR)
         self.webhook_url = webhook_url
@@ -37,32 +40,36 @@ class DiscordWebhookHandler(logging.Handler):
         now = time.time()
         if now - self.last_sent < 5.0:
             return
-            
+        self.last_sent = now
+        threading.Thread(target=self._send, args=(record,), daemon=True).start()
+
+    def _send(self, record: logging.LogRecord):
         import requests
         try:
             log_entry = self.format(record)
-            # Truncate if too long
+            # Truncate if too long (keep the bottom error traceback tail)
             if len(log_entry) > 3900:
-                log_entry = log_entry[:3900] + "\n... (truncated)"
-                
+                log_entry = "... (truncated)\n" + log_entry[-3900:]
+
             embed = {
                 "title": f"🚨 Bot Error: {record.levelname}",
                 "description": f"```py\n{log_entry}\n```",
                 "color": 0xED4245 if record.levelno >= logging.ERROR else 0xFEE75C,
-                "footer": {"text": f"File: {record.filename} | Line: {record.lineno}"}
+                "footer": {"text": f"File: {record.filename} | Line: {record.lineno}"},
             }
-            
+
             payload = {"embeds": [embed]}
             requests.post(self.webhook_url, json=payload, timeout=5)
-            self.last_sent = now
         except Exception:
-            pass # Silently fail if webhook is invalid or network error
+            pass  # Silently fail if webhook is invalid or network error
+
 
 # ─── Intents ───────────────────────────────────────────────────────────────────
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 intents.presences = True
+
 
 # ─── Bot class ─────────────────────────────────────────────────────────────────
 class BotV2(commands.Bot):
@@ -77,28 +84,41 @@ class BotV2(commands.Bot):
         # Rate limit state
         self.last_used = defaultdict(float)
 
+    async def _cleanup_cooldowns(self):
+        """Dọn entry cooldown cũ hơn 60 giây mỗi 5 phút."""
+        while not self.is_closed():
+            await asyncio.sleep(300)
+            now = time.time()
+            expired = [uid for uid, t in self.last_used.items() if now - t > 60]
+            for uid in expired:
+                del self.last_used[uid]
+            if expired:
+                logger.debug(f"[Cooldown] Cleaned {len(expired)} expired entries")
+
     async def setup_hook(self):
-        """Load all cogs, then sync slash commands."""
-        
+        """Load all cogs, then sync slash commands if --sync flag is passed."""
+
         # ─── Global Cooldown Check ──────────────────────────────
         async def global_cooldown_check(interaction: discord.Interaction) -> bool:
             # Bypass for bot owner
             if interaction.user.id == config.BOT_OWNER_ID:
                 return True
-                
+
             now = time.time()
             user_id = interaction.user.id
             if now - self.last_used[user_id] < config.GLOBAL_COOLDOWN:
                 remaining = int(config.GLOBAL_COOLDOWN - (now - self.last_used[user_id]))
-                await interaction.response.send_message(f"⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.", ephemeral=True)
+                await interaction.response.send_message(
+                    f"⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.", ephemeral=True
+                )
                 return False
-                
+
             self.last_used[user_id] = now
             return True
-            
+
         self.tree.interaction_check = global_cooldown_check
         # ────────────────────────────────────────────────────────
-        
+
         cogs_dir = os.path.join(os.path.dirname(__file__), "cogs")
         for filename in os.listdir(cogs_dir):
             if filename.endswith(".py") and not filename.startswith("_"):
@@ -109,28 +129,38 @@ class BotV2(commands.Bot):
                 except Exception as exc:
                     logger.error(f"❌  Failed {ext}: {exc}")
 
-        # Sync slash commands
-        if config.DEV_GUILD_ID:
-            guild_obj = discord.Object(id=config.DEV_GUILD_ID)
-            self.tree.copy_global_to(guild=guild_obj)
-            synced_dev = await self.tree.sync(guild=guild_obj)
-            logger.info(f"⚡  Synced {len(synced_dev)} commands to dev guild (instant)")
-        
-        synced_global = await self.tree.sync()
-        logger.info(f"🌐  Synced {len(synced_global)} commands globally (up to 1 hour to propagate)")
+        # Sync slash commands chỉ khi có cờ --sync
+        if "--sync" in sys.argv:
+            if config.DEV_GUILD_ID:
+                guild_obj = discord.Object(id=config.DEV_GUILD_ID)
+                self.tree.copy_global_to(guild=guild_obj)
+                synced_dev = await self.tree.sync(guild=guild_obj)
+                logger.info(f"⚡  Synced {len(synced_dev)} commands to dev guild (instant)")
+
+            synced_global = await self.tree.sync()
+            logger.info(
+                f"🌐  Synced {len(synced_global)} commands globally (up to 1 hour to propagate)"
+            )
+        else:
+            logger.info("⚡  Skipping command sync (run with 'python bot/bot.py --sync' to force sync)")
 
     async def on_ready(self):
+        if not hasattr(self, "_ready_once"):
+            self._ready_once = True
+            self._cleanup_task = asyncio.create_task(self._cleanup_cooldowns())
+            logger.info("─" * 55)
+            logger.info(f"✅  Online: {self.user} (ID: {self.user.id})")
+            logger.info(f"🌐  Servers: {len(self.guilds)}")
+            logger.info(f"📊  Dashboard: {config.DASHBOARD_URL}")
+            logger.info("─" * 55)
+
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
                 name=f"/help | {len(self.guilds)} server(s) | {sum(g.member_count for g in self.guilds)} member(s)",
             )
         )
-        logger.info("─" * 55)
-        logger.info(f"✅  Online: {self.user} (ID: {self.user.id})")
-        logger.info(f"🌐  Servers: {len(self.guilds)}")
-        logger.info(f"📊  Dashboard: {config.DASHBOARD_URL}")
-        logger.info("─" * 55)
+        logger.info(f"🔄  Ready/Reconnected: {self.user} | {len(self.guilds)} servers")
 
     async def on_command_error(self, ctx: commands.Context, error: Exception):
         if isinstance(error, commands.CommandNotFound):
