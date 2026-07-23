@@ -283,28 +283,24 @@ class MusicPlayer:
 
 # ─── Embeds ────────────────────────────────────────────────────────────────────
 def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embed:
-    loop_icons = {0: "➡️ Tắt", 1: "🔂 1 Bài", 2: "🔁 Tất cả"}
+    loop_icons = {0: "Tắt", 1: "1 bài", 2: "Tất cả"}
     loop_colors = {0: 0x5865F2, 1: 0x57F287, 2: 0xFEE75C}
+    loop_str = loop_icons.get(loop_mode, "Tắt")
 
     embed = discord.Embed(
-        title="🎵  Đang Phát Nhạc",
+        title="Now Playing",
         description=(
             f"### [{track.title}]({track.url})\n"
-            f"─────────────────────────────"
+            f"**{track.uploader}** — `{track.duration_str}` — {track.requester_mention}\n\n"
+            f"**Volume:** `100%` — **Queue:** `{queue_len} bài` — **Loop:** `{loop_str}`\n"
+            f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬"
         ),
         color=loop_colors.get(loop_mode, 0x5865F2),
     )
 
-    embed.add_field(name="⏱️ Thời lượng",  value=f"`{track.duration_str}`", inline=True)
-    embed.add_field(name="👤 Kênh",         value=f"`{track.uploader[:25]}`", inline=True)
-    embed.add_field(name="🔄 Lặp lại",      value=f"`{loop_icons[loop_mode]}`", inline=True)
-    embed.add_field(name="🙋 Yêu cầu bởi", value=track.requester_mention, inline=True)
-    embed.add_field(name="📋 Hàng chờ",     value=f"`{queue_len} bài`", inline=True)
-
     if track.thumbnail:
-        embed.set_image(url=track.thumbnail)
+        embed.set_thumbnail(url=track.thumbnail)
 
-    embed.set_footer(text="Zeryn Music  •  yt-dlp  •  Điều khiển bằng các nút bấm bên dưới")
     return embed
 
 
@@ -313,13 +309,18 @@ class MusicControlView(discord.ui.View):
     def __init__(self, player: MusicPlayer):
         super().__init__(timeout=None)
         self.player = player
-        # Cập nhật label Pause/Resume
+        # Cập nhật trạng thái các nút
         if player.vc.is_paused():
             self.btn_pause.label = "▶️ Tiếp tục"
             self.btn_pause.style = discord.ButtonStyle.success
         else:
             self.btn_pause.label = "⏸️ Tạm dừng"
             self.btn_pause.style = discord.ButtonStyle.secondary
+
+        loop_labels = ["🔄 Lặp lại", "🔂 Lặp 1 bài", "🔁 Lặp tất cả"]
+        loop_styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
+        self.btn_loop.label = loop_labels[player.loop_mode]
+        self.btn_loop.style = loop_styles[player.loop_mode]
 
     async def _check(self, interaction: discord.Interaction) -> bool:
         if not interaction.user.voice or interaction.user.voice.channel != self.player.vc.channel:
@@ -344,14 +345,14 @@ class MusicControlView(discord.ui.View):
             button.style = discord.ButtonStyle.success
         await interaction.message.edit(view=self)
 
-    @discord.ui.button(label="⏭️ Bỏ qua", style=discord.ButtonStyle.primary, row=0)
+    @discord.ui.button(label="⏭️ Bỏ qua", style=discord.ButtonStyle.secondary, row=0)
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
         self.player.skip()
 
-    @discord.ui.button(label="⏹️ Dừng", style=discord.ButtonStyle.danger, row=0)
+    @discord.ui.button(label="⏹️ Dừng", style=discord.ButtonStyle.secondary, row=0)
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -364,10 +365,10 @@ class MusicControlView(discord.ui.View):
             return
         await interaction.response.defer()
         self.player.loop_mode = (self.player.loop_mode + 1) % 3
-        labels = ["🔄 Lặp lại", "🔂 Lặp 1 bài", "🔁 Lặp tất cả"]
-        styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
-        button.label = labels[self.player.loop_mode]
-        button.style = styles[self.player.loop_mode]
+        loop_labels = ["🔄 Lặp lại", "🔂 Lặp 1 bài", "🔁 Lặp tất cả"]
+        loop_styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
+        button.label = loop_labels[self.player.loop_mode]
+        button.style = loop_styles[self.player.loop_mode]
         embed = _make_np_embed(self.player.current, len(self.player.queue), self.player.loop_mode)
         await interaction.message.edit(embed=embed, view=self)
 
