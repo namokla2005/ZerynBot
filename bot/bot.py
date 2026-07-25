@@ -117,6 +117,7 @@ class BotV2(commands.Bot):
             return True
 
         self.tree.interaction_check = global_cooldown_check
+        self.tree.on_error = self.on_app_command_error
         # ────────────────────────────────────────────────────────
 
         cogs_dir = os.path.join(os.path.dirname(__file__), "cogs")

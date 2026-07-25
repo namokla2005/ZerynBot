@@ -7,7 +7,7 @@ cd "$DIR"
 echo "[Watchdog] Đã khởi động."
 while true; do
     echo "[Watchdog] Đang chạy bot..."
-    python run_bot.py
+    python main.py --bot
     
     EXIT_CODE=$?
     echo "[Watchdog] Bot đã dừng với mã thoát $EXIT_CODE."

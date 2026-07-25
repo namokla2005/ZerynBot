@@ -53,8 +53,11 @@ else:
     log.warning("[Card] No bold system font found — text may not render Vietnamese correctly")
 
 
+import functools
+
+@functools.lru_cache(maxsize=32)
 def _get_pil_font(size: int, bold: bool = False):
-    """Return a PIL ImageFont using system fonts that support Vietnamese."""
+    """Return a PIL ImageFont using system fonts that support Vietnamese (cached)."""
     from PIL import ImageFont
     path = _SYS_BOLD if bold else _SYS_REG
     if path and os.path.exists(path):

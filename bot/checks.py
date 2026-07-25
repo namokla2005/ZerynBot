@@ -14,7 +14,7 @@ async def check_bot_admin(ctx: commands.Context) -> bool:
     if ctx.author.guild_permissions.administrator:
         return True
         
-    settings = db.get_guild_settings(str(ctx.guild.id))
+    settings = await db.async_get_guild_settings(str(ctx.guild.id))
     admin_roles_str = settings.get("bot_admin_roles", "[]")
     
     try:

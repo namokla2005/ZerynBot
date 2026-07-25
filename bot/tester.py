@@ -131,8 +131,8 @@ class SystemTester:
 
         # 5. Reaction Roles Check
         try:
-            from database import get_reaction_roles_panels
-            await asyncio.wait_for(asyncio.to_thread(get_reaction_roles_panels, "0"), timeout=5.0)
+            from database import async_get_reaction_roles_panels
+            await asyncio.wait_for(async_get_reaction_roles_panels("0"), timeout=5.0)
             results.append("🟢 **Reaction Roles** — OK")
         except asyncio.TimeoutError:
             failed_modules.append("Reaction Roles")
@@ -145,8 +145,8 @@ class SystemTester:
 
         # 6. Ticket Module Check
         try:
-            from database import get_ticket_panels
-            await asyncio.wait_for(asyncio.to_thread(get_ticket_panels, "0"), timeout=5.0)
+            from database import async_get_ticket_panels
+            await asyncio.wait_for(async_get_ticket_panels("0"), timeout=5.0)
             results.append("🟢 **Ticket Module** — OK")
         except asyncio.TimeoutError:
             failed_modules.append("Ticket Module")
