@@ -120,6 +120,16 @@ def _get_stream_url(info: dict) -> str | None:
     return info.get("url")
 
 
+def _get_best_thumbnail(info: dict) -> str:
+    thumbnails = info.get("thumbnails", [])
+    if thumbnails and isinstance(thumbnails, list):
+        valid = [t for t in thumbnails if t.get("url") and t.get("url").startswith("http")]
+        if valid:
+            best = max(valid, key=lambda t: t.get("width") or 0)
+            return best.get("url") or ""
+    return info.get("thumbnail") or ""
+
+
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
     __slots__ = ("title", "url", "stream_url", "stream_expire", "duration", "uploader", "thumbnail", "requester")
@@ -131,19 +141,7 @@ class Track:
         self.stream_expire = time.time() + (5.5 * 3600) if self.stream_url else 0
         self.duration      = info.get("duration")
         self.uploader      = info.get("uploader") or info.get("channel") or "—"
-        
-        # Lấy thumbnail chất lượng tốt nhất
-        thumbnails = info.get("thumbnails", [])
-        if thumbnails and isinstance(thumbnails, list):
-            valid = [t for t in thumbnails if t.get("url") and t.get("url").startswith("http")]
-            if valid:
-                best = max(valid, key=lambda t: t.get("width") or 0)
-                self.thumbnail = best.get("url")
-            else:
-                self.thumbnail = info.get("thumbnail")
-        else:
-            self.thumbnail = info.get("thumbnail")
-            
+        self.thumbnail     = _get_best_thumbnail(info)
         self.requester     = requester
 
     @property
@@ -243,7 +241,29 @@ class MusicPlayer:
             )
             self.vc.play(source, after=self._after_play)
         except Exception as e:
-            log.error(f"[Music] FFmpeg error: {e}")
+            log.error(f"[Music] FFmpeg error cho bài '{track.title}' (opts={opts}): {e}")
+            if opts == FFMPEG_OPTS_COPY:
+                try:
+                    log.info(f"[Music] Thử lại bài '{track.title}' bằng FFMPEG_OPTS_ENCODE...")
+                    source = discord.FFmpegOpusAudio(
+                        track.stream_url,
+                        before_options=FFMPEG_BEFORE,
+                        options=FFMPEG_OPTS_ENCODE,
+                    )
+                    self.vc.play(source, after=self._after_play)
+                    await self._send_now_playing()
+                    return
+                except Exception as retry_err:
+                    log.error(f"[Music] FFmpeg retry error cho '{track.title}': {retry_err}")
+
+            if self.text_channel:
+                try:
+                    await self.text_channel.send(
+                        f"⚠️ Không thể giải mã/phát bài: **{track.title}**. Đang chuyển sang bài tiếp theo...",
+                        delete_after=8,
+                    )
+                except Exception:
+                    pass
             self._dispatch_next()
             return
 
@@ -706,8 +726,7 @@ class Music(commands.Cog, name="Music"):
             await ctx.send("❌ Không tìm thấy bài hát!")
             return
 
-        thumbnails = info.get("thumbnails", [])
-        thumbnail = thumbnails[-1].get("url") if thumbnails and isinstance(thumbnails, list) else info.get("thumbnail", "")
+        thumbnail = _get_best_thumbnail(info)
 
         await db.async_add_track_to_playlist(pl["id"], {
             "title": info.get("title", "Unknown"),
