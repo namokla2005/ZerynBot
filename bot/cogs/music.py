@@ -25,7 +25,7 @@ log = logging.getLogger("BotV2")
 # ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
 FFMPEG_BEFORE = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 64k -analyzeduration 100000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
-FFMPEG_OPTS_ENCODE = "-vn -sn -b:a 64k -ar 48000 -ac 2 -af aresample=async=1 -threads 1"
+FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
 MAX_PLAYERS = 14  # Giới hạn an toàn số player đồng thời
 
@@ -240,24 +240,31 @@ class MusicPlayer:
             track.stream_url
             and ("mime=audio%2Fwebm" in track.stream_url or "audio/webm" in track.stream_url)
         )
-        opts = FFMPEG_OPTS_COPY if is_opus else FFMPEG_OPTS_ENCODE
-
         try:
-            source = discord.FFmpegOpusAudio(
-                track.stream_url,
-                before_options=FFMPEG_BEFORE,
-                options=opts,
-            )
+            if is_opus:
+                source = discord.FFmpegOpusAudio(
+                    track.stream_url,
+                    before_options=FFMPEG_BEFORE,
+                    options=FFMPEG_OPTS_COPY,
+                )
+            else:
+                source = discord.FFmpegOpusAudio(
+                    track.stream_url,
+                    before_options=FFMPEG_BEFORE,
+                    options=FFMPEG_OPTS_ENCODE,
+                    bitrate=64,
+                )
             self.vc.play(source, after=self._after_play)
         except Exception as e:
-            log.error(f"[Music] FFmpeg error cho bài '{track.title}' (opts={opts}): {e}")
-            if opts == FFMPEG_OPTS_COPY:
+            log.error(f"[Music] FFmpeg error cho bài '{track.title}': {e}")
+            if is_opus:
                 try:
                     log.info(f"[Music] Thử lại bài '{track.title}' bằng FFMPEG_OPTS_ENCODE...")
                     source = discord.FFmpegOpusAudio(
                         track.stream_url,
                         before_options=FFMPEG_BEFORE,
                         options=FFMPEG_OPTS_ENCODE,
+                        bitrate=64,
                     )
                     self.vc.play(source, after=self._after_play)
                     await self._send_now_playing()
