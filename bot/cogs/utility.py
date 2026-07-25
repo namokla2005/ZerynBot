@@ -129,10 +129,15 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="ping", description="Kiểm tra độ trễ kết nối của bot")
     async def ping(self, ctx: commands.Context):
         ws = round(self.bot.latency * 1000)
+        
+        # Đo thời gian edit message — phản ánh API latency thật
         t0 = time.perf_counter()
         await ctx.defer()
-        rtt = round((time.perf_counter() - t0) * 1000)
-
+        msg = await ctx.send("🏓 Đang đo...")
+        t1 = time.perf_counter()
+        
+        api = round((t1 - t0) * 1000)  # API latency
+        
         if ws < 80:
             quality, color = "🟢 Tuyệt vời", config.COLOR_SUCCESS
         elif ws < 150:
@@ -142,16 +147,19 @@ class Utility(commands.Cog):
         else:
             quality, color = "🔴 Kém", config.COLOR_ERROR
 
-        embed = discord.Embed(title="🏓 Pong!", color=config.COLOR_PING,
-                              timestamp=datetime.now(timezone.utc))
-        embed.add_field(name="📡 WebSocket", value=f"**{ws}** ms", inline=True)
-        embed.add_field(name="↩️ Round-Trip", value=f"**{rtt}** ms", inline=True)
-        embed.add_field(name="📶 Chất lượng", value=quality, inline=True)
+        embed = discord.Embed(
+            title="🏓 Pong!",
+            color=config.COLOR_PING,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.add_field(name="🌐 WebSocket", value=f"**{ws}** ms", inline=True)
+        embed.add_field(name="📡 API",       value=f"**{api}** ms", inline=True)
+        embed.add_field(name="📊 Chất lượng", value=quality, inline=True)
         embed.set_footer(
             text=f"Yêu cầu bởi {ctx.author.display_name}",
             icon_url=ctx.author.display_avatar.url,
         )
-        await ctx.send(embed=embed)
+        await msg.edit(content=None, embed=embed)
 
     # ─── membercount ───────────────────────────────────────────────────────────
     @commands.hybrid_command(name="membercount", description="Thống kê số lượng thành viên và bot trong server")
