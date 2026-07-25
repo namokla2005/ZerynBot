@@ -23,8 +23,11 @@ from cache import cache
 log = logging.getLogger("BotV2")
 
 # ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
-FFMPEG_BEFORE = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 32k -analyzeduration 0 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
-FFMPEG_OPTS   = "-vn -sn -b:a 64k -ar 48000 -ac 2 -af aresample=async=1 -threads 1"
+FFMPEG_BEFORE = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 64k -analyzeduration 100000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
+FFMPEG_OPTS_ENCODE = "-vn -sn -b:a 64k -ar 48000 -ac 2 -af aresample=async=1 -threads 1"
+
+MAX_PLAYERS = 14  # Giới hạn an toàn số player đồng thời
 
 YDL_OPTS = {
     "format": "bestaudio[acodec=opus]/bestaudio/best",
@@ -119,23 +122,33 @@ def _get_stream_url(info: dict) -> str | None:
 
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
-    __slots__ = ("title", "url", "stream_url", "duration", "uploader", "thumbnail", "requester")
+    __slots__ = ("title", "url", "stream_url", "stream_expire", "duration", "uploader", "thumbnail", "requester")
 
     def __init__(self, info: dict, requester: discord.Member | None = None):
-        self.title      = info.get("title", "Unknown")
-        self.url        = info.get("webpage_url") or info.get("url", "")
-        self.stream_url = _get_stream_url(info)
-        self.duration   = info.get("duration")
-        self.uploader   = info.get("uploader") or info.get("channel") or "—"
+        self.title         = info.get("title", "Unknown")
+        self.url           = info.get("webpage_url") or info.get("url", "")
+        self.stream_url    = _get_stream_url(info)
+        self.stream_expire = time.time() + (5.5 * 3600) if self.stream_url else 0
+        self.duration      = info.get("duration")
+        self.uploader      = info.get("uploader") or info.get("channel") or "—"
         
         # Lấy thumbnail chất lượng tốt nhất
         thumbnails = info.get("thumbnails", [])
         if thumbnails and isinstance(thumbnails, list):
-            self.thumbnail = thumbnails[-1].get("url")
+            valid = [t for t in thumbnails if t.get("url") and t.get("url").startswith("http")]
+            if valid:
+                best = max(valid, key=lambda t: t.get("width") or 0)
+                self.thumbnail = best.get("url")
+            else:
+                self.thumbnail = info.get("thumbnail")
         else:
             self.thumbnail = info.get("thumbnail")
             
-        self.requester  = requester
+        self.requester     = requester
+
+    @property
+    def is_stream_expired(self) -> bool:
+        return self.stream_url is None or time.time() > self.stream_expire
 
     @property
     def duration_str(self) -> str:
@@ -164,33 +177,33 @@ class MusicPlayer:
         if not self.queue:
             return
         nxt = self.queue[0]
-        if nxt.stream_url:
+        if nxt.stream_url and not nxt.is_stream_expired:
             return
         try:
             info = await extract_info(nxt.url or nxt.title)
             if info:
-                nxt.stream_url = _get_stream_url(info)
+                nxt.stream_url    = _get_stream_url(info)
+                nxt.stream_expire = time.time() + (5.5 * 3600)
         except Exception as e:
             log.debug(f"[Music] Preload error: {e}")
 
     def _after_play(self, error=None):
         if error:
             log.warning(f"[Music] Player error: {error}")
-        loop = self.loop
         if self.loop_mode == 1 and self.current:
-            asyncio.run_coroutine_threadsafe(self._play(self.current), loop)
+            asyncio.run_coroutine_threadsafe(self._play(self.current), self.loop)
         elif self.loop_mode == 2 and self.current:
             self.queue.append(self.current)
-            self._dispatch_next(loop)
+            self._dispatch_next()
         else:
-            self._dispatch_next(loop)
+            self._dispatch_next()
 
-    def _dispatch_next(self, loop):
+    def _dispatch_next(self):
         if self.queue:
-            asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), loop)
+            asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), self.loop)
         else:
             self.current = None
-            asyncio.run_coroutine_threadsafe(self._notify_empty(), loop)
+            asyncio.run_coroutine_threadsafe(self._notify_empty(), self.loop)
 
     async def _notify_empty(self):
         if self.text_channel:
@@ -203,27 +216,35 @@ class MusicPlayer:
         if not self.vc or not self.vc.is_connected():
             return
 
-        # Lấy stream URL tươi mới nếu chưa có
-        if not track.stream_url:
+        # Lấy stream URL tươi mới nếu chưa có hoặc URL đã hết hạn (sau 5.5h)
+        if not track.stream_url or track.is_stream_expired:
             info = await extract_info(track.url or track.title)
             if not info:
                 log.warning(f"[Music] Cannot get stream URL: {track.title}")
-                self._dispatch_next(self.loop)
+                self._dispatch_next()
                 return
-            track.stream_url = _get_stream_url(info)
+            track.stream_url    = _get_stream_url(info)
+            track.stream_expire = time.time() + (5.5 * 3600)
 
         self.current = track
+
+        # Tự động chọn Opus copy mode nếu stream gốc là Opus WebM (giảm 90% CPU)
+        is_opus = (
+            track.stream_url
+            and ("mime=audio%2Fwebm" in track.stream_url or "audio/webm" in track.stream_url)
+        )
+        opts = FFMPEG_OPTS_COPY if is_opus else FFMPEG_OPTS_ENCODE
 
         try:
             source = discord.FFmpegOpusAudio(
                 track.stream_url,
                 before_options=FFMPEG_BEFORE,
-                options=FFMPEG_OPTS,
+                options=opts,
             )
             self.vc.play(source, after=self._after_play)
         except Exception as e:
             log.error(f"[Music] FFmpeg error: {e}")
-            self._dispatch_next(self.loop)
+            self._dispatch_next()
             return
 
         # Gửi embed Now Playing
@@ -469,6 +490,15 @@ class Music(commands.Cog, name="Music"):
                 return None
             player.text_channel = ctx.channel
             return player
+
+        # Kiểm tra giới hạn số player đồng thời
+        if guild_id not in self._players and len(self._players) >= MAX_PLAYERS:
+            await ctx.send(
+                f"⚠️ Bot đang phát nhạc tối đa **{MAX_PLAYERS} server** cùng lúc để bảo vệ hiệu năng hệ thống.\n"
+                "Vui lòng thử lại sau!",
+                ephemeral=True,
+            )
+            return None
 
         try:
             vc = await ctx.author.voice.channel.connect()
