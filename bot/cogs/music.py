@@ -297,7 +297,7 @@ def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embe
     )
 
     if track.thumbnail:
-        embed.set_thumbnail(url=track.thumbnail)
+        embed.set_image(url=track.thumbnail)
 
     return embed
 
@@ -559,7 +559,7 @@ class Music(commands.Cog, name="Music"):
             embed.add_field(name="📌 Vị trí",       value=str(len(player.queue)),     inline=True)
             embed.add_field(name="🙋 Yêu cầu bởi", value=ctx.author.mention,         inline=True)
             if track.thumbnail:
-                embed.set_thumbnail(url=track.thumbnail)
+                embed.set_image(url=track.thumbnail)
             await msg.edit(content=None, embed=embed)
         else:
             await msg.delete()
