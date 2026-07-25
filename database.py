@@ -752,7 +752,7 @@ async def async_get_logger_settings(guild_id: str) -> dict:
     return result
 
 # --- Dashboard Analytics (Stats) --------------------------------------------
-async def async_increment_stat(guild_id: str, event_type: str, event_label: str):
+async def async_increment_stat(guild_id: str, event_type: str, event_label: str, amount: int = 1):
     """
     Increment a stat counter for a specific event and label.
     Aggregated by current hour (YYYY-MM-DD HH:00:00).
@@ -764,10 +764,10 @@ async def async_increment_stat(guild_id: str, event_type: str, event_label: str)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO guild_stats (guild_id, event_type, event_label, date_hour, count)
-            VALUES (?, ?, ?, ?, 1)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(guild_id, event_type, event_label, date_hour) 
-            DO UPDATE SET count = count + 1
-        """, (guild_id, event_type, event_label, date_hour))
+            DO UPDATE SET count = count + ?
+        """, (guild_id, event_type, event_label, date_hour, amount, amount))
         await db.commit()
 
 def get_guild_stats(guild_id: str, days: int = 7) -> list:

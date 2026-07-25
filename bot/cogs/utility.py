@@ -1,7 +1,7 @@
 """
 Cog: Utility (v2) — Prefix commands: ping, membercount, help
 """
-import sys, os, time
+import sys, os, time, random
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import discord
@@ -129,23 +129,20 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="ping", description="Kiểm tra độ trễ kết nối của bot")
     async def ping(self, ctx: commands.Context):
         ws = round(self.bot.latency * 1000)
-        
-        # Đo thời gian edit message — phản ánh API latency thật
+
         t0 = time.perf_counter()
         await ctx.defer()
-        msg = await ctx.send("🏓 Đang đo...")
         t1 = time.perf_counter()
-        
-        api = round((t1 - t0) * 1000)  # API latency
-        
+        api = round((t1 - t0) * 1000)
+
         if ws < 80:
-            quality, color = "🟢 Tuyệt vời", config.COLOR_SUCCESS
+            quality = "🟢 Tuyệt vời"
         elif ws < 150:
-            quality, color = "🟡 Tốt", 0xFEE75C
+            quality = "🟡 Tốt"
         elif ws < 300:
-            quality, color = "🟠 Trung bình", 0xFF8800
+            quality = "🟠 Trung bình"
         else:
-            quality, color = "🔴 Kém", config.COLOR_ERROR
+            quality = "🔴 Kém"
 
         embed = discord.Embed(
             title="🏓 Pong!",
@@ -159,15 +156,28 @@ class Utility(commands.Cog):
             text=f"Yêu cầu bởi {ctx.author.display_name}",
             icon_url=ctx.author.display_avatar.url,
         )
-        await msg.edit(content=None, embed=embed)
+        await ctx.reply(embed=embed)
 
     # ─── membercount ───────────────────────────────────────────────────────────
     @commands.hybrid_command(name="membercount", description="Thống kê số lượng thành viên và bot trong server")
     @commands.guild_only()
     async def membercount(self, ctx: commands.Context):
         guild  = ctx.guild
-        total  = guild.member_count
-        bots   = sum(1 for m in guild.members if m.bot)
+        total  = guild.member_count or len(guild.members)
+
+        bots = online = idle = dnd = offline = 0
+        for m in guild.members:
+            if m.bot:
+                bots += 1
+            if m.status == discord.Status.online:
+                online += 1
+            elif m.status == discord.Status.idle:
+                idle += 1
+            elif m.status == discord.Status.dnd:
+                dnd += 1
+            else:
+                offline += 1
+
         humans = total - bots
         human_pct = round(humans / total * 100, 1) if total else 0
         bot_pct   = round(bots   / total * 100, 1) if total else 0
@@ -175,11 +185,6 @@ class Utility(commands.Cog):
         bar_len   = 20
         filled    = round(human_pct / 100 * bar_len)
         progress  = f"`{'█' * filled}{'░' * (bar_len - filled)}` {human_pct}% người"
-
-        online  = sum(1 for m in guild.members if m.status == discord.Status.online)
-        idle    = sum(1 for m in guild.members if m.status == discord.Status.idle)
-        dnd     = sum(1 for m in guild.members if m.status == discord.Status.dnd)
-        offline = sum(1 for m in guild.members if m.status == discord.Status.offline)
 
         embed = discord.Embed(
             title=f"👥 Thành viên — {guild.name}",
@@ -251,7 +256,6 @@ class Utility(commands.Cog):
         if max_number <= 1:
             await ctx.send("❌ Số lớn nhất phải lớn hơn 1!")
             return
-        import random
         result = random.randint(1, max_number)
         embed = discord.Embed(
             title="🎲 Tung xúc xắc",
@@ -264,7 +268,6 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="choose", description="Bot sẽ chọn ngẫu nhiên giúp bạn một phương án")
     @discord.app_commands.describe(options="Các phương án cách nhau bởi dấu phẩy (VD: Ăn cơm, Ăn phở, Nhịn)")
     async def choose(self, ctx: commands.Context, *, options: str):
-        import random
         opts = [o.strip() for o in options.split(",") if o.strip()]
         if len(opts) < 2:
             await ctx.send("❌ Vui lòng nhập ít nhất 2 phương án, cách nhau bằng dấu phẩy!")

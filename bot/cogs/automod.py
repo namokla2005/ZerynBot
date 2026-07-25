@@ -140,7 +140,10 @@ class Automod(commands.Cog):
                 )
                 dm_embed.add_field(name="Lý do", value=reason, inline=False)
                 dm_embed.add_field(name="Hình phạt", value=f"Bị cấm chat & câm voice trong {timeout_mins} phút.", inline=False)
-                await member.send(embed=dm_embed)
+                try:
+                    await member.send(embed=dm_embed)
+                except Exception:
+                    pass
                 
                 self.bot.dispatch('automod_action', guild, member, f"Timeout {timeout_mins} phút", reason, message.jump_url)
             except discord.Forbidden:
@@ -164,7 +167,7 @@ class Automod(commands.Cog):
                     log_embed.add_field(name="Người dùng", value=f"{member.mention} (`{member.id}`)", inline=True)
                     log_embed.add_field(name="Kênh", value=message.channel.mention, inline=True)
                     log_embed.add_field(name="Lý do", value=reason, inline=False)
-                    log_embed.add_field(name="Hình phạt", value="Timeout 5 phút", inline=False)
+                    log_embed.add_field(name="Hình phạt", value=f"Timeout {timeout_mins} phút", inline=False)
                     log_embed.add_field(name="Nội dung tin nhắn", value=message.content[:1024] or "[Không có nội dung text]", inline=False)
                     
                     try:
