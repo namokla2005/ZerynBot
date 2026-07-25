@@ -94,10 +94,17 @@ def stop_all():
                 print(f" - Lỗi khi dừng {name}: {e}")
         _remove_pid(pid_file)
 
-    # Tắt watchdog / process con
+    # Tắt watchdog / process con (loại trừ PID của chính tiến trình hiện tại)
     if os.name != "nt":
+        my_pid = os.getpid()
         subprocess.run("pkill -f 'watchdog.sh' 2>/dev/null", shell=True)
-        subprocess.run("pkill -f 'main.py' 2>/dev/null", shell=True)
+        try:
+            res = subprocess.check_output("pgrep -f 'main.py'", shell=True, text=True).strip().splitlines()
+            for p in res:
+                if p.isdigit() and int(p) != my_pid:
+                    subprocess.run(f"kill -9 {p} 2>/dev/null", shell=True)
+        except Exception:
+            pass
         subprocess.run("termux-wake-unlock 2>/dev/null", shell=True)
 
     print("✅ Tất cả dịch vụ đã dừng thành công.")
