@@ -201,9 +201,18 @@ class MusicPlayer:
             asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), self.loop)
         else:
             self.current = None
-            asyncio.run_coroutine_threadsafe(self._notify_empty(), self.loop)
+            asyncio.run_coroutine_threadsafe(self._on_queue_empty(), self.loop)
 
-    async def _notify_empty(self):
+    async def _on_queue_empty(self):
+        """Xử lý khi hàng chờ hết — xóa embed/disable nút NP cũ và gửi thông báo."""
+        if self.now_playing_msg:
+            try:
+                view = discord.ui.View()  # View rỗng = xóa toàn bộ nút bấm cũ
+                await self.now_playing_msg.edit(view=view)
+            except Exception:
+                pass
+            self.now_playing_msg = None
+
         if self.text_channel:
             try:
                 await self.text_channel.send("✅ Hàng chờ nhạc đã hết!")
