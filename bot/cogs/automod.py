@@ -17,7 +17,7 @@ from database import (
     async_add_automod_warning,
     set_module
 )
-from bot import checks
+import checks
 
 # Extract domains from URLs
 URL_PATTERN = re.compile(r'https?://(?:www\.)?([a-zA-Z0-9.-]+)\.[a-zA-Z]{2,}')

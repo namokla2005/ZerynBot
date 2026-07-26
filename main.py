@@ -71,7 +71,7 @@ def _is_pid_running(pid: int | None) -> bool:
 
 
 def stop_all():
-    print("🔴 Đang dừng tất cả dịch vụ hệ thống...")
+    print("[Main] Stopping all system services...")
     
     # Gửi webhook thông báo trước khi dừng
     script_status = os.path.join(BASE_DIR, "scripts", "send_status.py")
@@ -111,7 +111,7 @@ def stop_all():
 
 
 def print_status():
-    print("📊 TRẠNG THÁI HỆ THỐNG ZERYNBOT V2:")
+    print("[Status] ZerynBot V2 System Status:")
     
     redis_pid = _read_pid(PID_REDIS)
     bot_pid = _read_pid(PID_BOT)
@@ -123,38 +123,41 @@ def print_status():
 
 
 def run_only_bot():
-    print("[Bot] Khởi động Bot Discord v2...")
-    from bot.bot import main as bot_main
+    print("[Bot] Starting Bot Discord v2...")
+    try:
+        from bot.bot import main as bot_main
+    except ModuleNotFoundError:
+        from bot import main as bot_main
     asyncio.run(bot_main())
 
 
 def run_only_dashboard():
-    print(f"[Dashboard] Khởi động tại http://0.0.0.0:5000...")
+    print("[Dashboard] Starting at http://0.0.0.0:5000...")
     init_db()
     from dashboard.app import app
     app.run(host="0.0.0.0", port=5000, debug=False)
 
 
 def start_all():
-    print("🚀 Bắt đầu khởi động toàn bộ hệ thống ZerynBot V2...")
+    print("[Main] Starting full system ZerynBot V2...")
 
     if os.name != "nt":
         subprocess.run("termux-wake-lock 2>/dev/null", shell=True)
 
     # 1. Khởi động Redis
-    print("⏳ [1/3] Đang khởi động Redis...")
+    print("[1/3] Starting Redis...")
     try:
         if os.name != "nt":
             subprocess.run("redis-server --ignore-warnings ARM64-COW-BUG --daemonize yes", shell=True)
             res = subprocess.check_output("pgrep redis-server", shell=True, text=True).strip().splitlines()
             if res:
                 _write_pid(PID_REDIS, int(res[0]))
-        print("✅ Redis ready.")
+        print("[1/3] Redis ready.")
     except Exception as e:
-        print(f"⚠️ Redis warning: {e}")
+        print(f"[1/3] Redis warning: {e}")
 
     # 2. Khởi động Bot (kèm Watchdog)
-    print("⏳ [2/3] Đang khởi động Bot Discord (Watchdog)...")
+    print("[2/3] Starting Bot Discord (Watchdog)...")
     bot_log = os.path.join(PID_DIR, "bot.log")
     os.makedirs(PID_DIR, exist_ok=True)
     
@@ -173,7 +176,7 @@ def start_all():
             _write_pid(PID_BOT, int(res[0]))
 
     # 3. Khởi động Dashboard
-    print("⏳ [3/3] Đang khởi động Web Dashboard...")
+    print("[3/3] Starting Dashboard...")
     dash_log = os.path.join(PID_DIR, "dashboard.log")
     if os.name == "nt":
         p_dash = subprocess.Popen([sys.executable, "main.py", "--dashboard"], creationflags=subprocess.CREATE_NEW_CONSOLE)
@@ -186,10 +189,10 @@ def start_all():
             _write_pid(PID_DASH, int(res[0]))
 
     print("--------------------------------------------------")
-    print("🎉 HỆ THỐNG ĐÃ KHỞI ĐỘNG THÀNH CÔNG!")
-    print(f"- Web Dashboard: http://localhost:5000")
-    print(f"- Dùng 'python main.py --status' để kiểm tra.")
-    print(f"- Dùng 'python main.py --stop' để tắt hệ thống.")
+    print("[Main] System started successfully!")
+    print("- Web Dashboard: http://localhost:5000")
+    print("- Run 'python main.py --status' to check status.")
+    print("- Run 'python main.py --stop' to stop system.")
     print("--------------------------------------------------")
 
     # Send Webhook start notification
@@ -229,7 +232,7 @@ def main():
     elif "--restart" in args:
         stop_all()
         time.sleep(2)
-        print("\n🔄 Đang khởi động lại...")
+        print("\n[Main] Restarting system...")
         run_system_test()
         start_all()
         sys.exit(0)

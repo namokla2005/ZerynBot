@@ -9,7 +9,7 @@ from discord.ext import commands
 from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings, async_is_module_enabled
-from bot import checks
+import checks
 
 
 class Admin(commands.Cog):

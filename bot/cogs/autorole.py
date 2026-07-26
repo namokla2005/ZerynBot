@@ -5,7 +5,7 @@ import json
 import aiosqlite
 
 from database import DB_PATH, async_is_module_enabled, async_get_guild_settings
-from bot import checks
+import checks
 
 class AutoRole(commands.Cog, name="AutoRole"):
     """Cấu hình Auto Roles qua Discord"""
