@@ -167,7 +167,7 @@ class Events(commands.Cog):
                 if buf:
                     file = discord.File(fp=buf, filename="welcome.png")
                     await channel.send(
-                        content=f"👋 {member.mention} đã tham gia **{member.guild.name}**!",
+                        content=message,
                         file=file,
                     )
                     return
@@ -232,7 +232,7 @@ class Events(commands.Cog):
                 if buf:
                     file = discord.File(fp=buf, filename="goodbye.png")
                     await channel.send(
-                        content=f"👋 **{member.name}** đã rời khỏi **{member.guild.name}**.",
+                        content=message,
                         file=file,
                     )
                     return
