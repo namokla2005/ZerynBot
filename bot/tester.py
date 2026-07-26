@@ -34,7 +34,13 @@ def _safe_print(text: str):
 
 async def _send_webhook_report(title: str, description: str, color: int, fields: list = None):
     """Async webhook report using aiohttp."""
-    if not config.WEBHOOK_LOG_URL:
+    webhook_url = (
+        getattr(config, "WEBHOOK_LOG_URL", None)
+        or getattr(config, "STATUS_WEBHOOK_URL", None)
+        or os.getenv("WEBHOOK_FEEDBACK_URL")
+        or os.getenv("FEEDBACK_WEBHOOK_URL")
+    )
+    if not webhook_url:
         return
     try:
         embed = {
@@ -50,7 +56,7 @@ async def _send_webhook_report(title: str, description: str, color: int, fields:
         payload = {"embeds": [embed]}
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession() as session:
-            await session.post(config.WEBHOOK_LOG_URL, json=payload, timeout=timeout)
+            await session.post(webhook_url, json=payload, timeout=timeout)
     except Exception as e:
         _safe_print(f"[Tester] Error sending webhook report: {e}")
 
@@ -102,9 +108,9 @@ class SystemTester:
 
         # 3. Music Module Check (yt-dlp & FFmpeg)
         try:
-            spec = importlib.util.find_spec("bot.cogs.music")
+            spec = importlib.util.find_spec("cogs.music") or importlib.util.find_spec("bot.cogs.music")
             if spec is None:
-                raise ImportError("Module bot.cogs.music không tìm thấy!")
+                raise ImportError("Module cogs.music không tìm thấy!")
             import yt_dlp
             ffmpeg_path = shutil.which("ffmpeg") or shutil.which("ffmpeg", path="/data/data/com.termux/files/usr/bin")
             if not ffmpeg_path:
@@ -187,9 +193,9 @@ class SystemTester:
 
         # 9. Logger & Webhook Check
         try:
-            spec = importlib.util.find_spec("bot.cogs.logger")
+            spec = importlib.util.find_spec("cogs.logger") or importlib.util.find_spec("bot.cogs.logger")
             if spec is None:
-                raise ImportError("Module bot.cogs.logger không tìm thấy!")
+                raise ImportError("Module cogs.logger không tìm thấy!")
             from database import async_get_logger_settings
             await asyncio.wait_for(async_get_logger_settings("0"), timeout=5.0)
             results.append("🟢 **Logger & Webhooks** — OK")
@@ -204,10 +210,10 @@ class SystemTester:
 
         # 10. Info & Utility Check
         try:
-            spec_u = importlib.util.find_spec("bot.cogs.utility")
-            spec_i = importlib.util.find_spec("bot.cogs.info")
+            spec_u = importlib.util.find_spec("cogs.utility") or importlib.util.find_spec("bot.cogs.utility")
+            spec_i = importlib.util.find_spec("cogs.info") or importlib.util.find_spec("bot.cogs.info")
             if spec_u is None or spec_i is None:
-                raise ImportError("Module bot.cogs.utility/info không tìm thấy!")
+                raise ImportError("Module cogs.utility/info không tìm thấy!")
             results.append("🟢 **Info & Utility** — OK")
         except Exception as e:
             failed_modules.append("Info & Utility")

@@ -201,6 +201,19 @@ def start_all():
             pass
 
 
+def run_system_test():
+    try:
+        print("[Tester] Đang chạy hệ thống tự kiểm thử (Self-Diagnostic Tester)...")
+    except Exception:
+        print("[Tester] Running Self-Diagnostic Tester...")
+    try:
+        from bot.tester import SystemTester
+    except ModuleNotFoundError:
+        from tester import SystemTester
+    success = asyncio.run(SystemTester.run_all_tests())
+    return success
+
+
 def main():
     args = [a.lower() for a in sys.argv[1:]]
 
@@ -210,10 +223,14 @@ def main():
     elif "--status" in args:
         print_status()
         sys.exit(0)
+    elif "--test" in args:
+        run_system_test()
+        sys.exit(0)
     elif "--restart" in args:
         stop_all()
         time.sleep(2)
         print("\n🔄 Đang khởi động lại...")
+        run_system_test()
         start_all()
         sys.exit(0)
     elif "--bot" in args:
@@ -222,6 +239,7 @@ def main():
         run_only_dashboard()
     else:
         # Default start all
+        run_system_test()
         start_all()
 
 
