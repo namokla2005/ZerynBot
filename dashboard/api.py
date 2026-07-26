@@ -513,7 +513,10 @@ def send_test_card(guild_id: str):
                 pass
 
         try:
-            from card_generator import _render_card
+            try:
+                from bot.card_generator import _render_card
+            except (ImportError, ModuleNotFoundError):
+                from card_generator import _render_card
             if card_type == "welcome":
                 buf = _render_card(
                     avatar_bytes  = avatar_bytes,

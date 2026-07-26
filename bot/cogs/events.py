@@ -159,7 +159,10 @@ class Events(commands.Cog):
         if use_embed:
             # Try to generate a banner card image first
             try:
-                from card_generator import generate_welcome_card
+                try:
+                    from bot.card_generator import generate_welcome_card
+                except (ImportError, ModuleNotFoundError):
+                    from card_generator import generate_welcome_card
                 buf = await generate_welcome_card(member, s.get("welcome_bg_url"))
                 if buf:
                     file = discord.File(fp=buf, filename="welcome.png")
@@ -221,7 +224,10 @@ class Events(commands.Cog):
         if use_embed:
             # Try to generate a banner card image first
             try:
-                from card_generator import generate_goodbye_card
+                try:
+                    from bot.card_generator import generate_goodbye_card
+                except (ImportError, ModuleNotFoundError):
+                    from card_generator import generate_goodbye_card
                 buf = await generate_goodbye_card(member, s.get("goodbye_bg_url"))
                 if buf:
                     file = discord.File(fp=buf, filename="goodbye.png")
