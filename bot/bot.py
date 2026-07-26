@@ -201,7 +201,7 @@ async def main():
 
     # ─── Self-Diagnostic Tester ─────────────────────────────
     try:
-        from bot.tester import SystemTester
+        from tester import SystemTester
         test_passed = await SystemTester.run_all_tests()
         if not test_passed:
             logger.warning("⚠️  Self-Diagnostic Test reported warnings, proceeding with bot startup...")

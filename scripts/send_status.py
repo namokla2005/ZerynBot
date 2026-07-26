@@ -7,10 +7,16 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except AttributeError:
+    pass
+
 def send_status(status_type: str):
     webhook_url = config.STATUS_WEBHOOK_URL
     if not webhook_url:
-        print("Không tìm thấy STATUS_WEBHOOK_URL trong cấu hình.")
+        print("[StatusWebhook] STATUS_WEBHOOK_URL not configured.")
         return
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -30,20 +36,20 @@ def send_status(status_type: str):
             "timestamp": now
         }
     else:
-        print("Loại trạng thái không hợp lệ. Chỉ chấp nhận 'start' hoặc 'stop'.")
+        print("[StatusWebhook] Invalid status type. Use 'start' or 'stop'.")
         return
 
     payload = {"embeds": [embed]}
     try:
         response = requests.post(webhook_url, json=payload, timeout=5)
         response.raise_for_status()
-        print(f"Đã gửi thông báo trạng thái '{status_type}' thành công!")
+        print(f"[StatusWebhook] Sent '{status_type}' notification successfully!")
     except Exception as e:
-        print(f"Lỗi khi gửi webhook: {e}")
+        print(f"[StatusWebhook] Error sending webhook: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Vui lòng cung cấp tham số 'start' hoặc 'stop'.")
+        print("[StatusWebhook] Please provide 'start' or 'stop' argument.")
         sys.exit(1)
     
     action = sys.argv[1].lower()

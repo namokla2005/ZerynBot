@@ -8,6 +8,7 @@ from flask import Flask, render_template, redirect, url_for, session, request, f
 from datetime import datetime
 import config
 import database as db
+import requests
 from dashboard.auth import (
     get_oauth2_url, exchange_code, get_user, get_manageable_guilds, get_avatar_url
 )
@@ -906,10 +907,9 @@ def server_tickets(guild_id: str):
     categories = db.get_guild_categories(guild_id) or []
     
     # Fetch roles dynamically using bot token
-    import requests as _req
     roles = []
     try:
-        resp = _req.get(
+        resp = requests.get(
             f"https://discord.com/api/v10/guilds/{guild_id}/roles",
             headers={"Authorization": f"Bot {config.TOKEN}"},
             timeout=5
@@ -935,10 +935,9 @@ def server_reactionroles(guild_id: str):
     text_channels = db.get_guild_channels(guild_id) or []
     
     # Fetch roles dynamically using bot token
-    import requests as _req
     roles = []
     try:
-        resp = _req.get(
+        resp = requests.get(
             f"https://discord.com/api/v10/guilds/{guild_id}/roles",
             headers={"Authorization": f"Bot {config.TOKEN}"},
             timeout=5
@@ -957,7 +956,6 @@ def server_reactionroles(guild_id: str):
 
 
 def fetch_track_info_simple(query: str) -> dict:
-    import requests
     import re
     
     video_id = None
@@ -1093,9 +1091,8 @@ def owner_required(f):
 
 def _get_all_bot_guilds_detailed() -> list:
     """Lấy danh sách tất cả server bot đang có mặt, kèm thông tin chi tiết."""
-    import requests as _req
     try:
-        resp = _req.get(
+        resp = requests.get(
             f"{config.DISCORD_API_BASE}/users/@me/guilds",
             headers={"Authorization": f"Bot {config.TOKEN}"},
             timeout=10,
@@ -1144,7 +1141,6 @@ def admin_panel():
 @owner_required
 def admin_kick_guild(guild_id: str):
     """Buộc bot rời khỏi server và thêm vào blacklist."""
-    import requests as _req
     reason = request.form.get("reason", "Bị kick bởi Owner").strip() or "Bị kick bởi Owner"
 
     # Lấy tên server trước khi kick
@@ -1152,7 +1148,7 @@ def admin_kick_guild(guild_id: str):
 
     # Gọi Discord API để bot rời server
     try:
-        resp = _req.delete(
+        resp = requests.delete(
             f"{config.DISCORD_API_BASE}/users/@me/guilds/{guild_id}",
             headers={"Authorization": f"Bot {config.TOKEN}"},
             timeout=10,
@@ -1183,7 +1179,6 @@ def admin_unblacklist(guild_id: str):
 @owner_required
 def admin_broadcast():
     """Gửi thông báo broadcast đến các server đã chọn."""
-    import requests as _req
 
     title   = request.form.get("broadcast_title", "📢 Thông báo từ Bot Owner").strip()
     message = request.form.get("broadcast_message", "").strip()
@@ -1224,7 +1219,7 @@ def admin_broadcast():
 
         # Thử lấy guild info từ Discord API để có system_channel_id
         try:
-            gr = _req.get(
+            gr = requests.get(
                 f"{config.DISCORD_API_BASE}/guilds/{guild_id}",
                 headers={"Authorization": f"Bot {config.TOKEN}"},
                 timeout=5,
@@ -1238,7 +1233,7 @@ def admin_broadcast():
         # Nếu không có system channel, thử kênh text đầu tiên
         if not channel_id:
             try:
-                cr = _req.get(
+                cr = requests.get(
                     f"{config.DISCORD_API_BASE}/guilds/{guild_id}/channels",
                     headers={"Authorization": f"Bot {config.TOKEN}"},
                     timeout=5,
@@ -1267,7 +1262,7 @@ def admin_broadcast():
                     "footer": {"text": "Thông báo từ Bot Owner"},
                 }]
             }
-            mr = _req.post(
+            mr = requests.post(
                 f"{config.DISCORD_API_BASE}/channels/{channel_id}/messages",
                 headers={
                     "Authorization": f"Bot {config.TOKEN}",

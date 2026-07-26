@@ -3,9 +3,12 @@ api.py — REST JSON API endpoints for the dashboard.
 Imported as a Blueprint and registered in app.py.
 """
 import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_V2_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _V2_DIR)
+sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho card_generator, checks, etc.
 
 from flask import Blueprint, request, jsonify, session
+import requests
 import database as db
 import config
 
@@ -133,8 +136,7 @@ def send_embed_to_channel(guild_id: str):
         return jsonify({"error": "Không có nội dung để gửi (embed trống)"}), 400
 
     try:
-        import requests as _req
-        resp = _req.post(
+        resp = requests.post(
             f"https://discord.com/api/v10/channels/{channel_id}/messages",
             headers={"Authorization": f"Bot {config.TOKEN}",
                      "Content-Type": "application/json"},
@@ -281,12 +283,11 @@ def send_ticket_panel(guild_id: str, panel_id: int):
     if not payload["embeds"] and not payload.get("components"):
         return jsonify({"error": "Nội dung panel trống!"}), 400
         
-    import requests as _req
     # Try deleting old message
     old_msg_id = panel.get("message_id")
     if old_msg_id:
         try:
-            _req.delete(
+            requests.delete(
                 f"https://discord.com/api/v10/channels/{panel['channel_id']}/messages/{old_msg_id}",
                 headers={"Authorization": f"Bot {config.TOKEN}"},
                 timeout=5
@@ -296,7 +297,7 @@ def send_ticket_panel(guild_id: str, panel_id: int):
             
     # Send new message
     try:
-        resp = _req.post(
+        resp = requests.post(
             f"https://discord.com/api/v10/channels/{panel['channel_id']}/messages",
             headers={"Authorization": f"Bot {config.TOKEN}",
                      "Content-Type": "application/json"},
@@ -369,13 +370,12 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
     if not payload["embeds"]:
         return jsonify({"error": "Nội dung panel trống!"}), 400
         
-    import requests as _req
     import urllib.parse
     
     old_msg_id = panel.get("message_id")
     if old_msg_id:
         try:
-            _req.delete(
+            requests.delete(
                 f"https://discord.com/api/v10/channels/{panel['channel_id']}/messages/{old_msg_id}",
                 headers={"Authorization": f"Bot {config.TOKEN}"},
                 timeout=5
@@ -384,7 +384,7 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
             pass
             
     try:
-        resp = _req.post(
+        resp = requests.post(
             f"https://discord.com/api/v10/channels/{panel['channel_id']}/messages",
             headers={"Authorization": f"Bot {config.TOKEN}",
                      "Content-Type": "application/json"},
@@ -492,8 +492,7 @@ def send_test_card(guild_id: str):
         avatar_bytes = None
         if avatar_url:
             try:
-                import requests as _req
-                r = _req.get(avatar_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
+                r = requests.get(avatar_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
                 if r.status_code == 200:
                     avatar_bytes = r.content
             except Exception:
@@ -507,15 +506,14 @@ def send_test_card(guild_id: str):
 
         if bg_url:
             try:
-                import requests as _req
-                r = _req.get(bg_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
+                r = requests.get(bg_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
                 if r.status_code == 200:
                     bg_bytes = r.content
             except Exception:
                 pass
 
         try:
-            from bot.card_generator import _render_card
+            from card_generator import _render_card
             if card_type == "welcome":
                 buf = _render_card(
                     avatar_bytes  = avatar_bytes,
@@ -543,7 +541,6 @@ def send_test_card(guild_id: str):
 
     # ── Send to Discord ────────────────────────────────────────────────────
     try:
-        import requests as _req
         req_kwargs = {
             "headers": {"Authorization": f"Bot {config.TOKEN}"},
             "data": {"content": content_msg},
@@ -552,7 +549,7 @@ def send_test_card(guild_id: str):
         if buf:
             req_kwargs["files"] = {"files[0]": (f"{card_type}.png", buf, "image/png")}
 
-        resp = _req.post(
+        resp = requests.post(
             f"https://discord.com/api/v10/channels/{channel_id}/messages",
             **req_kwargs
         )

@@ -204,7 +204,7 @@ class Leveling(commands.Cog):
         
         # Try to generate rank card
         try:
-            from bot.card_generator import generate_rank_card
+            from card_generator import generate_rank_card
             buf = await generate_rank_card(member, xp, level, rank_pos, next_level_xp, prev_level_xp)
             if buf:
                 file = discord.File(fp=buf, filename="rank.png")

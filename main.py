@@ -18,6 +18,13 @@ import subprocess
 import signal
 import asyncio
 
+# Force UTF-8 output on all platforms (prevents UnicodeEncodeError on Windows cp1252)
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except AttributeError:
+    pass  # Python <3.7 fallback
+
 # Setup sys.path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
@@ -89,9 +96,9 @@ def stop_all():
                     subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
                 else:
                     os.kill(pid, signal.SIGTERM)
-                print(f" - Đã dừng {name} (PID {pid})")
+                print(f" - Stopped {name} (PID {pid})")
             except Exception as e:
-                print(f" - Lỗi khi dừng {name}: {e}")
+                print(f" - Error stopping {name}: {e}")
         _remove_pid(pid_file)
 
     # Tắt watchdog / process con (loại trừ PID của chính tiến trình hiện tại)
@@ -107,7 +114,7 @@ def stop_all():
             pass
         subprocess.run("termux-wake-unlock 2>/dev/null", shell=True)
 
-    print("✅ Tất cả dịch vụ đã dừng thành công.")
+    print("[Main] All services stopped successfully.")
 
 
 def print_status():
@@ -117,9 +124,12 @@ def print_status():
     bot_pid = _read_pid(PID_BOT)
     dash_pid = _read_pid(PID_DASH)
 
-    print(f"🟢 Redis:      {'Đang chạy (PID ' + str(redis_pid) + ')' if _is_pid_running(redis_pid) else '🔴 Không chạy'}")
-    print(f"🟢 Bot:        {'Đang chạy (PID ' + str(bot_pid) + ')' if _is_pid_running(bot_pid) else '🔴 Không chạy'}")
-    print(f"🟢 Dashboard:  {'Đang chạy (PID ' + str(dash_pid) + ')' if _is_pid_running(dash_pid) else '🔴 Không chạy'}")
+    redis_status = f"RUNNING (PID {redis_pid})" if _is_pid_running(redis_pid) else "STOPPED"
+    bot_status   = f"RUNNING (PID {bot_pid})" if _is_pid_running(bot_pid) else "STOPPED"
+    dash_status  = f"RUNNING (PID {dash_pid})" if _is_pid_running(dash_pid) else "STOPPED"
+    print(f"  Redis:     {redis_status}")
+    print(f"  Bot:       {bot_status}")
+    print(f"  Dashboard: {dash_status}")
 
 
 def run_only_bot():
@@ -205,14 +215,12 @@ def start_all():
 
 
 def run_system_test():
+    print("[Tester] Running Self-Diagnostic Tester...")
     try:
-        print("[Tester] Đang chạy hệ thống tự kiểm thử (Self-Diagnostic Tester)...")
-    except Exception:
-        print("[Tester] Running Self-Diagnostic Tester...")
-    try:
-        from bot.tester import SystemTester
-    except ModuleNotFoundError:
         from tester import SystemTester
+    except ImportError:
+        print("[Tester] WARNING: tester.py not found, skipping self-test.")
+        return True
     success = asyncio.run(SystemTester.run_all_tests())
     return success
 
