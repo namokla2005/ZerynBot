@@ -18,6 +18,8 @@ from discord.ext import commands
 import config
 from database import init_db
 
+from logging.handlers import RotatingFileHandler
+
 # ─── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -25,6 +27,20 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("BotV2")
+
+try:
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "bot.log")
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=2 * 1024 * 1024, backupCount=2, encoding="utf-8"
+    )
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    )
+    logger.addHandler(file_handler)
+except Exception as exc:
+    sys.stderr.write(f"Failed to setup RotatingFileHandler: {exc}\n")
 
 
 class DiscordWebhookHandler(logging.Handler):

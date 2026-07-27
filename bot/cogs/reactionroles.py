@@ -1,6 +1,9 @@
+import logging
 import discord
 from discord.ext import commands
 import database as db
+
+log = logging.getLogger("BotV2.ReactionRoles")
 
 class ReactionRoles(commands.Cog):
     def __init__(self, bot):
@@ -40,9 +43,9 @@ class ReactionRoles(commands.Cog):
         try:
             await member.add_roles(role, reason="Reaction Role Add")
         except discord.Forbidden:
-            print(f"Reaction Roles: Missing permissions to add role {role.name} in {guild.name}")
+            log.warning(f"Reaction Roles: Missing permissions to add role {role.name} in {guild.name}")
         except Exception as e:
-            print(f"Reaction Roles: Failed to add role. {e}")
+            log.warning(f"Reaction Roles: Failed to add role. {e}")
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
@@ -75,9 +78,9 @@ class ReactionRoles(commands.Cog):
         try:
             await member.remove_roles(role, reason="Reaction Role Remove")
         except discord.Forbidden:
-            print(f"Reaction Roles: Missing permissions to remove role {role.name} in {guild.name}")
+            log.warning(f"Reaction Roles: Missing permissions to remove role {role.name} in {guild.name}")
         except Exception as e:
-            print(f"Reaction Roles: Failed to remove role. {e}")
+            log.warning(f"Reaction Roles: Failed to remove role. {e}")
 
 async def setup(bot):
     await bot.add_cog(ReactionRoles(bot))

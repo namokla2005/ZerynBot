@@ -6,11 +6,14 @@ Uses global on_interaction listener to dynamically route button clicks.
 import asyncio
 import os
 import sys
+import logging
 import discord
 from discord.ext import commands
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import database as db
+
+log = logging.getLogger("BotV2.Ticket")
 
 
 class Ticket(commands.Cog, name="Tickets"):
@@ -203,7 +206,7 @@ class Ticket(commands.Cog, name="Tickets"):
             try:
                 await channel.delete(reason=f"Ticket closed by {member.name}")
             except Exception as e:
-                print(f"[Ticket] Error deleting channel: {e}")
+                log.warning(f"[Ticket] Error deleting channel: {e}")
 
 
 async def setup(bot: commands.Bot):

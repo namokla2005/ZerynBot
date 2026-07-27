@@ -8,14 +8,16 @@ sleep 10
 # Bật wakelock để Termux luôn chạy nền
 termux-wake-lock
 
-# Chuyển đến thư mục bot và chạy script khởi động
-# LƯU Ý: Bạn có thể cần sửa lại đường dẫn nếu bot không nằm ở /storage/emulated/0/Project/Discord Bots/v2
-BOT_DIR="/storage/emulated/0/Project/Discord Bots/v2"
+# Chuyển đến thư mục bot (tự động nhận diện đường dẫn động hoặc fallback)
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+if [ ! -f "$DIR/start.sh" ]; then
+    DIR="/storage/emulated/0/Project/Discord Bots/v2"
+fi
 
-if [ -d "$BOT_DIR" ]; then
-    cd "$BOT_DIR"
+if [ -d "$DIR" ]; then
+    cd "$DIR"
     # Gọi script start.sh
     bash start.sh > data/boot.log 2>&1
 else
-    echo "Không tìm thấy thư mục bot ở $BOT_DIR" > ~/bot_boot_error.log
+    echo "Không tìm thấy thư mục bot ở $DIR" > ~/bot_boot_error.log
 fi

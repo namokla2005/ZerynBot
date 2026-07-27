@@ -3,8 +3,11 @@ Cog: Automod
 """
 import sys, os, time, re
 import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
+
+logger = logging.getLogger("BotV2.AutoMod")
 
 import discord
 from discord import app_commands
@@ -149,7 +152,7 @@ class Automod(commands.Cog):
             except discord.Forbidden:
                 pass
             except Exception as e:
-                print(f"[Automod] Error timeout member: {e}")
+                logger.warning(f"[Automod] Error timeout member: {e}")
 
             # Send to Log Channel and Ping Role
             log_channel_id = settings.get("log_channel_id")
