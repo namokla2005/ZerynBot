@@ -27,7 +27,7 @@ FFMPEG_BEFORE = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -prob
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
-MAX_PLAYERS = 14  # Giới hạn an toàn số player đồng thời
+MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet 4GB, 10+ server)
 MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU tablet)
 
 YDL_OPTS = {
@@ -42,6 +42,9 @@ YDL_OPTS = {
 # ─── URL Cache (TTL 5 phút) ────────────────────────────────────────────────────
 _url_cache: dict[str, tuple] = {}  # {cache_key: (info_dict, expire_at)}
 _cache_lock = asyncio.Lock()
+
+# Giới hạn số yt-dlp extract chạy đồng thời (bảo vệ CPU tablet)
+_extract_semaphore = asyncio.Semaphore(3)
 
 
 def _fmt_duration(seconds) -> str:
@@ -86,9 +89,10 @@ async def extract_info(query: str) -> dict | None:
             else:
                 _url_cache.pop(key, None)
 
-    # 3. Chạy yt-dlp trong thread pool
-    loop = asyncio.get_running_loop()
-    info = await loop.run_in_executor(None, _extract_sync, query)
+    # 3. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
+    async with _extract_semaphore:
+        loop = asyncio.get_running_loop()
+        info = await loop.run_in_executor(None, _extract_sync, query)
 
     if info:
         # Lưu vào Redis
