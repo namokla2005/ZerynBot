@@ -243,6 +243,13 @@ def init_db():
                 req_account_age_days INTEGER DEFAULT 0,
                 participants_json    TEXT DEFAULT '[]'
             );
+
+            CREATE TABLE IF NOT EXISTS guild_blacklist (
+                guild_id   TEXT PRIMARY KEY,
+                guild_name TEXT,
+                reason     TEXT,
+                kicked_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()

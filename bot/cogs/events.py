@@ -61,8 +61,13 @@ class Events(commands.Cog):
     async def on_guild_join(self, guild: discord.Guild):
         import logging
         logger = logging.getLogger("BotV2")
-        # ─ Kiểm tra blacklist trước ─
-        if await async_is_blacklisted(str(guild.id)):
+        # ─ Kiểm tra blacklist trước (wrap try/except: đề phòng DB chưa migrate bảng guild_blacklist) ─
+        try:
+            blacklisted = await async_is_blacklisted(str(guild.id))
+        except Exception as e:
+            logger.warning(f"[Events] Không kiểm tra được blacklist cho guild {guild.id}: {e}")
+            blacklisted = False
+        if blacklisted:
             logger.warning(f"[Events] Server ‘{guild.name}’ ({guild.id}) đã bị blacklist. Tự động rời...")
             try:
                 # Thông báo trước khi rời (nếu có system channel)
