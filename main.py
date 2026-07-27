@@ -241,7 +241,6 @@ def main():
         stop_all()
         time.sleep(2)
         print("\n[Main] Restarting system...")
-        run_system_test()
         start_all()
         sys.exit(0)
     elif "--bot" in args:
@@ -250,7 +249,6 @@ def main():
         run_only_dashboard()
     else:
         # Default start all
-        run_system_test()
         start_all()
 
 
