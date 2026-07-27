@@ -28,6 +28,7 @@ FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
 MAX_PLAYERS = 14  # Giới hạn an toàn số player đồng thời
+MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU tablet)
 
 YDL_OPTS = {
     "format": "bestaudio[acodec=opus]/bestaudio/best",
@@ -504,6 +505,13 @@ class Music(commands.Cog, name="Music"):
     def __init__(self, bot: commands.Bot):
         self.bot     = bot
         self._players: dict[int, MusicPlayer] = {}
+        self._bg_tasks: set[asyncio.Task] = set()
+
+    def cog_unload(self):
+        """Cancel tất cả background playlist-load tasks khi cog bị unload."""
+        for task in self._bg_tasks:
+            task.cancel()
+        self._bg_tasks.clear()
 
     # ── Helpers ────────────────────────────────────────────────────────────
     def _get(self, guild_id: int) -> MusicPlayer | None:
@@ -756,8 +764,8 @@ class Music(commands.Cog, name="Music"):
         await ctx.send(f"✅ Đã thêm **{info.get('title')}** vào playlist **{name}**!")
 
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
-        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ."""
-        for t in tracks:
+        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ (giới hạn MAX_BG_LOAD bài)."""
+        for t in tracks[:MAX_BG_LOAD]:
             query = t.get("webpage_url") or t.get("title", "")
             try:
                 info = await extract_info(query)
@@ -770,6 +778,8 @@ class Music(commands.Cog, name="Music"):
             except Exception as e:
                 log.warning(f"[Music] Background load track error: {e}")
             await asyncio.sleep(0.2)
+        if len(tracks) > MAX_BG_LOAD:
+            log.info(f"[Music] Playlist background load: chỉ nạp {MAX_BG_LOAD}/{len(tracks)} bài (giới hạn bảo vệ)")
 
     @playlist_group.command(name="play", description="Phát toàn bộ playlist")
     @app_commands.describe(name="Tên của playlist")
@@ -807,7 +817,9 @@ class Music(commands.Cog, name="Music"):
 
         # 2. Nạp ngầm các bài còn lại ở background task
         if len(tracks) > 1:
-            asyncio.create_task(self._load_playlist_background(player, tracks[1:], ctx.author))
+            task = asyncio.create_task(self._load_playlist_background(player, tracks[1:], ctx.author))
+            self._bg_tasks.add(task)
+            task.add_done_callback(self._bg_tasks.discard)
 
     @playlist_group.command(name="show", description="Xem danh sách bài trong playlist")
     @app_commands.describe(name="Tên của playlist")

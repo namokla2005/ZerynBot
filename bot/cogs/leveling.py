@@ -1,8 +1,10 @@
 """
 Cog: Leveling (v2)
 """
-import sys, os, time, math, random
+import sys, os, time, math, random, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+log = logging.getLogger("BotV2.Leveling")
 
 import discord
 from discord.ext import commands, tasks
@@ -132,47 +134,59 @@ class Leveling(commands.Cog):
         if new_level > old_level:
             await self._handle_level_up(message.author, old_level, new_level, settings, current_channel=message.channel)
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=90)
     async def voice_xp_task(self):
+        # Lặp qua từng guild, nhưng skip nhanh nếu không có voice channel nào đủ người.
+        # Mỗi user hợp lệ được thu thập rồi đọc level 1 lần (batch), ghi 1 lần update riêng.
         for guild in self.bot.guilds:
-            guild_id = str(guild.id)
-            if not await async_is_module_enabled(guild_id, "leveling"):
-                continue
-                
-            settings = await async_get_leveling_settings(guild_id)
-            voice_xp_gain = settings.get("voice_xp", 10)
-            if voice_xp_gain <= 0:
-                continue
-                
-            now = time.time()
-            
-            for vc in guild.voice_channels:
-                # Need at least 2 people in the voice channel to get XP
-                if len(vc.members) < 2:
+            try:
+                guild_id = str(guild.id)
+
+                # Skip nhanh: không có voice channel nào có >=2 thành viên → bỏ qua cả guild
+                if not any(len(vc.members) >= 2 for vc in guild.voice_channels):
                     continue
-                    
-                for member in vc.members:
-                    if member.bot:
+
+                if not await async_is_module_enabled(guild_id, "leveling"):
+                    continue
+
+                settings = await async_get_leveling_settings(guild_id)
+                voice_xp_gain = settings.get("voice_xp", 10)
+                if voice_xp_gain <= 0:
+                    continue
+
+                now = time.time()
+
+                # Thu thập tất cả member hợp lệ trong guild (không phải bot, không mute/deaf/afk)
+                eligible: list[discord.Member] = []
+                for vc in guild.voice_channels:
+                    if len(vc.members) < 2:
                         continue
-                        
-                    # Ignore muted, deafened, or afk users
-                    if member.voice.self_mute or member.voice.self_deaf or member.voice.mute or member.voice.deaf or member.voice.afk:
-                        continue
-                        
+                    for member in vc.members:
+                        if member.bot:
+                            continue
+                        v = member.voice
+                        if v is None or v.self_mute or v.self_deaf or v.mute or v.deaf or v.afk:
+                            continue
+                        eligible.append(member)
+
+                for member in eligible:
                     user_data = await async_get_user_level(guild_id, str(member.id))
                     last_voice_at = user_data.get("last_voice_xp_at", 0)
-                    
-                    if now - last_voice_at < 50: # Give a 10s buffer just in case
+
+                    if now - last_voice_at < 80:  # buffer 10s dưới interval 90s
                         continue
-                        
+
                     new_xp = user_data["xp"] + voice_xp_gain
                     old_level = user_data["level"]
                     new_level = calc_level_from_xp(new_xp)
-                    
+
                     await async_update_user_xp(guild_id, str(member.id), new_xp, new_level, last_voice_xp_at=now)
-                    
+
                     if new_level > old_level:
-                        await self._handle_level_up(member, old_level, new_level, settings, current_channel=vc)
+                        await self._handle_level_up(member, old_level, new_level, settings, current_channel=member.voice.channel)
+            except Exception as e:
+                log.warning(f"[Leveling] voice_xp_task lỗi ở guild {getattr(guild, 'id', '?')}: {e}")
+                continue
                         
     @voice_xp_task.before_loop
     async def before_voice_xp_task(self):

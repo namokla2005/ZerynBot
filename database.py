@@ -719,13 +719,20 @@ def update_reaction_roles_message_id(panel_id: int, message_id: str):
 # ─── Async helpers (discord.py / bot) ─────────────────────────────────────────
 
 async def async_get_guild_settings(guild_id: str) -> dict:
+    cache_key = f"settings:{guild_id}"
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM guilds WHERE guild_id = ?", (guild_id,)
         ) as cur:
             row = await cur.fetchone()
-    return dict(row) if row else {"guild_id": guild_id, **_DEFAULT_SETTINGS}
+    result = dict(row) if row else {"guild_id": guild_id, **_DEFAULT_SETTINGS}
+    await cache.aset(cache_key, result, ttl=300)
+    return result
 
 async def async_get_logger_settings(guild_id: str) -> dict:
     cache_key = f"logger_settings:{guild_id}"
@@ -796,13 +803,29 @@ def get_guild_stats(guild_id: str, days: int = 7) -> list:
         return [_row_to_dict(row) for row in cur.fetchall()]
 
 async def async_is_module_enabled(guild_id: str, module_name: str) -> bool:
+    # Đọc cả dict modules (đã được cache ở get_guild_modules / set_module) để tận dụng
+    # cache key "modules:{guild_id}" dùng chung giữa sync (dashboard) và async (bot).
+    modules = await async_get_guild_modules(guild_id)
+    return modules.get(module_name, True)  # Default: enabled
+
+
+async def async_get_guild_modules(guild_id: str) -> Dict[str, bool]:
+    cache_key = f"modules:{guild_id}"
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT enabled FROM guild_modules WHERE guild_id = ? AND module_name = ?",
-            (guild_id, module_name),
+            "SELECT module_name, enabled FROM guild_modules WHERE guild_id = ?",
+            (guild_id,),
         ) as cur:
-            row = await cur.fetchone()
-    return bool(row[0]) if row else True  # Default: enabled
+            rows = await cur.fetchall()
+    result = {m: True for m in DEFAULT_MODULES}
+    for module_name, enabled in rows:
+        result[module_name] = bool(enabled)
+    await cache.aset(cache_key, result, ttl=300)
+    return result
 
 async def async_cache_guild(guild_id: str, name: str, icon: Optional[str], member_count: int):
     async with aiosqlite.connect(DB_PATH) as db:
