@@ -4,8 +4,9 @@ app.py — Flask dashboard for Discord Bot v2.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from flask import Flask, render_template, redirect, url_for, session, request, flash
-from datetime import datetime
+from flask import Flask, render_template, redirect, url_for, session, request, flash, jsonify
+from datetime import datetime, timezone
+import json
 import config
 import database as db
 import requests
@@ -119,6 +120,25 @@ def callback():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+# ─── Health-check (Lớp 2: watchdog curl endpoint này để biết bot khỏe) ─────────
+# Route PUBLIC (không login). Đọc data/health.json do bot ghi.
+# Trả 200 khi online:true, 503 khi online:false → curl -sf chỉ OK khi bot khỏe.
+
+@app.route("/health")
+def health():
+    health_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "health.json",
+    )
+    data = {"online": False, "pid": None, "last_ready": None, "last_change": None}
+    try:
+        with open(health_file, "r", encoding="utf-8") as f:
+            data.update(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass  # bot chưa ghi file / file hỏng → offline
+    status_code = 200 if data.get("online") else 503
+    return jsonify(data), status_code
 
 # ─── Routes: Dashboard ─────────────────────────────────────────────────────────
 
