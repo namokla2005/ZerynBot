@@ -6,9 +6,11 @@ import asyncio
 import logging
 import sys
 import os
+import json
 import time
 import threading
 from collections import defaultdict
+from datetime import datetime, timezone
 
 # Add v2/ to path so we can import shared modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -111,8 +113,93 @@ class BotV2(commands.Bot):
             if expired:
                 logger.debug(f"[Cooldown] Cleaned {len(expired)} expired entries")
 
+    # ─── Health-check (Lớp 1: tự phát hiện & thoát khi offline lâu) ─────────────
+    # Bot ghi data/health.json để dashboard trả /health. Khi bot offline quá
+    # OFFLINE_THRESHOLD giây, _offline_watchdog_task sẽ close() cho watchdog
+    # bên ngoài restart → bot tự online lại sau mất mạng.
+    HEALTH_FILE = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "health.json",
+    )
+    OFFLINE_THRESHOLD = 5 * 60  # 5 phút: đủ thời gian cho wifi khôi phục tạm thời
+
+    def _write_health_sync(self, online: bool):
+        """Ghi health.json dạng atomic (chạy trong executor để không block loop)."""
+        try:
+            os.makedirs(os.path.dirname(self.HEALTH_FILE), exist_ok=True)
+            now_iso = datetime.now(timezone.utc).isoformat()
+            data = {
+                "online": online,
+                "last_ready": getattr(self, "_last_ready_iso", now_iso if online else None),
+                "last_change": now_iso,
+                "pid": os.getpid(),
+            }
+            tmp = self.HEALTH_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, self.HEALTH_FILE)  # atomic trên cùng filesystem
+        except Exception as e:
+            logger.debug(f"[Health] write failed: {e}")
+
+    async def _write_health(self, online: bool):
+        """Wrapper async: đẩy ghi file sang thread pool."""
+        if online:
+            self._last_ready_iso = datetime.now(timezone.utc).isoformat()
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._write_health_sync, online)
+
+    async def on_disconnect(self):
+        """discord.py gọi khi mất kết nối gateway. Ghi offline ngay."""
+        logger.warning("⚠️  Mất kết nối Discord gateway (on_disconnect).")
+        await self._write_health(False)
+
+    async def on_resumed(self):
+        """discord.py gọi khi reconnect thành công (không qua on_ready)."""
+        logger.info("🔄  Đã kết nối lại Discord (on_resumed).")
+        await self._write_health(True)
+
+    async def _offline_watchdog_task(self):
+        """Kiểm tra mỗi 60s: nếu bot chưa ready quá OFFLINE_THRESHOLD giây → close().
+
+        Khi close(), process exit != 0 → watchdog bên ngoài thấy và restart.
+        Đây là cơ chế tự cứu khi discord.py reconnect thất bại vĩnh viễn.
+        KHÔNG dùng before_loop/wait_until_ready vì mục đích chính là phát hiện khi chưa ready.
+        """
+        disconnected_at = None
+        while not self.is_closed():
+            await asyncio.sleep(60)
+            if self.is_ready():
+                disconnected_at = None  # reset khi đang khỏe
+                continue
+            # Chưa ready / đang offline
+            if disconnected_at is None:
+                disconnected_at = time.time()
+                logger.warning(f"[Health] Bot chưa ready — bắt đầu đếm thời gian offline.")
+            else:
+                elapsed = time.time() - disconnected_at
+                logger.warning(
+                    f"[Health] Bot offline đã {int(elapsed)}s / {self.OFFLINE_THRESHOLD}s"
+                )
+                if elapsed >= self.OFFLINE_THRESHOLD:
+                    logger.error(
+                        f"[Health] Bot offline quá {self.OFFLINE_THRESHOLD}s — "
+                        f"tự close() để watchdog restart."
+                    )
+                    await self._write_health(False)
+                    try:
+                        await self.close()
+                    except Exception as e:
+                        logger.error(f"[Health] close() error: {e}")
+                    return
+
     async def setup_hook(self):
         """Load all cogs, then sync slash commands if --sync flag is passed."""
+
+        # ─── Health-check init: bot đang starting → ghi offline ──
+        await self._write_health(False)
+        # Khởi động task nội bộ phát hiện offline lâu
+        self._health_task = asyncio.create_task(self._offline_watchdog_task())
+        # ─────────────────────────────────────────────────────────
 
         # ─── Global Cooldown Check ──────────────────────────────
         async def global_cooldown_check(interaction: discord.Interaction) -> bool:
@@ -178,6 +265,7 @@ class BotV2(commands.Bot):
             )
         )
         logger.info(f"🔄  Ready/Reconnected: {self.user} | {len(self.guilds)} servers")
+        await self._write_health(True)  # Health-check: bot đã online
 
     async def on_command_error(self, ctx: commands.Context, error: Exception):
         if isinstance(error, commands.CommandNotFound):
