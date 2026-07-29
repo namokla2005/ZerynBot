@@ -1,6 +1,14 @@
 #!/bin/bash
-# termux_boot.sh — Copy file này vào ~/.termux/boot/ để chạy tự động khi tablet khởi động
-# Yêu cầu cài ứng dụng "Termux:Boot" từ F-Droid
+# termux_boot.sh - Copy file này vào ~/.termux/boot/ để chạy tự động khi tablet khởi động
+# Yêu cầu cài ứng dụng "Termux:BOOT" từ F-Droid
+#
+# ─── LỚP PHÒNG THỦ 3/3 (dự phòng khi tablet REBOOT hoàn toàn) ─────────────────
+#   - Lớp 1 (bot.py): bot tự close() khi offline >5 phút → watchdog restart
+#   - Lớp 2 (watchdog.sh): health-check + exit-code → restart khi crash/treo
+#   - LỚP 3 (file này): CHỈ chạy khi tablet REBOOT HOÀN TOÀN
+#     (mất điện lâu → pin kiệt → tablet tắt → có điện khởi động lại).
+#     Nếu chỉ mất wifi rồi có lại (tablet vẫn sống) → KHÔNG cần file này,
+#     vì Lớp 1+2 đã tự lo restart bot.
 
 # Đợi hệ thống ổn định một chút
 sleep 10
