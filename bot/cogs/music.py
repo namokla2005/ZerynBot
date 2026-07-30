@@ -796,9 +796,17 @@ class Music(commands.Cog, name="Music"):
                 f"💡 Mẹo: dùng `/lofi youtube` nếu muốn Lofi Girl (có thể bị chặn)."
             )
         else:
-            # YouTube path: dùng yt-dlp với config mới + FFmpeg headers
-            await ctx.send(f"⏳ Đang tải **{stream['name']}** (YouTube)...")
-            await ctx.invoke(self.play, query=stream["url"])
+            # YouTube path: dùng yt-dlp với FFmpeg headers
+            info = await extract_info(stream["url"])
+            if not info:
+                await ctx.send(f"❌ Không thể tải nguồn YouTube Lofi Girl. Vui lòng thử lại sau hoặc dùng `/lofi source:soma`!")
+                return
+            track = Track(info, requester=ctx.author)
+            await player.add_and_play(track)
+            await ctx.send(
+                f"✅ Đang phát **{stream['name']}** (YouTube) 24/7!\n"
+                f"💡 Mẹo: dùng `/lofi source:soma` nếu muốn nguồn SomaFM Groove Salad siêu ổn định."
+            )
 
     # ── Playlist commands ──────────────────────────────────────────────────
     @commands.hybrid_group(name="playlist", description="Quản lý playlist nhạc")
