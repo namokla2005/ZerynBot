@@ -10,6 +10,7 @@ Tối ưu:
   - FFmpeg flags tối ưu cho ARM (-threads 1, -b:a 96k)
 """
 import asyncio
+import os
 import time
 import logging
 
@@ -23,12 +24,32 @@ from cache import cache
 log = logging.getLogger("BotV2")
 
 # ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
-FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+# Thêm -headers Referer/Origin cho googlevideo → giảm 'Connection reset by peer' và 403
+FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -headers "Referer: https://www.youtube.com/\r\nOrigin: https://www.youtube.com\r\n"'
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
 MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet 4GB, 10+ server)
 MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU tablet)
+
+# ─── Stream lofi 24/7 ──────────────────────────────────────────────────────────
+# SomaFM = HTTP/Icecast trực tiếp: KHÔNG BAO GIỜ bị 403, không cần yt-dlp, ít CPU.
+# YouTube = live stream (cần yt-dlp + config mới, có thể bị chặn nếu YouTube đổi).
+LOFI_STREAMS = {
+    "soma": {
+        "name": "SomaFM Groove Salad",
+        "url": "https://ice1.somafm.com/groovesalad-128-mp3",
+        "title": "🎧 SomaFM Groove Salad (Chill/Lofi)",
+    },
+    "youtube": {
+        "name": "YouTube Lofi Girl",
+        "url": "https://www.youtube.com/@LofiGirl/live",
+        "title": "🎧 Lofi Girl 24/7 (YouTube)",
+    },
+}
+
+# Cookie file cho yt-dlp (tùy chọn, giúp live stream ít bị chặn). None = bỏ qua.
+_COOKIE_FILE = os.environ.get("YTDLP_COOKIEFILE", None)
 
 YDL_OPTS = {
     "format": "bestaudio[acodec=opus]/bestaudio/best",
@@ -37,7 +58,20 @@ YDL_OPTS = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
+    # ── Cho live stream YouTube (tránh 403) ──────────────────────────────────
+    # Dùng client android + web_safari: ít bị YouTube chặn hơn web mặc định.
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android", "web_safari"],
+            "player_skip": ["webpage"],  # bỏ fetch webpage → nhanh hơn
+        }
+    },
+    "nocheckcertificate": True,
+    "ignoreerrors": True,
 }
+# Cookie hỗ trợ (chỉ thêm key nếu có file, tránh yt-dlp báo lỗi file không tồn tại)
+if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
+    YDL_OPTS["cookiefile"] = _COOKIE_FILE
 
 # ─── URL Cache (TTL 5 phút) ────────────────────────────────────────────────────
 _url_cache: dict[str, tuple] = {}  # {cache_key: (info_dict, expire_at)}
@@ -717,9 +751,39 @@ class Music(commands.Cog, name="Music"):
         player.skip()
         await ctx.send("⏪ Đã phát lại từ đầu!", ephemeral=True)
 
-    @commands.hybrid_command(name="lofi", description="Phát kênh Lofi Girl 24/7")
-    async def lofi(self, ctx: commands.Context):
-        await ctx.invoke(self.play, query="https://www.youtube.com/@LofiGirl/live")
+    @commands.hybrid_command(name="lofi", description="Phát nhạc Lofi 24/7 (mặc định SomaFM, ổn định)")
+    @app_commands.describe(source="Nguồn lofi (mặc định: soma — ổn định, không bị chặn)")
+    @app_commands.choices(source=[
+        app_commands.Choice(name="SomaFM Groove Salad (ổn định 24/7)", value="soma"),
+        app_commands.Choice(name="YouTube Lofi Girl (có thể bị chặn)", value="youtube"),
+    ])
+    async def lofi(self, ctx: commands.Context, source: app_commands.Choice[str] = None):
+        await ctx.defer()
+        src_key = source.value if source else "soma"
+        stream = LOFI_STREAMS.get(src_key, LOFI_STREAMS["soma"])
+
+        player = await self._ensure(ctx)
+        if not player:
+            return
+
+        if src_key == "soma":
+            # Stream HTTP trực tiếp (Icecast): tạo Track giả, KHÔNG cần yt-dlp
+            # → không bao giờ bị 403, tốn ít CPU/RAM, lý tưởng cho tablet 24/7
+            track = Track(
+                {"title": stream["title"], "url": stream["url"], "webpage_url": stream["url"], "duration": -1},
+                requester=ctx.author,
+            )
+            track.stream_url = stream["url"]
+            track.stream_expire = float("inf")  # stream sống mãi, không expire
+            await player.add_and_play(track)
+            await ctx.send(
+                f"✅ Đang phát **{stream['name']}** 24/7!\n"
+                f"💡 Mẹo: dùng `/lofi youtube` nếu muốn Lofi Girl (có thể bị chặn)."
+            )
+        else:
+            # YouTube path: dùng yt-dlp với config mới + FFmpeg headers
+            await ctx.send(f"⏳ Đang tải **{stream['name']}** (YouTube)...")
+            await ctx.invoke(self.play, query=stream["url"])
 
     # ── Playlist commands ──────────────────────────────────────────────────
     @commands.hybrid_group(name="playlist", description="Quản lý playlist nhạc")
