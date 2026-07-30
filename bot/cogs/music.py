@@ -48,6 +48,20 @@ LOFI_STREAMS = {
     },
 }
 
+# ─── Autocomplete cho /lofi (module-level, dùng được bởi @app_commands.autocomplete) ──
+async def lofi_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Gợi ý dropdown SomaFM / YouTube cho slash command /lofi."""
+    choices = [
+        app_commands.Choice(name="🎧 SomaFM Groove Salad (ổn định 24/7)", value="soma"),
+        app_commands.Choice(name="📺 YouTube Lofi Girl (có thể bị chặn)", value="youtube"),
+    ]
+    if current:
+        choices = [c for c in choices if current.lower() in c.value.lower() or current.lower() in c.name.lower()]
+    return choices[:25]
+
 # Cookie file cho yt-dlp (tùy chọn, giúp live stream ít bị chặn). None = bỏ qua.
 _COOKIE_FILE = os.environ.get("YTDLP_COOKIEFILE", None)
 
@@ -753,13 +767,10 @@ class Music(commands.Cog, name="Music"):
 
     @commands.hybrid_command(name="lofi", description="Phát nhạc Lofi 24/7 (mặc định SomaFM, ổn định)")
     @app_commands.describe(source="Nguồn lofi (mặc định: soma — ổn định, không bị chặn)")
-    @app_commands.choices(source=[
-        app_commands.Choice(name="SomaFM Groove Salad (ổn định 24/7)", value="soma"),
-        app_commands.Choice(name="YouTube Lofi Girl (có thể bị chặn)", value="youtube"),
-    ])
+    @app_commands.autocomplete(source=lofi_autocomplete)
     async def lofi(self, ctx: commands.Context, source: str = None):
         await ctx.defer()
-        # Hybrid command: slash = Choice value (str), prefix = raw string trực tiếp
+        # Hybrid command: slash = autocomplete value (str), prefix = raw string trực tiếp
         src_key = source if source else "soma"
         if src_key not in LOFI_STREAMS:
             await ctx.send(f"❌ Nguồn không hợp lệ. Dùng: `soma` hoặc `youtube`")

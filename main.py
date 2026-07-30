@@ -8,7 +8,7 @@ Hỗ trợ các lệnh:
   python main.py --status     (Kiểm tra trạng thái các services)
   python main.py --bot        (Chỉ chạy Bot Discord)
   python main.py --dashboard  (Chỉ chạy Web Dashboard)
-  python main.py --sync       (Khởi chạy Bot & đồng bộ Slash Commands)
+  python main.py --sync       (Chạy Bot & đồng bộ lại Slash Commands với Discord)
 """
 
 import sys
@@ -244,6 +244,10 @@ def main():
         start_all()
         sys.exit(0)
     elif "--bot" in args:
+        run_only_bot()
+    elif "--sync" in args:
+        # Chạy bot + đồng bộ slash commands (đăng ký lại lên Discord)
+        sys.argv.append("--sync")  # truyền tiếp cho bot.py setup_hook()
         run_only_bot()
     elif "--dashboard" in args:
         run_only_dashboard()
