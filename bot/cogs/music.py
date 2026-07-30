@@ -757,9 +757,13 @@ class Music(commands.Cog, name="Music"):
         app_commands.Choice(name="SomaFM Groove Salad (ổn định 24/7)", value="soma"),
         app_commands.Choice(name="YouTube Lofi Girl (có thể bị chặn)", value="youtube"),
     ])
-    async def lofi(self, ctx: commands.Context, source: app_commands.Choice[str] = None):
+    async def lofi(self, ctx: commands.Context, source: str = None):
         await ctx.defer()
-        src_key = source.value if source else "soma"
+        # Hybrid command: slash = Choice value (str), prefix = raw string trực tiếp
+        src_key = source if source else "soma"
+        if src_key not in LOFI_STREAMS:
+            await ctx.send(f"❌ Nguồn không hợp lệ. Dùng: `soma` hoặc `youtube`")
+            return
         stream = LOFI_STREAMS.get(src_key, LOFI_STREAMS["soma"])
 
         player = await self._ensure(ctx)
