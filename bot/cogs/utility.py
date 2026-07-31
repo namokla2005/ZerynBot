@@ -8,6 +8,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timezone
 import config
+from database import async_get_guild_settings
+from i18n import tr
 
 
 class HelpSelect(discord.ui.Select):
@@ -135,25 +137,28 @@ class Utility(commands.Cog):
         t1 = time.perf_counter()
         api = round((t1 - t0) * 1000)
 
+        guild_id = str(ctx.guild.id) if ctx.guild else ""
+        settings = await async_get_guild_settings(guild_id) if guild_id else {}
+
         if ws < 80:
-            quality = "🟢 Tuyệt vời"
+            quality = tr(settings, "utility.quality_excellent")
         elif ws < 150:
-            quality = "🟡 Tốt"
+            quality = tr(settings, "utility.quality_good")
         elif ws < 300:
-            quality = "🟠 Trung bình"
+            quality = tr(settings, "utility.quality_medium")
         else:
-            quality = "🔴 Kém"
+            quality = tr(settings, "utility.quality_poor")
 
         embed = discord.Embed(
-            title="🏓 Pong!",
+            title=tr(settings, "utility.ping_title"),
             color=config.COLOR_PING,
             timestamp=datetime.now(timezone.utc)
         )
-        embed.add_field(name="🌐 WebSocket", value=f"**{ws}** ms", inline=True)
-        embed.add_field(name="📡 API",       value=f"**{api}** ms", inline=True)
-        embed.add_field(name="📊 Chất lượng", value=quality, inline=True)
+        embed.add_field(name=f"🌐 {tr(settings, 'utility.ping_ws')}", value=f"**{ws}** ms", inline=True)
+        embed.add_field(name=f"📡 {tr(settings, 'utility.ping_api')}", value=f"**{api}** ms", inline=True)
+        embed.add_field(name=f"📊 {tr(settings, 'utility.ping_quality')}", value=quality, inline=True)
         embed.set_footer(
-            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            text=tr(settings, "common.requested_by", user=ctx.author.display_name),
             icon_url=ctx.author.display_avatar.url,
         )
         await ctx.reply(embed=embed)
@@ -184,26 +189,28 @@ class Utility(commands.Cog):
 
         bar_len   = 20
         filled    = round(human_pct / 100 * bar_len)
-        progress  = f"`{'█' * filled}{'░' * (bar_len - filled)}` {human_pct}% người"
+        progress  = f"`{'█' * filled}{'░' * (bar_len - filled)}` {human_pct}%"
+
+        settings = await async_get_guild_settings(str(guild.id))
 
         embed = discord.Embed(
-            title=f"👥 Thành viên — {guild.name}",
+            title=tr(settings, "utility.membercount_title", server=guild.name),
             color=config.COLOR_SUCCESS,
             timestamp=datetime.now(timezone.utc),
         )
         if guild.icon:
             embed.set_thumbnail(url=guild.icon.url)
 
-        embed.add_field(name="📊 Tổng",   value=f"**{total}**",              inline=True)
-        embed.add_field(name="👤 Người",  value=f"**{humans}** ({human_pct}%)", inline=True)
-        embed.add_field(name="🤖 Bot",    value=f"**{bots}** ({bot_pct}%)",    inline=True)
-        embed.add_field(name="📈 Tỉ lệ", value=progress,                      inline=False)
+        embed.add_field(name=f"📊 {tr(settings, 'utility.membercount_total')}",  value=f"**{total}**", inline=True)
+        embed.add_field(name=f"👤 {tr(settings, 'utility.membercount_humans')}", value=f"**{humans}** ({human_pct}%)", inline=True)
+        embed.add_field(name=f"🤖 {tr(settings, 'utility.membercount_bots')}",   value=f"**{bots}** ({bot_pct}%)", inline=True)
+        embed.add_field(name="📈 Tỉ lệ", value=progress, inline=False)
         embed.add_field(name="🟢 Online", value=f"**{online}**",  inline=True)
         embed.add_field(name="🌙 Idle",   value=f"**{idle}**",    inline=True)
         embed.add_field(name="🔴 DND",    value=f"**{dnd}**",     inline=True)
         embed.add_field(name="⚫ Offline", value=f"**{offline}**", inline=True)
         embed.set_footer(
-            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            text=tr(settings, "common.requested_by", user=ctx.author.display_name),
             icon_url=ctx.author.display_avatar.url,
         )
         await ctx.send(embed=embed)

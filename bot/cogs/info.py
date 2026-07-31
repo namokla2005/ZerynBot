@@ -9,6 +9,8 @@ from discord import app_commands
 from discord.ext import commands
 from datetime import datetime, timezone
 import config
+from database import async_get_guild_settings
+from i18n import tr
 
 
 class Info(commands.Cog):
@@ -155,22 +157,25 @@ class Info(commands.Cog):
         if member.display_avatar.is_animated():
             formats.append(f"[GIF]({member.display_avatar.replace(format='gif', size=1024).url})")
 
+        guild_id = str(ctx.guild.id) if ctx.guild else ""
+        settings = await async_get_guild_settings(guild_id) if guild_id else {}
+
         embed = discord.Embed(
-            title=f"🖼️ Avatar của {member.display_name}",
+            title=tr(settings, "info.avatar_title", user=member.display_name),
             color=config.COLOR_AVATAR,
             timestamp=datetime.now(timezone.utc),
         )
         embed.set_image(url=member.display_avatar.with_size(1024).url)
-        embed.add_field(name="📥 Tải xuống", value=" • ".join(formats), inline=False)
+        embed.add_field(name=f"📥 {tr(settings, 'info.download')}", value=" • ".join(formats), inline=False)
 
         if member.guild_avatar and member.guild_avatar != member.avatar:
             embed.add_field(
-                name="🌐 Avatar toàn cục",
-                value=f"[Xem]({member.avatar.with_size(1024).url})",
+                name="🌐 Avatar",
+                value=f"[Link]({member.avatar.with_size(1024).url})",
                 inline=True,
             )
         embed.set_footer(
-            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            text=tr(settings, "common.requested_by", user=ctx.author.display_name),
             icon_url=ctx.author.display_avatar.url,
         )
         await ctx.send(embed=embed)

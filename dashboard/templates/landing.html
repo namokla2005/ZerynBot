@@ -1,370 +1,475 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ current_ui_lang or 'vi' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zeryn Bot - Discord Bot Đa Năng</title>
+  <title>Zeryn Bot — Discord Bot Đa Năng</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.0">
   
   <style>
-    /* Landing Page Specific Styles */
     body {
-      background-color: #060608;
+      background-color: #08060c;
       color: #ffffff;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
       margin: 0;
       padding: 0;
       overflow-x: hidden;
       display: block;
     }
-    
-    /* Navbar */
+
+    /* Landing Topbar / Nav */
     .landing-nav {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px 48px;
-      background: rgba(10, 5, 15, 0.85);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 48px;
+      background: rgba(12, 8, 22, 0.88);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       position: sticky;
       top: 0;
       z-index: 1000;
+      backdrop-filter: blur(16px);
     }
     .landing-nav-logo {
       display: flex;
       align-items: center;
       gap: 12px;
-      font-size: 1.25rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: #ffffff;
       text-decoration: none;
+      letter-spacing: -0.02em;
     }
     .landing-nav-logo img {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
+      box-shadow: 0 0 16px rgba(255, 158, 194, 0.35);
     }
-    .landing-nav-links {
+    .landing-nav-center {
       display: flex;
-      gap: 24px;
+      gap: 32px;
       align-items: center;
     }
-    .nav-link {
-      color: #a7acb8;
-      font-weight: 500;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    .nav-link:hover {
-      color: #ffffff;
-    }
-    .btn-dashboard {
-      background: #5865F2;
-      color: #ffffff;
-      padding: 10px 20px;
-      border-radius: 8px;
+    .nav-link-item {
+      color: rgba(255, 255, 255, 0.7);
       font-weight: 600;
+      font-size: 0.95rem;
       text-decoration: none;
-      transition: background 0.2s, transform 0.2s;
-    }
-    .btn-dashboard:hover {
-      background: #4752C4;
-      transform: translateY(-2px);
-    }
-    
-    /* Hero Section */
-    .hero {
-      padding: 120px 20px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    .hero-bg {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 800px;
-      height: 800px;
-      background: radial-gradient(circle, rgba(88,101,242,0.15) 0%, rgba(6,6,8,0) 70%);
-      z-index: -1;
-    }
-    .hero-title {
-      font-size: 4rem;
-      font-weight: 900;
-      line-height: 1.1;
-      margin-bottom: 24px;
-      max-width: 900px;
-      background: linear-gradient(135deg, #ffffff 0%, #a7acb8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero-title span {
-      background: linear-gradient(135deg, #5865F2 0%, #ff9ec2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero-subtitle {
-      font-size: 1.25rem;
-      color: #a7acb8;
-      max-width: 600px;
-      margin-bottom: 48px;
-      line-height: 1.6;
-    }
-    .hero-buttons {
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-    }
-    .btn-invite {
-      background: #5865F2;
-      color: #ffffff;
-      padding: 16px 32px;
-      border-radius: 12px;
-      font-size: 1.1rem;
-      font-weight: 700;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: all 0.2s;
-      box-shadow: 0 8px 24px rgba(88, 101, 242, 0.25);
-    }
-    .btn-invite:hover {
-      background: #4752C4;
-      transform: translateY(-3px);
-      box-shadow: 0 12px 32px rgba(88, 101, 242, 0.4);
-    }
-    .btn-features {
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-      padding: 16px 32px;
-      border-radius: 12px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
       transition: all 0.2s;
     }
-    .btn-features:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.2);
-    }
-    
-    /* Features Section */
-    .features {
-      padding: 80px 20px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    .section-title {
-      text-align: center;
-      font-size: 2.5rem;
-      font-weight: 800;
-      margin-bottom: 16px;
-    }
-    .section-subtitle {
-      text-align: center;
-      color: #a7acb8;
-      margin-bottom: 64px;
-      font-size: 1.1rem;
-    }
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 24px;
-    }
-    .feature-card {
-      background: rgba(20, 14, 32, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 32px;
-      transition: all 0.3s ease;
-    }
-    .feature-card:hover {
-      transform: translateY(-5px);
-      border-color: #5865F2;
-      background: rgba(20, 14, 32, 0.8);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-    }
-    .feature-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
-      background: rgba(88, 101, 242, 0.15);
-      color: #5865F2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.8rem;
-      margin-bottom: 20px;
-    }
-    .feature-card.pink .feature-icon {
-      background: rgba(255, 158, 194, 0.15);
+    .nav-link-item:hover {
       color: #ff9ec2;
     }
-    .feature-card.pink:hover {
-      border-color: #ff9ec2;
-    }
-    .feature-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 12px;
-    }
-    .feature-desc {
-      color: #a7acb8;
-      line-height: 1.6;
-      font-size: 0.95rem;
-    }
-    
-    /* Footer */
-    .footer {
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 40px 20px;
-      margin-top: 80px;
+    .landing-nav-right {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 20px;
+      gap: 16px;
     }
-    .footer-links {
-      display: flex;
-      gap: 24px;
-    }
-    .footer-links a {
-      color: #a7acb8;
+    .btn-dash {
+      background: linear-gradient(135deg, #ff9ec2, #5865F2);
+      color: #ffffff;
+      padding: 9px 22px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.92rem;
       text-decoration: none;
-      font-size: 0.9rem;
-      transition: color 0.2s;
+      transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(88, 101, 242, 0.3);
     }
-    .footer-links a:hover {
+    .btn-dash:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(255, 158, 194, 0.4);
       color: #ffffff;
     }
-    .footer-copy {
-      color: #636770;
-      font-size: 0.85rem;
+
+    /* Hero Section */
+    .hero-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 90px 24px 60px 24px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      align-items: center;
+      gap: 48px;
+      position: relative;
     }
-    
-    @media (max-width: 768px) {
-      .hero-title { font-size: 2.5rem; }
+    .hero-bg-glow {
+      position: absolute;
+      top: 20%;
+      left: 10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255, 158, 194, 0.15) 0%, rgba(88, 101, 242, 0.1) 40%, rgba(8, 6, 12, 0) 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 158, 194, 0.12);
+      border: 1px solid rgba(255, 158, 194, 0.3);
+      color: #ff9ec2;
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+    .hero-title-text {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      letter-spacing: -0.03em;
+    }
+    .hero-title-text span {
+      background: linear-gradient(135deg, #ff9ec2 0%, #a777ff 50%, #5865F2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle-text {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.15rem;
+      line-height: 1.65;
+      margin-bottom: 36px;
+      max-width: 580px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .btn-hero-primary {
+      background: #ff9ec2;
+      color: #120818;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 1rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.25s ease;
+      box-shadow: 0 8px 24px rgba(255, 158, 194, 0.35);
+    }
+    .btn-hero-primary:hover {
+      background: #ffb8d4;
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(255, 158, 194, 0.5);
+    }
+    .btn-hero-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-hero-secondary:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Hero Anime Card / Graphic */
+    .hero-graphic {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .hero-graphic-circle {
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255, 158, 194, 0.3), rgba(88, 101, 242, 0.3));
+      padding: 8px;
+      box-shadow: 0 0 60px rgba(255, 158, 194, 0.3);
+      position: relative;
+    }
+    .hero-graphic-circle img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #160f24;
+    }
+
+    /* Trusted Section */
+    .trusted-section {
+      background: rgba(16, 11, 26, 0.6);
+      border-y: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .trusted-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+    .trusted-title span {
+      font-style: italic;
+      color: #ff9ec2;
+    }
+    .trusted-sub {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.95rem;
+    }
+
+    /* Features Section */
+    .features-section {
+      max-width: 1200px;
+      margin: 80px auto;
+      padding: 0 24px;
+    }
+    .features-header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .features-header h2 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .features-header p {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 1.1rem;
+    }
+    .features-grid-layout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 28px;
+    }
+    .f-card {
+      background: rgba(18, 13, 28, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 32px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+    .f-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(255, 158, 194, 0.4);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 158, 194, 0.15);
+    }
+    .f-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      background: rgba(255, 158, 194, 0.12);
+      color: #ff9ec2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin-bottom: 20px;
+    }
+    .f-card.purple .f-icon {
+      background: rgba(88, 101, 242, 0.15);
+      color: #5865F2;
+    }
+    .f-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .f-desc {
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.6;
+      font-size: 0.96rem;
+    }
+
+    /* Footer */
+    .landing-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 48px 24px;
+      text-align: center;
+      background: #050408;
+    }
+    .footer-nav {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 20px;
+    }
+    .footer-nav a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .footer-nav a:hover { color: #ffffff; }
+    .copyright {
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 900px) {
+      .hero-container { grid-template-columns: 1fr; text-align: center; }
+      .hero-title-text { font-size: 2.6rem; }
+      .hero-actions { justify-content: center; }
+      .hero-graphic { margin-top: 30px; }
       .landing-nav { padding: 16px 20px; }
-      .hero-buttons { flex-direction: column; }
+      .landing-nav-center { display: none; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Navbar -->
+  <!-- Navbar (Nekotina Style) -->
   <nav class="landing-nav">
     <a href="/" class="landing-nav-logo">
-      <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Bot Logo" id="nav-logo">
+      <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
       Zeryn Bot
     </a>
-    <div class="landing-nav-links">
-      <a href="#features" class="nav-link">Tính năng</a>
-      <a href="/login" class="btn-dashboard">Dashboard</a>
+
+    <div class="landing-nav-center">
+      <a href="#features" class="nav-link-item">{{ t('nav.features') }}</a>
+      <a href="/tos" class="nav-link-item">{{ t('nav.tos') }}</a>
+      <a href="/privacy" class="nav-link-item">{{ t('nav.privacy') }}</a>
+    </div>
+
+    <div class="landing-nav-right">
+      <!-- Popover Language Dropdown (Nekotina Style) -->
+      <div class="lang-switcher">
+        <button class="lang-switcher-btn">
+          <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
+          <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
+        </button>
+        <div class="lang-dropdown">
+          <div class="lang-header">{{ t('nav.select_language') }}</div>
+          {% for code, name in available_languages.items() %}
+          <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+             class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+            <span>{{ name }}</span>
+            {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <a href="/login" class="btn-dash">
+        <i class="bi bi-discord"></i> {{ t('nav.dashboard') }}
+      </a>
     </div>
   </nav>
 
   <!-- Hero Section -->
-  <header class="hero">
-    <div class="hero-bg"></div>
-    <h1 class="hero-title">Nâng Tầm Trải Nghiệm <span>Discord</span> Của Bạn</h1>
-    <p class="hero-subtitle">Giải pháp toàn diện để quản lý, bảo vệ và xây dựng cộng đồng vững mạnh với hệ thống Dashboard cực kỳ hiện đại và dễ sử dụng.</p>
+  <div class="hero-container">
+    <div class="hero-bg-glow"></div>
     
-    <div class="hero-buttons">
-      <a href="/invite" class="btn-invite" target="_blank">
-        <i class="bi bi-robot"></i> Thêm vào Server
-      </a>
-      <a href="#features" class="btn-features">
-        Khám phá tính năng
-      </a>
-    </div>
-  </header>
-
-  <!-- Features Section -->
-  <section id="features" class="features">
-    <h2 class="section-title">Tính Năng Nổi Bật</h2>
-    <p class="section-subtitle">Tất cả những gì server của bạn cần, gói gọn trong một con bot duy nhất.</p>
-    
-    <div class="features-grid">
+    <div class="hero-content">
+      <div class="badge-pill">
+        <i class="bi bi-stars"></i> {{ t('landing.badge') }}
+      </div>
+      <h1 class="hero-title-text">
+        {{ t('landing.hero_title_1') }}<br>
+        <span>{{ t('landing.hero_title_2') }}</span>
+      </h1>
+      <p class="hero-subtitle-text">
+        {{ t('landing.hero_subtitle') }}
+      </p>
       
-      <!-- Feature 1 -->
-      <div class="feature-card">
-        <div class="feature-icon">
-          <i class="bi bi-star-fill"></i>
-        </div>
-        <h3 class="feature-title">Leveling & XP</h3>
-        <p class="feature-desc">Hệ thống cấp độ tương tác cao, thưởng điểm XP khi thành viên chat và tham gia Voice. Tự động cập nhật bảng xếp hạng và tạo thẻ Level siêu đẹp.</p>
+      <div class="hero-actions">
+        <a href="/invite" class="btn-hero-primary" target="_blank">
+          <i class="bi bi-plus-circle-fill"></i> {{ t('landing.btn_add') }}
+        </a>
+        <a href="#features" class="btn-hero-secondary">
+          {{ t('landing.btn_explore') }}
+        </a>
       </div>
+    </div>
 
-      <!-- Feature 2 -->
-      <div class="feature-card pink">
-        <div class="feature-icon">
-          <i class="bi bi-shield-lock-fill"></i>
-        </div>
-        <h3 class="feature-title">Automods</h3>
-        <p class="feature-desc">Bảo vệ server của bạn 24/7 khỏi Spam, Bad words, và Link độc hại. Quản lý cảnh báo và xử phạt tự động với hệ thống linh hoạt nhất.</p>
+    <div class="hero-graphic">
+      <div class="hero-graphic-circle">
+        <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
       </div>
+    </div>
+  </div>
 
-      <!-- Feature 3 -->
-      <div class="feature-card">
-        <div class="feature-icon">
-          <i class="bi bi-person-badge-fill"></i>
-        </div>
-        <h3 class="feature-title">Auto Roles</h3>
-        <p class="feature-desc">Tự động trao Role ngay khi có người mới hoặc Bot vừa tham gia server của bạn, giúp tiết kiệm thời gian quản lý và tạo ấn tượng chuyên nghiệp.</p>
-      </div>
-
-      <!-- Feature 4 -->
-      <div class="feature-card pink">
-        <div class="feature-icon">
-          <i class="bi bi-music-note-beamed"></i>
-        </div>
-        <h3 class="feature-title">Music Player</h3>
-        <p class="feature-desc">Phát nhạc chất lượng cao từ nhiều nguồn khác nhau. Hỗ trợ hàng đợi, lặp lại, và điều khiển dễ dàng ngay trong kênh chat qua lệnh Slash.</p>
-      </div>
-
-      <!-- Feature 5 -->
-      <div class="feature-card">
-        <div class="feature-icon">
-          <i class="bi bi-ui-radios"></i>
-        </div>
-        <h3 class="feature-title">Reaction Roles</h3>
-        <p class="feature-desc">Cho phép thành viên tự chọn Role thông qua việc thả cảm xúc (Reaction) vào tin nhắn. Hỗ trợ Embed tùy chỉnh và rất dễ cài đặt trên web.</p>
-      </div>
-
-      <!-- Feature 6 -->
-      <div class="feature-card pink">
-        <div class="feature-icon">
-          <i class="bi bi-ticket-detailed-fill"></i>
-        </div>
-        <h3 class="feature-title">Tickets Support</h3>
-        <p class="feature-desc">Hệ thống tạo yêu cầu hỗ trợ (Ticket) chuyên nghiệp giúp đội ngũ quản trị server của bạn chăm sóc thành viên dễ dàng, lưu trữ Transcript chi tiết.</p>
-      </div>
-
+  <!-- Trusted Stats Banner -->
+  <section class="trusted-section">
+    <div class="trusted-title">
+      {{ t('landing.trusted_by', count='100') }}
+    </div>
+    <div class="trusted-sub">
+      {{ t('landing.trusted_sub') }}
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-links">
-      <a href="/tos">Điều khoản dịch vụ</a>
-      <a href="/privacy">Chính sách bảo mật</a>
-      <a href="/invite" target="_blank">Mời Bot</a>
+  <!-- Features Grid -->
+  <section id="features" class="features-section">
+    <div class="features-header">
+      <h2>Features &amp; Modules</h2>
+      <p>All-in-one powerful solution for your Discord Server</p>
     </div>
-    <div class="footer-copy">
+
+    <div class="features-grid-layout">
+      <!-- Feature 1 -->
+      <div class="f-card">
+        <div class="f-icon"><i class="bi bi-star-fill"></i></div>
+        <div class="f-title">Leveling &amp; XP</div>
+        <div class="f-desc">Tích luỹ kinh nghiệm qua Chat &amp; Voice, nhận thẻ Level cực đẹp và tự động mở khóa các Role thưởng cao cấp.</div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="f-card purple">
+        <div class="f-icon"><i class="bi bi-shield-lock-fill"></i></div>
+        <div class="f-title">Automod</div>
+        <div class="f-desc">Bảo vệ server 24/7 khỏi Spam, Link độc hại, Bad words và tự động xử lý kỷ luật thông minh.</div>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="f-card">
+        <div class="f-icon"><i class="bi bi-music-note-beamed"></i></div>
+        <div class="f-title">Music Player &amp; Lofi</div>
+        <div class="f-desc">Phát nhạc YouTube chất lượng cao, phát kênh Lofi 24/7 và hỗ trợ Playlist riêng linh hoạt.</div>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="f-card purple">
+        <div class="f-icon"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="f-title">Auto Roles &amp; Welcome</div>
+        <div class="f-desc">Tự động chào mừng thành viên mới với ảnh nền tùy chỉnh và trao Role tự động chuyên nghiệp.</div>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="f-card">
+        <div class="f-icon"><i class="bi bi-ui-radios"></i></div>
+        <div class="f-title">Reaction Roles</div>
+        <div class="f-desc">Cho phép thành viên tự nhận Role bằng cách thả cảm xúc trên tin nhắn Embed trực quan.</div>
+      </div>
+
+      <!-- Feature 6 -->
+      <div class="f-card purple">
+        <div class="f-icon"><i class="bi bi-ticket-detailed-fill"></i></div>
+        <div class="f-title">Ticket Support</div>
+        <div class="f-desc">Tạo kênh hỗ trợ riêng tư cho từng người dùng, hỗ trợ lưu vết Transcript cuộc hội thoại.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Landing Footer -->
+  <footer class="landing-footer">
+    <div class="footer-nav">
+      <a href="/tos">{{ t('nav.tos') }}</a>
+      <a href="/privacy">{{ t('nav.privacy') }}</a>
+      <a href="/invite" target="_blank">{{ t('landing.btn_add') }}</a>
+    </div>
+    <div class="copyright">
       &copy; 2026 Zeryn Bot. All rights reserved.
     </div>
   </footer>

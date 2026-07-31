@@ -121,17 +121,19 @@
 
       <!-- Footer: user info + logout -->
       <div class="sidebar-footer">
-        <!-- Language Switcher — UI language only, independent from guild bot language -->
+        <!-- Language Switcher (Nekotina style) -->
         <div class="lang-switcher" style="margin-bottom:8px;width:100%;">
           <button class="lang-switcher-btn" style="width:100%;justify-content:space-between;">
             <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
-            <i class="bi bi-chevron-down" style="font-size:.7rem;"></i>
+            <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
           </button>
           <div class="lang-dropdown" style="right:unset;left:0;bottom:calc(100% + 8px);top:unset;">
+            <div class="lang-header">{{ t('nav.select_language') }}</div>
             {% for code, name in available_languages.items() %}
             <a href="{{ url_for('set_ui_language', lang_code=code) }}"
                class="lang-option {% if current_ui_lang == code %}active{% endif %}">
-              {{ name }}
+              <span>{{ name }}</span>
+              {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
             </a>
             {% endfor %}
           </div>
@@ -141,11 +143,12 @@
           <img class="sidebar-avatar" src="{{ avatar }}" alt="avatar">
           {% endif %}
           <span class="sidebar-username">{{ user.get('username','User') }}</span>
-          <a href="{{ url_for('logout') }}" class="sidebar-logout" title="Đăng xuất" onclick="event.stopPropagation()">
+          <a href="{{ url_for('logout') }}" class="sidebar-logout" title="{{ t('nav.logout') }}" onclick="event.stopPropagation()">
             <i class="bi bi-box-arrow-right"></i>
           </a>
         </a>
       </div>
+
     </aside>
 
     <!-- ─── Main ─────────────────────────────────────────────────────────────── -->

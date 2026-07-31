@@ -16,29 +16,31 @@
 <header class="topbar">
   <div class="topbar-brand">
     <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Bot Logo" style="width: 24px; height: 24px; border-radius: 50%;">
-    Bot Dashboard
+    Zeryn Dashboard
   </div>
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
-    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">Điều Khoản</a>
-    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">Bảo Mật</a>
+    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">{{ t('nav.tos') }}</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem;">{{ t('nav.privacy') }}</a>
     {% if user.get('id') == owner_id %}
     <a href="{{ url_for('admin_panel') }}" class="topbar-admin-btn">
-      <i class="bi bi-shield-fill-check"></i> Admin
+      <i class="bi bi-shield-fill-check"></i> {{ t('nav.admin') }}
     </a>
     {% endif %}
   </div>
   <div class="topbar-right">
-    <!-- Language Switcher — UI language only, independent from guild bot language -->
+    <!-- Language Switcher (Nekotina style) -->
     <div class="lang-switcher">
       <button class="lang-switcher-btn">
-        🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}
-        <i class="bi bi-chevron-down" style="font-size:.7rem;"></i>
+        <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
+        <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
       </button>
       <div class="lang-dropdown">
+        <div class="lang-header">{{ t('nav.select_language') }}</div>
         {% for code, name in available_languages.items() %}
         <a href="{{ url_for('set_ui_language', lang_code=code) }}"
            class="lang-option {% if current_ui_lang == code %}active{% endif %}">
-          {{ name }}
+          <span>{{ name }}</span>
+          {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
         </a>
         {% endfor %}
       </div>
@@ -50,7 +52,7 @@
       <span>{{ user.get('global_name') or user.get('username', 'User') }}</span>
     </div>
     <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-sm">
-      <i class="bi bi-box-arrow-right"></i> Đăng xuất
+      <i class="bi bi-box-arrow-right"></i> {{ t('nav.logout') }}
     </a>
   </div>
 </header>
@@ -60,15 +62,15 @@
 <div class="home-content">
   <!-- Greeting -->
   <div class="page-header" style="margin-bottom: 32px;">
-    <h1 class="page-title">👋 Chào, {{ user.get('global_name') or user.get('username', 'User') }}!</h1>
-    <p class="page-subtitle">Chọn server bạn muốn quản lý bot.</p>
+    <h1 class="page-title">{{ t('dashboard.greeting', name=user.get('global_name') or user.get('username', 'User')) }}</h1>
+    <p class="page-subtitle">{{ t('dashboard.select_server') }}</p>
   </div>
 
   <!-- Bot-managed servers -->
   {% set bot_guilds = guilds | selectattr('bot_in_guild') | list %}
   {% if bot_guilds %}
     <div class="section-header">
-      <div class="section-title">🤖 Server có Bot</div>
+      <div class="section-title">{{ t('dashboard.servers_with_bot') }}</div>
       <span class="count-chip">{{ bot_guilds | length }} server</span>
     </div>
     <div class="servers-grid" style="margin-bottom: 40px;">
@@ -80,9 +82,9 @@
             <div class="server-icon-placeholder">{{ guild.name[0].upper() }}</div>
           {% endif %}
           <div class="server-name">{{ guild.name }}</div>
-          <span class="server-chip chip-bot"><i class="bi bi-robot"></i> Bot đang hoạt động</span>
+          <span class="server-chip chip-bot"><i class="bi bi-robot"></i> {{ t('dashboard.bot_active') }}</span>
           <button class="btn btn-primary btn-sm server-btn">
-            Quản lý <i class="bi bi-arrow-right-short"></i>
+            {{ t('dashboard.manage') }} <i class="bi bi-arrow-right-short"></i>
           </button>
         </a>
       {% endfor %}
@@ -93,7 +95,7 @@
   {% set no_bot_guilds = guilds | rejectattr('bot_in_guild') | list %}
   {% if no_bot_guilds %}
     <div class="section-header">
-      <div class="section-title" style="color: var(--text-secondary);">Server chưa có Bot</div>
+      <div class="section-title" style="color: var(--text-secondary);">{{ t('dashboard.servers_without_bot') }}</div>
       <span class="count-chip">{{ no_bot_guilds | length }} server</span>
     </div>
     <div class="servers-grid">
@@ -107,15 +109,16 @@
             </div>
           {% endif %}
           <div class="server-name">{{ guild.name }}</div>
-          <span class="server-chip chip-invite"><i class="bi bi-plus-circle"></i> Chưa có bot</span>
+          <span class="server-chip chip-invite"><i class="bi bi-plus-circle"></i> {{ t('dashboard.no_bot') }}</span>
           <a href="https://discord.com/oauth2/authorize?client_id={{ user.get('id','') }}&scope=bot&permissions=395137336320&guild_id={{ guild.id }}"
              target="_blank" class="btn btn-secondary btn-sm server-btn">
-            Mời Bot <i class="bi bi-box-arrow-up-right"></i>
+            {{ t('dashboard.invite_bot') }} <i class="bi bi-box-arrow-up-right"></i>
           </a>
         </div>
       {% endfor %}
     </div>
   {% endif %}
+
 
   {% if not guilds %}
     <div class="empty-state">

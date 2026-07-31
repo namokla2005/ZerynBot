@@ -19,8 +19,11 @@ from database import (
     async_get_level_roles,
     async_get_top_users,
     async_get_user_rank,
-    async_reset_user_xp
+    async_reset_user_xp,
+    async_get_guild_settings
 )
+from i18n import tr
+
 
 def calc_level_from_xp(xp: int) -> int:
     return math.floor(0.1 * math.sqrt(xp))
@@ -230,8 +233,10 @@ class Leveling(commands.Cog):
             import logging
             logging.getLogger("BotV2").warning(f"[Leveling] Rank card error: {e}")
             
+        settings = await async_get_guild_settings(guild_id)
+
         # Fallback to embed
-        embed = discord.Embed(title=f"Cấp độ của {member.display_name}", color=config.COLOR_INFO)
+        embed = discord.Embed(title=tr(settings, "leveling.rank_title", user=member.display_name), color=config.COLOR_INFO)
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.add_field(name="Rank", value=f"#{rank_pos}", inline=True)
         embed.add_field(name="Level", value=f"{level}", inline=True)
@@ -251,15 +256,17 @@ class Leveling(commands.Cog):
     @commands.guild_only()
     async def leaderboard(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
+        settings = await async_get_guild_settings(guild_id)
+
         if not await async_is_module_enabled(guild_id, "leveling"):
             return await ctx.send("❌ Module **Leveling** đã bị tắt trong server này!")
             
         top_users = await async_get_top_users(guild_id, 10)
         
         if not top_users:
-            return await ctx.send("Chưa có ai nhận được XP trong server này!")
+            return await ctx.send(tr(settings, "leveling.no_xp"))
             
-        embed = discord.Embed(title=f"🏆 Bảng xếp hạng - {ctx.guild.name}", color=config.COLOR_INFO)
+        embed = discord.Embed(title=tr(settings, "leveling.leaderboard_title", server=ctx.guild.name), color=config.COLOR_INFO)
         if ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
             
