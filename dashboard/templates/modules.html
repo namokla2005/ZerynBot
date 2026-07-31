@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">🧩 Modules</h1>
-  <p class="page-subtitle">Bật hoặc tắt từng tính năng của bot trong server này</p>
+  <p class="page-subtitle">{{ t('dashboard.modules_desc') }}</p>
 </div>
 
 <style>
@@ -69,10 +69,9 @@
 </style>
 
 <div class="card" style="margin-bottom: 24px; border-color: #5865F2;">
-  <div class="card-title">🔐 Phân quyền điều khiển Bot</div>
+  <div class="card-title">🔐 Role Whitelist (Bot Admin)</div>
   <p style="font-size: 0.85rem; color: #b5bac1; margin-bottom: 12px;">
-    Chỉ định những Role được phép điều chỉnh tính năng của bot và truy cập Dashboard. 
-    <em>Lưu ý: Chủ server (Owner) và các Role có quyền Administrator luôn có toàn quyền truy cập.</em>
+    Role Whitelist (Bot Admin)
   </p>
   
   <form method="POST" action="{{ url_for('server_modules', guild_id=guild_id) }}">
@@ -82,7 +81,7 @@
       <div class="custom-select-wrapper" id="select-bot_admin_roles">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-bot_admin_roles"></div>
-          <div class="placeholder-text" id="placeholder-bot_admin_roles">Chọn role (Bỏ trống = Ai có quyền Manage Server đều được dùng)</div>
+          <div class="placeholder-text" id="placeholder-bot_admin_roles">Role Whitelist</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-bot_admin_roles"></div>
@@ -102,7 +101,7 @@
         align-items: center; 
         gap: 6px; 
         transition: background-color 0.2s;">
-        <i class="bi bi-floppy-fill" style="font-size: 1rem;"></i> Lưu Quyền
+        <i class="bi bi-floppy-fill" style="font-size: 1rem;"></i> {{ t('common.save') }}
       </button>
     </div>
   </form>
@@ -114,9 +113,9 @@
   <div class="module-card {% if modules.get('welcome_goodbye', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">👋</span> Welcome &amp; Goodbye</div>
-      <div class="mod-desc">Tự động gửi tin nhắn khi thành viên gia nhập hoặc rời server. Hỗ trợ embed và plain text.</div>
+      <div class="mod-desc">{{ t('dashboard.welcome_desc') }}</div>
       <a href="{{ url_for('server_welcome', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -131,11 +130,12 @@
   <div class="module-card {% if modules.get('autoroles', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🪪</span> Auto Roles</div>
-      <div class="mod-desc">Tự động gắn vai trò cho thành viên và bot khi họ tham gia máy chủ.</div>
+      <div class="mod-desc">{{ t('dashboard.autoroles_desc') }}</div>
       <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
+
     <label class="switch">
       <input type="checkbox" class="module-toggle"
              data-guild="{{ guild_id }}" data-module="autoroles"
@@ -148,9 +148,9 @@
   <div class="module-card {% if modules.get('leveling', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🌟</span> Leveling & XP</div>
-      <div class="mod-desc">Hệ thống cấp độ và kinh nghiệm khi thành viên chat hoặc tham gia Voice.</div>
+      <div class="mod-desc">{{ t('dashboard.leveling_desc') }}</div>
       <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -165,7 +165,7 @@
   <div class="module-card {% if modules.get('utility', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">⚙️</span> Utility</div>
-      <div class="mod-desc">Các lệnh tiện ích: <code>/ping</code>, <code>/membercount</code>, <code>/help</code>.</div>
+      <div class="mod-desc">{{ t('dashboard.utility_desc') }}</div>
     </div>
     <label class="switch">
       <input type="checkbox" class="module-toggle"
@@ -179,7 +179,7 @@
   <div class="module-card {% if modules.get('info', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">ℹ️</span> Info Commands</div>
-      <div class="mod-desc">Lệnh thông tin: <code>/serverinfo</code>, <code>/userinfo</code>, <code>/avatar</code>.</div>
+      <div class="mod-desc">{{ t('dashboard.info_desc') }}</div>
     </div>
     <label class="switch">
       <input type="checkbox" class="module-toggle"
@@ -193,9 +193,9 @@
   <div class="module-card {% if modules.get('music', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎵</span> Music</div>
-      <div class="mod-desc">Phát nhạc chất lượng cao từ YouTube: <code>/play</code>, <code>/search</code>, <code>/lofi</code>, <code>/stop</code>,...</div>
+      <div class="mod-desc">{{ t('dashboard.music_desc') }}</div>
       <a href="{{ url_for('server_music', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -210,9 +210,9 @@
   <div class="module-card {% if modules.get('tickets', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎫</span> Ticket System</div>
-      <div class="mod-desc">Hệ thống hỗ trợ bán hàng, tạo kênh chat riêng tư qua nút bấm.</div>
+      <div class="mod-desc">{{ t('dashboard.tickets_desc') }}</div>
       <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -227,9 +227,9 @@
   <div class="module-card {% if modules.get('reactionroles', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">✨</span> Reaction Roles</div>
-      <div class="mod-desc">Tạo bài viết để thành viên thả cảm xúc và nhận role tự động.</div>
+      <div class="mod-desc">{{ t('dashboard.reactionroles_desc') }}</div>
       <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -244,9 +244,9 @@
   <div class="module-card {% if modules.get('automods', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🛡️</span> Automods</div>
-      <div class="mod-desc">Bảo vệ server tự động khỏi spam, từ cấm và link độc hại.</div>
+      <div class="mod-desc">{{ t('dashboard.automod_desc') }}</div>
       <a href="{{ url_for('server_automod', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -261,9 +261,9 @@
   <div class="module-card {% if modules.get('logger', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">📝</span> Logging & Audit Log</div>
-      <div class="mod-desc">Ghi nhận các sự kiện quan trọng trong server ra kênh riêng.</div>
+      <div class="mod-desc">{{ t('dashboard.logger_desc') }}</div>
       <a href="{{ url_for('server_logger', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
-        Cấu hình <i class="bi bi-arrow-right-short"></i>
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
     <label class="switch">
@@ -273,6 +273,7 @@
       <span class="switch-track"></span>
     </label>
   </div>
+
 
   <!-- Giveaways -->
   <div class="module-card {% if modules.get('giveaways', True) %}mod-on{% else %}mod-off{% endif %}">

@@ -11,7 +11,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6.0">
   
   <style>
-    body {
+    body.landing-body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      width: 100%;
       background-color: #07050d;
       background-image: 
         radial-gradient(at 0% 0%, rgba(255, 158, 194, 0.08) 0px, transparent 50%),
@@ -19,7 +23,9 @@
         radial-gradient(at 50% 100%, rgba(120, 80, 220, 0.05) 0px, transparent 50%);
       background-attachment: fixed;
       color: #e3e5e8;
+      overflow-x: hidden;
     }
+
 
     .landing-header {
       position: sticky; top: 0; z-index: 100;
@@ -203,7 +209,7 @@
     }
   </style>
 </head>
-<body>
+<body class="landing-body">
 
 <!-- Header -->
 <header class="landing-header">

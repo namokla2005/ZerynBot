@@ -149,17 +149,17 @@
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">👋 Welcome & Goodbye</h1>
-  <p class="page-subtitle">Cấu hình tin nhắn chào mừng và tạm biệt thành viên</p>
+  <p class="page-subtitle">{{ t('dashboard.welcome_desc') }}</p>
 </div>
 
 <!-- Variable reference -->
 <div class="vars-box" style="margin-bottom: 24px;">
-  <strong>Biến có thể dùng trong tin nhắn nội dung:</strong><br>
-  <span class="var-tag">{user}</span> mention thành viên &nbsp;
-  <span class="var-tag">{user_name}</span> tên thành viên &nbsp;
-  <span class="var-tag">{user_id}</span> ID thành viên &nbsp;
-  <span class="var-tag">{server}</span> tên server &nbsp;
-  <span class="var-tag">{member_count}</span> tổng số thành viên
+  <strong>Available Variables:</strong><br>
+  <span class="var-tag">{user}</span> mention &nbsp;
+  <span class="var-tag">{user_name}</span> username &nbsp;
+  <span class="var-tag">{user_id}</span> user ID &nbsp;
+  <span class="var-tag">{server}</span> server name &nbsp;
+  <span class="var-tag">{member_count}</span> total members
 </div>
 
 <!-- Tabs -->
@@ -179,16 +179,16 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:#57F287"></i> Cài đặt Chào mừng</div>
-              <div class="card-desc">Tin nhắn gửi khi có thành viên mới gia nhập server</div>
+              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:#57F287"></i> Welcome Settings</div>
+              <div class="card-desc">{{ t('dashboard.welcome_desc') }}</div>
             </div>
           </div>
 
           <!-- Channel -->
           <div class="form-group">
-            <label class="form-label">Kênh chào mừng</label>
+            <label class="form-label">Welcome Channel</label>
             <select name="welcome_channel_id" class="form-control">
-              <option value="">— Chọn kênh —</option>
+              <option value="">{{ t('common.select_channel') }}</option>
               {% for ch in channels %}
                 <option value="{{ ch.channel_id }}"
                   {% if settings.welcome_channel_id == ch.channel_id %}selected{% endif %}>
@@ -196,14 +196,12 @@
                 </option>
               {% endfor %}
             </select>
-            <div class="form-hint">Bot sẽ gửi banner card chào mừng vào kênh này</div>
           </div>
 
           <!-- Message type toggle -->
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Gửi banner card ảnh</div>
-              <div class="toggle-sublabel">Tắt để gửi tin nhắn thường (plain text)</div>
+              <div class="toggle-label">Send Banner Card Image</div>
             </div>
             <label class="switch">
               <input type="checkbox" name="welcome_use_embed"
@@ -216,22 +214,20 @@
 
           <!-- Background URL -->
           <div class="form-group" style="margin-top: 15px;">
-            <label class="form-label">URL Ảnh nền (Tùy chọn)</label>
+            <label class="form-label">Background Image URL (Optional)</label>
             <input type="url" name="welcome_bg_url" class="form-control" id="w-bg-url"
                    value="{{ settings.welcome_bg_url or '' }}"
                    placeholder="https://example.com/image.png"
                    oninput="updateWelcomePreview()">
-            <div class="form-hint">Để trống để sử dụng ảnh nền mặc định.</div>
           </div>
 
           <!-- Message content -->
           <div class="form-group">
-            <label class="form-label">Tin nhắn kèm theo</label>
+            <label class="form-label">Message Content</label>
             <textarea name="welcome_message" class="form-control" id="w-message"
-                      placeholder="👋 {user} đã tham gia **{server}**! 🎉"
+                      placeholder="👋 {user} joined **{server}**! 🎉"
                       oninput="updateWelcomePreview()"
                       rows="2">{{ settings.welcome_message or '' }}</textarea>
-            <div class="form-hint">Dùng markdown Discord: **đậm**, *nghiêng*, `code`</div>
           </div>
         </div>
       </div>
@@ -241,12 +237,10 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Xem trước</div>
-              <div class="card-desc">Hình ảnh banner sẽ được gửi khi thành viên tham gia</div>
+              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Live Preview</div>
             </div>
           </div>
           <div class="card-preview-wrap">
-            <!-- Discord message row -->
             <div class="dc-msg-row">
               <div class="dc-avatar">🤖</div>
               <div>
@@ -254,7 +248,7 @@
                   <span class="dc-author">{{ guild.get('name','Bot') }}</span>
                   <span class="dc-bot-tag">BOT</span>
                 </div>
-                <div class="dc-content" id="w-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> đã tham gia <strong>{{ guild.get('name','Server') }}</strong>!</div>
+                <div class="dc-content" id="w-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> joined <strong>{{ guild.get('name','Server') }}</strong>!</div>
               </div>
             </div>
 
@@ -280,7 +274,7 @@
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('welcome')" id="w-test-btn">
-              <i class="bi bi-send"></i> Gửi test đến kênh
+              <i class="bi bi-send"></i> Send Test to Channel
             </button>
           </div>
         </div>
@@ -298,16 +292,15 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-door-open-fill" style="color:#ED4245"></i> Cài đặt Tạm biệt</div>
-              <div class="card-desc">Tin nhắn gửi khi thành viên rời server</div>
+              <div class="card-title"><i class="bi bi-door-open-fill" style="color:#ED4245"></i> Goodbye Settings</div>
             </div>
           </div>
 
           <!-- Channel -->
           <div class="form-group">
-            <label class="form-label">Kênh tạm biệt</label>
+            <label class="form-label">Goodbye Channel</label>
             <select name="goodbye_channel_id" class="form-control">
-              <option value="">— Chọn kênh —</option>
+              <option value="">{{ t('common.select_channel') }}</option>
               {% for ch in channels %}
                 <option value="{{ ch.channel_id }}"
                   {% if settings.goodbye_channel_id == ch.channel_id %}selected{% endif %}>
@@ -315,14 +308,12 @@
                 </option>
               {% endfor %}
             </select>
-            <div class="form-hint">Bot sẽ gửi banner card tạm biệt vào kênh này</div>
           </div>
 
           <!-- Message type toggle -->
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Gửi banner card ảnh</div>
-              <div class="toggle-sublabel">Tắt để gửi tin nhắn thường (plain text)</div>
+              <div class="toggle-label">Send Banner Card Image</div>
             </div>
             <label class="switch">
               <input type="checkbox" name="goodbye_use_embed"
@@ -335,19 +326,18 @@
 
           <!-- Background URL -->
           <div class="form-group" style="margin-top: 15px;">
-            <label class="form-label">URL Ảnh nền (Tùy chọn)</label>
+            <label class="form-label">Background Image URL (Optional)</label>
             <input type="url" name="goodbye_bg_url" class="form-control" id="g-bg-url"
                    value="{{ settings.goodbye_bg_url or '' }}"
                    placeholder="https://example.com/image.png"
                    oninput="updateGoodbyePreview()">
-            <div class="form-hint">Để trống để sử dụng ảnh nền mặc định.</div>
           </div>
 
           <!-- Message content -->
           <div class="form-group">
-            <label class="form-label">Tin nhắn kèm theo</label>
+            <label class="form-label">Message Content</label>
             <textarea name="goodbye_message" class="form-control" id="g-message"
-                      placeholder="👋 **{user_name}** đã rời khỏi {server}."
+                      placeholder="👋 **{user_name}** left {server}."
                       oninput="updateGoodbyePreview()"
                       rows="2">{{ settings.goodbye_message or '' }}</textarea>
           </div>
@@ -359,8 +349,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Xem trước</div>
-              <div class="card-desc">Hình ảnh banner sẽ được gửi khi thành viên rời đi</div>
+              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Live Preview</div>
             </div>
           </div>
           <div class="card-preview-wrap">
@@ -371,7 +360,7 @@
                   <span class="dc-author">{{ guild.get('name','Bot') }}</span>
                   <span class="dc-bot-tag">BOT</span>
                 </div>
-                <div class="dc-content" id="g-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> đã rời khỏi <strong>{{ guild.get('name','Server') }}</strong>.</div>
+                <div class="dc-content" id="g-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> left <strong>{{ guild.get('name','Server') }}</strong>.</div>
               </div>
             </div>
 
@@ -396,7 +385,7 @@
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('goodbye')" id="g-test-btn">
-              <i class="bi bi-send"></i> Gửi test đến kênh
+              <i class="bi bi-send"></i> Send Test to Channel
             </button>
           </div>
         </div>
@@ -408,13 +397,12 @@
   <!-- Save button -->
   <div style="display:flex; gap:10px; margin-top: 8px; flex-wrap:wrap;">
     <button type="submit" class="btn btn-primary btn-lg">
-      <i class="bi bi-floppy-fill"></i> Lưu thay đổi
+      <i class="bi bi-floppy-fill"></i> {{ t('common.save') }}
     </button>
-    <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="btn btn-secondary btn-lg">
-      Hủy
-    </a>
+    <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="btn btn-secondary btn-lg">{{ t('common.cancel') }}</a>
   </div>
 </form>
+
 {% endblock %}
 
 {% block scripts %}

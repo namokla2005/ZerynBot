@@ -909,12 +909,23 @@ _COMMANDS_DATA = [
 @app.route("/dashboard/<guild_id>/commands")
 @guild_access_required
 def server_commands(guild_id: str):
+    cat_map = {
+        "Tổng quát": t("commands.cat_all"),
+        "Thông tin": "Info"
+    }
+    localized_data = []
+    for c in _COMMANDS_DATA:
+        c_copy = dict(c)
+        c_copy["category"] = cat_map.get(c["category"], c["category"])
+        localized_data.append(c_copy)
+
     total = sum(len(c["commands"]) for c in _COMMANDS_DATA)
     return render_template("commands.html", **_server_ctx(
         guild_id, "commands",
-        commands_data=_COMMANDS_DATA,
+        commands_data=localized_data,
         total_count=total,
     ))
+
 
 
 @app.route("/dashboard/<guild_id>/music")
