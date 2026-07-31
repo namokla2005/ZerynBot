@@ -36,6 +36,7 @@ def init_db():
                 goodbye_embed_color   TEXT DEFAULT '#ED4245',
                 goodbye_embed_title   TEXT DEFAULT '👋 Tạm biệt!',
                 goodbye_bg_url        TEXT,
+                language              TEXT DEFAULT 'vi',
                 updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -267,6 +268,8 @@ def init_db():
             conn.execute("ALTER TABLE guilds ADD COLUMN welcome_bg_url TEXT")
         if "goodbye_bg_url" not in cols:
             conn.execute("ALTER TABLE guilds ADD COLUMN goodbye_bg_url TEXT")
+        if "language" not in cols:
+            conn.execute("ALTER TABLE guilds ADD COLUMN language TEXT DEFAULT 'vi'")
             
         cursor.execute("PRAGMA table_info(leveling_settings)")
         lvl_cols = [row[1] for row in cursor.fetchall()]
@@ -388,6 +391,7 @@ _DEFAULT_SETTINGS = {
     "autoroles_enabled":   0,
     "autoroles_user":      "[]",
     "autoroles_bot":       "[]",
+    "language":            "vi",
 }
 
 def get_guild_settings(guild_id: str) -> Dict:
@@ -1420,3 +1424,23 @@ async def async_get_active_giveaways() -> list:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
+
+# ─── i18n Language Helpers ─────────────────────────────────────────────────────
+
+def set_guild_language(guild_id: str, language: str) -> None:
+    """
+    Set guild language — sync version for Flask Dashboard.
+    Delegates to upsert_guild and auto-invalidates the settings cache.
+    """
+    upsert_guild(guild_id, language=language)
+
+
+async def async_set_guild_language(guild_id: str, language: str) -> None:
+    """
+    Set guild language — async version for Discord Bot.
+    Uses asyncio.to_thread so it never blocks the event loop.
+    """
+    import asyncio
+    await asyncio.to_thread(upsert_guild, guild_id, language=language)
+    # Invalidate Redis/memory cache so bot picks up the change immediately
+    await cache.adelete(f"settings:{guild_id}")

@@ -121,6 +121,21 @@
 
       <!-- Footer: user info + logout -->
       <div class="sidebar-footer">
+        <!-- Language Switcher — UI language only, independent from guild bot language -->
+        <div class="lang-switcher" style="margin-bottom:8px;width:100%;">
+          <button class="lang-switcher-btn" style="width:100%;justify-content:space-between;">
+            <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
+            <i class="bi bi-chevron-down" style="font-size:.7rem;"></i>
+          </button>
+          <div class="lang-dropdown" style="right:unset;left:0;bottom:calc(100% + 8px);top:unset;">
+            {% for code, name in available_languages.items() %}
+            <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+               class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+              {{ name }}
+            </a>
+            {% endfor %}
+          </div>
+        </div>
         <a class="sidebar-user" href="{{ url_for('home') }}">
           {% if avatar %}
           <img class="sidebar-avatar" src="{{ avatar }}" alt="avatar">

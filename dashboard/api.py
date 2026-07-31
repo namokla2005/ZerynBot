@@ -11,6 +11,7 @@ from flask import Blueprint, request, jsonify, session
 import requests
 import database as db
 import config
+from i18n import i18n as i18n_manager
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -565,3 +566,29 @@ def send_test_card(guild_id: str):
         return jsonify({"error": err_msg}), resp.status_code
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+# ─── i18n: Guild Language ────────────────────────────────────────────────────────────
+
+@api.route("/guild/<guild_id>/language", methods=["POST"])
+def set_guild_language_api(guild_id: str):
+    """
+    Cập nhật ngôn ngữ bot cho Guild (lưu vào DB).
+    Độc lập với session['ui_lang'] — không thay đổi ngôn ngữ giao diện web của user.
+    """
+    err = _require_guild_access(guild_id)
+    if err:
+        return err
+
+    data = request.json or {}
+    lang_code = data.get("language", "vi").lower().strip()
+    supported = i18n_manager.get_supported_languages()
+
+    if lang_code not in supported:
+        return jsonify({
+            "error": f"Unsupported language '{lang_code}'. Supported: {list(supported.keys())}"
+        }), 400
+
+    db.set_guild_language(guild_id, lang_code)
+    # DO NOT set session["ui_lang"] — the two are intentionally separate
+    return jsonify({"ok": True, "language": lang_code, "label": supported[lang_code]})

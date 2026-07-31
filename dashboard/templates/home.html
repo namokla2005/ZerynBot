@@ -28,6 +28,21 @@
     {% endif %}
   </div>
   <div class="topbar-right">
+    <!-- Language Switcher — UI language only, independent from guild bot language -->
+    <div class="lang-switcher">
+      <button class="lang-switcher-btn">
+        🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}
+        <i class="bi bi-chevron-down" style="font-size:.7rem;"></i>
+      </button>
+      <div class="lang-dropdown">
+        {% for code, name in available_languages.items() %}
+        <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+           class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+          {{ name }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
     <div class="topbar-user">
       {% if avatar %}
         <img class="topbar-avatar" src="{{ avatar }}" alt="avatar">

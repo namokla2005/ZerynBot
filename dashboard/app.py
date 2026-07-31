@@ -10,6 +10,7 @@ import json
 import config
 import database as db
 import requests
+from i18n import t, tr, i18n as i18n_manager
 from dashboard.auth import (
     get_oauth2_url, exchange_code, get_user, get_manageable_guilds, get_avatar_url
 )
@@ -18,6 +19,19 @@ from dashboard.api import api
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = config.FLASK_SECRET_KEY
 app.register_blueprint(api)
+
+
+@app.context_processor
+def inject_i18n():
+    """Inject translation helpers và danh sách ngôn ngữ vào mọi Jinja2 template."""
+    page_lang = session.get("ui_lang", "vi")  # ui_lang: ngôn ngữ giao diện web (per-user)
+    return {
+        "t":                  lambda key, **kw: t(key, lang=page_lang, **kw),
+        "tr":                 tr,
+        "available_languages": i18n_manager.get_supported_languages(),
+        "current_ui_lang":    page_lang,
+    }
+
 
 # ─── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -120,6 +134,18 @@ def callback():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/ui/language/<lang_code>")
+def set_ui_language(lang_code: str):
+    """
+    Đổi ngôn ngữ giao diện web (session-based).
+    Độc lập với ngôn ngữ bot trong guild (DB) — thay đổi cái này không ảnh hưởng cái kia.
+    """
+    if lang_code in i18n_manager.get_supported_languages():
+        session["ui_lang"] = lang_code
+    return redirect(request.referrer or url_for("home"))
+
 
 # ─── Health-check (Lớp 2: watchdog curl endpoint này để biết bot khỏe) ─────────
 # Route PUBLIC (không login). Đọc data/health.json do bot ghi.
