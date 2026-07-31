@@ -13,6 +13,10 @@
   "common.loading": "⏳ Đang xử lý...",
   "common.requested_by": "Yêu cầu bởi {user}",
   "common.save": "Lưu thay đổi",
+  "common.view": "Xem",
+  "common.configure": "Cấu hình",
+  "common.active": "Đang bật",
+  "common.disabled": "Đã tắt",
 
   "nav.select_language": "Chọn ngôn ngữ",
   "nav.features": "Tính năng",
@@ -24,6 +28,7 @@
   "nav.admin": "Admin",
   "nav.tos": "Điều khoản",
   "nav.privacy": "Bảo mật",
+  "nav.home": "Trang chủ",
 
   "landing.badge": "✨ Bot Discord đa năng & Đáng yêu nhất",
   "landing.hero_title_1": "Nâng Tầm Trải Nghiệm",
@@ -31,8 +36,6 @@
   "landing.hero_subtitle": "Giải pháp toàn diện để quản lý, bảo vệ và xây dựng cộng đồng vững mạnh với hệ thống Dashboard hiện đại, mượt mà và cực kỳ dễ sử dụng.",
   "landing.btn_add": "Thêm vào Server",
   "landing.btn_explore": "Khám phá tính năng",
-  "landing.trusted_by": "Được tin dùng bởi hơn {count}+ máy chủ",
-  "landing.trusted_sub": "Được xây dựng với tình yêu dành cho các cộng đồng Discord trên toàn thế giới.",
 
   "landing.feat_title": "Tính Năng & Modules Nổi Bật",
   "landing.feat_subtitle": "Giải pháp toàn diện gói gọn trong một con bot duy nhất cho Server của bạn",
@@ -114,6 +117,32 @@
   "dashboard.stat_members": "Thành viên",
   "dashboard.stat_active_modules": "Modules đang bật",
   "dashboard.stat_total_modules": "Tổng modules",
+  "dashboard.chart_join_leave": "Thành viên Join/Leave (7 ngày)",
+  "dashboard.chart_chat_activity": "Hoạt động Chat theo giờ",
+  "dashboard.chart_top_channels": "Top 5 Kênh sôi nổi nhất",
+  "dashboard.chart_module_stats": "Thống kê Module (Automod & Ticket)",
+  "dashboard.fast_general": "Tổng quan",
+  "dashboard.fast_modules_title": "Quản lý Modules",
   "dashboard.save_success": "✅ Đã lưu cài đặt thành công!",
-  "dashboard.save_error": "❌ Có lỗi khi lưu cài đặt."
+  "dashboard.save_error": "❌ Có lỗi khi lưu cài đặt.",
+
+  "tos.title": "Điều Khoản Dịch Vụ",
+  "tos.last_updated": "Cập nhật lần cuối: Hôm nay",
+  "tos.s1_title": "1. Chấp nhận điều khoản",
+  "tos.s1_desc": "Bằng việc mời bot Zeryn vào máy chủ Discord của bạn hoặc sử dụng các dịch vụ liên quan, bạn đồng ý tuân thủ các Điều Khoản Dịch Vụ này.",
+  "tos.s2_title": "2. Quy định sử dụng",
+  "tos.s2_desc": "Bạn đồng ý không sử dụng Zeryn Bot cho các mục đích vi phạm điều khoản Discord, phát tán nội dung bất hợp pháp hoặc cố ý phá hoại.",
+  "tos.s3_title": "3. Tính sẵn sàng của dịch vụ",
+  "tos.s3_desc": "Chúng tôi không đảm bảo rằng dịch vụ sẽ luôn hoạt động liên tục mà không có lỗi. Bot có thể được bảo trì mà không cần thông báo trước.",
+  "tos.s4_title": "4. Quyền từ chối phục vụ",
+  "tos.s4_desc": "Chúng tôi có quyền từ chối phục vụ hoặc vô hiệu hóa bot trên bất kỳ máy chủ nào nếu phát hiện hành vi lạm dụng.",
+
+  "privacy.title": "Chính Sách Bảo Mật",
+  "privacy.last_updated": "Cập nhật lần cuối: Hôm nay",
+  "privacy.s1_title": "1. Thu thập dữ liệu",
+  "privacy.s1_desc": "Zeryn Bot chỉ thu thập các dữ liệu cần thiết để vận hành như ID Server, ID Kênh, và Cấu hình Cài đặt của Máy chủ.",
+  "privacy.s2_title": "2. Sử dụng dữ liệu",
+  "privacy.s2_desc": "Dữ liệu được thu thập chỉ dùng để lưu giữ cấu hình máy chủ, xác thực quyền truy cập Dashboard và cải thiện trải nghiệm người dùng.",
+  "privacy.s3_title": "3. Lưu trữ và bảo mật",
+  "privacy.s3_desc": "Tất cả dữ liệu được lưu trữ an toàn trong cơ sở dữ liệu. Chúng tôi không bao giờ bán hoặc chia sẻ dữ liệu của bạn cho bất kỳ bên thứ ba nào."
 }

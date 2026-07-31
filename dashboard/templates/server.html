@@ -91,8 +91,8 @@
 
 <!-- General section (Moved down) -->
 <div class="section-header" style="margin-bottom: 14px; margin-top: 24px;">
-  <div class="section-title">General</div>
-  <span class="count-chip">3 mục</span>
+  <div class="section-title">{{ t('dashboard.fast_general') }}</div>
+  <span class="count-chip">3</span>
 </div>
 <div class="fast-grid" style="margin-bottom: 32px;">
   <div class="fast-card">
@@ -100,7 +100,7 @@
     <div class="fast-card-title">Overview</div>
     <div class="fast-card-desc">Thông tin tổng quan về server và trạng thái bot hiện tại.</div>
     <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="fast-card-link">
-      Xem <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -108,7 +108,7 @@
     <div class="fast-card-title">Embed Messages</div>
     <div class="fast-card-desc">Tạo và lưu trữ các embed tin nhắn với giao diện trực quan.</div>
     <a href="{{ url_for('server_embeds', guild_id=guild_id) }}" class="fast-card-link">
-      Mở Editor <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -116,29 +116,29 @@
     <div class="fast-card-title">Modules</div>
     <div class="fast-card-desc">Bật hoặc tắt các tính năng của bot theo nhu cầu của server.</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
-      Quản lý <i class="bi bi-arrow-right-short"></i>
+      {{ t('dashboard.manage') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
 </div>
 
 <!-- Modules section -->
 <div class="section-header" style="margin-bottom: 14px;">
-  <div class="section-title">Modules</div>
+  <div class="section-title">{{ t('nav.modules') }}</div>
   <span class="count-chip">{{ modules | length }} modules</span>
 </div>
 <div class="fast-grid">
-  <div class="fast-card {% if modules.get('welcome_goodbye', True) %}{% else %}{% endif %}">
+  <div class="fast-card">
     <div class="fast-card-icon">👋</div>
     <div class="fast-card-title">
       Welcome &amp; Goodbye
       <span class="server-chip {% if modules.get('welcome_goodbye', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('welcome_goodbye', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('welcome_goodbye', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">Tự động gửi tin nhắn khi thành viên gia nhập hoặc rời đi.</div>
     <a href="{{ url_for('server_welcome', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -147,12 +147,12 @@
       Info Commands
       <span class="server-chip {% if modules.get('info', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('info', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('info', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">/serverinfo, /userinfo, /avatar — Lệnh thông tin cơ bản.</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
-      Cài đặt <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -161,12 +161,12 @@
       Utility
       <span class="server-chip {% if modules.get('utility', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('utility', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('utility', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">/ping, /membercount, /help — Lệnh tiện ích tổng hợp.</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
-      Cài đặt <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -175,12 +175,12 @@
       Music
       <span class="server-chip {% if modules.get('music', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('music', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('music', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">/play, /search, /lofi, /playlist — Phát nhạc chất lượng cao.</div>
     <a href="{{ url_for('server_music', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -189,12 +189,12 @@
       Ticket System
       <span class="server-chip {% if modules.get('tickets', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('tickets', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('tickets', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">Hệ thống hỗ trợ bán hàng, tạo kênh hỗ trợ qua nút bấm.</div>
     <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -203,12 +203,12 @@
       Auto Roles
       <span class="server-chip {% if modules.get('autoroles', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('autoroles', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('autoroles', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">Tự động gắn vai trò cho thành viên và bot khi họ tham gia.</div>
     <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -217,12 +217,12 @@
       Reaction Roles
       <span class="server-chip {% if modules.get('reactionroles', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('reactionroles', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('reactionroles', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">Thả cảm xúc để tự động nhận vai trò trong server.</div>
     <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -231,14 +231,15 @@
       Automods
       <span class="server-chip {% if modules.get('automods', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('automods', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('automods', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
     <div class="fast-card-desc">Bảo vệ server tự động khỏi spam, từ cấm và link độc hại.</div>
     <a href="{{ url_for('server_automod', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
+
   <div class="fast-card">
     <div class="fast-card-icon">⭐</div>
     <div class="fast-card-title">

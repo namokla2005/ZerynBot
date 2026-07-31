@@ -13,6 +13,10 @@
   "common.loading": "⏳ Traitement en cours...",
   "common.requested_by": "Demandé par {user}",
   "common.save": "Enregistrer les modifications",
+  "common.view": "Afficher",
+  "common.configure": "Configurer",
+  "common.active": "Actif",
+  "common.disabled": "Désactivé",
 
   "nav.select_language": "Sélectionner une langue",
   "nav.features": "Fonctionnalités",
@@ -24,6 +28,7 @@
   "nav.admin": "Admin",
   "nav.tos": "Conditions",
   "nav.privacy": "Confidentialité",
+  "nav.home": "Accueil",
 
   "landing.badge": "✨ Le bot Discord le plus adorable et complet",
   "landing.hero_title_1": "Sublimez Votre",
@@ -31,8 +36,6 @@
   "landing.hero_subtitle": "Une solution tout-en-un pour gérer, protéger et faire grandir votre communauté avec un tableau de bord moderne et facile à utiliser.",
   "landing.btn_add": "Ajouter au Serveur",
   "landing.btn_explore": "Explorer les fonctionnalités",
-  "landing.trusted_by": "Adopté par plus de {count}+ serveurs",
-  "landing.trusted_sub": "Créé avec amour pour les communautés Discord à travers le monde.",
 
   "landing.feat_title": "Fonctionnalités et Modules",
   "landing.feat_subtitle": "Solution complète et puissante pour votre serveur Discord",
@@ -114,6 +117,32 @@
   "dashboard.stat_members": "Membres",
   "dashboard.stat_active_modules": "Modules Actifs",
   "dashboard.stat_total_modules": "Total Modules",
+  "dashboard.chart_join_leave": "Arrivées/Départs des membres (7 jours)",
+  "dashboard.chart_chat_activity": "Activité de Chat par heure",
+  "dashboard.chart_top_channels": "Top 5 des salons les plus actifs",
+  "dashboard.chart_module_stats": "Statistiques des modules (Automod et Ticket)",
+  "dashboard.fast_general": "Aperçu général",
+  "dashboard.fast_modules_title": "Gestionnaire de modules",
   "dashboard.save_success": "✅ Paramètres sauvegardés avec succès !",
-  "dashboard.save_error": "❌ Erreur lors de la sauvegarde des paramètres."
+  "dashboard.save_error": "❌ Erreur lors de la sauvegarde des paramètres.",
+
+  "tos.title": "Conditions d'Utilisation",
+  "tos.last_updated": "Dernière mise à jour : Aujourd'hui",
+  "tos.s1_title": "1. Acceptation des Conditions",
+  "tos.s1_desc": "En invitant le bot Zeryn sur votre serveur Discord, vous acceptez de vous conformer à ces conditions d'utilisation.",
+  "tos.s2_title": "2. Règles d'Utilisation",
+  "tos.s2_desc": "Vous acceptez de ne pas utiliser Zeryn Bot pour des activités qui violent les conditions de Discord.",
+  "tos.s3_title": "3. Disponibilité du Service",
+  "tos.s3_desc": "Nous ne garantissons pas que le service sera ininterrompu. Des maintenances peuvent être effectuées sans préavis.",
+  "tos.s4_title": "4. Droit de Refus de Service",
+  "tos.s4_desc": "Nous nous réservons le droit de refuser le service ou de désactiver le bot sur tout serveur en cas d'abus.",
+
+  "privacy.title": "Politique de Confidentialité",
+  "privacy.last_updated": "Dernière mise à jour : Aujourd'hui",
+  "privacy.s1_title": "1. Collecte des Données",
+  "privacy.s1_desc": "Zeryn Bot ne collecte que les données essentielles nécessaires au fonctionnement (ID Serveur, ID Salon, Paramètres).",
+  "privacy.s2_title": "2. Utilisation des Données",
+  "privacy.s2_desc": "Les données collectées sont uniquement utilisées pour maintenir la configuration du serveur et améliorer l'expérience utilisateur.",
+  "privacy.s3_title": "3. Stockage et Sécurité",
+  "privacy.s3_desc": "Toutes les données sont stockées de manière sécurisée. Nous ne vendons ni ne partageons jamais vos données à des tiers."
 }

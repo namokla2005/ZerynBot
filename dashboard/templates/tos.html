@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ current_ui_lang or 'vi' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Điều Khoản Dịch Vụ — Zeryn Bot</title>
+  <title>{{ t('tos.title') }} — Zeryn Bot</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6.0">
   <style>
     .legal-content {
       max-width: 800px;
       margin: 40px auto 60px;
       padding: 44px 48px;
-      background: rgba(8, 5, 18, 0.93);
+      background: rgba(18, 13, 28, 0.92);
       border-radius: 16px;
       border: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 16px 64px rgba(0,0,0,0.6);
@@ -39,30 +39,13 @@
       padding-bottom: 8px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .legal-content h3 {
-      color: #f2f3f5;
-      margin-top: 24px;
-      margin-bottom: 10px;
-    }
     .legal-content p {
       margin-bottom: 14px;
-      font-size: 0.93rem;
-    }
-    .legal-content ul {
-      padding-left: 22px;
-      margin-bottom: 16px;
-    }
-    .legal-content ul li {
-      margin-bottom: 7px;
       font-size: 0.93rem;
     }
     .legal-content em {
       color: #9ca3af;
       font-size: 0.85rem;
-    }
-    .legal-content strong {
-      color: #f2f3f5;
-      font-weight: 700;
     }
     @media (max-width: 640px) {
       .legal-content { padding: 28px 20px; margin: 20px 16px 40px; }
@@ -75,19 +58,37 @@
 <!-- Top bar -->
 <header class="topbar">
   <a href="{{ url_for('home') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
-    <span class="topbar-brand-dot"></span>
+    <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
     Zeryn Bot
   </a>
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
-    <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Trang chủ</a>
-    <a href="{{ url_for('tos') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">Điều Khoản</a>
-    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Bảo Mật</a>
+    <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.home') }}</a>
+    <a href="{{ url_for('tos') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">{{ t('nav.tos') }}</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.privacy') }}</a>
   </div>
-  <div class="topbar-right">
+  <div class="topbar-right" style="display:flex; gap:16px; align-items:center;">
+    <!-- Language Switcher (Nekotina style) -->
+    <div class="lang-switcher">
+      <button class="lang-switcher-btn">
+        <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
+        <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
+      </button>
+      <div class="lang-dropdown">
+        <div class="lang-header">{{ t('nav.select_language') }}</div>
+        {% for code, name in available_languages.items() %}
+        <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+           class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+          <span>{{ name }}</span>
+          {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
     {% if session.get('user') %}
-      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">Dashboard</a>
+      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">{{ t('nav.dashboard') }}</a>
     {% else %}
-      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">Đăng nhập</a>
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">{{ t('nav.login') }}</a>
     {% endif %}
   </div>
 </header>
@@ -95,28 +96,20 @@
 <!-- Content -->
 <div class="home-content">
   <div class="legal-content">
-    <h1>Điều Khoản Dịch Vụ</h1>
-    <p><em>Cập nhật lần cuối: Hôm nay</em></p>
+    <h1>{{ t('tos.title') }}</h1>
+    <p><em>{{ t('tos.last_updated') }}</em></p>
 
-    <h2>1. Chấp nhận điều khoản</h2>
-    <p>Bằng việc mời bot Zeryn vào máy chủ Discord của bạn hoặc sử dụng các dịch vụ liên quan, bạn đồng ý tuân thủ các Điều Khoản Dịch Vụ này. Nếu bạn không đồng ý với bất kỳ điều khoản nào, vui lòng ngừng sử dụng bot.</p>
+    <h2>{{ t('tos.s1_title') }}</h2>
+    <p>{{ t('tos.s1_desc') }}</p>
 
-    <h2>2. Quy định sử dụng</h2>
-    <p>Bạn đồng ý không sử dụng Zeryn Bot cho các mục đích sau:</p>
-    <ul>
-      <li>Vi phạm các Điều khoản Dịch vụ và Hướng dẫn Cộng đồng của Discord.</li>
-      <li>Phát tán nội dung bất hợp pháp, độc hại, đe dọa, lạm dụng, quấy rối hoặc bôi nhọ.</li>
-      <li>Cố ý phá hoại, spam hoặc can thiệp vào hoạt động bình thường của bot.</li>
-    </ul>
+    <h2>{{ t('tos.s2_title') }}</h2>
+    <p>{{ t('tos.s2_desc') }}</p>
 
-    <h2>3. Tính sẵn sàng của dịch vụ</h2>
-    <p>Chúng tôi không đảm bảo rằng dịch vụ sẽ luôn hoạt động liên tục, không có lỗi hoặc hoàn toàn an toàn. Bot có thể được bảo trì hoặc cập nhật mà không cần thông báo trước.</p>
+    <h2>{{ t('tos.s3_title') }}</h2>
+    <p>{{ t('tos.s3_desc') }}</p>
 
-    <h2>4. Quyền từ chối phục vụ</h2>
-    <p>Chúng tôi có quyền từ chối phục vụ, vô hiệu hóa bot trên bất kỳ máy chủ nào, hoặc cấm người dùng cụ thể mà không cần thông báo hoặc giải thích, đặc biệt đối với các trường hợp lạm dụng dịch vụ.</p>
-
-    <h2>5. Thay đổi điều khoản</h2>
-    <p>Chúng tôi có thể cập nhật các Điều khoản Dịch vụ này tùy từng thời điểm. Mọi thay đổi sẽ được phản ánh trên trang này.</p>
+    <h2>{{ t('tos.s4_title') }}</h2>
+    <p>{{ t('tos.s4_desc') }}</p>
   </div>
 </div>
 

@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ current_ui_lang or 'vi' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chính Sách Bảo Mật — Zeryn Bot</title>
+  <title>{{ t('privacy.title') }} — Zeryn Bot</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6.0">
   <style>
     .legal-content {
       max-width: 800px;
       margin: 40px auto 60px;
       padding: 44px 48px;
-      background: rgba(8, 5, 18, 0.93);
+      background: rgba(18, 13, 28, 0.92);
       border-radius: 16px;
       border: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 16px 64px rgba(0,0,0,0.6);
@@ -39,30 +39,13 @@
       padding-bottom: 8px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .legal-content h3 {
-      color: #f2f3f5;
-      margin-top: 24px;
-      margin-bottom: 10px;
-    }
     .legal-content p {
       margin-bottom: 14px;
-      font-size: 0.93rem;
-    }
-    .legal-content ul {
-      padding-left: 22px;
-      margin-bottom: 16px;
-    }
-    .legal-content ul li {
-      margin-bottom: 7px;
       font-size: 0.93rem;
     }
     .legal-content em {
       color: #9ca3af;
       font-size: 0.85rem;
-    }
-    .legal-content strong {
-      color: #f2f3f5;
-      font-weight: 700;
     }
     @media (max-width: 640px) {
       .legal-content { padding: 28px 20px; margin: 20px 16px 40px; }
@@ -75,19 +58,37 @@
 <!-- Top bar -->
 <header class="topbar">
   <a href="{{ url_for('home') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
-    <span class="topbar-brand-dot"></span>
+    <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
     Zeryn Bot
   </a>
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
-    <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Trang chủ</a>
-    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">Điều Khoản</a>
-    <a href="{{ url_for('privacy') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">Bảo Mật</a>
+    <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.home') }}</a>
+    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.tos') }}</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">{{ t('nav.privacy') }}</a>
   </div>
-  <div class="topbar-right">
+  <div class="topbar-right" style="display:flex; gap:16px; align-items:center;">
+    <!-- Language Switcher (Nekotina style) -->
+    <div class="lang-switcher">
+      <button class="lang-switcher-btn">
+        <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
+        <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
+      </button>
+      <div class="lang-dropdown">
+        <div class="lang-header">{{ t('nav.select_language') }}</div>
+        {% for code, name in available_languages.items() %}
+        <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+           class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+          <span>{{ name }}</span>
+          {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
     {% if session.get('user') %}
-      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">Dashboard</a>
+      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">{{ t('nav.dashboard') }}</a>
     {% else %}
-      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">Đăng nhập</a>
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">{{ t('nav.login') }}</a>
     {% endif %}
   </div>
 </header>
@@ -95,33 +96,17 @@
 <!-- Content -->
 <div class="home-content">
   <div class="legal-content">
-    <h1>Chính Sách Bảo Mật</h1>
-    <p><em>Cập nhật lần cuối: Hôm nay</em></p>
+    <h1>{{ t('privacy.title') }}</h1>
+    <p><em>{{ t('privacy.last_updated') }}</em></p>
 
-    <h2>1. Thu thập dữ liệu</h2>
-    <p>Zeryn Bot chỉ thu thập những dữ liệu cần thiết để cung cấp và cải thiện các tính năng cốt lõi. Các dữ liệu này bao gồm:</p>
-    <ul>
-      <li>ID của Người dùng, Máy chủ (Guild) và Kênh (Channel).</li>
-      <li>Cài đặt của Máy chủ (Guild settings) được định cấu hình thông qua bảng điều khiển hoặc các lệnh của bot.</li>
-      <li>Dữ liệu tạm thời cần thiết cho các tính năng như hệ thống hàng đợi nhạc (Music queue), bảng điều khiển hỗ trợ (Tickets), hoặc cấu hình Reaction Roles.</li>
-    </ul>
+    <h2>{{ t('privacy.s1_title') }}</h2>
+    <p>{{ t('privacy.s1_desc') }}</p>
 
-    <h2>2. Sử dụng dữ liệu</h2>
-    <p>Chúng tôi sử dụng dữ liệu được thu thập để:</p>
-    <ul>
-      <li>Lưu trữ cấu hình của máy chủ và duy trì hoạt động cho các tính năng của bot.</li>
-      <li>Xác thực và cấp quyền cho người quản lý thông qua Dashboard.</li>
-      <li>Cải thiện trải nghiệm người dùng và khắc phục lỗi khi có sự cố xảy ra.</li>
-    </ul>
+    <h2>{{ t('privacy.s2_title') }}</h2>
+    <p>{{ t('privacy.s2_desc') }}</p>
 
-    <h2>3. Lưu trữ và chia sẻ dữ liệu</h2>
-    <p>Tất cả dữ liệu được lưu trữ an toàn trong cơ sở dữ liệu của chúng tôi. Chúng tôi <strong>không bao giờ</strong> bán, cho thuê, hoặc chia sẻ dữ liệu của bạn cho bất kỳ bên thứ ba nào, ngoại trừ khi được yêu cầu bởi cơ quan có thẩm quyền theo quy định của pháp luật.</p>
-
-    <h2>4. Quyền xóa dữ liệu</h2>
-    <p>Nếu bạn muốn xóa hoàn toàn dữ liệu của máy chủ, bạn có thể thực hiện bằng cách kick (đuổi) bot ra khỏi máy chủ của mình hoặc liên hệ trực tiếp với chúng tôi để yêu cầu xóa dữ liệu hoàn toàn.</p>
-
-    <h2>5. Thông tin liên hệ</h2>
-    <p>Nếu bạn có bất kỳ câu hỏi nào về chính sách bảo mật, vui lòng liên hệ với ban quản trị thông qua máy chủ hỗ trợ của chúng tôi trên Discord.</p>
+    <h2>{{ t('privacy.s3_title') }}</h2>
+    <p>{{ t('privacy.s3_desc') }}</p>
   </div>
 </div>
 

@@ -13,6 +13,10 @@
   "common.loading": "⏳ Processing...",
   "common.requested_by": "Requested by {user}",
   "common.save": "Save changes",
+  "common.view": "View",
+  "common.configure": "Configure",
+  "common.active": "Active",
+  "common.disabled": "Disabled",
 
   "nav.select_language": "Select a language",
   "nav.features": "Features",
@@ -24,6 +28,7 @@
   "nav.admin": "Admin",
   "nav.tos": "Terms",
   "nav.privacy": "Privacy",
+  "nav.home": "Home",
 
   "landing.badge": "✨ The most adorable & all-in-one Discord bot",
   "landing.hero_title_1": "Elevate Your",
@@ -31,8 +36,6 @@
   "landing.hero_subtitle": "An all-in-one solution for managing, protecting, and growing your community with a sleek, modern, and easy-to-use Dashboard.",
   "landing.btn_add": "Add to Server",
   "landing.btn_explore": "Explore features",
-  "landing.trusted_by": "Trusted by over {count}+ servers",
-  "landing.trusted_sub": "Built with love for Discord communities around the world.",
 
   "landing.feat_title": "Features & Modules",
   "landing.feat_subtitle": "All-in-one powerful solution for your Discord Server",
@@ -114,6 +117,32 @@
   "dashboard.stat_members": "Members",
   "dashboard.stat_active_modules": "Active Modules",
   "dashboard.stat_total_modules": "Total Modules",
+  "dashboard.chart_join_leave": "Member Join/Leave (7 days)",
+  "dashboard.chart_chat_activity": "Hourly Chat Activity",
+  "dashboard.chart_top_channels": "Top 5 Most Active Channels",
+  "dashboard.chart_module_stats": "Module Statistics (Automod & Ticket)",
+  "dashboard.fast_general": "Overview",
+  "dashboard.fast_modules_title": "Modules Manager",
   "dashboard.save_success": "✅ Settings saved successfully!",
-  "dashboard.save_error": "❌ An error occurred while saving settings."
+  "dashboard.save_error": "❌ An error occurred while saving settings.",
+
+  "tos.title": "Terms of Service",
+  "tos.last_updated": "Last updated: Today",
+  "tos.s1_title": "1. Acceptance of Terms",
+  "tos.s1_desc": "By inviting Zeryn bot to your Discord server or using related services, you agree to comply with these Terms of Service.",
+  "tos.s2_title": "2. Usage Regulations",
+  "tos.s2_desc": "You agree not to use Zeryn Bot for activities that violate Discord Terms of Service or distribute illegal content.",
+  "tos.s3_title": "3. Service Availability",
+  "tos.s3_desc": "We do not guarantee uninterrupted or error-free service. Maintenance may be performed without prior notice.",
+  "tos.s4_title": "4. Right to Refuse Service",
+  "tos.s4_desc": "We reserve the right to refuse service or disable the bot on any server in cases of service abuse.",
+
+  "privacy.title": "Privacy Policy",
+  "privacy.last_updated": "Last updated: Today",
+  "privacy.s1_title": "1. Data Collection",
+  "privacy.s1_desc": "Zeryn Bot only collects essential data required for core operation, such as Server IDs, Channel IDs, and Guild Settings.",
+  "privacy.s2_title": "2. Data Usage",
+  "privacy.s2_desc": "Collected data is solely used to maintain server configurations, authenticate Dashboard access, and enhance user experience.",
+  "privacy.s3_title": "3. Storage & Security",
+  "privacy.s3_desc": "All data is securely stored in our databases. We never sell or share your data with any third parties."
 }

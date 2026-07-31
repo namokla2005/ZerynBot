@@ -13,6 +13,10 @@
   "common.loading": "⏳ Procesando...",
   "common.requested_by": "Solicitado por {user}",
   "common.save": "Guardar cambios",
+  "common.view": "Ver",
+  "common.configure": "Configurar",
+  "common.active": "Activo",
+  "common.disabled": "Desactivado",
 
   "nav.select_language": "Seleccionar idioma",
   "nav.features": "Funciones",
@@ -24,6 +28,7 @@
   "nav.admin": "Administrador",
   "nav.tos": "Términos",
   "nav.privacy": "Privacidad",
+  "nav.home": "Inicio",
 
   "landing.badge": "✨ El bot de Discord más adorable y completo",
   "landing.hero_title_1": "Mejora Tu Experiencia",
@@ -31,8 +36,6 @@
   "landing.hero_subtitle": "Una solución integral para administrar, proteger y hacer crecer tu comunidad con un Panel de Control moderno y fácil de usar.",
   "landing.btn_add": "Añadir al Servidor",
   "landing.btn_explore": "Explorar funciones",
-  "landing.trusted_by": "Con la confianza de más de {count}+ servidores",
-  "landing.trusted_sub": "Creado con amor para comunidades de Discord en todo el mundo.",
 
   "landing.feat_title": "Funciones y Módulos",
   "landing.feat_subtitle": "Solución completa y potente para tu servidor de Discord",
@@ -114,6 +117,32 @@
   "dashboard.stat_members": "Miembros",
   "dashboard.stat_active_modules": "Módulos Activos",
   "dashboard.stat_total_modules": "Total Módulos",
+  "dashboard.chart_join_leave": "Entradas/Salidas de Miembros (7 días)",
+  "dashboard.chart_chat_activity": "Actividad de Chat por Hora",
+  "dashboard.chart_top_channels": "Top 5 Canales más Activos",
+  "dashboard.chart_module_stats": "Estadísticas de Módulos (Automod y Ticket)",
+  "dashboard.fast_general": "Visión General",
+  "dashboard.fast_modules_title": "Gestor de Módulos",
   "dashboard.save_success": "✅ ¡Configuración guardada con éxito!",
-  "dashboard.save_error": "❌ Error al guardar la configuración."
+  "dashboard.save_error": "❌ Error al guardar la configuración.",
+
+  "tos.title": "Términos de Servicio",
+  "tos.last_updated": "Última actualización: Hoy",
+  "tos.s1_title": "1. Aceptación de los Términos",
+  "tos.s1_desc": "Al invitar a Zeryn bot a tu servidor de Discord o utilizar los servicios relacionados, aceptas cumplir con estos Términos de Servicio.",
+  "tos.s2_title": "2. Normas de Uso",
+  "tos.s2_desc": "Aceptas no utilizar Zeryn Bot para actividades que violen los Términos de Servicio de Discord o distribuir contenido ilegal.",
+  "tos.s3_title": "3. Disponibilidad del Servicio",
+  "tos.s3_desc": "No garantizamos que el servicio sea ininterrumpido o libre de errores. El mantenimiento se puede realizar sin previo aviso.",
+  "tos.s4_title": "4. Derecho a Denegar Servicio",
+  "tos.s4_desc": "Nos reservamos el derecho de denegar el servicio o desactivar el bot en cualquier servidor en caso de abuso.",
+
+  "privacy.title": "Política de Privacidad",
+  "privacy.last_updated": "Última actualización: Hoy",
+  "privacy.s1_title": "1. Recopilación de Datos",
+  "privacy.s1_desc": "Zeryn Bot solo recopila los datos esenciales necesarios para el funcionamiento, como ID de Servidor, ID de Canal y Configuración del Servidor.",
+  "privacy.s2_title": "2. Uso de Datos",
+  "privacy.s2_desc": "Los datos recopilados se utilizan únicamente para mantener las configuraciones del servidor y mejorar la experiencia del usuario.",
+  "privacy.s3_title": "3. Almacenamiento y Seguridad",
+  "privacy.s3_desc": "Todos los datos se almacenan de forma segura. Nunca venderemos ni compartiremos tus datos con terceros."
 }

@@ -13,6 +13,10 @@
   "common.loading": "⏳ 处理中...",
   "common.requested_by": "请求者：{user}",
   "common.save": "保存更改",
+  "common.view": "查看",
+  "common.configure": "配置",
+  "common.active": "已启用",
+  "common.disabled": "已禁用",
 
   "nav.select_language": "选择语言",
   "nav.features": "功能",
@@ -24,6 +28,7 @@
   "nav.admin": "管理员",
   "nav.tos": "服务条款",
   "nav.privacy": "隐私政策",
+  "nav.home": "主页",
 
   "landing.badge": "✨ 最可爱全能的 Discord 机器人",
   "landing.hero_title_1": "提升您的",
@@ -31,8 +36,6 @@
   "landing.hero_subtitle": "全方位的社区管理、保护与建设计划，配有现代、流畅且极易使用的 Web 控制面板。",
   "landing.btn_add": "添加至服务器",
   "landing.btn_explore": "探索所有功能",
-  "landing.trusted_by": "已获得超过 {count}+ 个服务器信赖",
-  "landing.trusted_sub": "用心为全球 Discord 社区打造。",
 
   "landing.feat_title": "特色功能与模块",
   "landing.feat_subtitle": "为您的 Discord 服务器提供的一站式强大解决方案",
@@ -114,6 +117,32 @@
   "dashboard.stat_members": "总成员数",
   "dashboard.stat_active_modules": "已启用模块",
   "dashboard.stat_total_modules": "总模块数",
+  "dashboard.chart_join_leave": "成员加入/离开趋势 (7天)",
+  "dashboard.chart_chat_activity": "按小时统计聊天活跃度",
+  "dashboard.chart_top_channels": "前5名最活跃频道",
+  "dashboard.chart_module_stats": "模块统计 (自动审核与工单)",
+  "dashboard.fast_general": "概览",
+  "dashboard.fast_modules_title": "模块管理",
   "dashboard.save_success": "✅ 设置已成功保存！",
-  "dashboard.save_error": "❌ 保存设置时发生错误。"
+  "dashboard.save_error": "❌ 保存设置时发生错误。",
+
+  "tos.title": "服务条款",
+  "tos.last_updated": "最近更新：今天",
+  "tos.s1_title": "1. 条款接受",
+  "tos.s1_desc": "将 Zeryn 机器人邀请至您的 Discord 服务器或使用相关服务，即表示您同意遵守本服务条款。",
+  "tos.s2_title": "2. 使用规范",
+  "tos.s2_desc": "您同意不将 Zeryn 机器人用于违反 Discord 服务条款或传播非法内容的行为。",
+  "tos.s3_title": "3. 服务可用性",
+  "tos.s3_desc": "我们不保证服务将不间断或无错误运行。可能在不事先通知的情况下进行维护。",
+  "tos.s4_title": "4. 拒绝服务权利",
+  "tos.s4_desc": "如果发现滥用行为，我们保留随时拒绝服务或在任何服务器上禁用机器人的权利。",
+
+  "privacy.title": "隐私政策",
+  "privacy.last_updated": "最近更新：今天",
+  "privacy.s1_title": "1. 数据收集",
+  "privacy.s1_desc": "Zeryn 机器人仅收集核心运营所需的基本数据，例如服务器 ID、频道 ID 和服务器设置。",
+  "privacy.s2_title": "2. 数据使用",
+  "privacy.s2_desc": "收集的数据仅用于维护服务器配置、验证控制面板访问权限并提升用户体验。",
+  "privacy.s3_title": "3. 存储与安全",
+  "privacy.s3_desc": "所有数据均安全存储在我们的数据库中。我们绝不会将您的数据出售或共享给任何第三方。"
 }
