@@ -1195,6 +1195,62 @@ def admin_unblacklist(guild_id: str):
     return redirect(url_for("admin_panel"))
 
 
+@app.route("/admin/invite/<guild_id>", methods=["POST"])
+@owner_required
+def admin_invite_guild(guild_id: str):
+    """Tạo instant invite link cho một server để Owner có thể gia nhập."""
+    try:
+        cr = requests.get(
+            f"{config.DISCORD_API_BASE}/guilds/{guild_id}/channels",
+            headers={"Authorization": f"Bot {config.TOKEN}"},
+            timeout=8,
+        )
+        if not cr.ok:
+            return jsonify({"ok": False, "error": f"Không thể lấy danh sách kênh (HTTP {cr.status_code})"}), 400
+        channels = cr.json()
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Lỗi kết nối Discord API: {e}"}), 500
+
+    candidate_channels = [c for c in channels if c.get("type") in (0, 5, 2)]
+    if not candidate_channels:
+        return jsonify({"ok": False, "error": "Server không có kênh phù hợp để tạo link mời."}), 400
+
+    # Ưu tiên text channels (type 0) trước
+    candidate_channels.sort(key=lambda c: (0 if c.get("type") == 0 else 1, c.get("position", 999)))
+
+    for ch in candidate_channels:
+        ch_id = ch["id"]
+        try:
+            inv_resp = requests.post(
+                f"{config.DISCORD_API_BASE}/channels/{ch_id}/invites",
+                headers={
+                    "Authorization": f"Bot {config.TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "max_age": 86400,
+                    "max_uses": 0,
+                    "unique": False
+                },
+                timeout=5
+            )
+            if inv_resp.status_code in (200, 201):
+                inv_data = inv_resp.json()
+                code = inv_data.get("code")
+                if code:
+                    return jsonify({
+                        "ok": True,
+                        "code": code,
+                        "url": f"https://discord.gg/{code}",
+                        "channel_name": ch.get("name", "kênh")
+                    })
+        except Exception:
+            continue
+
+    return jsonify({"ok": False, "error": "Bot không có quyền Create Invite (Tạo liên kết mời) ở bất kỳ kênh nào trong server này."}), 403
+
+
+
 @app.route("/admin/broadcast", methods=["POST"])
 @owner_required
 def admin_broadcast():

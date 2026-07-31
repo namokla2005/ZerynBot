@@ -65,6 +65,8 @@
     .btn-icon.kick:hover{background:rgba(240,71,71,.2);border-color:#f04747;}
     .btn-icon.broadcast{color:#5865f2;border-color:rgba(88,101,242,.3);background:rgba(88,101,242,.08);}
     .btn-icon.broadcast:hover{background:rgba(88,101,242,.2);border-color:#5865f2;}
+    .btn-icon.invite{color:#43b581;border-color:rgba(67,181,129,.3);background:rgba(67,181,129,.08);}
+    .btn-icon.invite:hover{background:rgba(67,181,129,.2);border-color:#43b581;}
     .btn-icon.unblacklist{color:#43b581;border-color:rgba(67,181,129,.3);background:rgba(67,181,129,.08);}
     .btn-icon.unblacklist:hover{background:rgba(67,181,129,.2);border-color:#43b581;}
     .broadcast-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;background:rgba(88,101,242,.07);border-bottom:1px solid rgba(88,101,242,.15);}
@@ -215,6 +217,11 @@
               </td>
               <td>
                 <div class="action-btns" style="justify-content:flex-end;">
+                  {% if not is_bl %}
+                  <button class="btn-icon invite" onclick="openInviteModal('{{ guild.id }}', guildNames['{{ guild.id }}'])">
+                    <i class="bi bi-person-plus-fill"></i> Invite Me
+                  </button>
+                  {% endif %}
                   <button class="btn-icon broadcast" onclick="openBroadcastModal('{{ guild.id }}', guildNames['{{ guild.id }}'], false)">
                     <i class="bi bi-megaphone-fill"></i> Broadcast
                   </button>
@@ -326,6 +333,44 @@
   </div>
 </div>
 
+<!-- Modal: Invite -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal-box">
+    <div class="modal-title" style="color:#43b581;"><i class="bi bi-person-plus-fill"></i> Link Tham Gia Server</div>
+    <p class="modal-subtitle">Tạo link mời để bạn (Owner) gia nhập server <strong id="inviteGuildName" style="color:var(--text-primary);"></strong>.</p>
+    
+    <div id="inviteLoading" style="text-align:center;padding:24px 0;">
+      <div style="font-size:1.6rem;margin-bottom:8px;">⏳</div>
+      <p style="font-size:.88rem;color:var(--text-secondary);">Đang tạo link mời từ Discord API...</p>
+    </div>
+
+    <div id="inviteResult" style="display:none;">
+      <div class="modal-field">
+        <label class="modal-label">Link mời Instant Invite (24 giờ)</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="inviteUrlInput" class="modal-input" readonly style="font-weight:600;color:#43b581;">
+          <button type="button" class="btn-cancel" onclick="copyInviteUrl()"><i class="bi bi-clipboard"></i> Copy</button>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button type="button" class="btn-cancel" onclick="closeInviteModal()"><i class="bi bi-x-lg"></i> Đóng</button>
+        <a id="inviteJoinBtn" href="#" target="_blank" class="btn-icon unblacklist" style="text-decoration:none;padding:8px 16px;font-size:.88rem;display:inline-flex;align-items:center;gap:6px;">
+          <i class="bi bi-box-arrow-up-right"></i> Tham gia Server ngay
+        </a>
+      </div>
+    </div>
+
+    <div id="inviteError" style="display:none;">
+      <div class="warn-box" style="margin-bottom:16px;">
+        ⚠️ <span id="inviteErrorText">Không thể tạo link mời cho server này.</span>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeInviteModal()"><i class="bi bi-x-lg"></i> Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   // Guild name map (safe JS object)
   const guildNames = {
@@ -405,11 +450,48 @@
   function closeBroadcastModal() { document.getElementById('broadcastModal').classList.remove('open'); }
   document.getElementById('broadcastModal').addEventListener('click', function(e) { if(e.target===this) closeBroadcastModal(); });
 
+  function openInviteModal(guildId, guildName) {
+    document.getElementById('inviteGuildName').textContent = guildName || guildId;
+    document.getElementById('inviteLoading').style.display = 'block';
+    document.getElementById('inviteResult').style.display = 'none';
+    document.getElementById('inviteError').style.display = 'none';
+    document.getElementById('inviteModal').classList.add('open');
+
+    fetch('/admin/invite/' + guildId, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('inviteLoading').style.display = 'none';
+        if (data.ok && data.url) {
+          document.getElementById('inviteUrlInput').value = data.url;
+          document.getElementById('inviteJoinBtn').href = data.url;
+          document.getElementById('inviteResult').style.display = 'block';
+        } else {
+          document.getElementById('inviteErrorText').textContent = data.error || 'Bot không thể tạo link mời cho server này.';
+          document.getElementById('inviteError').style.display = 'block';
+        }
+      })
+      .catch(err => {
+        document.getElementById('inviteLoading').style.display = 'none';
+        document.getElementById('inviteErrorText').textContent = 'Lỗi kết nối API: ' + err;
+        document.getElementById('inviteError').style.display = 'block';
+      });
+  }
+  function closeInviteModal() { document.getElementById('inviteModal').classList.remove('open'); }
+  document.getElementById('inviteModal').addEventListener('click', function(e) { if(e.target===this) closeInviteModal(); });
+
+  function copyInviteUrl() {
+    const inp = document.getElementById('inviteUrlInput');
+    inp.select();
+    navigator.clipboard.writeText(inp.value).then(() => {
+      alert('Đã sao chép link mời: ' + inp.value);
+    });
+  }
+
   function syncColor(input) {
     if (/^#[0-9A-Fa-f]{6}$/.test(input.value))
       document.getElementById('broadcastColorPicker').value = input.value;
   }
-  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); } });
+  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); closeInviteModal(); } });
 </script>
 </body>
 </html>
