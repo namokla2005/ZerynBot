@@ -1,5 +1,5 @@
 {% extends "base_server.html" %}
-{% block title %}Embed Builder{% endblock %}
+{% block title %}{{ t('embeds.title') }}{% endblock %}
 {% block head %}
 <style>
   .preview-field { display: flex; flex-direction: column; gap: 2px; }
@@ -8,8 +8,8 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">💬 Embed Messages</h1>
-  <p class="page-subtitle">Tạo embed tin nhắn đẹp với giao diện kéo-thả trực quan</p>
+  <h1 class="page-title">{{ t('embeds.title') }}</h1>
+  <p class="page-subtitle">{{ t('embeds.subtitle') }}</p>
 </div>
 
 <!-- Builder -->
@@ -18,11 +18,11 @@
   <!-- ── Left: Editor ────────────────────────────────────────────────────── -->
   <div>
     <div class="builder-panel">
-      <div class="builder-panel-title"><i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Editor</div>
+      <div class="builder-panel-title"><i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('embeds.editor') }}</div>
 
       <!-- Color -->
       <div class="form-group">
-        <label class="form-label">Màu viền</label>
+        <label class="form-label">{{ t('embeds.border_color') }}</label>
         <div class="color-row">
           <div class="color-swatch" id="eb-color-swatch" style="background:#5865f2">
             <input type="color" id="eb-color" value="#5865f2"
@@ -36,18 +36,18 @@
 
       <!-- Author -->
       <div class="form-group">
-        <label class="form-label">Tên tác giả (Author)</label>
-        <input id="eb-author-name" type="text" class="form-control" placeholder="Tên tác giả...">
+        <label class="form-label">{{ t('embeds.author_name') }}</label>
+        <input id="eb-author-name" type="text" class="form-control" placeholder="...">
       </div>
 
       <!-- Title -->
       <div class="form-row">
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Tiêu đề</label>
-          <input id="eb-title" type="text" class="form-control" placeholder="Tiêu đề embed...">
+          <label class="form-label">{{ t('embeds.title_field') }}</label>
+          <input id="eb-title" type="text" class="form-control" placeholder="...">
         </div>
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">URL tiêu đề (tùy chọn)</label>
+          <label class="form-label">{{ t('embeds.title_url') }}</label>
           <input id="eb-title-url" type="url" class="form-control" placeholder="https://...">
         </div>
       </div>
@@ -55,20 +55,20 @@
 
       <!-- Description -->
       <div class="form-group">
-        <label class="form-label">Mô tả</label>
+        <label class="form-label">{{ t('embeds.description') }}</label>
         <textarea id="eb-description" class="form-control" rows="4"
-                  placeholder="Nội dung chính của embed..."></textarea>
-        <div class="form-hint">Hỗ trợ markdown Discord: **đậm**, *nghiêng*, `code`, [link](url)</div>
+                  placeholder="{{ t('embeds.desc_placeholder') }}"></textarea>
+        <div class="form-hint">Markdown: **bold**, *italic*, `code`, [link](url)</div>
       </div>
 
       <!-- Thumbnail & Image -->
       <div class="form-row">
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Thumbnail URL</label>
+          <label class="form-label">{{ t('embeds.thumbnail_url') }}</label>
           <input id="eb-thumbnail" type="url" class="form-control" placeholder="https://...">
         </div>
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Image URL</label>
+          <label class="form-label">{{ t('embeds.image_url') }}</label>
           <input id="eb-image" type="url" class="form-control" placeholder="https://...">
         </div>
       </div>
@@ -76,9 +76,9 @@
 
       <!-- Fields -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <label class="form-label" style="margin:0">Fields</label>
+        <label class="form-label" style="margin:0">{{ t('embeds.fields') }}</label>
         <button type="button" class="btn btn-secondary btn-sm" onclick="addField()">
-          <i class="bi bi-plus-lg"></i> Thêm field
+          <i class="bi bi-plus-lg"></i> {{ t('embeds.add_field') }}
         </button>
       </div>
       <div id="fields-container"></div>
@@ -88,11 +88,11 @@
       <!-- Footer -->
       <div class="form-row">
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Footer text</label>
-          <input id="eb-footer" type="text" class="form-control" placeholder="Text footer...">
+          <label class="form-label">{{ t('embeds.footer_text') }}</label>
+          <input id="eb-footer" type="text" class="form-control" placeholder="...">
         </div>
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Footer icon URL</label>
+          <label class="form-label">{{ t('embeds.footer_icon') }}</label>
           <input id="eb-footer-icon" type="url" class="form-control" placeholder="https://...">
         </div>
       </div>
@@ -101,36 +101,35 @@
       <!-- Save name + actions -->
       <div class="divider"></div>
       <div class="form-group">
-        <label class="form-label">Tên embed (để lưu)</label>
-        <input id="eb-name" type="text" class="form-control" placeholder="VD: Thông báo update...">
+        <label class="form-label">{{ t('embeds.save_name') }}</label>
+        <input id="eb-name" type="text" class="form-control" placeholder="...">
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn btn-primary" onclick="saveEmbed()">
-          <i class="bi bi-floppy-fill"></i> Lưu Embed
+          <i class="bi bi-floppy-fill"></i> {{ t('embeds.save_button') }}
         </button>
         <button type="button" class="btn btn-secondary" onclick="clearBuilder()">
-          <i class="bi bi-trash3"></i> Xóa trắng
+          <i class="bi bi-trash3"></i> {{ t('embeds.clear_button') }}
         </button>
       </div>
 
       <!-- ── Send to Discord ───────────────────────────────────────────────── -->
       <div class="send-section">
         <div class="send-section-title">
-          <i class="bi bi-send-fill"></i> Gửi đến Discord
+          <i class="bi bi-send-fill"></i> {{ t('embeds.send_section') }}
         </div>
         <div class="form-group" style="margin-bottom: 12px;">
-          <label class="form-label">Chọn kênh</label>
+          <label class="form-label">{{ t('embeds.select_channel') }}</label>
           <select id="send-channel-select" class="form-control">
-            <option value="">— Chọn kênh —</option>
+            <option value="">{{ t('common.select_channel') }}</option>
             {% for ch in channels %}
               <option value="{{ ch.channel_id }}"># {{ ch.channel_name }}</option>
             {% endfor %}
           </select>
-          <div class="form-hint">Bot sẽ gửi embed này vào kênh được chọn ngay lập tức</div>
         </div>
         <button type="button" id="send-embed-btn" class="btn btn-success btn-full"
                 onclick="sendEmbedToChannel()">
-          <i class="bi bi-send-fill"></i> Gửi Embed đến kênh
+          <i class="bi bi-send-fill"></i> {{ t('embeds.send_button') }}
         </button>
       </div>
     </div>
@@ -147,7 +146,7 @@
           <div class="discord-bot-name">
             Bot
             <span class="discord-bot-tag">BOT</span>
-            <span class="discord-time">Hôm nay lúc {{ now }}</span>
+            <span class="discord-time">Today</span>
           </div>
           <!-- Embed preview box -->
           <div class="embed-box" id="prev-bar">
@@ -158,9 +157,9 @@
               <span class="embed-author-name"></span>
             </div>
             <!-- Title -->
-            <div class="preview-title" id="prev-title" data-placeholder="Tiêu đề embed" style="display:none"></div>
+            <div class="preview-title" id="prev-title" data-placeholder="Embed Title" style="display:none"></div>
             <!-- Description -->
-            <div class="preview-desc"  id="prev-desc"  data-placeholder="Mô tả embed..." style="display:none"></div>
+            <div class="preview-desc"  id="prev-desc"  data-placeholder="Embed description..." style="display:none"></div>
             <!-- Fields -->
             <div class="preview-fields" id="prev-fields" style="display:none"></div>
             <!-- Image -->
@@ -181,7 +180,7 @@
 {% if embeds %}
 <div style="margin-top: 40px;">
   <div class="section-header">
-    <div class="section-title">💾 Embeds đã lưu</div>
+    <div class="section-title">💾 {{ t('embeds.saved_title') }}</div>
     <span class="count-chip">{{ embeds | length }}</span>
   </div>
   <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
@@ -196,7 +195,7 @@
       <div class="embed-item-actions">
         <button class="btn btn-secondary btn-sm"
                 onclick='loadEmbed({{ embed.embed_data | tojson }})'>
-          <i class="bi bi-pencil"></i> Sửa
+          <i class="bi bi-pencil"></i> {{ t('common.edit') }}
         </button>
         <button class="btn btn-danger btn-sm"
                 onclick="deleteEmbed({{ embed.id }})">
@@ -209,19 +208,15 @@
 </div>
 {% else %}
 <div style="margin-top: 40px;">
-  <div class="section-title" style="margin-bottom:14px;">💾 Embeds đã lưu</div>
+  <div class="section-title" style="margin-bottom:14px;">💾 {{ t('embeds.saved_title') }}</div>
   <div class="empty-state">
     <div class="empty-icon">💬</div>
-    <h3>Chưa có embed nào được lưu</h3>
-    <p>Tạo embed ở trên và nhấn <strong>Lưu Embed</strong> để lưu lại</p>
+    <h3>{{ t('embeds.no_saved') }}</h3>
   </div>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
-<script>
-// Pass current time to template
-</script>
 <script src="{{ url_for('static', filename='js/embed_builder.js') }}"></script>
 {% endblock %}

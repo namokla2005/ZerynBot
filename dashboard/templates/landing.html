@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zeryn Bot — Discord Bot Đa Năng</title>
+  <title>Zeryn Bot — {{ t('landing.badge') }}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
-  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -13,341 +12,216 @@
   
   <style>
     body {
-      background-color: #08060c;
-      color: #ffffff;
-      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden;
-      display: block;
+      background-color: #07050d;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(255, 158, 194, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(88, 101, 242, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(120, 80, 220, 0.05) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: #e3e5e8;
     }
 
-    /* Landing Topbar / Nav */
-    .landing-nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 48px;
-      background: rgba(12, 8, 22, 0.88);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
+    .landing-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7, 5, 13, 0.85);
       backdrop-filter: blur(16px);
-    }
-    .landing-nav-left {
-      display: flex;
-      align-items: center;
-      gap: 36px;
-    }
-    .landing-nav-logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 1.35rem;
-      font-weight: 800;
-      color: #ffffff;
-      text-decoration: none;
-      letter-spacing: -0.02em;
-    }
-    .landing-nav-logo img {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      box-shadow: 0 0 16px rgba(255, 158, 194, 0.35);
-    }
-    .landing-nav-links {
-      display: flex;
-      gap: 28px;
-      align-items: center;
-    }
-    .nav-link-item {
-      color: rgba(255, 255, 255, 0.7);
-      font-weight: 600;
-      font-size: 0.95rem;
-      text-decoration: none;
-      transition: all 0.2s;
-    }
-    .nav-link-item:hover {
-      color: #ff9ec2;
-    }
-    .landing-nav-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .btn-dash {
-      background: linear-gradient(135deg, #ff9ec2, #5865F2);
-      color: #ffffff;
-      padding: 9px 22px;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 0.92rem;
-      text-decoration: none;
-      transition: all 0.2s;
-      box-shadow: 0 4px 16px rgba(88, 101, 242, 0.3);
-    }
-    .btn-dash:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(255, 158, 194, 0.4);
-      color: #ffffff;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 28px;
     }
 
-    /* Hero Section */
-    .hero-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 90px 24px 60px 24px;
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      align-items: center;
-      gap: 48px;
-      position: relative;
+    .landing-nav {
+      max-width: 1240px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .hero-bg-glow {
-      position: absolute;
-      top: 20%;
-      left: 10%;
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(circle, rgba(255, 158, 194, 0.15) 0%, rgba(88, 101, 242, 0.1) 40%, rgba(8, 6, 12, 0) 70%);
-      z-index: -1;
-      pointer-events: none;
-    }
-    .badge-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 158, 194, 0.12);
-      border: 1px solid rgba(255, 158, 194, 0.3);
-      color: #ff9ec2;
-      padding: 6px 16px;
-      border-radius: 30px;
-      font-size: 0.88rem;
-      font-weight: 700;
-      margin-bottom: 24px;
-    }
-    .hero-title-text {
-      font-size: 3.5rem;
-      font-weight: 800;
-      line-height: 1.15;
-      margin-bottom: 20px;
-      letter-spacing: -0.03em;
-    }
-    .hero-title-text span {
-      background: linear-gradient(135deg, #ff9ec2 0%, #a777ff 50%, #5865F2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero-subtitle-text {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 1.15rem;
-      line-height: 1.65;
-      margin-bottom: 36px;
-      max-width: 580px;
-    }
-    .hero-actions {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-    .btn-hero-primary {
-      background: #ff9ec2;
-      color: #120818;
-      padding: 14px 28px;
-      border-radius: 12px;
-      font-weight: 800;
-      font-size: 1rem;
+
+    .landing-brand {
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 800; font-size: 1.25rem; color: #fff;
       text-decoration: none;
-      display: inline-flex;
+    }
+    .landing-brand img { width: 36px; height: 36px; border-radius: 50%; }
+
+    .landing-nav-left { display: flex; align-items: center; gap: 32px; }
+    .landing-nav-links { display: flex; align-items: center; gap: 24px; }
+    .landing-nav-links a {
+      color: #a3a6af; font-weight: 500; font-size: 0.95rem;
+      transition: color 0.2s; text-decoration: none;
+    }
+    .landing-nav-links a:hover { color: #fff; }
+
+    .hero-section {
+      max-width: 1200px; margin: 60px auto 100px;
+      padding: 0 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
       align-items: center;
-      gap: 10px;
-      transition: all 0.25s ease;
-      box-shadow: 0 8px 24px rgba(255, 158, 194, 0.35);
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 20px;
+      background: rgba(255, 158, 194, 0.12); border: 1px solid rgba(255, 158, 194, 0.3);
+      color: #ff9ec2; font-size: 0.85rem; font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 3.4rem; font-weight: 800; line-height: 1.15;
+      color: #fff; margin-bottom: 20px;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, #ff9ec2 0%, #5865f2 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem; color: #a3a6af; line-height: 1.7;
+      margin-bottom: 36px; max-width: 520px;
+    }
+
+    .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+
+    .btn-hero-primary {
+      background: #ff9ec2; color: #0f0a1a;
+      padding: 14px 28px; border-radius: 12px;
+      font-weight: 700; font-size: 1rem;
+      display: inline-flex; align-items: center; gap: 10px;
+      transition: all 0.2s ease; text-decoration: none;
+      box-shadow: 0 8px 24px rgba(255, 158, 194, 0.25);
     }
     .btn-hero-primary:hover {
-      background: #ffb8d4;
-      transform: translateY(-3px);
-      box-shadow: 0 12px 32px rgba(255, 158, 194, 0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(255, 158, 194, 0.4);
     }
+
     .btn-hero-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: #ffffff;
-      padding: 14px 24px;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 1rem;
-      text-decoration: none;
-      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.08); color: #fff;
+      padding: 14px 28px; border-radius: 12px;
+      font-weight: 600; font-size: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: inline-flex; align-items: center; gap: 10px;
+      transition: all 0.2s ease; text-decoration: none;
     }
     .btn-hero-secondary:hover {
-      background: rgba(255, 255, 255, 0.16);
-      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.14);
     }
 
-    /* Hero Graphic */
     .hero-graphic {
-      position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      position: relative; display: flex; justify-content: center; align-items: center;
     }
-    .hero-graphic-circle {
-      width: 320px;
-      height: 320px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, rgba(255, 158, 194, 0.3), rgba(88, 101, 242, 0.3));
-      padding: 8px;
-      box-shadow: 0 0 60px rgba(255, 158, 194, 0.3);
+    .hero-avatar-card {
+      width: 320px; height: 320px; border-radius: 50%;
+      padding: 12px; background: linear-gradient(135deg, #ff9ec2, #5865f2);
+      box-shadow: 0 20px 60px rgba(88, 101, 242, 0.3);
       position: relative;
     }
-    .hero-graphic-circle img {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 4px solid #160f24;
+    .hero-avatar-card img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+    /* Showcase Blocks */
+    .showcase-section { max-width: 1140px; margin: 0 auto 120px; padding: 0 24px; }
+    .showcase-block {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+      margin-bottom: 100px;
+    }
+    .showcase-block.reverse { grid-template-columns: 1fr 1fr; }
+    .showcase-block.reverse .showcase-text { order: 2; }
+    .showcase-block.reverse .showcase-preview { order: 1; }
+
+    .showcase-text h2 {
+      font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 16px;
+    }
+    .showcase-text p {
+      font-size: 1.05rem; color: #a3a6af; line-height: 1.7; margin-bottom: 24px;
     }
 
-    /* Trusted Section */
-    .trusted-section {
-      background: rgba(16, 11, 26, 0.6);
-      border-y: 1px solid rgba(255, 255, 255, 0.06);
-      padding: 40px 24px;
-      text-align: center;
-    }
-    .trusted-title {
-      font-size: 1.5rem;
-      font-weight: 800;
-      letter-spacing: -0.01em;
-      margin-bottom: 6px;
-    }
-    .trusted-sub {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 0.95rem;
+    .showcase-preview {
+      background: rgba(18, 13, 28, 0.92);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
+      padding: 24px; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
     }
 
-    /* Features Section */
-    .features-section {
-      max-width: 1200px;
-      margin: 80px auto;
-      padding: 0 24px;
+    .discord-msg-preview {
+      background: #313338; border-radius: 12px; padding: 16px; font-size: 0.9rem;
     }
-    .features-header {
-      text-align: center;
-      margin-bottom: 56px;
-    }
-    .features-header h2 {
-      font-size: 2.5rem;
-      font-weight: 800;
-      margin-bottom: 12px;
-    }
-    .features-header p {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 1.1rem;
-    }
-    .features-grid-layout {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-      gap: 28px;
-    }
-    .f-card {
-      background: rgba(18, 13, 28, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-      padding: 32px;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-    }
-    .f-card:hover {
-      transform: translateY(-6px);
-      border-color: rgba(255, 158, 194, 0.4);
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 158, 194, 0.15);
-    }
-    .f-icon {
-      width: 54px;
-      height: 54px;
-      border-radius: 14px;
-      background: rgba(255, 158, 194, 0.12);
-      color: #ff9ec2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.6rem;
-      margin-bottom: 20px;
-    }
-    .f-card.purple .f-icon {
-      background: rgba(88, 101, 242, 0.15);
-      color: #5865F2;
-    }
-    .f-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-    .f-desc {
-      color: rgba(255, 255, 255, 0.65);
-      line-height: 1.6;
-      font-size: 0.96rem;
-    }
+    .discord-msg-header { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+    .discord-msg-bot { font-weight: 700; color: #fff; }
+    .discord-msg-tag { background: #5865f2; color: #fff; font-size: 0.65rem; padding: 1px 4px; border-radius: 3px; }
 
-    /* Footer */
-    .landing-footer {
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 48px 24px;
-      text-align: center;
-      background: #050408;
+    /* All in One Section */
+    .all-in-one-section {
+      text-align: center; max-width: 1140px; margin: 0 auto 120px; padding: 0 24px;
     }
-    .footer-nav {
-      display: flex;
-      justify-content: center;
-      gap: 28px;
-      margin-bottom: 20px;
+    .all-in-one-section h2 { font-size: 2.5rem; font-weight: 800; color: #fff; margin-bottom: 12px; }
+    .all-in-one-section p { color: #a3a6af; font-size: 1.1rem; margin-bottom: 48px; }
+
+    .category-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;
     }
-    .footer-nav a {
-      color: rgba(255, 255, 255, 0.6);
-      text-decoration: none;
-      font-size: 0.95rem;
-      font-weight: 500;
-      transition: color 0.2s;
+    .category-card {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 20px 16px; text-align: center;
+      transition: all 0.2s ease;
     }
-    .footer-nav a:hover { color: #ffffff; }
-    .copyright {
-      color: rgba(255, 255, 255, 0.4);
-      font-size: 0.88rem;
+    .category-card:hover {
+      background: rgba(255,255,255,0.07); transform: translateY(-4px);
+      border-color: rgba(255,158,194,0.4);
     }
+    .category-icon { font-size: 1.8rem; margin-bottom: 10px; }
+    .category-name { font-weight: 700; color: #fff; font-size: 0.95rem; }
+
+    /* Footer CTA */
+    .cta-banner {
+      background: linear-gradient(135deg, rgba(255,158,194,0.15), rgba(88,101,242,0.15));
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 24px;
+      padding: 60px 36px; text-align: center; max-width: 1000px; margin: 0 auto 80px;
+    }
+    .cta-banner h2 { font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 14px; }
+    .cta-banner p { color: #a3a6af; font-size: 1.05rem; margin-bottom: 28px; }
+
+    .site-footer {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 60px 24px 40px; background: rgba(5,3,9,0.95);
+    }
+    .footer-container {
+      max-width: 1140px; margin: 0 auto;
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
+    }
+    .footer-brand { font-weight: 800; color: #fff; font-size: 1.3rem; margin-bottom: 12px; }
+    .footer-desc { color: #80848e; font-size: 0.9rem; line-height: 1.6; }
+    .footer-title { font-weight: 700; color: #fff; margin-bottom: 16px; font-size: 0.95rem; }
+    .footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-links a { color: #949ba4; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+    .footer-links a:hover { color: #fff; }
 
     @media (max-width: 900px) {
-      .hero-container { grid-template-columns: 1fr; text-align: center; }
-      .hero-title-text { font-size: 2.6rem; }
+      .hero-section, .showcase-block, .showcase-block.reverse { grid-template-columns: 1fr; text-align: center; }
+      .showcase-block.reverse .showcase-text { order: 1; }
+      .showcase-block.reverse .showcase-preview { order: 2; }
+      .hero-subtitle { margin: 0 auto 36px; }
       .hero-actions { justify-content: center; }
-      .hero-graphic { margin-top: 30px; }
-      .landing-nav { padding: 16px 20px; }
-      .landing-nav-left { gap: 16px; }
-      .landing-nav-links { display: none; }
+      .footer-container { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Navbar (Nekotina Style: Logo + Nav Links on LEFT) -->
-  <nav class="landing-nav">
+<!-- Header -->
+<header class="landing-header">
+  <div class="landing-nav">
     <div class="landing-nav-left">
-      <a href="/" class="landing-nav-logo">
+      <a href="{{ url_for('home') }}" class="landing-brand">
         <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
         Zeryn Bot
       </a>
-
       <div class="landing-nav-links">
-        <a href="#features" class="nav-link-item">{{ t('nav.features') }}</a>
-        <a href="/tos" class="nav-link-item">{{ t('nav.tos') }}</a>
-        <a href="/privacy" class="nav-link-item">{{ t('nav.privacy') }}</a>
+        <a href="#features">{{ t('nav.features') }}</a>
+        <a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a>
+        <a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a>
       </div>
     </div>
-
-    <div class="landing-nav-right">
-      <!-- Popover Language Dropdown (Nekotina Style) -->
+    
+    <div style="display:flex; gap:16px; align-items:center;">
+      <!-- Language Switcher -->
       <div class="lang-switcher">
         <button class="lang-switcher-btn">
           <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
@@ -365,109 +239,199 @@
         </div>
       </div>
 
-      <a href="/login" class="btn-dash">
-        <i class="bi bi-discord"></i> {{ t('nav.dashboard') }}
+      {% if session.get('user') %}
+        <a href="{{ url_for('home') }}" class="btn-hero-primary" style="padding:10px 20px; font-size:0.9rem;">
+          <i class="bi bi-speedometer2"></i> {{ t('nav.dashboard') }}
+        </a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn-hero-primary" style="padding:10px 20px; font-size:0.9rem;">
+          <i class="bi bi-discord"></i> {{ t('nav.login') }}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero-section">
+  <div>
+    <div class="hero-badge">
+      <i class="bi bi-stars"></i> {{ t('landing.badge') }}
+    </div>
+    <h1 class="hero-title">
+      {{ t('landing.hero_title_1') }}<br>
+      <span>{{ t('landing.hero_title_2') }}</span>
+    </h1>
+    <p class="hero-subtitle">
+      {{ t('landing.hero_subtitle') }}
+    </p>
+    <div class="hero-actions">
+      <a href="{{ invite_url }}" target="_blank" class="btn-hero-primary">
+        <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
+      </a>
+      <a href="#features" class="btn-hero-secondary">
+        <i class="bi bi-compass"></i> {{ t('landing.btn_explore') }}
       </a>
     </div>
-  </nav>
-
-  <!-- Hero Section -->
-  <div class="hero-container">
-    <div class="hero-bg-glow"></div>
-    
-    <div class="hero-content">
-      <div class="badge-pill">
-        <i class="bi bi-stars"></i> {{ t('landing.badge') }}
-      </div>
-      <h1 class="hero-title-text">
-        {{ t('landing.hero_title_1') }}<br>
-        <span>{{ t('landing.hero_title_2') }}</span>
-      </h1>
-      <p class="hero-subtitle-text">
-        {{ t('landing.hero_subtitle') }}
-      </p>
-      
-      <div class="hero-actions">
-        <a href="/invite" class="btn-hero-primary" target="_blank">
-          <i class="bi bi-plus-circle-fill"></i> {{ t('landing.btn_add') }}
-        </a>
-        <a href="#features" class="btn-hero-secondary">
-          {{ t('landing.btn_explore') }}
-        </a>
-      </div>
+  </div>
+  <div class="hero-graphic">
+    <div class="hero-avatar-card">
+      <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
     </div>
+  </div>
+</section>
 
-    <div class="hero-graphic">
-      <div class="hero-graphic-circle">
-        <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
+<!-- Feature Showcase Section (Nekotina Style) -->
+<section id="features" class="showcase-section">
+  
+  <!-- Block 1: Welcome Messages -->
+  <div class="showcase-block">
+    <div class="showcase-text">
+      <h2>{{ t('landing.f4_title') }}</h2>
+      <p>{{ t('landing.f4_desc') }}</p>
+      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
+        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-preview">
+      <div class="discord-msg-preview">
+        <div class="discord-msg-header">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" style="width:28px; height:28px; border-radius:50%;">
+          <span class="discord-msg-bot">Zeryn Bot</span>
+          <span class="discord-msg-tag">BOT</span>
+        </div>
+        <div style="color:#dbdee1; line-height:1.5;">
+          👋 Welcome to the server, <strong>@User</strong>! Glad to have you here! 🎉
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Features Grid (100% Translated) -->
-
-  <section id="features" class="features-section">
-    <div class="features-header">
-      <h2>{{ t('landing.feat_title') }}</h2>
-      <p>{{ t('landing.feat_subtitle') }}</p>
+  <!-- Block 2: Leveling & XP -->
+  <div class="showcase-block reverse">
+    <div class="showcase-text">
+      <h2>{{ t('landing.f1_title') }}</h2>
+      <p>{{ t('landing.f1_desc') }}</p>
+      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
+        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+      </a>
     </div>
-
-    <div class="features-grid-layout">
-      <!-- Feature 1 -->
-      <div class="f-card">
-        <div class="f-icon"><i class="bi bi-star-fill"></i></div>
-        <div class="f-title">{{ t('landing.f1_title') }}</div>
-        <div class="f-desc">{{ t('landing.f1_desc') }}</div>
-      </div>
-
-      <!-- Feature 2 -->
-      <div class="f-card purple">
-        <div class="f-icon"><i class="bi bi-shield-lock-fill"></i></div>
-        <div class="f-title">{{ t('landing.f2_title') }}</div>
-        <div class="f-desc">{{ t('landing.f2_desc') }}</div>
-      </div>
-
-      <!-- Feature 3 -->
-      <div class="f-card">
-        <div class="f-icon"><i class="bi bi-music-note-beamed"></i></div>
-        <div class="f-title">{{ t('landing.f3_title') }}</div>
-        <div class="f-desc">{{ t('landing.f3_desc') }}</div>
-      </div>
-
-      <!-- Feature 4 -->
-      <div class="f-card purple">
-        <div class="f-icon"><i class="bi bi-person-badge-fill"></i></div>
-        <div class="f-title">{{ t('landing.f4_title') }}</div>
-        <div class="f-desc">{{ t('landing.f4_desc') }}</div>
-      </div>
-
-      <!-- Feature 5 -->
-      <div class="f-card">
-        <div class="f-icon"><i class="bi bi-ui-radios"></i></div>
-        <div class="f-title">{{ t('landing.f5_title') }}</div>
-        <div class="f-desc">{{ t('landing.f5_desc') }}</div>
-      </div>
-
-      <!-- Feature 6 -->
-      <div class="f-card purple">
-        <div class="f-icon"><i class="bi bi-ticket-detailed-fill"></i></div>
-        <div class="f-title">{{ t('landing.f6_title') }}</div>
-        <div class="f-desc">{{ t('landing.f6_desc') }}</div>
+    <div class="showcase-preview">
+      <div style="background:#1e1f22; border-radius:12px; padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:700;">
+          <span>🏆 XP Leaderboard</span>
+          <span style="color:#ff9ec2;">#1 User</span>
+        </div>
+        <div style="margin-top:12px; background:#2b2d31; border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#dbdee1; font-size:0.9rem;">🥇 Top Chatter</span>
+          <span style="color:#57f287; font-weight:700; font-size:0.9rem;">Level 45 • 12,450 XP</span>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- Landing Footer -->
-  <footer class="landing-footer">
-    <div class="footer-nav">
-      <a href="/tos">{{ t('nav.tos') }}</a>
-      <a href="/privacy">{{ t('nav.privacy') }}</a>
-      <a href="/invite" target="_blank">{{ t('landing.btn_add') }}</a>
+  <!-- Block 3: Music & Lofi -->
+  <div class="showcase-block">
+    <div class="showcase-text">
+      <h2>{{ t('landing.f3_title') }}</h2>
+      <p>{{ t('landing.f3_desc') }}</p>
+      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
+        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+      </a>
     </div>
-    <div class="copyright">
-      &copy; 2026 Zeryn Bot. All rights reserved.
+    <div class="showcase-preview">
+      <div style="background:#1e1f22; border-radius:12px; padding:16px; border-left:4px solid #5865f2;">
+        <div style="font-weight:700; color:#fff; margin-bottom:4px;">🎶 Now Playing: Lofi Hip Hop Beats 24/7</div>
+        <div style="color:#949ba4; font-size:0.85rem;">Requested by @User • Volume: 80%</div>
+      </div>
     </div>
-  </footer>
+  </div>
+
+</section>
+
+<!-- All in One Grid Section -->
+<section class="all-in-one-section">
+  <h2>{{ t('landing.all_in_one') }}</h2>
+  <p>{{ t('landing.all_in_one_sub') }}</p>
+
+  <div class="category-grid">
+    <div class="category-card">
+      <div class="category-icon">👋</div>
+      <div class="category-name">Welcome</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">🛡️</div>
+      <div class="category-name">Automod</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">🎵</div>
+      <div class="category-name">Music</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">🪪</div>
+      <div class="category-name">Leveling</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">🎫</div>
+      <div class="category-name">Tickets</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">✨</div>
+      <div class="category-name">Reaction Roles</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">🎁</div>
+      <div class="category-name">Giveaways</div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon">📖</div>
+      <div class="category-name">Audit Logs</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer CTA Banner -->
+<section class="cta-banner">
+  <h2>{{ t('landing.cta_title') }}</h2>
+  <p>{{ t('landing.cta_desc') }}</p>
+  <a href="{{ invite_url }}" target="_blank" class="btn-hero-primary">
+    <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
+  </a>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-container">
+    <div>
+      <div class="footer-brand">Zeryn Bot</div>
+      <div class="footer-desc">{{ t('landing.badge') }}</div>
+    </div>
+    <div>
+      <div class="footer-title">{{ t('nav.features') }}</div>
+      <ul class="footer-links">
+        <li><a href="#features">{{ t('landing.f1_title') }}</a></li>
+        <li><a href="#features">{{ t('landing.f3_title') }}</a></li>
+        <li><a href="#features">{{ t('landing.f2_title') }}</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-title">{{ t('nav.resources') }}</div>
+      <ul class="footer-links">
+        <li><a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a></li>
+        <li><a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-title">{{ t('nav.dashboard') }}</div>
+      <ul class="footer-links">
+        <li><a href="{{ url_for('home') }}">{{ t('nav.login') }}</a></li>
+      </ul>
+    </div>
+  </div>
+  <div style="text-align:center; color:#60646c; font-size:0.85rem; margin-top:40px;">
+    © 2026 Zeryn Bot. All rights reserved.
+  </div>
+</footer>
 
 </body>
 </html>

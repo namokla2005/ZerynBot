@@ -94,11 +94,10 @@
   <div class="section-title">{{ t('dashboard.fast_general') }}</div>
   <span class="count-chip">3</span>
 </div>
-<div class="fast-grid" style="margin-bottom: 32px;">
-  <div class="fast-card">
+<div class="fast-grid" style="margin-  <div class="fast-card">
     <div class="fast-card-icon">🔍</div>
     <div class="fast-card-title">Overview</div>
-    <div class="fast-card-desc">Thông tin tổng quan về server và trạng thái bot hiện tại.</div>
+    <div class="fast-card-desc">{{ t('dashboard.overview_desc') }}</div>
     <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -106,7 +105,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">💬</div>
     <div class="fast-card-title">Embed Messages</div>
-    <div class="fast-card-desc">Tạo và lưu trữ các embed tin nhắn với giao diện trực quan.</div>
+    <div class="fast-card-desc">{{ t('dashboard.embeds_desc') }}</div>
     <a href="{{ url_for('server_embeds', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -114,7 +113,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🧩</div>
     <div class="fast-card-title">Modules</div>
-    <div class="fast-card-desc">Bật hoặc tắt các tính năng của bot theo nhu cầu của server.</div>
+    <div class="fast-card-desc">{{ t('dashboard.modules_desc') }}</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('dashboard.manage') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -136,7 +135,7 @@
         {% if modules.get('welcome_goodbye', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Tự động gửi tin nhắn khi thành viên gia nhập hoặc rời đi.</div>
+    <div class="fast-card-desc">{{ t('dashboard.welcome_desc') }}</div>
     <a href="{{ url_for('server_welcome', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -150,7 +149,7 @@
         {% if modules.get('info', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">/serverinfo, /userinfo, /avatar — Lệnh thông tin cơ bản.</div>
+    <div class="fast-card-desc">{{ t('dashboard.info_desc') }}</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -164,7 +163,7 @@
         {% if modules.get('utility', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">/ping, /membercount, /help — Lệnh tiện ích tổng hợp.</div>
+    <div class="fast-card-desc">{{ t('dashboard.utility_desc') }}</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -178,7 +177,7 @@
         {% if modules.get('music', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">/play, /search, /lofi, /playlist — Phát nhạc chất lượng cao.</div>
+    <div class="fast-card-desc">{{ t('dashboard.music_desc') }}</div>
     <a href="{{ url_for('server_music', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -192,7 +191,7 @@
         {% if modules.get('tickets', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Hệ thống hỗ trợ bán hàng, tạo kênh hỗ trợ qua nút bấm.</div>
+    <div class="fast-card-desc">{{ t('dashboard.tickets_desc') }}</div>
     <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -206,7 +205,7 @@
         {% if modules.get('autoroles', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Tự động gắn vai trò cho thành viên và bot khi họ tham gia.</div>
+    <div class="fast-card-desc">{{ t('dashboard.autoroles_desc') }}</div>
     <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -220,7 +219,7 @@
         {% if modules.get('reactionroles', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Thả cảm xúc để tự động nhận vai trò trong server.</div>
+    <div class="fast-card-desc">{{ t('dashboard.reactionroles_desc') }}</div>
     <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -234,7 +233,7 @@
         {% if modules.get('automods', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Bảo vệ server tự động khỏi spam, từ cấm và link độc hại.</div>
+    <div class="fast-card-desc">{{ t('dashboard.automod_desc') }}</div>
     <a href="{{ url_for('server_automod', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
@@ -244,14 +243,14 @@
     <div class="fast-card-icon">⭐</div>
     <div class="fast-card-title">
       Leveling &amp; XP
-      <span class="server-chip {% if modules.get('leveling', False) %}chip-bot{% else %}chip-invite{% endif %}"
+      <span class="server-chip {% if modules.get('leveling', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('leveling', False) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('leveling', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Hệ thống cấp độ, kinh nghiệm và phần thưởng vai trò cho thành viên.</div>
+    <div class="fast-card-desc">{{ t('dashboard.leveling_desc') }}</div>
     <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -260,12 +259,12 @@
       Logging &amp; Audit Log
       <span class="server-chip {% if modules.get('logger', False) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('logger', False) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('logger', False) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
     </div>
-    <div class="fast-card-desc">Ghi nhật ký sự kiện, kiểm duyệt tin nhắn và lịch sử hoạt động.</div>
+    <div class="fast-card-desc">{{ t('dashboard.logger_desc') }}</div>
     <a href="{{ url_for('server_logger', guild_id=guild_id) }}" class="fast-card-link">
-      Cấu hình <i class="bi bi-arrow-right-short"></i>
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
   <div class="fast-card">
@@ -274,8 +273,15 @@
       Giveaways
       <span class="server-chip {% if modules.get('giveaways', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
-        {% if modules.get('giveaways', True) %}Bật{% else %}Tắt{% endif %}
+        {% if modules.get('giveaways', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
       </span>
+    </div>
+    <div class="fast-card-desc">{{ t('dashboard.giveaway_desc') }}</div>
+    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+n>
     </div>
     <div class="fast-card-desc">Tổ chức sự kiện tặng quà tự động đếm ngược và chọn người thắng.</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
@@ -331,18 +337,17 @@
     data: {
       labels: last7Days,
       datasets: [
-        { label: 'Join', data: joinData, borderColor: '#57F287', backgroundColor: 'rgba(87,242,135,0.1)', fill: true, tension: 0.3 },
-        { label: 'Leave', data: leaveData, borderColor: '#ED4245', backgroundColor: 'rgba(237,66,69,0.1)', fill: true, tension: 0.3 }
+        { label: "{{ t('dashboard.chart_join') }}", data: joinData, borderColor: '#57F287', backgroundColor: 'rgba(87,242,135,0.1)', fill: true, tension: 0.3 },
+        { label: "{{ t('dashboard.chart_leave') }}", data: leaveData, borderColor: '#ED4245', backgroundColor: 'rgba(237,66,69,0.1)', fill: true, tension: 0.3 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: 'Thành viên Join/Leave (7 ngày)' } }
+      plugins: { title: { display: true, text: "{{ t('dashboard.chart_join_leave') }}" } }
     }
   });
 
   // 2. Message Activity by Hour (Bar)
-  // Aggregate all 'message' events by hour (00-23)
   const hourlyActivity = Array(24).fill(0);
   rawStats.forEach(stat => {
     if (stat.event_type === 'message' && stat.event_label === 'total') {
@@ -357,11 +362,11 @@
     type: 'bar',
     data: {
       labels: hourLabels,
-      datasets: [{ label: 'Tin nhắn', data: hourlyActivity, backgroundColor: '#5865F2', borderRadius: 4 }]
+      datasets: [{ label: "{{ t('dashboard.chart_messages') }}", data: hourlyActivity, backgroundColor: '#5865F2', borderRadius: 4 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: 'Hoạt động Chat theo giờ' } }
+      plugins: { title: { display: true, text: "{{ t('dashboard.chart_chat_activity') }}" } }
     }
   });
 
@@ -383,7 +388,7 @@
   new Chart(document.getElementById('channelChart'), {
     type: 'doughnut',
     data: {
-      labels: chLabels.length ? chLabels : ['Chưa có dữ liệu'],
+      labels: chLabels.length ? chLabels : ["{{ t('common.no_data') }}"],
       datasets: [{
         data: chData.length ? chData : [1],
         backgroundColor: ['#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245'],
@@ -392,7 +397,7 @@
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: 'Top 5 Kênh sôi nổi nhất' } }
+      plugins: { title: { display: true, text: "{{ t('dashboard.chart_top_channels') }}" } }
     }
   });
 
@@ -412,9 +417,9 @@
   new Chart(document.getElementById('botChart'), {
     type: 'bar',
     data: {
-      labels: ['Cảnh báo', 'Timeout', 'Mở Ticket', 'Đóng Ticket'],
+      labels: ["{{ t('dashboard.chart_warn') }}", "{{ t('dashboard.chart_timeout') }}", "{{ t('dashboard.chart_open_ticket') }}", "{{ t('dashboard.chart_close_ticket') }}"],
       datasets: [{
-        label: 'Số lần',
+        label: "{{ t('dashboard.chart_count') }}",
         data: [automodWarn, automodTimeout, ticketOpen, ticketClose],
         backgroundColor: ['#FEE75C', '#ED4245', '#57F287', '#99AAB5'],
         borderRadius: 4
@@ -422,9 +427,10 @@
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: 'Thống kê Module (Automod & Ticket)' } }
+      plugins: { title: { display: true, text: "{{ t('dashboard.chart_module_stats') }}" } }
     }
   });
+
 
   async function saveGuildLanguage() {
     const lang = document.getElementById('guildBotLangSelect').value;

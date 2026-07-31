@@ -4,15 +4,16 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">⌨️ Commands</h1>
-    <p class="page-subtitle">Xem chi tiết và preview tất cả lệnh của bot</p>
+    <h1 class="page-title">{{ t('commands.title') }}</h1>
+    <p class="page-subtitle">{{ t('commands.subtitle') }}</p>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
     <span style="font-size:0.8rem; color:var(--text-muted);">
-      Tổng: <strong style="color:var(--accent);">{{ total_count }}</strong> lệnh
+      {{ t('commands.total_commands', count=total_count) }}
     </span>
   </div>
 </div>
+
 
 <!-- ── Category tabs ──────────────────────────────────────────────────────── -->
 <div class="welcome-tabs" id="cmd-tabs">
