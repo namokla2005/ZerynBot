@@ -12,6 +12,7 @@
   "common.bot_not_in_voice": "❌ Vous devez d'abord rejoindre un salon vocal !",
   "common.loading": "⏳ Traitement en cours...",
   "common.requested_by": "Demandé par {user}",
+  "common.save": "Enregistrer les modifications",
 
   "nav.select_language": "Sélectionner une langue",
   "nav.features": "Fonctionnalités",
@@ -32,6 +33,21 @@
   "landing.btn_explore": "Explorer les fonctionnalités",
   "landing.trusted_by": "Adopté par plus de {count}+ serveurs",
   "landing.trusted_sub": "Créé avec amour pour les communautés Discord à travers le monde.",
+
+  "landing.feat_title": "Fonctionnalités et Modules",
+  "landing.feat_subtitle": "Solution complète et puissante pour votre serveur Discord",
+  "landing.f1_title": "Niveaux et XP",
+  "landing.f1_desc": "Gagnez de l'XP en discutant et en rejoignant les salons vocaux, personnalisez vos cartes de niveau et débloquez automatiquement des rôles.",
+  "landing.f2_title": "Automodération",
+  "landing.f2_desc": "Protégez votre serveur 24/7 contre le spam, les liens malveillants et les gros mots, et gérez facilement les sanctions automatiques.",
+  "landing.f3_title": "Lecteur Musique et Lofi",
+  "landing.f3_desc": "Lecture de musique YouTube haute qualité, flux Lofi 24/7, listes de lecture personnalisées et gestion de file d'attente.",
+  "landing.f4_title": "Rôles Automatiques et Bienvenue",
+  "landing.f4_desc": "Accueillez les nouveaux membres avec des bannières personnalisées et attribuez automatiquement des rôles par défaut.",
+  "landing.f5_title": "Rôles par Réaction",
+  "landing.f5_desc": "Permettez aux membres d'obtenir des rôles en réagissant à des messages interactifs entièrement configurables.",
+  "landing.f6_title": "Support par Tickets",
+  "landing.f6_desc": "Créez des salons de support privés pour chaque membre avec enregistrement complet des transcriptions.",
 
   "utility.ping_title": "🏓 Pong !",
   "utility.ping_ws": "WebSocket",
@@ -57,7 +73,7 @@
   "info.serverinfo_title": "🏠 Informations du Serveur - {server}",
   "info.serverinfo_id": "ID du Serveur",
   "info.serverinfo_owner": "Propriétaire",
-  "info.serverinfo_created": "Créé le",
+  "info.serverinfo_created": "Création",
   "info.serverinfo_members": "Membres",
   "info.serverinfo_channels": "Salons",
 
@@ -91,6 +107,13 @@
   "dashboard.manage": "Gérer",
   "dashboard.invite_bot": "Inviter le Bot",
   "dashboard.settings": "Paramètres",
+  "dashboard.bot_language_title": "Langue du Bot sur le Serveur",
+  "dashboard.bot_language_desc": "Sélectionnez la langue que le Bot utilisera pour répondre aux membres sur ce serveur Discord.",
+  "dashboard.analytics_title": "📊 Statistiques du Serveur",
+  "dashboard.analytics_sub": "Activité du serveur au cours des 7 derniers jours",
+  "dashboard.stat_members": "Membres",
+  "dashboard.stat_active_modules": "Modules Actifs",
+  "dashboard.stat_total_modules": "Total Modules",
   "dashboard.save_success": "✅ Paramètres sauvegardés avec succès !",
   "dashboard.save_error": "❌ Erreur lors de la sauvegarde des paramètres."
 }

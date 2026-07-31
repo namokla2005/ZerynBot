@@ -12,6 +12,7 @@
   "common.bot_not_in_voice": "❌ You need to join a voice channel first!",
   "common.loading": "⏳ Processing...",
   "common.requested_by": "Requested by {user}",
+  "common.save": "Save changes",
 
   "nav.select_language": "Select a language",
   "nav.features": "Features",
@@ -32,6 +33,21 @@
   "landing.btn_explore": "Explore features",
   "landing.trusted_by": "Trusted by over {count}+ servers",
   "landing.trusted_sub": "Built with love for Discord communities around the world.",
+
+  "landing.feat_title": "Features & Modules",
+  "landing.feat_subtitle": "All-in-one powerful solution for your Discord Server",
+  "landing.f1_title": "Leveling & XP",
+  "landing.f1_desc": "Earn XP by chatting and joining voice channels, customize beautiful rank cards, and unlock role rewards automatically.",
+  "landing.f2_title": "Automod",
+  "landing.f2_desc": "Protect your server 24/7 against spam, malicious links, bad words, and manage automated punishments easily.",
+  "landing.f3_title": "Music Player & Lofi",
+  "landing.f3_desc": "High-quality YouTube music playback, 24/7 Lofi streams, custom playlists, and seamless queue management.",
+  "landing.f4_title": "Auto Roles & Welcome",
+  "landing.f4_desc": "Greet new members with custom welcome banners and assign default user or bot roles automatically.",
+  "landing.f5_title": "Reaction Roles",
+  "landing.f5_desc": "Allow members to self-assign roles by reacting to customizable interactive embed messages.",
+  "landing.f6_title": "Ticket Support",
+  "landing.f6_desc": "Create private support channels for individual members with full transcript logging capabilities.",
 
   "utility.ping_title": "🏓 Pong!",
   "utility.ping_ws": "WebSocket",
@@ -91,6 +107,13 @@
   "dashboard.manage": "Manage",
   "dashboard.invite_bot": "Invite Bot",
   "dashboard.settings": "Settings",
+  "dashboard.bot_language_title": "Bot Language Settings",
+  "dashboard.bot_language_desc": "Select the language the Bot will use to reply when members trigger commands in this Discord Server.",
+  "dashboard.analytics_title": "📊 Analytics & Server Stats",
+  "dashboard.analytics_sub": "Server activity statistics over the last 7 days",
+  "dashboard.stat_members": "Members",
+  "dashboard.stat_active_modules": "Active Modules",
+  "dashboard.stat_total_modules": "Total Modules",
   "dashboard.save_success": "✅ Settings saved successfully!",
   "dashboard.save_error": "❌ An error occurred while saving settings."
 }

@@ -210,6 +210,7 @@ def server_overview(guild_id: str):
         guild=guild_info,
         meta=meta,
         modules=modules,
+        guild_settings=db.get_guild_settings(guild_id),
         active_page="overview",
         raw_stats_json=json.dumps(raw_stats),
         channel_map_json=json.dumps(channel_map)

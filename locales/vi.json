@@ -12,6 +12,7 @@
   "common.bot_not_in_voice": "❌ Bạn cần vào kênh voice trước!",
   "common.loading": "⏳ Đang xử lý...",
   "common.requested_by": "Yêu cầu bởi {user}",
+  "common.save": "Lưu thay đổi",
 
   "nav.select_language": "Chọn ngôn ngữ",
   "nav.features": "Tính năng",
@@ -32,6 +33,21 @@
   "landing.btn_explore": "Khám phá tính năng",
   "landing.trusted_by": "Được tin dùng bởi hơn {count}+ máy chủ",
   "landing.trusted_sub": "Được xây dựng với tình yêu dành cho các cộng đồng Discord trên toàn thế giới.",
+
+  "landing.feat_title": "Tính Năng & Modules Nổi Bật",
+  "landing.feat_subtitle": "Giải pháp toàn diện gói gọn trong một con bot duy nhất cho Server của bạn",
+  "landing.f1_title": "Leveling & XP",
+  "landing.f1_desc": "Tích luỹ kinh nghiệm qua Chat & Voice, nhận thẻ Level cực đẹp và tự động mở khóa các Role thưởng cao cấp.",
+  "landing.f2_title": "Automod",
+  "landing.f2_desc": "Bảo vệ server 24/7 khỏi Spam, Link độc hại, Bad words và tự động xử lý kỷ luật thông minh.",
+  "landing.f3_title": "Music Player & Lofi",
+  "landing.f3_desc": "Phát nhạc YouTube chất lượng cao, phát kênh Lofi 24/7 và hỗ trợ Playlist riêng linh hoạt.",
+  "landing.f4_title": "Auto Roles & Welcome",
+  "landing.f4_desc": "Tự động chào mừng thành viên mới với ảnh nền tùy chỉnh và trao Role tự động chuyên nghiệp.",
+  "landing.f5_title": "Reaction Roles",
+  "landing.f5_desc": "Cho phép thành viên tự nhận Role bằng cách thả cảm xúc trên tin nhắn Embed trực quan.",
+  "landing.f6_title": "Ticket Support",
+  "landing.f6_desc": "Tạo kênh hỗ trợ riêng tư cho từng người dùng, hỗ trợ lưu vết Transcript cuộc hội thoại.",
 
   "utility.ping_title": "🏓 Pong!",
   "utility.ping_ws": "WebSocket",
@@ -91,6 +107,13 @@
   "dashboard.manage": "Quản lý",
   "dashboard.invite_bot": "Mời Bot",
   "dashboard.settings": "Cài đặt",
+  "dashboard.bot_language_title": "Ngôn Ngữ Hoạt Động Của Bot",
+  "dashboard.bot_language_desc": "Chọn ngôn ngữ Bot sẽ phản hồi khi thành viên dùng lệnh trong Discord Server này.",
+  "dashboard.analytics_title": "📊 Analytics & Thống Kê Server",
+  "dashboard.analytics_sub": "Thống kê hoạt động của server trong 7 ngày qua",
+  "dashboard.stat_members": "Thành viên",
+  "dashboard.stat_active_modules": "Modules đang bật",
+  "dashboard.stat_total_modules": "Tổng modules",
   "dashboard.save_success": "✅ Đã lưu cài đặt thành công!",
   "dashboard.save_error": "❌ Có lỗi khi lưu cài đặt."
 }

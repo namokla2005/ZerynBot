@@ -12,6 +12,7 @@
   "common.bot_not_in_voice": "❌ 请先加入语音频道！",
   "common.loading": "⏳ 处理中...",
   "common.requested_by": "请求者：{user}",
+  "common.save": "保存更改",
 
   "nav.select_language": "选择语言",
   "nav.features": "功能",
@@ -32,6 +33,21 @@
   "landing.btn_explore": "探索所有功能",
   "landing.trusted_by": "已获得超过 {count}+ 个服务器信赖",
   "landing.trusted_sub": "用心为全球 Discord 社区打造。",
+
+  "landing.feat_title": "特色功能与模块",
+  "landing.feat_subtitle": "为您的 Discord 服务器提供的一站式强大解决方案",
+  "landing.f1_title": "等级与经验值",
+  "landing.f1_desc": "通过聊天和语音频道赚取经验值，自定义精美的等级卡片，并自动解锁奖励身份组。",
+  "landing.f2_title": "自动审核 (Automod)",
+  "landing.f2_desc": "24/7 全天候保护您的服务器免受垃圾信息、恶意链接和不良词汇的侵扰，轻松管理自动惩罚。",
+  "landing.f3_title": "音乐播放器与 Lofi",
+  "landing.f3_desc": "高质量 YouTube 音乐播放，24/7 Lofi 直播流，自定义播放列表与无缝队列管理。",
+  "landing.f4_title": "自动身份组与欢迎",
+  "landing.f4_desc": "使用自定义欢迎横幅迎接新成员，并自动分配默认成员或机器人身份组。",
+  "landing.f5_title": "表情回应身份组",
+  "landing.f5_desc": "允许成员通过在可自定义的嵌入消息上添加表情回应来自由领取身份组。",
+  "landing.f6_title": "客服工单支持",
+  "landing.f6_desc": "为每个成员创建独立的私密支持频道，并具备完整的聊天记录保存功能。",
 
   "utility.ping_title": "🏓 延迟测试！",
   "utility.ping_ws": "WebSocket",
@@ -91,6 +107,13 @@
   "dashboard.manage": "管理",
   "dashboard.invite_bot": "邀请 Bot",
   "dashboard.settings": "设置",
+  "dashboard.bot_language_title": "Bot 语言设置",
+  "dashboard.bot_language_desc": "选择成员在此 Discord 服务器中触发指令时 Bot 用于回复的语言。",
+  "dashboard.analytics_title": "📊 服务器数据统计",
+  "dashboard.analytics_sub": "过去 7 天内的服务器活动统计",
+  "dashboard.stat_members": "总成员数",
+  "dashboard.stat_active_modules": "已启用模块",
+  "dashboard.stat_total_modules": "总模块数",
   "dashboard.save_success": "✅ 设置已成功保存！",
   "dashboard.save_error": "❌ 保存设置时发生错误。"
 }

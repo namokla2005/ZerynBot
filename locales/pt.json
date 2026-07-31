@@ -12,6 +12,7 @@
   "common.bot_not_in_voice": "❌ Você precisa entrar em um canal de voz primeiro!",
   "common.loading": "⏳ Processando...",
   "common.requested_by": "Solicitado por {user}",
+  "common.save": "Salvar alterações",
 
   "nav.select_language": "Selecione um idioma",
   "nav.features": "Recursos",
@@ -32,6 +33,21 @@
   "landing.btn_explore": "Explorar recursos",
   "landing.trusted_by": "Usado em mais de {count}+ servidores",
   "landing.trusted_sub": "Desenvolvido com carinho para comunidades do Discord em todo o mundo.",
+
+  "landing.feat_title": "Recursos e Módulos",
+  "landing.feat_subtitle": "Solução completa e poderosa para o seu servidor do Discord",
+  "landing.f1_title": "Níveis e XP",
+  "landing.f1_desc": "Ganhe XP conversando e entrando em canais de voz, personalize cartões de nível e desbloqueie cargos de recompensa automaticamente.",
+  "landing.f2_title": "Automoderação",
+  "landing.f2_desc": "Proteja seu servidor 24/7 contra spam, links maliciosos, palavras proibidas e gerencie punições automáticas.",
+  "landing.f3_title": "Reprodutor de Música e Lofi",
+  "landing.f3_desc": "Reprodução de música do YouTube em alta qualidade, transmissões Lofi 24/7, playlists e fila fluida.",
+  "landing.f4_title": "Cargos Automáticos e Boas-Vindas",
+  "landing.f4_desc": "Receba novos membros com banners personalizados e atribua cargos padrão automaticamente.",
+  "landing.f5_title": "Cargos por Reação",
+  "landing.f5_desc": "Permita que os membros obtenham cargos reagindo a mensagens interativas totalmente configuráveis.",
+  "landing.f6_title": "Suporte por Tickets",
+  "landing.f6_desc": "Crie canais de suporte privados para membros individuais com registro completo de conversas.",
 
   "utility.ping_title": "🏓 Pong!",
   "utility.ping_ws": "WebSocket",
@@ -91,6 +107,13 @@
   "dashboard.manage": "Gerenciar",
   "dashboard.invite_bot": "Convidar Bot",
   "dashboard.settings": "Configurações",
+  "dashboard.bot_language_title": "Idioma do Bot no Servidor",
+  "dashboard.bot_language_desc": "Selecione o idioma que o Bot usará para responder aos membros neste servidor do Discord.",
+  "dashboard.analytics_title": "📊 Estatísticas do Servidor",
+  "dashboard.analytics_sub": "Atividade do servidor nos últimos 7 dias",
+  "dashboard.stat_members": "Membros",
+  "dashboard.stat_active_modules": "Módulos Ativos",
+  "dashboard.stat_total_modules": "Total Módulos",
   "dashboard.save_success": "✅ Configurações salvas com sucesso!",
   "dashboard.save_error": "❌ Erro ao salvar as configurações."
 }

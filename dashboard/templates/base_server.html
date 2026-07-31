@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=5.0">
   {% block head %}{% endblock %}
 </head>
 
@@ -18,7 +18,7 @@
   <div class="app-wrapper">
 
     <!-- ─── Sidebar ─────────────────────────────────────────────────────────── -->
-    <aside class="sidebar">
+    <aside class="sidebar" style="overflow:visible;">
       <div class="sidebar-header">
         {% if guild.get('icon_url') %}
         <img class="sidebar-guild-icon" src="{{ guild.get('icon_url') }}" alt="icon" loading="lazy">
@@ -69,15 +69,15 @@
             class="nav-item {% if active_page == 'leveling' %}active{% endif %}">
             <i class="nav-icon bi bi-star-fill"></i> Leveling &amp; XP
             <span class="status-dot nav-dot-leveling
-            {% if modules.get('leveling', False) %}on{% else %}off{% endif %}"></span>
+            {% if modules.get('leveling', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
+          <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="nav-item">
             <i class="nav-icon bi bi-info-circle-fill"></i> Info Commands
             <span class="status-dot nav-dot-info
             {% if modules.get('info', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
-            <i class="nav-icon bi bi-gear-wide-connected"></i> Utility
+          <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="nav-item">
+            <i class="nav-icon bi bi-gear-fill"></i> Utility
             <span class="status-dot nav-dot-utility
             {% if modules.get('utility', True) %}on{% else %}off{% endif %}"></span>
           </a>
@@ -85,17 +85,17 @@
             class="nav-item {% if active_page == 'music' %}active{% endif %}">
             <i class="nav-icon bi bi-music-note-beamed"></i> Music
             <span class="status-dot nav-dot-music
-            {% if modules.get('music', False) %}on{% else %}off{% endif %}"></span>
+            {% if modules.get('music', True) %}on{% else %}off{% endif %}"></span>
           </a>
           <a href="{{ url_for('server_tickets', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'tickets' %}active{% endif %}">
             <i class="nav-icon bi bi-ticket-detailed-fill"></i> Tickets
             <span class="status-dot nav-dot-tickets
-            {% if modules.get('tickets', False) %}on{% else %}off{% endif %}"></span>
+            {% if modules.get('tickets', True) %}on{% else %}off{% endif %}"></span>
           </a>
           <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'reactionroles' %}active{% endif %}">
-            <i class="nav-icon bi bi-stars"></i> Reaction Roles
+            <i class="nav-icon bi bi-ui-radios"></i> Reaction Roles
             <span class="status-dot nav-dot-reactionroles
             {% if modules.get('reactionroles', False) %}on{% else %}off{% endif %}"></span>
           </a>
@@ -119,15 +119,15 @@
         </div>
       </nav>
 
-      <!-- Footer: user info + logout -->
-      <div class="sidebar-footer">
+      <!-- Footer: user info + logout + Language Switcher -->
+      <div class="sidebar-footer" style="overflow:visible;">
         <!-- Language Switcher (Nekotina style) -->
-        <div class="lang-switcher" style="margin-bottom:8px;width:100%;">
+        <div class="lang-switcher" style="margin-bottom:10px;width:100%;z-index:9999;">
           <button class="lang-switcher-btn" style="width:100%;justify-content:space-between;">
             <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
             <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
           </button>
-          <div class="lang-dropdown" style="right:unset;left:0;bottom:calc(100% + 8px);top:unset;">
+          <div class="lang-dropdown" style="right:0;left:0;bottom:calc(100% + 8px);top:unset;z-index:10000;">
             <div class="lang-header">{{ t('nav.select_language') }}</div>
             {% for code, name in available_languages.items() %}
             <a href="{{ url_for('set_ui_language', lang_code=code) }}"

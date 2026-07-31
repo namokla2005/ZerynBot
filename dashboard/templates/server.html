@@ -26,8 +26,8 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">📊 Dashboard Analytics</h1>
-  <p class="page-subtitle">Thống kê hoạt động của server trong 7 ngày qua</p>
+  <h1 class="page-title">📊 {{ t('dashboard.analytics_title') }}</h1>
+  <p class="page-subtitle">{{ t('dashboard.analytics_sub') }}</p>
 </div>
 
 <!-- Stats row -->
@@ -36,17 +36,17 @@
   <div class="stat-card">
     <div class="stat-icon" style="background: rgba(88,101,242,0.15); color: #5865f2;">👥</div>
     <div class="stat-value">{{ meta.get('member_count', '—') }}</div>
-    <div class="stat-label">Thành viên</div>
+    <div class="stat-label">{{ t('dashboard.stat_members') }}</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background: rgba(35,165,90,0.15); color: #23a55a;">🤖</div>
     <div class="stat-value">{{ modules.values() | select() | list | length }}</div>
-    <div class="stat-label">Modules đang bật</div>
+    <div class="stat-label">{{ t('dashboard.stat_active_modules') }}</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon" style="background: rgba(240,178,50,0.15); color: #f0b232;">📦</div>
     <div class="stat-value">{{ modules | length }}</div>
-    <div class="stat-label">Tổng modules</div>
+    <div class="stat-label">{{ t('dashboard.stat_total_modules') }}</div>
   </div>
 </div>
 {% endif %}
@@ -69,8 +69,28 @@
   </div>
 </div>
 
+<!-- Guild Bot Language Setting Card -->
+<div class="card" style="margin-top: 32px; margin-bottom: 24px; background: rgba(18,13,28,0.85); border: 1px solid var(--border); border-radius: 14px; padding: 20px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+    <div>
+      <h3 style="margin:0 0 6px 0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">🌐 {{ t('dashboard.bot_language_title') }}</h3>
+      <p style="margin:0; color:var(--text-secondary); font-size:0.9rem;">{{ t('dashboard.bot_language_desc') }}</p>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <select id="guildBotLangSelect" class="form-control" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border); padding:8px 16px; border-radius:8px; font-weight:600; cursor:pointer;">
+        {% for code, name in available_languages.items() %}
+          <option value="{{ code }}" {% if (guild_settings.get('language') if guild_settings else 'vi') == code %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <button onclick="saveGuildLanguage()" class="btn btn-primary btn-sm" style="padding:9px 20px; font-weight:700; border-radius:8px;">
+        <i class="bi bi-floppy-fill"></i> {{ t('common.save') }}
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- General section (Moved down) -->
-<div class="section-header" style="margin-bottom: 14px; margin-top: 32px;">
+<div class="section-header" style="margin-bottom: 14px; margin-top: 24px;">
   <div class="section-title">General</div>
   <span class="count-chip">3 mục</span>
 </div>
@@ -404,5 +424,25 @@
       plugins: { title: { display: true, text: 'Thống kê Module (Automod & Ticket)' } }
     }
   });
+
+  async function saveGuildLanguage() {
+    const lang = document.getElementById('guildBotLangSelect').value;
+    try {
+      const res = await fetch(`/api/guild/${window.GUILD_ID}/language`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        alert('✅ ' + (data.label || lang) + ' — ' + "{{ t('dashboard.save_success') }}");
+      } else {
+        alert('❌ ' + (data.error || "{{ t('dashboard.save_error') }}"));
+      }
+    } catch (e) {
+      alert('❌ Error: ' + e);
+    }
+  }
 </script>
 {% endblock %}
+
