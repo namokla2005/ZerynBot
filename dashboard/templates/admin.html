@@ -118,7 +118,8 @@
         <span>{{ user.get('global_name') or user.get('username','User') }}</span>
       </div>
       <a href="{{ url_for('logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
-        <i class="bi bi-box-arrow-right"></i> Đăng xuất
+      <a href="{{ url_for('logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
+        <i class="bi bi-box-arrow-right"></i> {{ t('admin.logout') }}
       </a>
     </div>
   </header>
@@ -137,35 +138,35 @@
 
     <div style="margin-bottom:28px;">
       <h1 style="font-size:1.7rem;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
-        🛡️ Bot Admin Panel
+        🛡️ {{ t('admin.page_title') }}
       </h1>
       <p style="color:var(--text-muted);margin-top:6px;font-size:.9rem;">
-        Quản lý tất cả server mà bot đang hoạt động. Kick, Blacklist và Broadcast thông báo toàn cầu.
+        {{ t('admin.page_subtitle') }}
       </p>
     </div>
 
     <div class="admin-stats">
       <div class="stat-card">
         <div class="stat-icon green"><i class="bi bi-robot"></i></div>
-        <div><div class="stat-value">{{ total_servers }}</div><div class="stat-label">Server đang hoạt động</div></div>
+        <div><div class="stat-value">{{ total_servers }}</div><div class="stat-label">{{ t('admin.active_servers') }}</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon red"><i class="bi bi-slash-circle-fill"></i></div>
-        <div><div class="stat-value">{{ total_blacklist }}</div><div class="stat-label">Server bị Blacklist</div></div>
+        <div><div class="stat-value">{{ total_blacklist }}</div><div class="stat-label">{{ t('admin.blacklist_servers') }}</div></div>
       </div>
       <div class="stat-card" style="cursor:pointer;" onclick="openBroadcastModal(null,null,true)">
         <div class="stat-icon blue"><i class="bi bi-megaphone-fill"></i></div>
-        <div><div class="stat-value" style="font-size:1.4rem;">Broadcast</div><div class="stat-label">Gửi thông báo toàn bộ server</div></div>
+        <div><div class="stat-value" style="font-size:1.4rem;">{{ t('admin.broadcast_stat') }}</div><div class="stat-label">{{ t('admin.broadcast_stat_sub') }}</div></div>
       </div>
     </div>
 
     <div class="admin-tabs">
       <button class="admin-tab active" onclick="switchTab('servers',this)">
-        <i class="bi bi-robot"></i> Servers đang hoạt động
+        <i class="bi bi-robot"></i> {{ t('admin.tab_active_servers') }}
         <span style="background:rgba(67,181,129,.2);color:#43b581;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_servers }}</span>
       </button>
       <button class="admin-tab" onclick="switchTab('blacklist',this)">
-        <i class="bi bi-slash-circle-fill"></i> Blacklist
+        <i class="bi bi-slash-circle-fill"></i> {{ t('admin.tab_blacklist') }}
         {% if total_blacklist > 0 %}
         <span style="background:rgba(240,71,71,.2);color:#f04747;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_blacklist }}</span>
         {% endif %}
@@ -175,25 +176,25 @@
     <div class="tab-panel active" id="panel-servers">
       <div class="server-table-wrap">
         <div class="server-table-header">
-          <div class="server-table-title"><i class="bi bi-list-ul"></i> Danh sách Servers</div>
-          <input type="text" class="search-input" id="serverSearch" placeholder="Tìm server..." oninput="filterServers()">
+          <div class="server-table-title"><i class="bi bi-list-ul"></i> {{ t('admin.server_list_title') }}</div>
+          <input type="text" class="search-input" id="serverSearch" placeholder="{{ t('admin.search_placeholder') }}" oninput="filterServers()">
         </div>
         <div class="broadcast-bar" id="broadcastBar" style="display:none;">
           <i class="bi bi-megaphone-fill" style="color:#5865f2;"></i>
-          <span class="selected-count" id="selectedCountLabel">0 đã chọn</span>
+          <span class="selected-count" id="selectedCountLabel">{{ t('admin.selected_count', count=0) }}</span>
           <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--text-secondary);cursor:pointer;margin-left:4px;">
-            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="accent-color:#5865f2;"> Chọn tất cả
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="accent-color:#5865f2;"> {{ t('admin.select_all') }}
           </label>
           <button class="btn-icon broadcast" style="margin-left:auto;" onclick="openBroadcastModal(null,null,false)">
-            <i class="bi bi-send-fill"></i> Gửi thông báo đến đã chọn
+            <i class="bi bi-send-fill"></i> {{ t('admin.send_broadcast_selected') }}
           </button>
         </div>
         <table class="admin-tbl" id="serverTable">
           <thead>
             <tr>
               <th style="width:36px;"><input type="checkbox" id="masterCheck" onchange="toggleSelectAll(this)" style="accent-color:#f04747;cursor:pointer;"></th>
-              <th>Server</th><th>Thành viên</th><th>Trạng thái</th>
-              <th style="text-align:right;">Hành động</th>
+              <th>{{ t('admin.th_server') }}</th><th>{{ t('admin.th_members') }}</th><th>{{ t('admin.th_status') }}</th>
+              <th style="text-align:right;">{{ t('admin.th_actions') }}</th>
             </tr>
           </thead>
           <tbody id="serverTableBody">
@@ -212,8 +213,8 @@
               </td>
               <td class="member-count"><i class="bi bi-people-fill" style="color:var(--text-muted);"></i> {{ guild.get('member_count',0) }}</td>
               <td>
-                {% if is_bl %}<span class="badge badge-black"><i class="bi bi-slash-circle-fill"></i> Blacklisted</span>
-                {% else %}<span class="badge badge-active"><i class="bi bi-check-circle-fill"></i> Hoạt động</span>{% endif %}
+                {% if is_bl %}<span class="badge badge-black"><i class="bi bi-slash-circle-fill"></i> {{ t('admin.status_blacklisted') }}</span>
+                {% else %}<span class="badge badge-active"><i class="bi bi-check-circle-fill"></i> {{ t('admin.status_active') }}</span>{% endif %}
               </td>
               <td>
                 <div class="action-btns" style="justify-content:flex-end;">
@@ -234,7 +235,7 @@
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="empty-tbl"><div class="empty-tbl-icon">🤖</div><p>Bot chưa có mặt trong server nào.</p></td></tr>
+            <tr><td colspan="5" class="empty-tbl"><div class="empty-tbl-icon">🤖</div><p>{{ t('admin.no_servers') }}</p></td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -244,11 +245,11 @@
     <div class="tab-panel" id="panel-blacklist">
       <div class="server-table-wrap">
         <div class="server-table-header">
-          <div class="server-table-title"><i class="bi bi-slash-circle-fill" style="color:#f04747;"></i> Danh sách Blacklist</div>
+          <div class="server-table-title"><i class="bi bi-slash-circle-fill" style="color:#f04747;"></i> {{ t('admin.blacklist_title') }}</div>
         </div>
         <table class="admin-tbl">
           <thead>
-            <tr><th>Server</th><th>Lý do</th><th>Thời gian kick</th><th style="text-align:right;">Hành động</th></tr>
+            <tr><th>{{ t('admin.th_server') }}</th><th>{{ t('admin.th_reason') }}</th><th>{{ t('admin.th_kicked_at') }}</th><th style="text-align:right;">{{ t('admin.th_actions') }}</th></tr>
           </thead>
           <tbody>
             {% for item in blacklist %}
@@ -257,7 +258,7 @@
                 <div class="guild-cell">
                   <div class="guild-icon-sm-placeholder" style="background:linear-gradient(135deg,#3a1010,#6b2020);">{{ (item.guild_name or '?')[0].upper() }}</div>
                   <div>
-                    <div class="guild-name-cell">{{ item.guild_name or 'Server không rõ' }}</div>
+                    <div class="guild-name-cell">{{ item.guild_name or t('admin.unknown_server') }}</div>
                     <div class="guild-id-cell">{{ item.guild_id }}</div>
                   </div>
                 </div>
@@ -266,14 +267,14 @@
               <td style="color:var(--text-muted);font-size:.82rem;">{{ item.kicked_at or '—' }}</td>
               <td>
                 <div class="action-btns" style="justify-content:flex-end;">
-                  <form method="POST" action="{{ url_for('admin_unblacklist', guild_id=item.guild_id) }}" onsubmit="return confirm('Xóa server này khỏi blacklist?')">
-                    <button type="submit" class="btn-icon unblacklist"><i class="bi bi-unlock-fill"></i> Xóa khỏi Blacklist</button>
+                  <form method="POST" action="{{ url_for('admin_unblacklist', guild_id=item.guild_id) }}" onsubmit="return confirm('{{ t('admin.confirm_unblacklist') }}')">
+                    <button type="submit" class="btn-icon unblacklist"><i class="bi bi-unlock-fill"></i> {{ t('admin.remove_from_blacklist') }}</button>
                   </form>
                 </div>
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="4" class="empty-tbl"><div class="empty-tbl-icon">✅</div><p>Chưa có server nào trong Blacklist.</p></td></tr>
+            <tr><td colspan="4" class="empty-tbl"><div class="empty-tbl-icon">✅</div><p>{{ t('admin.no_blacklist') }}</p></td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -285,18 +286,18 @@
 <!-- Modal: Kick -->
 <div class="modal-overlay" id="kickModal">
   <div class="modal-box">
-    <div class="modal-title danger"><i class="bi bi-box-arrow-right"></i> Xác nhận Kick Bot</div>
-    <p class="modal-subtitle">Bot sẽ rời khỏi server này và server sẽ bị thêm vào Blacklist ngay lập tức.</p>
-    <div class="warn-box">⚠️ Server <strong id="kickGuildName"></strong> sẽ bị <strong>Blacklist</strong>. Bot sẽ tự động rời nếu được mời lại.</div>
+    <div class="modal-title danger"><i class="bi bi-box-arrow-right"></i> {{ t('admin.kick_title') }}</div>
+    <p class="modal-subtitle">{{ t('admin.kick_subtitle') }}</p>
+    <div class="warn-box">⚠️ Server <strong id="kickGuildName"></strong>.</div>
     <form method="POST" id="kickForm">
       <input type="hidden" name="guild_name" id="kickGuildNameInput">
       <div class="modal-field">
-        <label class="modal-label">Lý do (tùy chọn)</label>
-        <input type="text" name="reason" class="modal-input danger" placeholder="VD: Vi phạm điều khoản sử dụng..." maxlength="200">
+        <label class="modal-label">{{ t('admin.reason_label') }}</label>
+        <input type="text" name="reason" class="modal-input danger" placeholder="{{ t('admin.reason_placeholder') }}" maxlength="200">
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeKickModal()"><i class="bi bi-x-lg"></i> Hủy</button>
-        <button type="submit" class="btn-confirm-kick"><i class="bi bi-box-arrow-right"></i> Kick Bot &amp; Blacklist</button>
+        <button type="button" class="btn-cancel" onclick="closeKickModal()"><i class="bi bi-x-lg"></i> {{ t('admin.btn_cancel') }}</button>
+        <button type="submit" class="btn-confirm-kick"><i class="bi bi-box-arrow-right"></i> {{ t('admin.btn_confirm_kick') }}</button>
       </div>
     </form>
   </div>
@@ -305,29 +306,29 @@
 <!-- Modal: Broadcast -->
 <div class="modal-overlay" id="broadcastModal">
   <div class="modal-box broadcast-box">
-    <div class="modal-title broadcast"><i class="bi bi-megaphone-fill"></i> Gửi thông báo Broadcast</div>
-    <p class="modal-subtitle" id="broadcastSubtitle">Soạn nội dung thông báo sẽ được gửi đến server đã chọn.</p>
+    <div class="modal-title broadcast"><i class="bi bi-megaphone-fill"></i> {{ t('admin.broadcast_title_modal') }}</div>
+    <p class="modal-subtitle" id="broadcastSubtitle">{{ t('admin.broadcast_sub_modal') }}</p>
     <form method="POST" action="{{ url_for('admin_broadcast') }}" id="broadcastForm">
       <input type="hidden" name="send_all" id="broadcastSendAll" value="0">
       <div id="broadcastTargetInputs"></div>
       <div class="modal-field">
-        <label class="modal-label">Tiêu đề</label>
-        <input type="text" name="broadcast_title" class="modal-input" placeholder="Thông báo từ Bot Owner" value="Thông báo từ Bot Owner" maxlength="256">
+        <label class="modal-label">{{ t('admin.broadcast_title_field') }}</label>
+        <input type="text" name="broadcast_title" class="modal-input" placeholder="{{ t('admin.broadcast_title_default') }}" value="{{ t('admin.broadcast_title_default') }}" maxlength="256">
       </div>
       <div class="modal-field">
-        <label class="modal-label">Nội dung *</label>
-        <textarea name="broadcast_message" class="modal-input" placeholder="Nhập nội dung thông báo..." rows="4" required maxlength="4000"></textarea>
+        <label class="modal-label">{{ t('admin.broadcast_message_field') }}</label>
+        <textarea name="broadcast_message" class="modal-input" placeholder="{{ t('admin.broadcast_message_placeholder') }}" rows="4" required maxlength="4000"></textarea>
       </div>
       <div class="modal-field">
-        <label class="modal-label">Màu Embed</label>
+        <label class="modal-label">{{ t('admin.broadcast_color_field') }}</label>
         <div class="color-row">
           <input type="color" id="broadcastColorPicker" value="#5865F2" onchange="document.getElementById('broadcastColorHex').value=this.value" class="color-preview">
           <input type="text" name="broadcast_color" id="broadcastColorHex" class="modal-input" value="#5865F2" maxlength="7" oninput="syncColor(this)" style="flex:1;">
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeBroadcastModal()"><i class="bi bi-x-lg"></i> Hủy</button>
-        <button type="submit" class="btn-confirm-broadcast"><i class="bi bi-send-fill"></i> Gửi Broadcast</button>
+        <button type="button" class="btn-cancel" onclick="closeBroadcastModal()"><i class="bi bi-x-lg"></i> {{ t('admin.btn_cancel') }}</button>
+        <button type="submit" class="btn-confirm-broadcast"><i class="bi bi-send-fill"></i> {{ t('admin.btn_send_broadcast') }}</button>
       </div>
     </form>
   </div>
@@ -336,36 +337,36 @@
 <!-- Modal: Invite -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal-box">
-    <div class="modal-title" style="color:#43b581;"><i class="bi bi-person-plus-fill"></i> Link Tham Gia Server</div>
-    <p class="modal-subtitle">Tạo link mời để bạn (Owner) gia nhập server <strong id="inviteGuildName" style="color:var(--text-primary);"></strong>.</p>
+    <div class="modal-title" style="color:#43b581;"><i class="bi bi-person-plus-fill"></i> {{ t('admin.invite_title') }}</div>
+    <p class="modal-subtitle"><strong id="inviteGuildName" style="color:var(--text-primary);"></strong>.</p>
     
     <div id="inviteLoading" style="text-align:center;padding:24px 0;">
       <div style="font-size:1.6rem;margin-bottom:8px;">⏳</div>
-      <p style="font-size:.88rem;color:var(--text-secondary);">Đang tạo link mời từ Discord API...</p>
+      <p style="font-size:.88rem;color:var(--text-secondary);">{{ t('admin.invite_loading') }}</p>
     </div>
 
     <div id="inviteResult" style="display:none;">
       <div class="modal-field">
-        <label class="modal-label">Link mời Instant Invite (24 giờ)</label>
+        <label class="modal-label">{{ t('admin.invite_label') }}</label>
         <div style="display:flex;gap:8px;">
           <input type="text" id="inviteUrlInput" class="modal-input" readonly style="font-weight:600;color:#43b581;">
-          <button type="button" class="btn-cancel" onclick="copyInviteUrl()"><i class="bi bi-clipboard"></i> Copy</button>
+          <button type="button" class="btn-cancel" onclick="copyInviteUrl()"><i class="bi bi-clipboard"></i> {{ t('admin.btn_copy') }}</button>
         </div>
       </div>
       <div class="modal-actions" style="margin-top:20px;">
-        <button type="button" class="btn-cancel" onclick="closeInviteModal()"><i class="bi bi-x-lg"></i> Đóng</button>
+        <button type="button" class="btn-cancel" onclick="closeInviteModal()"><i class="bi bi-x-lg"></i> {{ t('admin.btn_close') }}</button>
         <a id="inviteJoinBtn" href="#" target="_blank" class="btn-icon unblacklist" style="text-decoration:none;padding:8px 16px;font-size:.88rem;display:inline-flex;align-items:center;gap:6px;">
-          <i class="bi bi-box-arrow-up-right"></i> Tham gia Server ngay
+          <i class="bi bi-box-arrow-up-right"></i> {{ t('admin.btn_join_now') }}
         </a>
       </div>
     </div>
 
     <div id="inviteError" style="display:none;">
       <div class="warn-box" style="margin-bottom:16px;">
-        ⚠️ <span id="inviteErrorText">Không thể tạo link mời cho server này.</span>
+        ⚠️ <span id="inviteErrorText">{{ t('admin.invite_error_default') }}</span>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeInviteModal()"><i class="bi bi-x-lg"></i> Đóng</button>
+        <button type="button" class="btn-cancel" onclick="closeInviteModal()"><i class="bi bi-x-lg"></i> {{ t('admin.btn_close') }}</button>
       </div>
     </div>
   </div>
@@ -396,11 +397,22 @@
   }
 
   function updateSelected() {
+  window.I18N_A = {
+    selected: "{{ t('admin.selected_count', count='${count}') }}",
+    sendToAll: "Send to ALL ${TOTAL_SERVERS} active servers.",
+    sendToServer: "Send to server: ",
+    sendToCount: "Send to ${count} selected servers.",
+    cannotInvite: "{{ t('admin.invite_error_default') }}",
+    apiError: "API Connection error: ",
+    copied: "Copied invite link: "
+  };
+
+  function updateSelected() {
     const checks = document.querySelectorAll('.guild-check:checked');
     const count = checks.length;
     const allCount = document.querySelectorAll('.guild-check').length;
     document.getElementById('broadcastBar').style.display = count > 0 ? 'flex' : 'none';
-    document.getElementById('selectedCountLabel').textContent = count + ' đã chọn';
+    document.getElementById('selectedCountLabel').textContent = count + ' selected';
     const allChk = count === allCount && allCount > 0;
     document.getElementById('masterCheck').checked = allChk;
     document.getElementById('selectAll').checked = allChk;
@@ -428,13 +440,13 @@
     const subtitle = document.getElementById('broadcastSubtitle');
     if (useAll) {
       document.getElementById('broadcastSendAll').value = '1';
-      subtitle.textContent = 'Gửi đến TẤT CẢ ' + TOTAL_SERVERS + ' server đang hoạt động.';
+      subtitle.textContent = 'Send to ALL ' + TOTAL_SERVERS + ' active servers.';
     } else if (guildId) {
       document.getElementById('broadcastSendAll').value = '0';
       const inp = document.createElement('input');
       inp.type='hidden'; inp.name='target_guilds'; inp.value=guildId;
       targetInputs.appendChild(inp);
-      subtitle.textContent = 'Gửi đến server: ' + (guildName || guildId);
+      subtitle.textContent = 'Send to server: ' + (guildName || guildId);
     } else {
       const checks = document.querySelectorAll('.guild-check:checked');
       document.getElementById('broadcastSendAll').value = '0';
@@ -443,7 +455,7 @@
         inp.type='hidden'; inp.name='target_guilds'; inp.value=c.value;
         targetInputs.appendChild(inp);
       });
-      subtitle.textContent = 'Gửi đến ' + checks.length + ' server đã chọn.';
+      subtitle.textContent = 'Send to ' + checks.length + ' selected servers.';
     }
     document.getElementById('broadcastModal').classList.add('open');
   }
@@ -466,13 +478,13 @@
           document.getElementById('inviteJoinBtn').href = data.url;
           document.getElementById('inviteResult').style.display = 'block';
         } else {
-          document.getElementById('inviteErrorText').textContent = data.error || 'Bot không thể tạo link mời cho server này.';
+          document.getElementById('inviteErrorText').textContent = data.error || window.I18N_A.cannotInvite;
           document.getElementById('inviteError').style.display = 'block';
         }
       })
       .catch(err => {
         document.getElementById('inviteLoading').style.display = 'none';
-        document.getElementById('inviteErrorText').textContent = 'Lỗi kết nối API: ' + err;
+        document.getElementById('inviteErrorText').textContent = window.I18N_A.apiError + err;
         document.getElementById('inviteError').style.display = 'block';
       });
   }
@@ -483,7 +495,7 @@
     const inp = document.getElementById('inviteUrlInput');
     inp.select();
     navigator.clipboard.writeText(inp.value).then(() => {
-      alert('Đã sao chép link mời: ' + inp.value);
+      alert(window.I18N_A.copied + inp.value);
     });
   }
 

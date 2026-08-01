@@ -297,24 +297,24 @@
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">🎭 Reaction Roles</h1>
-  <p class="page-subtitle">Tạo tin nhắn và cho phép người dùng nhận role bằng cách thả cảm xúc</p>
+  <p class="page-subtitle">{{ t('reactionroles.page_subtitle') }}</p>
 </div>
 
 <div style="margin-bottom: 24px;">
   <button id="btn-create-panel" class="btn btn-primary" onclick="showEditor()">
-    <i class="bi bi-plus-lg"></i> Tạo Reaction Roles Panel
+    <i class="bi bi-plus-lg"></i> {{ t('reactionroles.editor_title_new') }}
   </button>
 </div>
 
 <!-- Panels List -->
 <div id="panels-list-section">
   <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-color);">
-    Danh sách Reaction Roles Panels ({{ panels|length }})
+    {{ t('tickets.list_title', count=panels|length) }}
   </h2>
   {% if not panels %}
     <div class="card" style="text-align: center; padding: 40px; color: var(--text-muted);">
       <div style="font-size: 2.5rem; margin-bottom: 12px;">🎭</div>
-      <p style="margin: 0; font-size: 0.95rem;">Bạn chưa tạo Reaction Roles Panel nào.</p>
+      <p style="margin: 0; font-size: 0.95rem;">{{ t('tickets.no_panels') }}</p>
     </div>
   {% else %}
     {% for p in panels %}
@@ -322,25 +322,25 @@
         <div class="panel-info">
           <div class="panel-name">{{ p.name }}</div>
           <div class="panel-meta">
-            <span><i class="bi bi-chat-left-text"></i> Kênh: 
+            <span><i class="bi bi-chat-left-text"></i> {{ t('tickets.meta_channel') }} 
               {% set found_ch = namespace(val=None) %}
               {% for ch in text_channels %}
                 {% if ch.channel_id == p.channel_id %}{% set found_ch.val = ch.channel_name %}{% endif %}
               {% endfor %}
               <code>#{{ found_ch.val or p.channel_id }}</code>
             </span>
-            <span><i class="bi bi-emoji-smile"></i> Lựa chọn: <code>{{ p['items']|length }} mục</code></span>
+            <span><i class="bi bi-emoji-smile"></i> {{ t('tickets.meta_buttons') }} <code>{{ p['items']|length }}</code></span>
           </div>
         </div>
         <div class="panel-actions">
           <button class="btn btn-secondary btn-sm" onclick="editPanel({{ p.id }})">
-            <i class="bi bi-pencil"></i> Sửa
+            <i class="bi bi-pencil"></i> {{ t('tickets.btn_edit') }}
           </button>
           <button class="btn btn-success btn-sm" onclick="sendPanel({{ p.id }})">
-            <i class="bi bi-send"></i> Gửi đến Discord
+            <i class="bi bi-send"></i> {{ t('tickets.btn_send') }}
           </button>
           <button class="btn btn-danger btn-sm" onclick="deletePanel({{ p.id }})">
-            <i class="bi bi-trash"></i> Xóa
+            <i class="bi bi-trash"></i> {{ t('tickets.btn_delete') }}
           </button>
         </div>
       </div>

@@ -437,14 +437,20 @@ function updateWelcomePreview() {
     document.getElementById('w-banner-outer').style.setProperty('--bg-url', `url('${bgUrl}')`);
   } else {
     document.getElementById('w-banner-outer').style.setProperty('--bg-url', `url('/static/bg.png')`);
-  }
+  window.I18N_W = {
+    joined: "{{ t('welcome.joined', user='${USER_NAME_W}', server='${GUILD_NAME_W}') }}",
+    left: "{{ t('welcome.left', user='${USER_NAME_W}', server='${GUILD_NAME_W}') }}",
+    empty: "{{ t('welcome.empty_msg') }}",
+    sending: "{{ t('welcome.sending') }}",
+    testSuccess: "{{ t('welcome.test_success') }}"
+  };
 
   document.getElementById('w-preview-msg').innerHTML = msg
     ? applyVars(msg)
-    : `👋 <strong>${USER_NAME_W}</strong> đã tham gia <strong>${GUILD_NAME_W}</strong>!`;
+    : `👋 <strong>${USER_NAME_W}</strong> ...`;
 
   if (!useCard) {
-    document.getElementById('w-plain-text').innerHTML = applyVars(msg) || '<span style="color:#52555d;font-style:italic;">Nội dung trống</span>';
+    document.getElementById('w-plain-text').innerHTML = applyVars(msg) || `<span style="color:#52555d;font-style:italic;">${window.I18N_W.empty}</span>`;
   }
 }
 
@@ -464,10 +470,10 @@ function updateGoodbyePreview() {
 
   document.getElementById('g-preview-msg').innerHTML = msg
     ? applyVars(msg)
-    : `👋 <strong>${USER_NAME_W}</strong> đã rời khỏi <strong>${GUILD_NAME_W}</strong>.`;
+    : `👋 <strong>${USER_NAME_W}</strong> ...`;
 
   if (!useCard) {
-    document.getElementById('g-plain-text').innerHTML = applyVars(msg) || '<span style="color:#52555d;font-style:italic;">Nội dung trống</span>';
+    document.getElementById('g-plain-text').innerHTML = applyVars(msg) || `<span style="color:#52555d;font-style:italic;">${window.I18N_W.empty}</span>`;
   }
 }
 
@@ -477,7 +483,7 @@ async function sendTestCard(type) {
   const btn   = document.getElementById(btnId);
   const orig  = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang gửi...';
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ' + window.I18N_W.sending;
 
   const useEmbed = document.getElementById(`${prefix}-embed-toggle`).checked;
   const message  = document.getElementById(`${prefix}-message`).value;
@@ -491,12 +497,12 @@ async function sendTestCard(type) {
     });
     const data = await resp.json();
     if (data.ok) {
-      showToast('✅ Đã gửi banner test đến kênh!', 'success');
+      showToast(window.I18N_W.testSuccess, 'success');
     } else {
-      showToast('❌ ' + (data.error || 'Lỗi không xác định'), 'error');
+      showToast('❌ ' + (data.error || 'Error'), 'error');
     }
   } catch(e) {
-    showToast('❌ Lỗi kết nối', 'error');
+    showToast('❌ Network error', 'error');
   }
 
   btn.innerHTML = orig;
