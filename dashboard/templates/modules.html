@@ -69,19 +69,19 @@
 </style>
 
 <div class="card" style="margin-bottom: 24px; border-color: #5865F2;">
-  <div class="card-title">🔐 Role Whitelist (Bot Admin)</div>
+  <div class="card-title">🔐 {{ t('modules.role_whitelist_title') }}</div>
   <p style="font-size: 0.85rem; color: #b5bac1; margin-bottom: 12px;">
-    Role Whitelist (Bot Admin)
+    {{ t('modules.role_whitelist_desc') }}
   </p>
   
   <form method="POST" action="{{ url_for('server_modules', guild_id=guild_id) }}">
     <div class="form-group">
-      <label class="form-label">Role Whitelist (Bot Admin)</label>
+      <label class="form-label">{{ t('modules.role_whitelist_title') }}</label>
       <div id="hidden-inputs-bot_admin_roles"></div>
       <div class="custom-select-wrapper" id="select-bot_admin_roles">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-bot_admin_roles"></div>
-          <div class="placeholder-text" id="placeholder-bot_admin_roles">Role Whitelist</div>
+          <div class="placeholder-text" id="placeholder-bot_admin_roles">{{ t('autoroles.select_role_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-bot_admin_roles"></div>
@@ -279,9 +279,9 @@
   <div class="module-card {% if modules.get('giveaways', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎁</span> Giveaways</div>
-      <div class="mod-desc">Tổ chức sự kiện tặng quà với thời gian đếm ngược và chọn người thắng tự động.</div>
+      <div class="mod-desc">{{ t('dashboard.giveaway_desc') }}</div>
       <a href="#" style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; display:inline-flex; align-items:center; gap:4px; pointer-events: none;">
-        Tùy chỉnh qua Lệnh Slash
+        {{ t('modules.configure_via_slash') }}
       </a>
     </div>
     <label class="switch">
@@ -298,10 +298,9 @@
   <div style="display:flex; gap:12px; align-items:flex-start;">
     <div style="font-size:1.2rem;">💡</div>
     <div>
-      <div style="font-size:0.875rem; font-weight:600; margin-bottom:4px;">Module hoạt động như thế nào?</div>
+      <div style="font-size:0.875rem; font-weight:600; margin-bottom:4px;">{{ t('modules.how_it_works_title') }}</div>
       <div style="font-size:0.8rem; color:var(--text-muted); line-height:1.6;">
-        Khi tắt một module, toàn bộ lệnh và sự kiện thuộc module đó sẽ bị vô hiệu hóa trong server này.
-        Thay đổi có hiệu lực ngay lập tức — không cần khởi động lại bot.
+        {{ t('modules.how_it_works_desc') }}
       </div>
     </div>
   </div>

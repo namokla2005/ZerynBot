@@ -155,7 +155,7 @@
     <div class="card" style="margin-bottom: 20px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <div style="font-weight:600; font-size:0.95rem; margin-bottom:4px;">Kích hoạt module Music</div>
+          <div style="font-weight:600; font-size:0.95rem; margin-bottom:4px;">{{ t('music.enable_label') }}</div>
           <div style="font-size:0.8rem; color:var(--text-muted);">{{ t('dashboard.music_desc') }}</div>
         </div>
         <label class="switch">
@@ -168,25 +168,25 @@
     </div>
 
     <div class="section-header" style="margin-top:24px;">
-      <div class="section-title">🛠️ System Status (Bot Host)</div>
+      <div class="section-title">🛠️ {{ t('music.system_status') }}</div>
     </div>
 
     <div class="card" style="margin-bottom: 20px;">
       <div style="display:flex; flex-direction:column; gap:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
-          <span style="font-size:0.875rem;">Voice Encryption (davey)</span>
+          <span style="font-size:0.875rem;">{{ t('music.voice_encryption') }}</span>
           {% if has_davey %}
-            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Ready</span>
+            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_ready') }}</span>
           {% else %}
-            <span class="badge badge-danger" style="background:rgba(237,66,69,0.15); color:#ed4245; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">❌ Missing</span>
+            <span class="badge badge-danger" style="background:rgba(237,66,69,0.15); color:#ed4245; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_missing') }}</span>
           {% endif %}
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
-          <span style="font-size:0.875rem;">Audio Decoder (FFmpeg)</span>
+          <span style="font-size:0.875rem;">{{ t('music.audio_decoder') }}</span>
           {% if has_ffmpeg %}
-            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Ready</span>
+            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_ready') }}</span>
           {% else %}
-            <span class="badge badge-warning" style="background:rgba(240,178,50,0.15); color:#f0b232; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">⚠️ Not Configured</span>
+            <span class="badge badge-warning" style="background:rgba(240,178,50,0.15); color:#f0b232; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_not_configured') }}</span>
           {% endif %}
         </div>
       </div>
@@ -196,15 +196,15 @@
   <!-- Right Panel: Playlists Manager -->
   <div class="builder-panel" style="flex: 1.4;">
     <div class="section-header">
-      <div class="section-title">📂 Playlists Manager</div>
+      <div class="section-title">📂 {{ t('music.playlist_manager') }}</div>
     </div>
 
     <!-- Create Playlist Form -->
     <div class="card" style="margin-bottom: 20px;">
       <form action="{{ url_for('create_playlist_route', guild_id=guild_id) }}" method="POST" style="display:flex; gap:10px;">
-        <input type="text" name="playlist_name" class="form-control" placeholder="New playlist name..." required>
+        <input type="text" name="playlist_name" class="form-control" placeholder="{{ t('music.new_playlist_placeholder') }}" required>
         <button type="submit" class="btn btn-primary" style="white-space:nowrap;">
-          <i class="bi bi-folder-plus"></i> Create Playlist
+          <i class="bi bi-folder-plus"></i> {{ t('music.btn_create_playlist') }}
         </button>
       </form>
     </div>
@@ -229,11 +229,11 @@
                 <i class="bi bi-chevron-down accordion-icon"></i>
                 <i class="bi bi-music-note-list" style="color:var(--accent);"></i>
                 <span class="playlist-name">{{ pl.name }}</span>
-                <span class="playlist-badge">{{ pl.tracks | length }} tracks</span>
+                <span class="playlist-badge">{{ t('music.tracks_count', count=pl.tracks|length) }}</span>
               </div>
               <div>
                 <a href="{{ url_for('delete_playlist_route', guild_id=guild_id, playlist_id=pl.id) }}"
-                   class="btn btn-danger btn-sm" onclick="event.stopPropagation(); return confirm('Delete this playlist?')">
+                   class="btn btn-danger btn-sm" onclick="event.stopPropagation(); return confirm('{{ t('music.confirm_delete_playlist') }}')">
                   <i class="bi bi-trash3-fill"></i> {{ t('common.delete') }}
                 </a>
               </div>
@@ -259,7 +259,7 @@
                       </div>
                       <div class="track-actions">
                         <a href="{{ url_for('delete_track_route', guild_id=guild_id, track_id=track.id) }}"
-                           class="track-delete-btn" title="Remove track" onclick="return confirm('Remove this track?')">
+                           class="track-delete-btn" title="Remove track" onclick="return confirm('{{ t('music.confirm_remove_track') }}')">
                           <i class="bi bi-x-circle-fill"></i>
                         </a>
                       </div>
@@ -267,16 +267,16 @@
                   {% endfor %}
                 {% else %}
                   <div style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">
-                    <i class="bi bi-info-circle"></i> No tracks in this playlist yet. Add songs below!
+                    <i class="bi bi-info-circle"></i> {{ t('music.no_tracks') }}
                   </div>
                 {% endif %}
               </div>
 
               <!-- Add track to playlist -->
               <form action="{{ url_for('add_track_route', guild_id=guild_id, playlist_id=pl.id) }}" method="POST" class="playlist-add-form">
-                <input type="text" name="track_query" class="form-control form-control-sm" placeholder="Song title or YouTube URL..." required>
+                <input type="text" name="track_query" class="form-control form-control-sm" placeholder="{{ t('music.song_placeholder') }}" required>
                 <button type="submit" class="btn btn-secondary btn-sm" style="white-space:nowrap;">
-                  <i class="bi bi-plus-lg"></i> Add Track
+                  <i class="bi bi-plus-lg"></i> {{ t('music.btn_add_track') }}
                 </button>
               </form>
               </div>
@@ -288,7 +288,7 @@
       {% else %}
         <div style="text-align:center; padding:40px; color:var(--text-muted); background:var(--bg-secondary); border-radius:8px;">
           <i class="bi bi-music-note-list" style="font-size:3rem; margin-bottom:10px; display:inline-block;"></i>
-          <p>No playlists yet. Create a new playlist above!</p>
+          <p>{{ t('music.no_playlists') }}</p>
         </div>
       {% endif %}
     </div>

@@ -354,22 +354,22 @@
   <!-- Left: Form Editor -->
   <div class="builder-panel" style="margin: 0;">
     <div class="builder-panel-title" id="editor-title-text">
-      <i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Soạn thảo Reaction Roles Panel
+      <i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('reactionroles.editor_title_new') }}
     </div>
     
     <input type="hidden" id="panel-id" value="">
 
     <!-- Cấu hình cơ bản -->
     <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin-bottom: 12px;">
-      1. Cấu hình cơ bản
+      {{ t('reactionroles.step1_title') }}
     </h3>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Tên Panel (nhận diện nội bộ)</label>
-        <input type="text" id="panel-name" class="form-control" placeholder="Ví dụ: Panel Hỗ Trợ Shop...">
+        <label class="form-label">{{ t('reactionroles.panel_name_label') }}</label>
+        <input type="text" id="panel-name" class="form-control" placeholder="{{ t('reactionroles.panel_name_placeholder') }}">
       </div>
       <div class="form-group">
-        <label class="form-label">Kênh gửi Panel</label>
+        <label class="form-label">{{ t('reactionroles.channel_label') }}</label>
         <select id="panel-channel-id" class="form-control">
           {% for ch in text_channels %}
             <option value="{{ ch.channel_id }}">#{{ ch.channel_name }}</option>
@@ -382,11 +382,11 @@
 
     <!-- Thiết kế Embed -->
     <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin-bottom: 12px;">
-      2. Thiết kế nội dung (Embed)
+      {{ t('reactionroles.step2_title') }}
     </h3>
     
     <div class="form-group">
-      <label class="form-label">Màu viền Embed</label>
+      <label class="form-label">{{ t('reactionroles.embed_color') }}</label>
       <div class="color-row">
         <div class="color-swatch" id="panel-color-swatch" style="background:#5865f2">
           <input type="color" id="panel-color" value="#5865f2" oninput="updateColor(this.value)">
@@ -398,53 +398,53 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Tiêu đề (Title)</label>
-      <input type="text" id="panel-title" class="form-control" placeholder="TẠO TICKET MUA HÀNG / HỖ TRỢ" oninput="updatePreview()">
+      <label class="form-label">{{ t('reactionroles.embed_title_label') }}</label>
+      <input type="text" id="panel-title" class="form-control" placeholder="REACTION ROLES PANEL" oninput="updatePreview()">
     </div>
 
     <div class="form-group">
-      <label class="form-label">Nội dung mô tả (Description)</label>
+      <label class="form-label">{{ t('reactionroles.embed_desc_label') }}</label>
       <textarea id="panel-description" class="form-control" rows="4" 
-                placeholder="Ví dụ: Nhấn vào các nút bên dưới để tạo yêu cầu hỗ trợ tương ứng..."
+                placeholder="..."
                 oninput="updatePreview()"></textarea>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Ảnh Thumbnail (URL góc nhỏ)</label>
+        <label class="form-label">{{ t('reactionroles.embed_thumbnail') }}</label>
         <input type="url" id="panel-thumbnail-url" class="form-control" placeholder="https://..." oninput="updatePreview()">
       </div>
       <div class="form-group">
-        <label class="form-label">Ảnh chính (URL ảnh to)</label>
+        <label class="form-label">{{ t('reactionroles.embed_image') }}</label>
         <input type="url" id="panel-image-url" class="form-control" placeholder="https://..." oninput="updatePreview()">
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Chữ chân trang (Footer)</label>
-      <input type="text" id="panel-footer-text" class="form-control" placeholder="Chân trang..." oninput="updatePreview()">
+      <label class="form-label">{{ t('reactionroles.embed_footer') }}</label>
+      <input type="text" id="panel-footer-text" class="form-control" placeholder="..." oninput="updatePreview()">
     </div>
 
     <!-- Quản lý Reaction Items -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin:0;">
-        3. Các lựa chọn (Emoji & Role)
+        {{ t('reactionroles.step3_title') }}
       </h3>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addEmojiRow()">
-        <i class="bi bi-plus-lg"></i> Thêm mục
+        <i class="bi bi-plus-lg"></i> {{ t('reactionroles.add_item') }}
       </button>
     </div>
     
     <div id="items-container"></div>
-    <div class="form-hint" style="margin-bottom: 24px;">* Emoji có thể là biểu tượng mặc định (🍎) hoặc custom (dạng <code>&lt;:name:id&gt;</code>).</div>
+    <div class="form-hint" style="margin-bottom: 24px;">* Emoji</div>
 
     <!-- Form Actions -->
     <div style="display: flex; gap: 12px; margin-top: 30px;">
       <button class="btn btn-primary" onclick="savePanel()">
-        <i class="bi bi-save"></i> Lưu Panel
+        <i class="bi bi-save"></i> {{ t('reactionroles.btn_save') }}
       </button>
       <button class="btn btn-secondary" onclick="hideEditor()">
-        Hủy
+        {{ t('reactionroles.btn_cancel') }}
       </button>
     </div>
   </div>
@@ -453,7 +453,7 @@
   <div>
     <div class="discord-preview-wrap">
       <div class="discord-header">
-        <i class="bi bi-eye-fill"></i> Discord Live Preview
+        <i class="bi bi-eye-fill"></i> {{ t('tickets.live_preview') }}
       </div>
       
       <div class="discord-msg-author">
@@ -461,14 +461,14 @@
         <div>
           <span class="discord-author-name">{{ guild.get('name', 'Bot') }}</span>
           <span class="discord-bot-tag">Bot</span>
-          <span class="discord-time">Hôm nay lúc 23:00</span>
+          <span class="discord-time">{{ t('tickets.today_at') }} 23:00</span>
         </div>
       </div>
       
       <div class="discord-embed-box" id="prev-embed-box">
         <img id="prev-thumb" class="discord-embed-thumb" src="" style="display:none;" alt="">
-        <div class="discord-embed-title" id="prev-title">Tiêu đề Embed</div>
-        <div class="discord-embed-desc" id="prev-desc">Nội dung mô tả chính của panel...</div>
+        <div class="discord-embed-title" id="prev-title">Embed Title</div>
+        <div class="discord-embed-desc" id="prev-desc">Embed Description...</div>
         <img id="prev-image" class="discord-embed-image" src="" style="display:none;" alt="">
         <div class="discord-embed-footer" id="prev-footer">Footer text</div>
       </div>
@@ -487,6 +487,22 @@
 </script>
 
 <script>
+  window.I18N = {
+    editor_title_new: "{{ t('reactionroles.editor_title_new') }}",
+    editor_title_edit: "{{ t('reactionroles.editor_title_edit') }}",
+    select_role_placeholder: "{{ t('reactionroles.select_role_placeholder') }}",
+    emoji_placeholder: "{{ t('reactionroles.emoji_placeholder') }}",
+    alert_name_required: "{{ t('reactionroles.alert_name_required') }}",
+    alert_channel_required: "{{ t('reactionroles.alert_channel_required') }}",
+    alert_emoji_required: "{{ t('reactionroles.alert_emoji_required') }}",
+    alert_role_required: "{{ t('reactionroles.alert_role_required') }}",
+    alert_min_items: "{{ t('reactionroles.alert_min_items') }}",
+    alert_save_success: "{{ t('reactionroles.alert_save_success') }}",
+    alert_send_confirm: "{{ t('reactionroles.alert_send_confirm') }}",
+    alert_send_success: "{{ t('reactionroles.alert_send_success') }}",
+    alert_delete_confirm: "{{ t('reactionroles.alert_delete_confirm') }}"
+  };
+
   let buttonsList = [];
 
   function showEditor(isEdit = false) {
@@ -495,15 +511,15 @@
     document.getElementById("editor-section").style.display = "grid";
     
     if (!isEdit) {
-      document.getElementById("editor-title-text").innerHTML = '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Tạo Reaction Roles Panel';
+      document.getElementById("editor-title-text").innerHTML = '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> ' + window.I18N.editor_title_new;
       document.getElementById("panel-id").value = "";
       document.getElementById("panel-name").value = "";
       document.getElementById("panel-channel-id").selectedIndex = 0;
       document.getElementById("panel-color").value = "#5865F2";
       document.getElementById("panel-color-display").value = "#5865F2";
       document.getElementById("panel-color-swatch").style.background = "#5865F2";
-      document.getElementById("panel-title").value = "NHẬN ROLE TỰ ĐỘNG";
-      document.getElementById("panel-description").value = "Thả cảm xúc vào các emoji bên dưới để nhận role tương ứng nhé!";
+      document.getElementById("panel-title").value = "REACTION ROLES";
+      document.getElementById("panel-description").value = "";
       document.getElementById("panel-thumbnail-url").value = "";
       document.getElementById("panel-image-url").value = "";
       document.getElementById("panel-footer-text").value = "";
@@ -511,6 +527,8 @@
       document.getElementById("items-container").innerHTML = "";
       // Add default 1 item
       addEmojiRow("🍎", "");
+    } else {
+      document.getElementById("editor-title-text").innerHTML = '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> ' + window.I18N.editor_title_edit;
     }
     updatePreview();
   }
@@ -530,8 +548,8 @@
   }
 
   function updatePreview() {
-    const title = document.getElementById("panel-title").value || "Tiêu đề Panel";
-    const desc = document.getElementById("panel-description").value || "Nội dung mô tả...";
+    const title = document.getElementById("panel-title").value || "Panel Title";
+    const desc = document.getElementById("panel-description").value || "Panel Description...";
     const thumb = document.getElementById("panel-thumbnail-url").value;
     const image = document.getElementById("panel-image-url").value;
     const footer = document.getElementById("panel-footer-text").value;
@@ -598,13 +616,13 @@
     row.className = "btn-item";
     
     // Options categories
-    let roleOptions = `<option value="">(Chọn vai trò...)</option>`;
+    let roleOptions = `<option value="">${window.I18N.select_role_placeholder}</option>`;
     allRoles.forEach(r => {
       roleOptions += `<option value="${r.id}" ${r.id === roleId ? 'selected' : ''}>${r.name}</option>`;
     });
 
     row.innerHTML = `
-      <input type="text" class="form-control item-emoji-input" placeholder="Emoji (ví dụ: 🍎 hoặc <:name:id>)" value="${emoji}" oninput="updatePreview()">
+      <input type="text" class="form-control item-emoji-input" placeholder="${window.I18N.emoji_placeholder}" value="${emoji}" oninput="updatePreview()">
       <select class="form-control item-role-select">
         ${roleOptions}
       </select>
@@ -628,11 +646,11 @@
     const footerText = document.getElementById("panel-footer-text").value.trim();
 
     if (!name) {
-      alert("Vui lòng nhập tên Panel!");
+      alert(window.I18N.alert_name_required);
       return;
     }
     if (!channelId) {
-      alert("Vui lòng cấu hình kênh gửi Panel!");
+      alert(window.I18N.alert_channel_required);
       return;
     }
 
@@ -646,12 +664,12 @@
       const roleId = row.querySelector(".item-role-select").value;
 
       if (!emoji) {
-        alert("Emoji không được để trống!");
+        alert(window.I18N.alert_emoji_required);
         valid = false;
         return;
       }
       if (!roleId) {
-        alert("Mỗi emoji phải đi kèm với một vai trò!");
+        alert(window.I18N.alert_role_required);
         valid = false;
         return;
       }
@@ -660,7 +678,7 @@
 
     if (!valid) return;
     if (items.length === 0) {
-      alert("Bảng panel phải có ít nhất 1 mục!");
+      alert(window.I18N.alert_min_items);
       return;
     }
 
@@ -687,15 +705,15 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        alert("Lưu Reaction Roles Panel thành công!");
+        alert(window.I18N.alert_save_success);
         window.location.reload();
       } else {
-        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+        alert("Error: " + (data.error || "Unknown error"));
       }
     })
     .catch(e => {
       console.error(e);
-      alert("Đã xảy ra lỗi mạng.");
+      alert("Network error.");
     });
   }
 
@@ -706,12 +724,6 @@
     document.getElementById("panel-id").value = p.id;
     document.getElementById("panel-name").value = p.name || "";
     document.getElementById("panel-channel-id").value = p.channel_id || "";
-    if (p.support_role_id) {
-      selectedTicketRoles = p.support_role_id.split(",");
-    } else {
-      selectedTicketRoles = [];
-    }
-    if (typeof renderTicketRoles === 'function') renderTicketRoles();
     
     const color = p.color || "#5865F2";
     updateColor(color);
@@ -734,7 +746,7 @@
   }
 
   function sendPanel(panelId) {
-    if (!confirm("Bạn có chắc chắn muốn gửi Panel này đến Discord? Việc này sẽ tự động xóa tin nhắn Panel cũ của bot trong kênh (nếu có) và đăng tải bản mới.")) {
+    if (!confirm(window.I18N.alert_send_confirm)) {
       return;
     }
     
@@ -745,19 +757,19 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        alert("Gửi Panel thành công! Đã cập nhật trên Discord.");
+        alert(window.I18N.alert_send_success);
       } else {
-        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+        alert("Error: " + (data.error || "Unknown error"));
       }
     })
     .catch(e => {
       console.error(e);
-      alert("Đã xảy ra lỗi kết nối.");
+      alert("Connection error.");
     });
   }
 
   function deletePanel(panelId) {
-    if (!confirm("Bạn có chắc chắn muốn xóa Panel này? Thao tác này không thể hoàn tác.")) {
+    if (!confirm(window.I18N.alert_delete_confirm)) {
       return;
     }
 
@@ -768,15 +780,15 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        alert("Xóa thành công!");
+        alert("Delete success!");
         window.location.reload();
       } else {
-        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+        alert("Error: " + (data.error || "Unknown error"));
       }
     })
     .catch(e => {
       console.error(e);
-      alert("Lỗi kết nối.");
+      alert("Connection error.");
     });
   }
 </script>
