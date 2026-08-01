@@ -1,5 +1,5 @@
 {% extends "base_server.html" %}
-{% block title %}Auto Roles{% endblock %}
+{% block title %}{{ t('autoroles.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -169,18 +169,18 @@
 {% block content %}
 
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-person-badge-fill" style="color: #5865F2;"></i> Auto Roles</h1>
-  <p class="page-subtitle">Tự động gắn vai trò cho thành viên và bot khi họ tham gia máy chủ.</p>
+  <h1 class="page-title"><i class="bi bi-person-badge-fill" style="color: #5865F2;"></i> {{ t('autoroles.page_title') }}</h1>
+  <p class="page-subtitle">{{ t('autoroles.page_subtitle') }}</p>
 </div>
 
 <div class="warning-box">
   <div class="warning-title">
-    <i class="bi bi-exclamation-triangle-fill"></i> Quan trọng
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ t('autoroles.warning_title') }}
   </div>
   <div>
-    - Đảm bảo role của Bot nằm <strong>trên</strong> các role muốn cấp phát trong Cài đặt Máy chủ (Server Settings).<br>
-    - Bot cần có quyền <strong>Quản lý Vai trò (Manage Roles)</strong>.<br>
-    - Nếu server của bạn có tính năng <strong>Sàng lọc Thành viên (Rule Screening)</strong>, role sẽ được cấp cho người dùng <strong>sau khi</strong> họ đồng ý với luật của Server.
+    - {{ t('autoroles.warning_body_1') }}<br>
+    - {{ t('autoroles.warning_body_2') }}<br>
+    - {{ t('autoroles.warning_body_3') }}
   </div>
 </div>
 
@@ -188,8 +188,8 @@
   <div class="card">
     <div class="card-header" style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <div>
-        <div class="card-title">Cài đặt Cấp quyền Tự động</div>
-        <div class="card-desc">Tự động gắn vai trò (Role) cho thành viên và bot khi họ tham gia máy chủ của bạn.</div>
+        <div class="card-title">{{ t('autoroles.card_title') }}</div>
+        <div class="card-desc">{{ t('autoroles.card_desc') }}</div>
       </div>
       <label class="switch">
         <input type="checkbox" name="autoroles_enabled" {% if settings.autoroles_enabled %}checked{% endif %}>
@@ -202,11 +202,11 @@
     <div id="hidden-inputs-bot"></div>
 
     <div class="form-group" style="margin-top: 24px;">
-      <label class="form-label">VAI TRÒ CHO NGƯỜI DÙNG</label>
+      <label class="form-label">{{ t('autoroles.user_roles_label') }}</label>
       <div class="custom-select-wrapper" id="select-user">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-user"></div>
-          <div class="placeholder-text" id="placeholder-user">Chọn vai trò...</div>
+          <div class="placeholder-text" id="placeholder-user">{{ t('autoroles.select_role_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-user">
@@ -216,24 +216,24 @@
     </div>
 
     <div class="form-group" style="margin-top: 32px;">
-      <label class="form-label">VAI TRÒ CHO BOT</label>
+      <label class="form-label">{{ t('autoroles.bot_roles_label') }}</label>
       <div class="custom-select-wrapper" id="select-bot">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-bot"></div>
-          <div class="placeholder-text" id="placeholder-bot">Chọn vai trò...</div>
+          <div class="placeholder-text" id="placeholder-bot">{{ t('autoroles.select_role_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-bot">
           <!-- Populated by JS -->
         </div>
       </div>
-      <div class="form-hint" style="margin-top: 8px;">Vai trò này sẽ được cấp cho các Bot khác khi chúng được mời vào máy chủ.</div>
+      <div class="form-hint" style="margin-top: 8px;">{{ t('autoroles.bot_roles_hint') }}</div>
     </div>
   </div>
 
   <div class="bottom-actions">
     <button type="submit" class="btn btn-primary btn-lg">
-      <i class="bi bi-save2"></i> Lưu thay đổi
+      <i class="bi bi-save2"></i> {{ t('common.save') }}
     </button>
   </div>
 </form>

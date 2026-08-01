@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ current_ui_lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — Servers của bạn</title>
+  <title>{{ t('home.title') }}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -123,8 +123,8 @@
   {% if not guilds %}
     <div class="empty-state">
       <div class="empty-icon">🌐</div>
-      <h3>Không tìm thấy server nào</h3>
-      <p>Bạn cần có quyền <strong>Manage Server</strong> để quản lý bot trong server.</p>
+      <h3>{{ t('home.no_servers_title') }}</h3>
+      <p>{{ t('home.no_servers_desc') }}</p>
     </div>
   {% endif %}
 </div>

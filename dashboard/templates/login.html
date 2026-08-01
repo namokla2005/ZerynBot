@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ current_ui_lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng nhập — Bot Dashboard</title>
+  <title>{{ t('login.title') }}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
-  <meta name="description" content="Đăng nhập vào Bot Dashboard bằng tài khoản Discord của bạn">
+  <meta name="description" content="{{ t('login.subtitle') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.6">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6.0">
 </head>
 <body>
 <div class="login-page">
@@ -17,42 +17,42 @@
     <!-- Bot icon -->
     <div class="login-bot-icon">🤖</div>
 
-    <h1 class="login-title">Bot Dashboard</h1>
+    <h1 class="login-title">{{ t('login.title') }}</h1>
     <p class="login-sub">
-      Quản lý bot của bạn trực tiếp từ trình duyệt.<br>
-      Đăng nhập bằng tài khoản Discord để bắt đầu.
+      {{ t('login.subtitle') }}<br>
+      {{ t('login.subtitle2') }}
     </p>
 
     <a href="{{ oauth_url }}" class="btn-discord">
       <svg width="20" height="20" viewBox="0 0 127.14 96.36" fill="white" xmlns="http://www.w3.org/2000/svg">
         <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
       </svg>
-      Đăng nhập với Discord
+      {{ t('login.btn_discord') }}
     </a>
 
     <div class="login-features">
       <div class="feat-item">
         <i class="feat-icon bi bi-check-circle-fill"></i>
-        Quản lý Welcome &amp; Goodbye cho từng server
+        {{ t('login.feat_welcome') }}
       </div>
       <div class="feat-item">
         <i class="feat-icon bi bi-check-circle-fill"></i>
-        Tạo embed tin nhắn trực quan với preview
+        {{ t('login.feat_embed') }}
       </div>
       <div class="feat-item">
         <i class="feat-icon bi bi-check-circle-fill"></i>
-        Bật/tắt modules linh hoạt theo nhu cầu
+        {{ t('login.feat_modules') }}
       </div>
       <div class="feat-item">
         <i class="feat-icon bi bi-lock-fill" style="color: var(--accent)"></i>
-        Chỉ quản trị viên server mới có quyền truy cập
+        {{ t('login.feat_access') }}
       </div>
     </div>
   </div>
   
   <div style="margin-top: 24px; display: flex; gap: 24px; justify-content: center;">
-    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">Điều Khoản Dịch Vụ</a>
-    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">Chính Sách Bảo Mật</a>
+    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">{{ t('login.tos') }}</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">{{ t('login.privacy') }}</a>
   </div>
 </div>
 </body>

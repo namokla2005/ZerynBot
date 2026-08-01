@@ -1,5 +1,5 @@
 {% extends "base_server.html" %}
-{% block title %}Cấu hình Music{% endblock %}
+{% block title %}{{ t('music.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -139,8 +139,8 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">🎵 Cấu hình Music</h1>
-    <p class="page-subtitle">Quản lý tính năng phát nhạc trong server của bạn</p>
+    <h1 class="page-title">🎵 {{ t('music.page_title') }}</h1>
+    <p class="page-subtitle">{{ t('music.page_subtitle') }}</p>
   </div>
 </div>
 
@@ -149,14 +149,14 @@
   <!-- Left Panel: Settings & Status -->
   <div class="builder-panel">
     <div class="section-header">
-      <div class="section-title">⚙️ Cài đặt chung</div>
+      <div class="section-title">⚙️ {{ t('automod.section_general') }}</div>
     </div>
     
     <div class="card" style="margin-bottom: 20px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
           <div style="font-weight:600; font-size:0.95rem; margin-bottom:4px;">Kích hoạt module Music</div>
-          <div style="font-size:0.8rem; color:var(--text-muted);">Cho phép thành viên sử dụng các lệnh nhạc (/play, /search, /lofi,...)</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">{{ t('dashboard.music_desc') }}</div>
         </div>
         <label class="switch">
           <input type="checkbox" class="module-toggle"
@@ -168,7 +168,7 @@
     </div>
 
     <div class="section-header" style="margin-top:24px;">
-      <div class="section-title">🛠️ Trạng thái hệ thống (Bot Host)</div>
+      <div class="section-title">🛠️ System Status (Bot Host)</div>
     </div>
 
     <div class="card" style="margin-bottom: 20px;">
@@ -176,17 +176,17 @@
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
           <span style="font-size:0.875rem;">Voice Encryption (davey)</span>
           {% if has_davey %}
-            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Sẵn sàng</span>
+            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Ready</span>
           {% else %}
-            <span class="badge badge-danger" style="background:rgba(237,66,69,0.15); color:#ed4245; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">❌ Thiếu</span>
+            <span class="badge badge-danger" style="background:rgba(237,66,69,0.15); color:#ed4245; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">❌ Missing</span>
           {% endif %}
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
           <span style="font-size:0.875rem;">Audio Decoder (FFmpeg)</span>
           {% if has_ffmpeg %}
-            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Sẵn sàng</span>
+            <span class="badge badge-success" style="background:rgba(35,165,90,0.15); color:#57f287; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Ready</span>
           {% else %}
-            <span class="badge badge-warning" style="background:rgba(240,178,50,0.15); color:#f0b232; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">⚠️ Chưa cấu hình</span>
+            <span class="badge badge-warning" style="background:rgba(240,178,50,0.15); color:#f0b232; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">⚠️ Not Configured</span>
           {% endif %}
         </div>
       </div>
@@ -196,15 +196,15 @@
   <!-- Right Panel: Playlists Manager -->
   <div class="builder-panel" style="flex: 1.4;">
     <div class="section-header">
-      <div class="section-title">📂 Quản lý danh sách phát (Playlists)</div>
+      <div class="section-title">📂 Playlists Manager</div>
     </div>
 
     <!-- Create Playlist Form -->
     <div class="card" style="margin-bottom: 20px;">
       <form action="{{ url_for('create_playlist_route', guild_id=guild_id) }}" method="POST" style="display:flex; gap:10px;">
-        <input type="text" name="playlist_name" class="form-control" placeholder="Tên danh mục playlist mới... (VD: Nhạc trẻ)" required>
+        <input type="text" name="playlist_name" class="form-control" placeholder="New playlist name..." required>
         <button type="submit" class="btn btn-primary" style="white-space:nowrap;">
-          <i class="bi bi-folder-plus"></i> Tạo playlist
+          <i class="bi bi-folder-plus"></i> Create Playlist
         </button>
       </form>
     </div>
@@ -229,12 +229,12 @@
                 <i class="bi bi-chevron-down accordion-icon"></i>
                 <i class="bi bi-music-note-list" style="color:var(--accent);"></i>
                 <span class="playlist-name">{{ pl.name }}</span>
-                <span class="playlist-badge">{{ pl.tracks | length }} bài hát</span>
+                <span class="playlist-badge">{{ pl.tracks | length }} tracks</span>
               </div>
               <div>
                 <a href="{{ url_for('delete_playlist_route', guild_id=guild_id, playlist_id=pl.id) }}"
-                   class="btn btn-danger btn-sm" onclick="event.stopPropagation(); return confirm('Bạn có chắc chắn muốn xóa playlist này?')">
-                  <i class="bi bi-trash3-fill"></i> Xóa
+                   class="btn btn-danger btn-sm" onclick="event.stopPropagation(); return confirm('Delete this playlist?')">
+                  <i class="bi bi-trash3-fill"></i> {{ t('common.delete') }}
                 </a>
               </div>
             </div>
@@ -254,12 +254,12 @@
                         {% endif %}
                         <div class="track-info">
                           <div class="track-title" title="{{ track.title }}">{{ track.title }}</div>
-                          <div class="track-meta">Kênh: {{ track.uploader or '—' }} | Thời lượng: {% if track.duration %}{{ (track.duration // 60) }}:{{ "%02d"|format(track.duration % 60) }}{% else %}🔴 LIVE{% endif %}</div>
+                          <div class="track-meta">Channel: {{ track.uploader or '—' }} | Duration: {% if track.duration %}{{ (track.duration // 60) }}:{{ "%02d"|format(track.duration % 60) }}{% else %}🔴 LIVE{% endif %}</div>
                         </div>
                       </div>
                       <div class="track-actions">
                         <a href="{{ url_for('delete_track_route', guild_id=guild_id, track_id=track.id) }}"
-                           class="track-delete-btn" title="Xóa khỏi playlist" onclick="return confirm('Bạn muốn xóa bài hát này?')">
+                           class="track-delete-btn" title="Remove track" onclick="return confirm('Remove this track?')">
                           <i class="bi bi-x-circle-fill"></i>
                         </a>
                       </div>
@@ -267,16 +267,16 @@
                   {% endfor %}
                 {% else %}
                   <div style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">
-                    <i class="bi bi-info-circle"></i> Chưa có bài hát nào trong playlist này. Hãy thêm bài hát bên dưới!
+                    <i class="bi bi-info-circle"></i> No tracks in this playlist yet. Add songs below!
                   </div>
                 {% endif %}
               </div>
 
               <!-- Add track to playlist -->
               <form action="{{ url_for('add_track_route', guild_id=guild_id, playlist_id=pl.id) }}" method="POST" class="playlist-add-form">
-                <input type="text" name="track_query" class="form-control form-control-sm" placeholder="Nhập tên bài hát hoặc link YouTube..." required>
+                <input type="text" name="track_query" class="form-control form-control-sm" placeholder="Song title or YouTube URL..." required>
                 <button type="submit" class="btn btn-secondary btn-sm" style="white-space:nowrap;">
-                  <i class="bi bi-plus-lg"></i> Thêm bài
+                  <i class="bi bi-plus-lg"></i> Add Track
                 </button>
               </form>
               </div>
@@ -288,7 +288,7 @@
       {% else %}
         <div style="text-align:center; padding:40px; color:var(--text-muted); background:var(--bg-secondary); border-radius:8px;">
           <i class="bi bi-music-note-list" style="font-size:3rem; margin-bottom:10px; display:inline-block;"></i>
-          <p>Chưa có playlist nào. Hãy tạo một playlist mới ở bên trên!</p>
+          <p>No playlists yet. Create a new playlist above!</p>
         </div>
       {% endif %}
     </div>
@@ -312,3 +312,4 @@
   }
 </script>
 {% endblock %}
+

@@ -65,12 +65,12 @@
 
       <!-- Arguments -->
       <div id="cmd-args-section" style="display:none; margin-bottom:18px;">
-        <div class="form-label" style="margin-bottom:8px;">📋 Tham số</div>
+        <div class="form-label" style="margin-bottom:8px;">{{ t('commands.modal_args') }}</div>
         <div id="cmd-args-list" style="display:flex; flex-direction:column; gap:6px;"></div>
       </div>
 
       <!-- Discord preview -->
-      <div class="form-label" style="margin-bottom:8px;">👁️ Preview trong Discord</div>
+      <div class="form-label" style="margin-bottom:8px;">{{ t('commands.modal_preview') }}</div>
       <div id="cmd-preview-wrap" style="background:#313338; border-radius:10px; padding:16px;">
         <div style="display:flex; gap:12px; align-items:flex-start;">
           <div style="width:38px;height:38px;border-radius:50%;background:#5865f2;
@@ -89,7 +89,7 @@
 
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="closeCmdModal()">Đóng</button>
+      <button class="btn btn-primary" onclick="closeCmdModal()">{{ t('commands.modal_close') }}</button>
     </div>
   </div>
 </div>
@@ -176,6 +176,16 @@
 </style>
 
 <script>
+window.I18N = {
+  modal_desc_label: "{{ t('commands.modal_desc_label') }}",
+  modal_usage_label: "{{ t('commands.modal_usage_label') }}",
+  modal_example_label: "{{ t('commands.modal_example_label') }}",
+  arg_required: "{{ t('commands.arg_required') }}",
+  arg_optional: "{{ t('commands.arg_optional') }}",
+  no_preview: "{{ t('commands.no_preview') }}",
+  music_select_placeholder: "{{ t('commands.music_select_placeholder') }}"
+};
+
 // ─── Category tabs ────────────────────────────────────────────────────────────
 function switchCmdCat(idx, btn) {
   document.querySelectorAll('.cmd-pane').forEach(p => p.classList.remove('active'));
@@ -193,16 +203,16 @@ function openCmdModal(cmd) {
   // Meta grid
   document.getElementById('cmd-meta').innerHTML = `
     <div class="meta-item">
-      <div class="meta-label">Mô tả</div>
+      <div class="meta-label">${window.I18N.modal_desc_label}</div>
       <div class="meta-value">${cmd.desc}</div>
     </div>
     <div class="meta-item">
-      <div class="meta-label">Cú pháp</div>
+      <div class="meta-label">${window.I18N.modal_usage_label}</div>
       <div class="meta-value" style="font-family:monospace;color:#57F287;">${cmd.usage}</div>
     </div>
     ${cmd.example ? `
     <div class="meta-item" style="grid-column:1/-1;">
-      <div class="meta-label">Ví dụ</div>
+      <div class="meta-label">${window.I18N.modal_example_label}</div>
       <div class="meta-value" style="font-family:monospace;color:#7289da;">${cmd.example}</div>
     </div>` : ''}
   `;
@@ -215,7 +225,7 @@ function openCmdModal(cmd) {
       <div class="arg-chip">
         <span class="arg-name">${a.name}</span>
         <span class="arg-type">${a.type}</span>
-        <span class="${a.required ? 'arg-req' : 'arg-opt'}">${a.required ? 'Bắt buộc' : 'Tùy chọn'}</span>
+        <span class="${a.required ? 'arg-req' : 'arg-opt'}">${a.required ? window.I18N.arg_required : window.I18N.arg_optional}</span>
         <span class="arg-desc">${a.desc}</span>
       </div>
     `).join('');
@@ -255,7 +265,7 @@ function openCmdModal(cmd) {
         <div style="font-size:0.84rem;color:#dbdee1;">${preview.desc || ''}</div>
       </div>
       <div style="background:#1e1f22;border-radius:6px;padding:10px;">
-        <div style="font-size:0.75rem;color:#949ba4;margin-bottom:6px;">🎵 Chọn bài hát muốn phát...</div>
+        <div style="font-size:0.75rem;color:#949ba4;margin-bottom:6px;">${window.I18N.music_select_placeholder}</div>
         ${(preview.options || []).map((o,i) => `
           <div style="display:flex;align-items:center;gap:8px;padding:5px 0;
                       border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem;color:#dbdee1;">
@@ -266,7 +276,7 @@ function openCmdModal(cmd) {
       </div>`;
   }
   document.getElementById('cmd-preview-content').innerHTML = previewHtml ||
-    '<span style="color:#52555d;font-style:italic;">Không có preview</span>';
+    `<span style="color:#52555d;font-style:italic;">${window.I18N.no_preview}</span>`;
 
   document.getElementById('cmd-modal').style.display = 'flex';
 }

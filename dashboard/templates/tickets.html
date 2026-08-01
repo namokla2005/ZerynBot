@@ -294,27 +294,27 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% {% block content %}
 <div class="page-header">
-  <h1 class="page-title">🎫 Ticket System</h1>
-  <p class="page-subtitle">Tạo các bảng tạo ticket hỗ trợ bằng nút bấm chuyên nghiệp</p>
+  <h1 class="page-title">🎫 {{ t('tickets.page_title') }}</h1>
+  <p class="page-subtitle">{{ t('tickets.page_subtitle') }}</p>
 </div>
 
 <div style="margin-bottom: 24px;">
   <button id="btn-create-panel" class="btn btn-primary" onclick="showEditor()">
-    <i class="bi bi-plus-lg"></i> Tạo Ticket Panel mới
+    <i class="bi bi-plus-lg"></i> {{ t('tickets.btn_create') }}
   </button>
 </div>
 
 <!-- Panels List -->
 <div id="panels-list-section">
   <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-color);">
-    Danh sách Ticket Panels ({{ panels|length }})
+    {{ t('tickets.list_title', count=panels|length) }}
   </h2>
   {% if not panels %}
     <div class="card" style="text-align: center; padding: 40px; color: var(--text-muted);">
       <div style="font-size: 2.5rem; margin-bottom: 12px;">🎫</div>
-      <p style="margin: 0; font-size: 0.95rem;">Bạn chưa tạo Ticket Panel nào.</p>
+      <p style="margin: 0; font-size: 0.95rem;">{{ t('tickets.no_panels') }}</p>
     </div>
   {% else %}
     {% for p in panels %}
@@ -322,15 +322,15 @@
         <div class="panel-info">
           <div class="panel-name">{{ p.name }}</div>
           <div class="panel-meta">
-            <span><i class="bi bi-chat-left-text"></i> Kênh: 
+            <span><i class="bi bi-chat-left-text"></i> {{ t('tickets.meta_channel') }} 
               {% set found_ch = namespace(val=None) %}
               {% for ch in text_channels %}
                 {% if ch.channel_id == p.channel_id %}{% set found_ch.val = ch.channel_name %}{% endif %}
               {% endfor %}
               <code>#{{ found_ch.val or p.channel_id }}</code>
             </span>
-            <span><i class="bi bi-menu-app"></i> Nút bấm: <code>{{ p.buttons|length }} nút</code></span>
-            <span><i class="bi bi-shield-lock"></i> Hỗ trợ: 
+            <span><i class="bi bi-menu-app"></i> {{ t('tickets.meta_buttons') }} <code>{{ p.buttons|length }}</code></span>
+            <span><i class="bi bi-shield-lock"></i> {{ t('tickets.meta_support') }} 
               {% if p.support_role_id %}
                 {% set found_r = namespace(val=None) %}
                 {% for r in roles %}
@@ -345,13 +345,13 @@
         </div>
         <div class="panel-actions">
           <button class="btn btn-secondary btn-sm" onclick="editPanel({{ p.id }})">
-            <i class="bi bi-pencil"></i> Sửa
+            <i class="bi bi-pencil"></i> {{ t('tickets.btn_edit') }}
           </button>
           <button class="btn btn-success btn-sm" onclick="sendPanel({{ p.id }})">
-            <i class="bi bi-send"></i> Gửi đến Discord
+            <i class="bi bi-send"></i> {{ t('tickets.btn_send') }}
           </button>
           <button class="btn btn-danger btn-sm" onclick="deletePanel({{ p.id }})">
-            <i class="bi bi-trash"></i> Xóa
+            <i class="bi bi-trash"></i> {{ t('tickets.btn_delete') }}
           </button>
         </div>
       </div>
@@ -365,22 +365,22 @@
   <!-- Left: Form Editor -->
   <div class="builder-panel" style="margin: 0;">
     <div class="builder-panel-title" id="editor-title-text">
-      <i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Soạn thảo Ticket Panel
+      <i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('tickets.editor_title_new') }}
     </div>
     
     <input type="hidden" id="panel-id" value="">
 
     <!-- Cấu hình cơ bản -->
     <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin-bottom: 12px;">
-      1. Cấu hình cơ bản
+      {{ t('tickets.step1_title') }}
     </h3>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Tên Panel (nhận diện nội bộ)</label>
-        <input type="text" id="panel-name" class="form-control" placeholder="Ví dụ: Panel Hỗ Trợ Shop...">
+        <label class="form-label">{{ t('tickets.panel_name_label') }}</label>
+        <input type="text" id="panel-name" class="form-control" placeholder="{{ t('tickets.panel_name_placeholder') }}">
       </div>
       <div class="form-group">
-        <label class="form-label">Kênh gửi Panel</label>
+        <label class="form-label">{{ t('tickets.panel_channel_label') }}</label>
         <select id="panel-channel-id" class="form-control">
           {% for ch in text_channels %}
             <option value="{{ ch.channel_id }}">#{{ ch.channel_name }}</option>
@@ -390,30 +390,30 @@
     </div>
     
     <div class="form-group">
-      <label class="form-label">Role hỗ trợ (được xem và chat trong Ticket)</label>
+      <label class="form-label">{{ t('tickets.support_roles_label') }}</label>
       <div id="hidden-inputs-support-roles"></div>
       <div class="custom-select-wrapper" id="select-ticket-roles">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-ticket-roles"></div>
-          <div class="placeholder-text" id="placeholder-ticket-roles">Chọn vai trò...</div>
+          <div class="placeholder-text" id="placeholder-ticket-roles">{{ t('tickets.support_roles_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-ticket-roles">
           <!-- Populated by JS -->
         </div>
       </div>
-      <div class="form-hint" style="margin-top: 8px;">Mặc định, chỉ chủ Server và Admin mới xem được Ticket. Chọn thêm Role hỗ trợ nếu cần.</div>
+      <div class="form-hint" style="margin-top: 8px;">{{ t('tickets.support_roles_hint') }}</div>
     </div>
 
     <div class="divider"></div>
 
     <!-- Thiết kế Embed -->
     <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin-bottom: 12px;">
-      2. Thiết kế nội dung (Embed)
+      {{ t('tickets.step2_title') }}
     </h3>
     
     <div class="form-group">
-      <label class="form-label">Màu viền Embed</label>
+      <label class="form-label">{{ t('tickets.embed_color') }}</label>
       <div class="color-row">
         <div class="color-swatch" id="panel-color-swatch" style="background:#5865f2">
           <input type="color" id="panel-color" value="#5865f2" oninput="updateColor(this.value)">
@@ -425,31 +425,31 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Tiêu đề (Title)</label>
-      <input type="text" id="panel-title" class="form-control" placeholder="TẠO TICKET MUA HÀNG / HỖ TRỢ" oninput="updatePreview()">
+      <label class="form-label">{{ t('tickets.embed_title_label') }}</label>
+      <input type="text" id="panel-title" class="form-control" placeholder="SUPPORT TICKET" oninput="updatePreview()">
     </div>
 
     <div class="form-group">
-      <label class="form-label">Nội dung mô tả (Description)</label>
+      <label class="form-label">{{ t('tickets.embed_desc_label') }}</label>
       <textarea id="panel-description" class="form-control" rows="4" 
-                placeholder="Ví dụ: Nhấn vào các nút bên dưới để tạo yêu cầu hỗ trợ tương ứng..."
+                placeholder="{{ t('tickets.embed_desc_placeholder') }}"
                 oninput="updatePreview()"></textarea>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Ảnh Thumbnail (URL góc nhỏ)</label>
+        <label class="form-label">{{ t('tickets.embed_thumbnail') }}</label>
         <input type="url" id="panel-thumbnail-url" class="form-control" placeholder="https://..." oninput="updatePreview()">
       </div>
       <div class="form-group">
-        <label class="form-label">Ảnh chính (URL ảnh to)</label>
+        <label class="form-label">{{ t('tickets.embed_image') }}</label>
         <input type="url" id="panel-image-url" class="form-control" placeholder="https://..." oninput="updatePreview()">
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Chữ chân trang (Footer)</label>
-      <input type="text" id="panel-footer-text" class="form-control" placeholder="Chân trang..." oninput="updatePreview()">
+      <label class="form-label">{{ t('tickets.embed_footer') }}</label>
+      <input type="text" id="panel-footer-text" class="form-control" placeholder="..." oninput="updatePreview()">
     </div>
 
     <div class="divider"></div>
@@ -457,23 +457,23 @@
     <!-- Quản lý Nút bấm -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--accent); margin:0;">
-        3. Quản lý Nút bấm (Buttons)
+        {{ t('tickets.step3_title') }}
       </h3>
       <button type="button" class="btn btn-secondary btn-sm" onclick="addButtonRow()">
-        <i class="bi bi-plus-lg"></i> Thêm Nút
+        <i class="bi bi-plus-lg"></i> {{ t('tickets.add_button') }}
       </button>
     </div>
     
     <div id="buttons-container"></div>
-    <div class="form-hint" style="margin-bottom: 24px;">* Tối đa 5 nút bấm trên một Panel.</div>
+    <div class="form-hint" style="margin-bottom: 24px;">{{ t('tickets.max_buttons_hint') }}</div>
 
     <!-- Form Actions -->
     <div style="display: flex; gap: 12px; margin-top: 30px;">
       <button class="btn btn-primary" onclick="savePanel()">
-        <i class="bi bi-save"></i> Lưu Panel
+        <i class="bi bi-save"></i> {{ t('tickets.btn_save') }}
       </button>
       <button class="btn btn-secondary" onclick="hideEditor()">
-        Hủy
+        {{ t('tickets.btn_cancel') }}
       </button>
     </div>
   </div>
@@ -482,7 +482,7 @@
   <div>
     <div class="discord-preview-wrap">
       <div class="discord-header">
-        <i class="bi bi-eye-fill"></i> Discord Live Preview
+        <i class="bi bi-eye-fill"></i> {{ t('tickets.live_preview') }}
       </div>
       
       <div class="discord-msg-author">
@@ -490,14 +490,14 @@
         <div>
           <span class="discord-author-name">{{ guild.get('name', 'Bot') }}</span>
           <span class="discord-bot-tag">Bot</span>
-          <span class="discord-time">Hôm nay lúc 23:00</span>
+          <span class="discord-time">{{ t('tickets.today_at') }} 23:00</span>
         </div>
       </div>
       
       <div class="discord-embed-box" id="prev-embed-box">
         <img id="prev-thumb" class="discord-embed-thumb" src="" style="display:none;" alt="">
-        <div class="discord-embed-title" id="prev-title">Tiêu đề Embed</div>
-        <div class="discord-embed-desc" id="prev-desc">Nội dung mô tả chính của panel...</div>
+        <div class="discord-embed-title" id="prev-title">Embed Title</div>
+        <div class="discord-embed-desc" id="prev-desc">Panel description...</div>
         <img id="prev-image" class="discord-embed-image" src="" style="display:none;" alt="">
         <div class="discord-embed-footer" id="prev-footer">Footer text</div>
       </div>
@@ -514,6 +514,26 @@
 <script>
   const CATEGORIES = {{ categories|tojson }};
   const PANELS_DATA = {{ panels|tojson }};
+  window.I18N = {
+    editor_title_new: `<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('tickets.editor_title_new') }}`,
+    editor_title_edit: `<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('tickets.editor_title_edit') }}`,
+    btn_style_primary: "{{ t('tickets.btn_style_primary') }}",
+    btn_style_success: "{{ t('tickets.btn_style_success') }}",
+    btn_style_danger: "{{ t('tickets.btn_style_danger') }}",
+    btn_style_secondary: "{{ t('tickets.btn_style_secondary') }}",
+    cat_placeholder: "{{ t('tickets.cat_placeholder') }}",
+    alert_name_required: "{{ t('tickets.alert_name_required') }}",
+    alert_channel_required: "{{ t('tickets.alert_channel_required') }}",
+    alert_btn_label_required: "{{ t('tickets.alert_btn_label_required') }}",
+    alert_btn_cat_required: "{{ t('tickets.alert_btn_cat_required') }}",
+    alert_min_buttons: "{{ t('tickets.alert_min_buttons') }}",
+    alert_max_buttons: "{{ t('tickets.alert_max_buttons') }}",
+    alert_save_success: "{{ t('tickets.alert_save_success') }}",
+    alert_send_confirm: "{{ t('tickets.alert_send_confirm') }}",
+    alert_send_success: "{{ t('tickets.alert_send_success') }}",
+    alert_delete_confirm: "{{ t('tickets.alert_delete_confirm') }}",
+    alert_delete_success: "{{ t('tickets.alert_delete_success') }}"
+  };
 </script>
 
 <script>
@@ -525,7 +545,7 @@
     document.getElementById("editor-section").style.display = "grid";
     
     if (!isEdit) {
-      document.getElementById("editor-title-text").innerHTML = '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> Tạo Ticket Panel mới';
+      document.getElementById("editor-title-text").innerHTML = window.I18N.editor_title_new;
       document.getElementById("panel-id").value = "";
       document.getElementById("panel-name").value = "";
       document.getElementById("panel-channel-id").selectedIndex = 0;
@@ -534,8 +554,8 @@
       document.getElementById("panel-color").value = "#5865F2";
       document.getElementById("panel-color-display").value = "#5865F2";
       document.getElementById("panel-color-swatch").style.background = "#5865F2";
-      document.getElementById("panel-title").value = "TẠO TICKET MUA HÀNG / HỖ TRỢ";
-      document.getElementById("panel-description").value = "Nếu bạn cần mua hàng hoặc hỗ trợ, hãy ấn nút thích hợp bên dưới!";
+      document.getElementById("panel-title").value = "SUPPORT TICKET";
+      document.getElementById("panel-description").value = "Click the buttons below to open a support ticket.";
       document.getElementById("panel-thumbnail-url").value = "";
       document.getElementById("panel-image-url").value = "";
       document.getElementById("panel-footer-text").value = "";
@@ -543,8 +563,9 @@
       buttonsList = [];
       document.getElementById("buttons-container").innerHTML = "";
       // Add default 2 buttons
-      addButtonRow("Mua bán", "success");
-      addButtonRow("Hỗ trợ", "danger");
+      addButtonRow("Support", "primary");
+    } else {
+      document.getElementById("editor-title-text").innerHTML = window.I18N.editor_title_edit;
     }
     updatePreview();
   }
@@ -564,8 +585,8 @@
   }
 
   function updatePreview() {
-    const title = document.getElementById("panel-title").value || "Tiêu đề Panel";
-    const desc = document.getElementById("panel-description").value || "Nội dung mô tả...";
+    const title = document.getElementById("panel-title").value || "Title";
+    const desc = document.getElementById("panel-description").value || "Description...";
     const thumb = document.getElementById("panel-thumbnail-url").value;
     const image = document.getElementById("panel-image-url").value;
     const footer = document.getElementById("panel-footer-text").value;
@@ -627,7 +648,7 @@
     const container = document.getElementById("buttons-container");
     const count = container.querySelectorAll(".btn-item").length;
     if (count >= 5) {
-      alert("Chỉ được thêm tối đa 5 nút bấm.");
+      alert(window.I18N.alert_max_buttons);
       return;
     }
 
@@ -635,18 +656,18 @@
     row.className = "btn-item";
     
     // Options categories
-    let catOptions = `<option value="">(Chọn danh mục đích...)</option>`;
+    let catOptions = `<option value="">${window.I18N.cat_placeholder}</option>`;
     CATEGORIES.forEach(c => {
       catOptions += `<option value="${c.channel_id}" ${c.channel_id === categoryId ? 'selected' : ''}>📁 ${c.channel_name}</option>`;
     });
 
     row.innerHTML = `
-      <input type="text" class="form-control btn-label-input" placeholder="Chữ hiển thị..." value="${label}" oninput="updatePreview()">
+      <input type="text" class="form-control btn-label-input" placeholder="Label..." value="${label}" oninput="updatePreview()">
       <select class="form-control btn-style-select" onchange="updatePreview()">
-        <option value="primary" ${style === 'primary' ? 'selected' : ''}>Xanh dương (Primary)</option>
-        <option value="success" ${style === 'success' ? 'selected' : ''}>Xanh lá (Success)</option>
-        <option value="danger" ${style === 'danger' ? 'selected' : ''}>Màu đỏ (Danger)</option>
-        <option value="secondary" ${style === 'secondary' ? 'selected' : ''}>Màu xám (Secondary)</option>
+        <option value="primary" ${style === 'primary' ? 'selected' : ''}>${window.I18N.btn_style_primary}</option>
+        <option value="success" ${style === 'success' ? 'selected' : ''}>${window.I18N.btn_style_success}</option>
+        <option value="danger" ${style === 'danger' ? 'selected' : ''}>${window.I18N.btn_style_danger}</option>
+        <option value="secondary" ${style === 'secondary' ? 'selected' : ''}>${window.I18N.btn_style_secondary}</option>
       </select>
       <select class="form-control btn-category-select">
         ${catOptions}
@@ -672,11 +693,11 @@
     const footerText = document.getElementById("panel-footer-text").value.trim();
 
     if (!name) {
-      alert("Vui lòng nhập tên Panel!");
+      alert(window.I18N.alert_name_required);
       return;
     }
     if (!channelId) {
-      alert("Vui lòng cấu hình kênh gửi Panel!");
+      alert(window.I18N.alert_channel_required);
       return;
     }
 
@@ -691,12 +712,12 @@
       const cat = row.querySelector(".btn-category-select").value;
 
       if (!lbl) {
-        alert("Nút bấm không được để trống chữ hiển thị!");
+        alert(window.I18N.alert_btn_label_required);
         valid = false;
         return;
       }
       if (!cat) {
-        alert("Mỗi nút bấm phải được chọn Danh mục đích tạo kênh!");
+        alert(window.I18N.alert_btn_cat_required);
         valid = false;
         return;
       }
@@ -705,7 +726,7 @@
 
     if (!valid) return;
     if (buttons.length === 0) {
-      alert("Bảng panel phải có ít nhất 1 nút bấm!");
+      alert(window.I18N.alert_min_buttons);
       return;
     }
 
@@ -733,15 +754,15 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        alert("Lưu Ticket Panel thành công!");
+        alert(window.I18N.alert_save_success);
         window.location.reload();
       } else {
-        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+        alert("Error: " + (data.error || "Unknown error"));
       }
     })
     .catch(e => {
       console.error(e);
-      alert("Đã xảy ra lỗi mạng.");
+      alert("Network error occurred.");
     });
   }
 
@@ -780,7 +801,7 @@
   }
 
   function sendPanel(panelId) {
-    if (!confirm("Bạn có chắc chắn muốn gửi Panel này đến Discord? Việc này sẽ tự động xóa tin nhắn Panel cũ của bot trong kênh (nếu có) và đăng tải bản mới.")) {
+    if (!confirm(window.I18N.alert_send_confirm)) {
       return;
     }
     
@@ -791,19 +812,19 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        alert("Gửi Panel thành công! Đã cập nhật trên Discord.");
+        alert(window.I18N.alert_send_success);
       } else {
-        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+        alert("Error: " + (data.error || "Unknown error"));
       }
     })
     .catch(e => {
       console.error(e);
-      alert("Đã xảy ra lỗi kết nối.");
+      alert("Connection error.");
     });
   }
 
   function deletePanel(panelId) {
-    if (!confirm("Bạn có chắc chắn muốn xóa Panel này? Thao tác này không thể hoàn tác.")) {
+    if (!confirm(window.I18N.alert_delete_confirm)) {
       return;
     }
 
@@ -814,15 +835,11 @@
     .then(r => r.json())
     .then(data => {
       if (data.ok) {
-        alert("Xóa thành công!");
+        alert(window.I18N.alert_delete_success);
         window.location.reload();
       } else {
-        alert("Lỗi: " + (data.error || "Không rõ nguyên nhân"));
+        alert("Error: " + (data.error || "Unknown error"));
       }
-    })
-    .catch(e => {
-      console.error(e);
-      alert("Lỗi kết nối.");
     });
   }
 </script>

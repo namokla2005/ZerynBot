@@ -1,5 +1,5 @@
 {% extends "base_server.html" %}
-{% block title %}Leveling & XP{% endblock %}
+{% block title %}{{ t('leveling.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -29,17 +29,17 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-stars" style="color: #FEE75C;"></i> Leveling & XP</h1>
-  <p class="page-subtitle">Hệ thống cấp độ và kinh nghiệm khi thành viên chat hoặc tham gia Voice.</p>
+  <h1 class="page-title"><i class="bi bi-stars" style="color: #FEE75C;"></i> {{ t('leveling.page_title') }}</h1>
+  <p class="page-subtitle">{{ t('leveling.page_subtitle') }}</p>
 </div>
 
 <!-- Variable reference -->
 <div class="vars-box" style="margin-bottom: 24px;">
-  <strong>Biến hỗ trợ cho tin nhắn thông báo:</strong><br>
-  <span class="var-tag">{user}</span> mention thành viên &nbsp;
-  <span class="var-tag">{user_name}</span> tên thành viên &nbsp;
-  <span class="var-tag">{level}</span> cấp độ mới &nbsp;
-  <span class="var-tag">{server}</span> tên server
+  <strong>{{ t('leveling.vars_title') }}</strong><br>
+  <span class="var-tag">{user}</span> {{ t('leveling.var_user') }} &nbsp;
+  <span class="var-tag">{user_name}</span> {{ t('leveling.var_username') }} &nbsp;
+  <span class="var-tag">{level}</span> {{ t('leveling.var_level') }} &nbsp;
+  <span class="var-tag">{server}</span> {{ t('leveling.var_server') }}
 </div>
 
 <form method="POST" action="{{ url_for('server_leveling', guild_id=guild_id) }}">
@@ -47,37 +47,37 @@
   <div class="card" style="margin-bottom: 24px;">
     <div class="card-header">
       <div>
-        <div class="card-title">Cấu hình chung</div>
-        <div class="card-desc">Thiết lập lượng XP nhận được</div>
+        <div class="card-title">{{ t('leveling.card_general_title') }}</div>
+        <div class="card-desc">{{ t('leveling.card_general_desc') }}</div>
       </div>
     </div>
     
     <div style="display: flex; gap: 16px; margin-bottom: 16px;">
       <div style="flex: 1;">
         <div class="form-group">
-          <label class="form-label">XP tối thiểu (Tin nhắn)</label>
+          <label class="form-label">{{ t('leveling.xp_min_label') }}</label>
           <input type="number" name="message_xp_min" class="form-control" value="{{ settings.message_xp_min }}" min="0">
         </div>
       </div>
       <div style="flex: 1;">
         <div class="form-group">
-          <label class="form-label">XP tối đa (Tin nhắn)</label>
+          <label class="form-label">{{ t('leveling.xp_max_label') }}</label>
           <input type="number" name="message_xp_max" class="form-control" value="{{ settings.message_xp_max }}" min="0">
         </div>
       </div>
       <div style="flex: 1;">
         <div class="form-group">
-          <label class="form-label">XP cho Voice (Mỗi phút)</label>
+          <label class="form-label">{{ t('leveling.voice_xp_label') }}</label>
           <input type="number" name="voice_xp" class="form-control" value="{{ settings.voice_xp }}" min="0">
         </div>
       </div>
     </div>
     
     <div class="form-group" style="margin-bottom: 16px;">
-      <label class="form-label">Kênh thông báo lên cấp</label>
+      <label class="form-label">{{ t('leveling.announce_channel_label') }}</label>
       <select name="announce_channel_id" class="form-control">
-        <option value="">-- Không thông báo --</option>
-        <option value="current" {% if settings.announce_channel_id == 'current' %}selected{% endif %}># 💬 Gửi tại kênh hiện tại (Chat/Voice)</option>
+        <option value="">{{ t('leveling.announce_none') }}</option>
+        <option value="current" {% if settings.announce_channel_id == 'current' %}selected{% endif %}>{{ t('leveling.announce_current') }}</option>
         {% for ch in channels %}
           {% if ch.channel_type == 0 %}
           <option value="{{ ch.channel_id }}" {% if settings.announce_channel_id == ch.channel_id %}selected{% endif %}>
@@ -89,17 +89,17 @@
     </div>
     
     <div class="form-group" style="margin-bottom: 20px;">
-      <label class="form-label">Tin nhắn thông báo</label>
+      <label class="form-label">{{ t('leveling.announce_msg_label') }}</label>
       <input type="text" name="announce_message" class="form-control" value="{{ settings.announce_message }}">
     </div>
     
     <div class="form-group">
       <label class="form-check form-switch" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
         <input class="form-check-input" type="checkbox" name="stack_rewards" value="1" {% if settings.stack_rewards == 1 %}checked{% endif %} style="transform: scale(1.2); margin-top: 0;">
-        <span style="font-weight: 500; font-size: 0.95rem;">Dồn phần thưởng Role</span>
+        <span style="font-weight: 500; font-size: 0.95rem;">{{ t('leveling.stack_rewards_label') }}</span>
       </label>
       <div style="font-size: 0.85rem; color: #b9bbbe; margin-top: 4px; margin-left: 32px;">
-        Nếu bật, khi lên cấp người dùng sẽ được giữ lại các Role thưởng cấp thấp. Nếu tắt, Role thưởng cũ sẽ bị thu hồi.
+        {{ t('leveling.stack_rewards_desc') }}
       </div>
     </div>
   </div>
@@ -107,11 +107,11 @@
   <div class="card">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
       <div>
-        <div class="card-title">Role thưởng theo Level</div>
-        <div class="card-desc">Tự động tặng Role khi thành viên đạt đến một cấp độ nhất định</div>
+        <div class="card-title">{{ t('leveling.card_rewards_title') }}</div>
+        <div class="card-desc">{{ t('leveling.card_rewards_desc') }}</div>
       </div>
       <button type="button" id="btnAddRole" style="background: transparent; color: #5865F2; border: 1px solid #5865F2; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
-        <i class="bi bi-plus-lg"></i> Thêm mốc Level
+        <i class="bi bi-plus-lg"></i> {{ t('leveling.add_milestone') }}
       </button>
     </div>
     
@@ -119,13 +119,13 @@
       {% for lvl, r_id in level_roles.items() %}
       <div class="level-role-row">
         <div style="flex: 0 0 100px;">
-          <label class="form-label" style="margin-bottom: 4px; display: block;">Level</label>
+          <label class="form-label" style="margin-bottom: 4px; display: block;">{{ t('leveling.level_label') }}</label>
           <input type="number" class="form-control" value="{{ lvl }}" min="1" readonly>
         </div>
         <div style="flex: 1;">
-          <label class="form-label" style="margin-bottom: 4px; display: block;">Role được nhận</label>
+          <label class="form-label" style="margin-bottom: 4px; display: block;">{{ t('leveling.role_reward_label') }}</label>
           <select name="level_role_{{ lvl }}" class="form-control">
-            <option value="">-- Chọn Role --</option>
+            <option value="">{{ t('leveling.select_role') }}</option>
             {% for r in roles %}
               {% if r.role_name != '@everyone' %}
               <option value="{{ r.role_id }}" {% if r_id == r.role_id %}selected{% endif %}>{{ r.role_name }}</option>
@@ -143,18 +143,27 @@
     </div>
     
     <div id="no-roles-msg" style="{% if level_roles %}display: none;{% endif %} color: #80848e; font-size: 0.9rem; padding: 12px 0;">
-      Chưa có Role thưởng nào được cấu hình.
+      {{ t('leveling.no_roles') }}
     </div>
   </div>
 
   <div class="bottom-actions">
     <button type="submit" class="btn btn-primary btn-lg">
-      <i class="bi bi-save2"></i> Lưu thay đổi
+      <i class="bi bi-save2"></i> {{ t('common.save') }}
     </button>
   </div>
 </form>
 
 <script>
+  window.I18N = {
+    prompt_level: "{{ t('leveling.prompt_level') }}",
+    invalid_level: "{{ t('leveling.invalid_level') }}",
+    level_exists: "{{ t('leveling.level_exists') }}",
+    select_role: "{{ t('leveling.select_role') }}",
+    level_label: "{{ t('leveling.level_label') }}",
+    role_reward_label: "{{ t('leveling.role_reward_label') }}"
+  };
+
   const roles = [
     {% for r in roles %}
       {% if r.role_name != '@everyone' %}
@@ -166,17 +175,17 @@
   document.getElementById('btnAddRole').addEventListener('click', () => {
     document.getElementById('no-roles-msg').style.display = 'none';
     
-    const lvlStr = prompt("Nhập số Level muốn tặng Role:");
+    const lvlStr = prompt(window.I18N.prompt_level);
     if (!lvlStr) return;
     const lvl = parseInt(lvlStr);
-    if (isNaN(lvl) || lvl <= 0) return alert("Level không hợp lệ!");
+    if (isNaN(lvl) || lvl <= 0) return alert(window.I18N.invalid_level);
     
     // Check if level already exists
     if (document.querySelector(`input[name="level_role_${lvl}"]`)) {
-      return alert("Level này đã được cấu hình!");
+      return alert(window.I18N.level_exists);
     }
     
-    let optionsHtml = '<option value="">-- Chọn Role --</option>';
+    let optionsHtml = `<option value="">${window.I18N.select_role}</option>`;
     roles.forEach(r => {
       optionsHtml += `<option value="${r.id}">${r.name}</option>`;
     });
@@ -185,11 +194,11 @@
     row.className = 'level-role-row';
     row.innerHTML = `
       <div style="flex: 0 0 100px;">
-        <label class="form-label" style="margin-bottom: 4px; display: block;">Level</label>
+        <label class="form-label" style="margin-bottom: 4px; display: block;">${window.I18N.level_label}</label>
         <input type="number" class="form-control" value="${lvl}" readonly>
       </div>
       <div style="flex: 1;">
-        <label class="form-label" style="margin-bottom: 4px; display: block;">Role được nhận</label>
+        <label class="form-label" style="margin-bottom: 4px; display: block;">${window.I18N.role_reward_label}</label>
         <select name="level_role_${lvl}" class="form-control" required>
           ${optionsHtml}
         </select>
@@ -205,3 +214,4 @@
   });
 </script>
 {% endblock %}
+

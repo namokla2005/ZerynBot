@@ -292,19 +292,19 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-shield-lock-fill" style="color: #5865F2;"></i> Automods</h1>
-  <p class="page-subtitle">Bảo vệ máy chủ của bạn khỏi spam, từ ngữ xấu và link độc hại.</p>
+  <h1 class="page-title"><i class="bi bi-shield-lock-fill" style="color: #5865F2;"></i> {{ t('automod.page_title') }}</h1>
+  <p class="page-subtitle">{{ t('automod.page_subtitle') }}</p>
 </div>
 
 <div class="warning-box">
   <div class="warning-title">
-    <span>⚠️</span> Lưu ý về Hệ thống Xử phạt
+    <span>⚠️</span> {{ t('automod.warning_title') }}
   </div>
   <p style="margin: 0; font-size: 0.95rem;">
-    Hệ thống sẽ <strong>xóa tin nhắn</strong> ngay lập tức nếu vi phạm.<br>
-    - <strong>Lần 1:</strong> Gửi tin nhắn cảnh báo công khai & qua DM.<br>
-    - <strong>Lần 2 trở đi:</strong> Timeout cấm chat/voice theo thời gian cấu hình + Thông báo vào kênh Log (nếu có).<br>
-    <em>Chủ server và những người có quyền "Manage Messages" / "Administrator" sẽ không bị ảnh hưởng.</em>
+    {{ t('automod.warning_body_1') }}<br>
+    - {{ t('automod.warning_body_2') }}<br>
+    - {{ t('automod.warning_body_3') }}<br>
+    <em>{{ t('automod.warning_body_4') }}</em>
   </p>
 </div>
 
@@ -313,8 +313,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title"><i class="bi bi-gear-fill" style="color:var(--accent)"></i> Cài đặt chung</div>
-        <div class="card-desc">Bật tắt các hệ thống bảo vệ chính.</div>
+        <div class="card-title"><i class="bi bi-gear-fill" style="color:var(--accent)"></i> {{ t('automod.section_general') }}</div>
+        <div class="card-desc">{{ t('automod.section_general_desc') }}</div>
       </div>
     </div>
     <div class="form-group" style="display: flex; flex-direction: column; gap: 16px;">
@@ -323,7 +323,7 @@
           <input type="checkbox" name="spam_enabled" value="1" {% if settings.get('spam_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật chống Spam (Gửi quá nhiều tin nhắn liên tục trong 5s)</span>
+        <span class="switch-text">{{ t('automod.toggle_spam') }}</span>
       </label>
 
       <label class="switch-container">
@@ -331,7 +331,7 @@
           <input type="checkbox" name="bad_words_enabled" value="1" {% if settings.get('bad_words_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật lọc Từ ngữ xấu / Từ cấm</span>
+        <span class="switch-text">{{ t('automod.toggle_badwords') }}</span>
       </label>
 
       <label class="switch-container">
@@ -339,7 +339,7 @@
           <input type="checkbox" name="links_enabled" value="1" {% if settings.get('links_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật lọc Link Fake / Blacklist độc hại</span>
+        <span class="switch-text">{{ t('automod.toggle_links') }}</span>
       </label>
 
       <label class="switch-container">
@@ -347,7 +347,7 @@
           <input type="checkbox" name="anti_invite_enabled" value="1" {% if settings.get('anti_invite_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật chống Link mời Server khác (Anti-Invite)</span>
+        <span class="switch-text">{{ t('automod.toggle_invite') }}</span>
       </label>
 
       <label class="switch-container">
@@ -355,7 +355,7 @@
           <input type="checkbox" name="anti_caps_enabled" value="1" {% if settings.get('anti_caps_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật chống Spam Chữ IN HOA (> 70% Caps)</span>
+        <span class="switch-text">{{ t('automod.toggle_caps') }}</span>
       </label>
 
       <label class="switch-container">
@@ -363,7 +363,7 @@
           <input type="checkbox" name="anti_mentions_enabled" value="1" {% if settings.get('anti_mentions_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">Bật chống Mass Ping (Tag quá nhiều người/role)</span>
+        <span class="switch-text">{{ t('automod.toggle_mentions') }}</span>
       </label>
     </div>
   </div>
@@ -371,30 +371,29 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title"><i class="bi bi-funnel-fill" style="color:var(--accent)"></i> Cấu hình Bộ lọc</div>
-        <div class="card-desc">Thiết lập từ ngữ và liên kết để lọc.</div>
+        <div class="card-title"><i class="bi bi-funnel-fill" style="color:var(--accent)"></i> {{ t('automod.section_filter') }}</div>
+        <div class="card-desc">{{ t('automod.section_filter_desc') }}</div>
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Từ ngữ xấu (Cách nhau bằng dấu phẩy)</label>
+      <label class="form-label">{{ t('automod.bad_words_label') }}</label>
       <textarea name="bad_words" class="form-control"
-        placeholder="VD: dm, ngu, cc, lz...">{{bad_words_str}}</textarea>
+        placeholder="{{ t('automod.bad_words_placeholder') }}">{{bad_words_str}}</textarea>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Link Blacklist (Link độc hại / cấm thủ công, cách nhau bằng dấu phẩy)</label>
+      <label class="form-label">{{ t('automod.blacklist_label') }}</label>
       <textarea name="blacklist_links" class="form-control"
-        placeholder="VD: badsite.com, scam-link.org...">{{ blacklist_links_str }}</textarea>
+        placeholder="{{ t('automod.blacklist_placeholder') }}">{{ blacklist_links_str }}</textarea>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Link Whitelist (Link an toàn luôn được phép gửi, cách nhau bằng dấu phẩy)</label>
+      <label class="form-label">{{ t('automod.whitelist_label') }}</label>
       <textarea name="whitelist_links" class="form-control"
-        placeholder="VD: youtube.com, facebook.com...">{{ whitelist_links_str }}</textarea>
+        placeholder="{{ t('automod.whitelist_placeholder') }}">{{ whitelist_links_str }}</textarea>
       <div class="form-hint" style="color: #b5bac1; font-size: 0.85rem; margin-top: 8px;">
-        <em>Lưu ý: Bot đã được tích hợp sẵn bộ lọc chặn hàng ngàn Link lừa đảo, giả mạo, và không rõ nguồn gốc. Bạn chỉ
-          cần cấu hình Whitelist nếu cần!</em>
+        <em>{{ t('automod.whitelist_hint') }}</em>
       </div>
     </div>
   </div>
@@ -402,18 +401,18 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title"><i class="bi bi-shield-check" style="color:var(--accent)"></i> Ngoại lệ (Whitelist)</div>
-        <div class="card-desc">Các cá nhân hoặc kênh được miễn trừ khỏi hệ thống chống spam.</div>
+        <div class="card-title"><i class="bi bi-shield-check" style="color:var(--accent)"></i> {{ t('automod.section_exceptions') }}</div>
+        <div class="card-desc">{{ t('automod.section_exceptions_desc') }}</div>
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Role Whitelist (Bỏ qua tất cả quy tắc Automods)</label>
+      <label class="form-label">{{ t('automod.role_whitelist_label') }}</label>
       <div id="hidden-inputs-immune_roles"></div>
       <div class="custom-select-wrapper" id="select-immune_roles">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-immune_roles"></div>
-          <div class="placeholder-text" id="placeholder-immune_roles">Chọn role ngoại lệ...</div>
+          <div class="placeholder-text" id="placeholder-immune_roles">{{ t('automod.role_whitelist_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-immune_roles"></div>
@@ -421,12 +420,12 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Kênh Whitelist (Cho phép Spam, nhưng CHẶN Link & Từ cấm)</label>
+      <label class="form-label">{{ t('automod.channel_whitelist_label') }}</label>
       <div id="hidden-inputs-spam_allowed_channels"></div>
       <div class="custom-select-wrapper" id="select-spam_allowed_channels">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-spam_allowed_channels"></div>
-          <div class="placeholder-text" id="placeholder-spam_allowed_channels">Chọn kênh cho phép spam...</div>
+          <div class="placeholder-text" id="placeholder-spam_allowed_channels">{{ t('automod.channel_whitelist_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-spam_allowed_channels"></div>
@@ -437,34 +436,34 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title"><i class="bi bi-megaphone-fill" style="color:var(--accent)"></i> Kênh & Thông báo</div>
-        <div class="card-desc">Thiết lập nơi bot gửi thông báo vi phạm.</div>
+        <div class="card-title"><i class="bi bi-megaphone-fill" style="color:var(--accent)"></i> {{ t('automod.section_notify') }}</div>
+        <div class="card-desc">{{ t('automod.section_notify_desc') }}</div>
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Số lượng Tag tối đa được phép trong 1 tin nhắn (Max Mentions)</label>
+      <label class="form-label">{{ t('automod.max_mentions_label') }}</label>
       <input type="number" name="max_mentions" class="form-control" min="1" max="50" value="{{ settings.get('max_mentions', 5) }}">
     </div>
 
     <div class="form-group">
-      <label class="form-label">Thời gian Timeout khi tái phạm vi phạm</label>
+      <label class="form-label">{{ t('automod.timeout_label') }}</label>
       <select name="timeout_duration_minutes" class="form-control">
-        <option value="1" {% if settings.get('timeout_duration_minutes') == 1 %}selected{% endif %}>1 phút</option>
-        <option value="5" {% if settings.get('timeout_duration_minutes', 5) == 5 %}selected{% endif %}>5 phút (Mặc định)</option>
-        <option value="15" {% if settings.get('timeout_duration_minutes') == 15 %}selected{% endif %}>15 phút</option>
-        <option value="60" {% if settings.get('timeout_duration_minutes') == 60 %}selected{% endif %}>1 giờ</option>
-        <option value="1440" {% if settings.get('timeout_duration_minutes') == 1440 %}selected{% endif %}>24 giờ</option>
+        <option value="1" {% if settings.get('timeout_duration_minutes') == 1 %}selected{% endif %}>{{ t('automod.timeout_1min') }}</option>
+        <option value="5" {% if settings.get('timeout_duration_minutes', 5) == 5 %}selected{% endif %}>{{ t('automod.timeout_5min') }}</option>
+        <option value="15" {% if settings.get('timeout_duration_minutes') == 15 %}selected{% endif %}>{{ t('automod.timeout_15min') }}</option>
+        <option value="60" {% if settings.get('timeout_duration_minutes') == 60 %}selected{% endif %}>{{ t('automod.timeout_1hr') }}</option>
+        <option value="1440" {% if settings.get('timeout_duration_minutes') == 1440 %}selected{% endif %}>{{ t('automod.timeout_24hr') }}</option>
       </select>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Role được tag khi có vi phạm lần 2</label>
+      <label class="form-label">{{ t('automod.notify_role_label') }}</label>
       <div id="hidden-inputs-notify_role_id"></div>
       <div class="custom-select-wrapper" id="select-notify_role_id">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-notify_role_id"></div>
-          <div class="placeholder-text" id="placeholder-notify_role_id">-- Không tag --</div>
+          <div class="placeholder-text" id="placeholder-notify_role_id">{{ t('automod.notify_role_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-notify_role_id"></div>
@@ -472,12 +471,12 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Kênh gửi log Automods (Bắt buộc để tag Role)</label>
+      <label class="form-label">{{ t('automod.log_channel_label') }}</label>
       <div id="hidden-inputs-log_channel_id"></div>
       <div class="custom-select-wrapper" id="select-log_channel_id">
         <div class="custom-select-display">
           <div class="chips-container" id="chips-log_channel_id"></div>
-          <div class="placeholder-text" id="placeholder-log_channel_id">-- Không gửi log --</div>
+          <div class="placeholder-text" id="placeholder-log_channel_id">{{ t('automod.log_channel_placeholder') }}</div>
           <i class="bi bi-chevron-down custom-select-arrow"></i>
         </div>
         <div class="custom-select-dropdown" id="dropdown-log_channel_id"></div>
@@ -487,7 +486,7 @@
 
   <div class="bottom-actions">
     <button type="submit" class="btn btn-primary btn-lg">
-      <i class="bi bi-save2"></i> Lưu Cài Đặt
+      <i class="bi bi-save2"></i> {{ t('automod.save_button') }}
     </button>
   </div>
 </form>
