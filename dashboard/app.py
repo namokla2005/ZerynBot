@@ -909,14 +909,26 @@ _COMMANDS_DATA = [
 @app.route("/dashboard/<guild_id>/commands")
 @guild_access_required
 def server_commands(guild_id: str):
+    ui_lang = session.get("ui_lang", "vi")
     cat_map = {
-        "Tổng quát": t("commands.cat_all"),
-        "Thông tin": "Info"
+        "Tổng quan": t("commands.cat_overview", lang=ui_lang),
+        "Tổng quát": t("commands.cat_overview", lang=ui_lang),
+        "Thông tin": t("commands.cat_info", lang=ui_lang),
+        "Music 🎵": t("commands.cat_music", lang=ui_lang),
     }
     localized_data = []
     for c in _COMMANDS_DATA:
         c_copy = dict(c)
         c_copy["category"] = cat_map.get(c["category"], c["category"])
+        cmd_list = []
+        for cmd in c["commands"]:
+            cmd_copy = dict(cmd)
+            desc_key = f"cmd.{cmd['name'].replace(' ', '_')}.desc"
+            trans_desc = t(desc_key, lang=ui_lang)
+            if trans_desc != desc_key:
+                cmd_copy["desc"] = trans_desc
+            cmd_list.append(cmd_copy)
+        c_copy["commands"] = cmd_list
         localized_data.append(c_copy)
 
     total = sum(len(c["commands"]) for c in _COMMANDS_DATA)
@@ -960,22 +972,26 @@ def server_music(guild_id: str):
 @app.route("/dashboard/<guild_id>/tickets")
 @guild_access_required
 def server_tickets(guild_id: str):
-    panels = db.get_ticket_panels(guild_id)
+    panels = db.get_ticket_panels(guild_id) or []
     text_channels = db.get_guild_channels(guild_id) or []
     categories = db.get_guild_categories(guild_id) or []
     
-    # Fetch roles dynamically using bot token
+    # Fetch roles dynamically using bot token with fallback
     roles = []
     try:
-        resp = requests.get(
-            f"https://discord.com/api/v10/guilds/{guild_id}/roles",
-            headers={"Authorization": f"Bot {config.TOKEN}"},
-            timeout=5
-        )
-        if resp.status_code == 200:
-            roles = [r for r in resp.json() if r["name"] != "@everyone"]
+        if config.TOKEN:
+            resp = requests.get(
+                f"https://discord.com/api/v10/guilds/{guild_id}/roles",
+                headers={"Authorization": f"Bot {config.TOKEN}"},
+                timeout=5
+            )
+            if resp.status_code == 200:
+                roles = [r for r in resp.json() if r.get("name") != "@everyone"]
     except Exception as e:
-        print(f"Error fetching roles: {e}")
+        print(f"Error fetching roles for tickets: {e}")
+
+    if not roles:
+        roles = db.get_guild_roles(guild_id) or []
 
     return render_template("tickets.html", **_server_ctx(
         guild_id, "tickets",

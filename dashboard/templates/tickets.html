@@ -851,9 +851,9 @@
   const allRoles = [
     {% for r in roles %}
       { 
-        id: "{{ r.id }}", 
-        name: {{ r.name|tojson|safe }}, 
-        color: "{% if r.color != 0 %}#{{ '%06x' | format(r.color) }}{% else %}#99aab5{% endif %}" 
+        id: "{{ r.id or r.role_id }}", 
+        name: {{ (r.name or r.role_name)|tojson|safe }}, 
+        color: "{% if r.color_hex %}{{ r.color_hex }}{% elif r.color is defined and r.color and r.color != 0 %}#{{ '%06x' | format(r.color) }}{% else %}#99aab5{% endif %}" 
       }{% if not loop.last %},{% endif %}
     {% endfor %}
   ];

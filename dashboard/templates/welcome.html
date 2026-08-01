@@ -148,24 +148,24 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">👋 Welcome & Goodbye</h1>
+  <h1 class="page-title">👋 {{ t('welcome.card_welcome') }} & {{ t('welcome.card_goodbye') }}</h1>
   <p class="page-subtitle">{{ t('dashboard.welcome_desc') }}</p>
 </div>
 
 <!-- Variable reference -->
 <div class="vars-box" style="margin-bottom: 24px;">
-  <strong>Available Variables:</strong><br>
-  <span class="var-tag">{user}</span> mention &nbsp;
-  <span class="var-tag">{user_name}</span> username &nbsp;
-  <span class="var-tag">{user_id}</span> user ID &nbsp;
-  <span class="var-tag">{server}</span> server name &nbsp;
-  <span class="var-tag">{member_count}</span> total members
+  <strong>{{ t('welcome.vars_title') }}</strong><br>
+  <span class="var-tag">{user}</span> {{ t('welcome.var_mention') }} &nbsp;
+  <span class="var-tag">{user_name}</span> {{ t('welcome.var_username') }} &nbsp;
+  <span class="var-tag">{user_id}</span> {{ t('welcome.var_userid') }} &nbsp;
+  <span class="var-tag">{server}</span> {{ t('welcome.var_server') }} &nbsp;
+  <span class="var-tag">{member_count}</span> {{ t('welcome.var_total_members') }}
 </div>
 
 <!-- Tabs -->
 <div class="welcome-tabs">
-  <button class="tab-btn active" data-tab="tab-welcome">🎉 Welcome</button>
-  <button class="tab-btn" data-tab="tab-goodbye">👋 Goodbye</button>
+  <button class="tab-btn active" data-tab="tab-welcome">🎉 {{ t('welcome.card_welcome') }}</button>
+  <button class="tab-btn" data-tab="tab-goodbye">👋 {{ t('welcome.card_goodbye') }}</button>
 </div>
 
 <form method="POST">
@@ -179,14 +179,14 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:#57F287"></i> Welcome Settings</div>
+              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:#57F287"></i> {{ t('welcome.welcome_settings') }}</div>
               <div class="card-desc">{{ t('dashboard.welcome_desc') }}</div>
             </div>
           </div>
 
           <!-- Channel -->
           <div class="form-group">
-            <label class="form-label">Welcome Channel</label>
+            <label class="form-label">{{ t('welcome.welcome_channel') }}</label>
             <select name="welcome_channel_id" class="form-control">
               <option value="">{{ t('common.select_channel') }}</option>
               {% for ch in channels %}
@@ -201,7 +201,7 @@
           <!-- Message type toggle -->
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Send Banner Card Image</div>
+              <div class="toggle-label">{{ t('welcome.send_banner_card') }}</div>
             </div>
             <label class="switch">
               <input type="checkbox" name="welcome_use_embed"
@@ -214,7 +214,7 @@
 
           <!-- Background URL -->
           <div class="form-group" style="margin-top: 15px;">
-            <label class="form-label">Background Image URL (Optional)</label>
+            <label class="form-label">{{ t('welcome.bg_url_label') }}</label>
             <input type="url" name="welcome_bg_url" class="form-control" id="w-bg-url"
                    value="{{ settings.welcome_bg_url or '' }}"
                    placeholder="https://example.com/image.png"
@@ -223,9 +223,9 @@
 
           <!-- Message content -->
           <div class="form-group">
-            <label class="form-label">Message Content</label>
+            <label class="form-label">{{ t('welcome.msg_content_label') }}</label>
             <textarea name="welcome_message" class="form-control" id="w-message"
-                      placeholder="👋 {user} joined **{server}**! 🎉"
+                      placeholder="👋 {user}..."
                       oninput="updateWelcomePreview()"
                       rows="2">{{ settings.welcome_message or '' }}</textarea>
           </div>
@@ -237,7 +237,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Live Preview</div>
+              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> {{ t('tickets.live_preview') }}</div>
             </div>
           </div>
           <div class="card-preview-wrap">
@@ -248,7 +248,7 @@
                   <span class="dc-author">{{ guild.get('name','Bot') }}</span>
                   <span class="dc-bot-tag">BOT</span>
                 </div>
-                <div class="dc-content" id="w-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> joined <strong>{{ guild.get('name','Server') }}</strong>!</div>
+                <div class="dc-content" id="w-preview-msg">👋 <strong>{{ user.get('global_name') or user.get('username','User') }}</strong> ...</div>
               </div>
             </div>
 
@@ -263,8 +263,8 @@
                       👤
                     {% endif %}
                   </div>
-                  <div class="banner-username" id="w-uname">Welcome {{ user.get('global_name') or user.get('username','User') }}</div>
-                  <div class="banner-prep">to</div>
+                  <div class="banner-username" id="w-uname">{{ t('welcome.card_welcome') }} {{ user.get('global_name') or user.get('username','User') }}</div>
+                  <div class="banner-prep">{{ t('welcome.card_to') }}</div>
                   <div class="banner-server" id="w-server">{{ guild.get('name','Server') }}</div>
               </div>
             </div>
@@ -274,7 +274,7 @@
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('welcome')" id="w-test-btn">
-              <i class="bi bi-send"></i> Send Test to Channel
+              <i class="bi bi-send"></i> {{ t('welcome.btn_send_test') }}
             </button>
           </div>
         </div>
@@ -292,13 +292,13 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-door-open-fill" style="color:#ED4245"></i> Goodbye Settings</div>
+              <div class="card-title"><i class="bi bi-door-open-fill" style="color:#ED4245"></i> {{ t('welcome.goodbye_settings') }}</div>
             </div>
           </div>
 
           <!-- Channel -->
           <div class="form-group">
-            <label class="form-label">Goodbye Channel</label>
+            <label class="form-label">{{ t('welcome.goodbye_channel') }}</label>
             <select name="goodbye_channel_id" class="form-control">
               <option value="">{{ t('common.select_channel') }}</option>
               {% for ch in channels %}
@@ -313,7 +313,7 @@
           <!-- Message type toggle -->
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Send Banner Card Image</div>
+              <div class="toggle-label">{{ t('welcome.send_banner_card') }}</div>
             </div>
             <label class="switch">
               <input type="checkbox" name="goodbye_use_embed"
@@ -326,7 +326,7 @@
 
           <!-- Background URL -->
           <div class="form-group" style="margin-top: 15px;">
-            <label class="form-label">Background Image URL (Optional)</label>
+            <label class="form-label">{{ t('welcome.bg_url_label') }}</label>
             <input type="url" name="goodbye_bg_url" class="form-control" id="g-bg-url"
                    value="{{ settings.goodbye_bg_url or '' }}"
                    placeholder="https://example.com/image.png"
@@ -335,7 +335,7 @@
 
           <!-- Message content -->
           <div class="form-group">
-            <label class="form-label">Message Content</label>
+            <label class="form-label">{{ t('welcome.msg_content_label') }}</label>
             <textarea name="goodbye_message" class="form-control" id="g-message"
                       placeholder="👋 **{user_name}** left {server}."
                       oninput="updateGoodbyePreview()"
@@ -349,7 +349,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> Live Preview</div>
+              <div class="card-title"><i class="bi bi-eye-fill" style="color:var(--accent)"></i> {{ t('tickets.live_preview') }}</div>
             </div>
           </div>
           <div class="card-preview-wrap">
@@ -374,8 +374,8 @@
                       👤
                     {% endif %}
                   </div>
-                  <div class="banner-username" id="g-uname">Goodbye {{ user.get('global_name') or user.get('username','User') }}</div>
-                  <div class="banner-prep">from</div>
+                  <div class="banner-username" id="g-uname">{{ t('welcome.card_goodbye') }} {{ user.get('global_name') or user.get('username','User') }}</div>
+                  <div class="banner-prep">{{ t('welcome.card_from') }}</div>
                   <div class="banner-server" id="g-server">{{ guild.get('name','Server') }}</div>
               </div>
             </div>
@@ -385,7 +385,7 @@
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('goodbye')" id="g-test-btn">
-              <i class="bi bi-send"></i> Send Test to Channel
+              <i class="bi bi-send"></i> {{ t('welcome.btn_send_test') }}
             </button>
           </div>
         </div>
