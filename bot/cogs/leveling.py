@@ -204,12 +204,15 @@ class Leveling(commands.Cog):
         await ctx.defer()
         
         member = member or ctx.author
-        if member.bot:
-            return await ctx.send("❌ Bot không có cấp độ!")
-            
         guild_id = str(ctx.guild.id)
+        settings = await async_get_guild_settings(guild_id)
+
+        if member.bot:
+            return await ctx.send(tr(settings, "leveling.bot_no_level"))
+            
         if not await async_is_module_enabled(guild_id, "leveling"):
-            return await ctx.send("❌ Module **Leveling** đã bị tắt trong server này!")
+            return await ctx.send(tr(settings, "leveling.disabled"))
+
         user_data = await async_get_user_level(guild_id, str(member.id))
         rank_pos = await async_get_user_rank(guild_id, str(member.id))
         
@@ -232,8 +235,6 @@ class Leveling(commands.Cog):
         except Exception as e:
             import logging
             logging.getLogger("BotV2").warning(f"[Leveling] Rank card error: {e}")
-            
-        settings = await async_get_guild_settings(guild_id)
 
         # Fallback to embed
         embed = discord.Embed(title=tr(settings, "leveling.rank_title", user=member.display_name), color=config.COLOR_INFO)
@@ -259,7 +260,7 @@ class Leveling(commands.Cog):
         settings = await async_get_guild_settings(guild_id)
 
         if not await async_is_module_enabled(guild_id, "leveling"):
-            return await ctx.send("❌ Module **Leveling** đã bị tắt trong server này!")
+            return await ctx.send(tr(settings, "leveling.disabled"))
             
         top_users = await async_get_top_users(guild_id, 10)
         
@@ -289,26 +290,29 @@ class Leveling(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def xp(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
-            await ctx.send("Sử dụng: `/xp set` hoặc `/xp reset`")
+            s = await async_get_guild_settings(str(ctx.guild.id))
+            await ctx.send(tr(s, "music.xp_usage"))
 
     @xp.command(name="set", description="Thiết lập XP cho một người dùng")
     @app_commands.describe(member="Người dùng", amount="Số lượng XP mới")
     async def xp_set(self, ctx: commands.Context, member: discord.Member, amount: int):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         if amount < 0:
-            return await ctx.send("❌ XP không thể âm!")
+            return await ctx.send(tr(s, "music.xp_negative"))
             
         guild_id = str(ctx.guild.id)
         new_level = calc_level_from_xp(amount)
         await async_update_user_xp(guild_id, str(member.id), amount, new_level)
         
-        await ctx.send(f"✅ Đã đặt XP của {member.mention} thành **{amount}** (Cấp độ: **{new_level}**).")
+        await ctx.send(tr(s, "music.xp_set_success", mention=member.mention, amount=amount, level=new_level))
 
     @xp.command(name="reset", description="Khôi phục XP của một người dùng về 0")
     @app_commands.describe(member="Người dùng")
     async def xp_reset(self, ctx: commands.Context, member: discord.Member):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         guild_id = str(ctx.guild.id)
         await async_reset_user_xp(guild_id, str(member.id))
-        await ctx.send(f"✅ Đã reset XP của {member.mention} về 0.")
+        await ctx.send(tr(s, "music.xp_reset_success", mention=member.mention))
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Leveling(bot))

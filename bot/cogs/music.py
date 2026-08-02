@@ -20,6 +20,8 @@ from discord.ext import commands
 import yt_dlp
 
 from cache import cache
+from database import async_get_guild_settings
+from i18n import tr
 
 log = logging.getLogger("BotV2")
 
@@ -290,7 +292,8 @@ class MusicPlayer:
 
         if self.text_channel:
             try:
-                await self.text_channel.send("✅ Hàng chờ nhạc đã hết!")
+                s = await async_get_guild_settings(str(self.guild.id))
+                await self.text_channel.send(tr(s, "music.queue_empty"))
             except Exception:
                 pass
 
@@ -349,8 +352,9 @@ class MusicPlayer:
 
             if self.text_channel:
                 try:
+                    s = await async_get_guild_settings(str(self.guild.id))
                     await self.text_channel.send(
-                        f"⚠️ Không thể giải mã/phát bài: **{track.title}**. Đang chuyển sang bài tiếp theo...",
+                        tr(s, "music.cannot_decode", title=track.title),
                         delete_after=8,
                     )
                 except Exception:
@@ -375,8 +379,9 @@ class MusicPlayer:
                 await self.now_playing_msg.delete()
             except Exception:
                 pass
-        view  = MusicControlView(self)
-        embed = _make_np_embed(self.current, len(self.queue), self.loop_mode)
+        s = await async_get_guild_settings(str(self.guild.id))
+        view  = MusicControlView(self, s)
+        embed = _make_np_embed(self.current, len(self.queue), self.loop_mode, s)
         try:
             self.now_playing_msg = await self.text_channel.send(embed=embed, view=view)
         except Exception as e:
@@ -414,16 +419,17 @@ class MusicPlayer:
 
 
 # ─── Embeds ────────────────────────────────────────────────────────────────────
-def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embed:
-    loop_str = {0: "Tắt", 1: "1 bài", 2: "Tất cả"}[loop_mode]
+def _make_np_embed(track: Track, queue_len: int, loop_mode: int, settings: dict = None) -> discord.Embed:
+    s = settings or {}
+    loop_str = {0: tr(s, "music.np_loop_off"), 1: tr(s, "music.np_loop_one"), 2: tr(s, "music.np_loop_all")}[loop_mode]
 
     embed = discord.Embed(
         color=0x3498DB,
         description=(
-            f"**Now Playing**\n"
+            f"{tr(s, 'music.now_playing_title')}\n"
             f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{track.duration_str}` — {track.requester_mention}\n\n"
-            f"**Volume:** `100%` — **Queue:** `{queue_len} bài` — **Loop:** `{loop_str}`\n"
+            f"**{tr(s, 'music.np_volume')}:** `100%` — **{tr(s, 'music.np_queue')}:** `{queue_len} bài` — **{tr(s, 'music.np_loop')}:** `{loop_str}`\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
     )
@@ -436,26 +442,31 @@ def _make_np_embed(track: Track, queue_len: int, loop_mode: int) -> discord.Embe
 
 # ─── Music Control View ────────────────────────────────────────────────────────
 class MusicControlView(discord.ui.View):
-    def __init__(self, player: MusicPlayer):
+    def __init__(self, player: MusicPlayer, settings: dict = None):
         super().__init__(timeout=None)
         self.player = player
+        self.settings = settings or {}
+
         # Cập nhật trạng thái các nút
         if player.vc.is_paused():
-            self.btn_pause.label = "▶️ Tiếp tục"
+            self.btn_pause.label = tr(self.settings, "music.btn_resume")
             self.btn_pause.style = discord.ButtonStyle.success
         else:
-            self.btn_pause.label = "⏸️ Tạm dừng"
+            self.btn_pause.label = tr(self.settings, "music.btn_pause")
             self.btn_pause.style = discord.ButtonStyle.secondary
 
-        loop_labels = ["🔄 Lặp lại", "🔂 Lặp 1 bài", "🔁 Lặp tất cả"]
+        loop_labels = [tr(self.settings, "music.btn_loop_off"), tr(self.settings, "music.btn_loop_one"), tr(self.settings, "music.btn_loop_all")]
         loop_styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
         self.btn_loop.label = loop_labels[player.loop_mode]
         self.btn_loop.style = loop_styles[player.loop_mode]
 
+        self.btn_skip.label = tr(self.settings, "music.btn_skip")
+        self.btn_stop.label = tr(self.settings, "music.btn_stop")
+
     async def _check(self, interaction: discord.Interaction) -> bool:
         if not interaction.user.voice or interaction.user.voice.channel != self.player.vc.channel:
             await interaction.response.send_message(
-                "❌ Bạn phải ở trong cùng kênh voice với bot!", ephemeral=True
+                tr(self.settings, "music.same_voice_err"), ephemeral=True
             )
             return False
         return True
@@ -467,11 +478,11 @@ class MusicControlView(discord.ui.View):
         await interaction.response.defer()
         if self.player.vc.is_paused():
             self.player.vc.resume()
-            button.label = "⏸️ Tạm dừng"
+            button.label = tr(self.settings, "music.btn_pause")
             button.style = discord.ButtonStyle.secondary
         else:
             self.player.vc.pause()
-            button.label = "▶️ Tiếp tục"
+            button.label = tr(self.settings, "music.btn_resume")
             button.style = discord.ButtonStyle.success
         await interaction.message.edit(view=self)
 
@@ -495,11 +506,11 @@ class MusicControlView(discord.ui.View):
             return
         await interaction.response.defer()
         self.player.loop_mode = (self.player.loop_mode + 1) % 3
-        loop_labels = ["🔄 Lặp lại", "🔂 Lặp 1 bài", "🔁 Lặp tất cả"]
+        loop_labels = [tr(self.settings, "music.btn_loop_off"), tr(self.settings, "music.btn_loop_one"), tr(self.settings, "music.btn_loop_all")]
         loop_styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
         button.label = loop_labels[self.player.loop_mode]
         button.style = loop_styles[self.player.loop_mode]
-        embed = _make_np_embed(self.player.current, len(self.player.queue), self.player.loop_mode)
+        embed = _make_np_embed(self.player.current, len(self.player.queue), self.player.loop_mode, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
 
@@ -595,8 +606,9 @@ class Music(commands.Cog, name="Music"):
         self._players.pop(guild_id, None)
 
     async def _ensure(self, ctx: commands.Context) -> MusicPlayer | None:
+        s = await async_get_guild_settings(str(ctx.guild.id))
         if not ctx.author.voice:
-            await ctx.send("❌ Bạn cần vào kênh voice trước!")
+            await ctx.send(tr(s, "music.join_voice_first"))
             return None
 
         guild_id = ctx.guild.id
@@ -604,7 +616,7 @@ class Music(commands.Cog, name="Music"):
 
         if player and player.vc.is_connected():
             if player.vc.channel != ctx.author.voice.channel:
-                await ctx.send("❌ Bot đang ở kênh voice khác!")
+                await ctx.send(tr(s, "music.bot_in_other_voice"))
                 return None
             player.text_channel = ctx.channel
             return player
@@ -612,8 +624,7 @@ class Music(commands.Cog, name="Music"):
         # Kiểm tra giới hạn số player đồng thời
         if guild_id not in self._players and len(self._players) >= MAX_PLAYERS:
             await ctx.send(
-                f"⚠️ Bot đang phát nhạc tối đa **{MAX_PLAYERS} server** cùng lúc để bảo vệ hiệu năng hệ thống.\n"
-                "Vui lòng thử lại sau!",
+                tr(s, "music.max_players_err", max=MAX_PLAYERS),
                 ephemeral=True,
             )
             return None
@@ -621,7 +632,7 @@ class Music(commands.Cog, name="Music"):
         try:
             vc = await ctx.author.voice.channel.connect()
         except Exception as e:
-            await ctx.send(f"❌ Không thể vào voice: {e}")
+            await ctx.send(tr(s, "music.cannot_connect", err=e))
             return None
 
         player = MusicPlayer(ctx.guild, ctx.channel, vc)
@@ -658,7 +669,8 @@ class Music(commands.Cog, name="Music"):
             
         if player.text_channel:
             try:
-                await player.text_channel.send("👋 Không còn ai trong kênh voice, bot đã tự rời!")
+                s = await async_get_guild_settings(str(member.guild.id))
+                await player.text_channel.send(tr(s, "music.empty_voice_left"))
             except Exception:
                 pass
         await player.stop()
@@ -667,31 +679,34 @@ class Music(commands.Cog, name="Music"):
     # ── Basic commands ─────────────────────────────────────────────────────
     @commands.hybrid_command(name="join", description="Gọi bot vào kênh voice")
     async def join(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         if await self._ensure(ctx):
-            await ctx.send("✅ Đã tham gia kênh voice!", ephemeral=True)
+            await ctx.send(tr(s, "music.joined_voice"), ephemeral=True)
 
     @commands.hybrid_command(name="leave", description="Bắt bot rời kênh voice")
     async def leave(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if player:
             await player.stop()
             self._drop(ctx.guild.id)
-            await ctx.send("👋 Đã rời kênh voice!")
+            await ctx.send(tr(s, "music.left_voice"))
         else:
-            await ctx.send("❌ Bot không ở trong kênh thoại nào!")
+            await ctx.send(tr(s, "music.not_in_voice"))
 
     @commands.hybrid_command(name="play", description="Phát nhạc từ YouTube (tên bài hoặc link)")
     @app_commands.describe(query="Tên bài hát hoặc link YouTube")
     async def play(self, ctx: commands.Context, *, query: str):
         await ctx.defer()
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = await self._ensure(ctx)
         if not player:
             return
 
-        msg = await ctx.send("🔍 Đang tìm kiếm...")
+        msg = await ctx.send(tr(s, "music.searching"))
         info = await extract_info(query)
         if not info:
-            await msg.edit(content=f"❌ Không tìm thấy nhạc cho: `{query}`")
+            await msg.edit(content=tr(s, "music.not_found", query=query))
             return
 
         track = Track(info, requester=ctx.author)
@@ -699,13 +714,13 @@ class Music(commands.Cog, name="Music"):
         if player.vc.is_playing() or player.vc.is_paused():
             player.queue.append(track)
             embed = discord.Embed(
-                title="📋 Đã thêm vào hàng chờ",
+                title=tr(s, "music.added_to_queue"),
                 description=f"**[{track.title}]({track.url})**",
                 color=0x5865F2,
             )
-            embed.add_field(name="⏱ Thời lượng",   value=track.duration_str,         inline=True)
-            embed.add_field(name="📌 Vị trí",       value=str(len(player.queue)),     inline=True)
-            embed.add_field(name="🙋 Yêu cầu bởi", value=ctx.author.mention,         inline=True)
+            embed.add_field(name=tr(s, "music.duration_field"),   value=track.duration_str,         inline=True)
+            embed.add_field(name=tr(s, "music.position_field"),       value=str(len(player.queue)),     inline=True)
+            embed.add_field(name=tr(s, "music.requester_field"), value=ctx.author.mention,         inline=True)
             if track.thumbnail:
                 embed.set_image(url=track.thumbnail)
             await msg.edit(content=None, embed=embed)
@@ -715,87 +730,96 @@ class Music(commands.Cog, name="Music"):
 
     @commands.hybrid_command(name="stop", description="Dừng nhạc và rời kênh")
     async def stop(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player:
-            await ctx.send("❌ Bot không đang phát nhạc!")
+            await ctx.send(tr(s, "music.not_playing"))
             return
         await player.stop()
         self._drop(ctx.guild.id)
-        await ctx.send("⏹️ Đã dừng nhạc và rời kênh!")
+        await ctx.send(tr(s, "music.stopped_left"))
 
     @commands.hybrid_command(name="skip", description="Bỏ qua bài hát hiện tại")
     async def skip(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player or not (player.vc.is_playing() or player.vc.is_paused()):
-            await ctx.send("❌ Không có nhạc đang phát!")
+            await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.skip()
-        await ctx.send("⏭️ Đã bỏ qua!", ephemeral=True)
+        await ctx.send(tr(s, "music.skipped"), ephemeral=True)
 
     @commands.hybrid_command(name="pause", description="Tạm dừng nhạc")
     async def pause(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player or not player.vc.is_playing():
-            await ctx.send("❌ Không có nhạc đang phát!")
+            await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.vc.pause()
-        await ctx.send("⏸️ Đã tạm dừng!", ephemeral=True)
+        await ctx.send(tr(s, "music.paused"), ephemeral=True)
 
     @commands.hybrid_command(name="resume", description="Tiếp tục phát nhạc")
     async def resume(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player or not player.vc.is_paused():
-            await ctx.send("❌ Nhạc không đang tạm dừng!")
+            await ctx.send(tr(s, "music.not_paused"))
             return
         player.vc.resume()
-        await ctx.send("▶️ Đã tiếp tục!", ephemeral=True)
+        await ctx.send(tr(s, "music.resumed"), ephemeral=True)
 
     @commands.hybrid_command(name="loop", description="Bật/tắt chế độ lặp lại")
     async def loop(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player:
-            await ctx.send("❌ Không có nhạc đang phát!")
+            await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.loop_mode = (player.loop_mode + 1) % 3
-        await ctx.send(["➡️ Đã TẮT lặp lại!", "🔂 Lặp bài hiện tại!", "🔁 Lặp toàn bộ hàng chờ!"][player.loop_mode])
+        msg_list = [tr(s, "music.loop_off_msg"), tr(s, "music.loop_one_msg"), tr(s, "music.loop_all_msg")]
+        await ctx.send(msg_list[player.loop_mode])
 
     @commands.hybrid_command(name="queue", description="Xem hàng chờ nhạc")
     async def queue_cmd(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player or (not player.current and not player.queue):
-            await ctx.send("❌ Hàng chờ đang trống!")
+            await ctx.send(tr(s, "music.queue_empty_msg"))
             return
         desc = ""
         if player.current:
-            desc += f"**▶️ Đang phát:** [{player.current.title}]({player.current.url}) `[{player.current.duration_str}]`\n\n"
+            desc += f"{tr(s, 'music.np_header')} [{player.current.title}]({player.current.url}) `[{player.current.duration_str}]`\n\n"
         if player.queue:
-            desc += "**📋 Hàng chờ:**\n"
+            desc += f"{tr(s, 'music.queue_header')}\n"
             for i, t in enumerate(player.queue[:10], 1):
                 desc += f"`{i:2}.` [{t.title}]({t.url}) `[{t.duration_str}]`\n"
             if len(player.queue) > 10:
-                desc += f"\n*... và {len(player.queue) - 10} bài khác*"
-        embed = discord.Embed(title="🎵 Hàng chờ nhạc", description=desc, color=0x5865F2)
+                desc += tr(s, "music.queue_more", cnt=len(player.queue) - 10)
+        embed = discord.Embed(title=tr(s, "music.queue_title"), description=desc, color=0x5865F2)
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="replay", description="Phát lại bài hát từ đầu")
     async def replay(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player or not player.current:
-            await ctx.send("❌ Không có bài nào đang phát!")
+            await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.queue.insert(0, player.current)
         player.skip()
-        await ctx.send("⏪ Đã phát lại từ đầu!", ephemeral=True)
+        await ctx.send(tr(s, "music.replayed"), ephemeral=True)
 
     @commands.hybrid_command(name="lofi", description="Phát nhạc Lofi 24/7 (mặc định SomaFM, ổn định)")
     @app_commands.describe(source="Nguồn lofi (mặc định: soma — ổn định, không bị chặn)")
     @app_commands.autocomplete(source=lofi_autocomplete)
     async def lofi(self, ctx: commands.Context, source: str = None):
         await ctx.defer()
+        s = await async_get_guild_settings(str(ctx.guild.id))
         # Hybrid command: slash = autocomplete value (str), prefix = raw string trực tiếp
         src_key = source if source else "soma"
         if src_key not in LOFI_STREAMS:
-            await ctx.send(f"❌ Nguồn không hợp lệ. Dùng: `soma` hoặc `youtube`")
+            await ctx.send(tr(s, "music.invalid_source"))
             return
         stream = LOFI_STREAMS.get(src_key, LOFI_STREAMS["soma"])
 
@@ -804,8 +828,6 @@ class Music(commands.Cog, name="Music"):
             return
 
         if src_key == "soma":
-            # Stream HTTP trực tiếp (Icecast): tạo Track giả, KHÔNG cần yt-dlp
-            # → không bao giờ bị 403, tốn ít CPU/RAM, lý tưởng cho tablet 24/7
             track = Track(
                 {"title": stream["title"], "url": stream["url"], "webpage_url": stream["url"], "duration": -1},
                 requester=ctx.author,
@@ -813,22 +835,15 @@ class Music(commands.Cog, name="Music"):
             track.stream_url = stream["url"]
             track.stream_expire = float("inf")  # stream sống mãi, không expire
             await player.add_and_play(track)
-            await ctx.send(
-                f"✅ Đang phát **{stream['name']}** 24/7!\n"
-                f"💡 Mẹo: dùng `/lofi youtube` nếu muốn Lofi Girl (có thể bị chặn)."
-            )
+            await ctx.send(tr(s, "music.lofi_soma_success", name=stream['name']))
         else:
-            # YouTube path: dùng yt-dlp với FFmpeg headers
             info = await extract_info(stream["url"])
             if not info:
-                await ctx.send(f"❌ Không thể tải nguồn YouTube Lofi Girl. Vui lòng thử lại sau hoặc dùng `/lofi source:soma`!")
+                await ctx.send(tr(s, "music.lofi_yt_err"))
                 return
             track = Track(info, requester=ctx.author)
             await player.add_and_play(track)
-            await ctx.send(
-                f"✅ Đang phát **{stream['name']}** (YouTube) 24/7!\n"
-                f"💡 Mẹo: dùng `/lofi source:soma` nếu muốn nguồn SomaFM Groove Salad siêu ổn định."
-            )
+            await ctx.send(tr(s, "music.lofi_yt_success", name=stream['name']))
 
     # ── Playlist commands ──────────────────────────────────────────────────
     @commands.hybrid_group(name="playlist", description="Quản lý playlist nhạc")
@@ -839,28 +854,30 @@ class Music(commands.Cog, name="Music"):
     @app_commands.describe(name="Tên playlist muốn tạo")
     async def playlist_create(self, ctx: commands.Context, *, name: str):
         import database as db
+        s = await async_get_guild_settings(str(ctx.guild.id))
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if pl:
-            await ctx.send(f"❌ Playlist **{name}** đã tồn tại!")
+            await ctx.send(tr(s, "music.pl_exists", name=name))
         else:
             await db.async_create_playlist(str(ctx.guild.id), name, str(ctx.author.id), ctx.author.display_name)
-            await ctx.send(f"✅ Đã tạo playlist **{name}**!")
+            await ctx.send(tr(s, "music.pl_created", name=name))
 
     @playlist_group.command(name="add", description="Thêm bài hát vào playlist")
     @app_commands.describe(query="Link hoặc tên bài hát", name="Tên playlist")
     async def playlist_add(self, ctx: commands.Context, query: str, *, name: str):
         await ctx.defer()
         import database as db
+        s = await async_get_guild_settings(str(ctx.guild.id))
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl:
-            await ctx.send(f"❌ Không tìm thấy playlist **{name}**! Tạo bằng `/playlist create {name}`")
+            await ctx.send(tr(s, "music.pl_not_found", name=name))
             return
         if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
-            await ctx.send("❌ Bạn không có quyền thêm vào playlist của người khác!")
+            await ctx.send(tr(s, "music.pl_no_perm"))
             return
         info = await extract_info(query)
         if not info:
-            await ctx.send("❌ Không tìm thấy bài hát!")
+            await ctx.send(tr(s, "music.pl_song_not_found"))
             return
 
         thumbnail = _get_best_thumbnail(info)
@@ -874,7 +891,7 @@ class Music(commands.Cog, name="Music"):
             "thumbnail": thumbnail,
             "url": "",
         })
-        await ctx.send(f"✅ Đã thêm **{info.get('title')}** vào playlist **{name}**!")
+        await ctx.send(tr(s, "music.pl_added_song", title=info.get('title'), name=name))
 
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
         """Nạp ngầm các bài còn lại từ playlist vào hàng chờ (giới hạn MAX_BG_LOAD bài)."""
@@ -899,16 +916,17 @@ class Music(commands.Cog, name="Music"):
     async def playlist_play(self, ctx: commands.Context, *, name: str):
         await ctx.defer()
         import database as db
+        s = await async_get_guild_settings(str(ctx.guild.id))
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl or not pl.get("tracks"):
-            await ctx.send(f"❌ Không tìm thấy hoặc playlist **{name}** đang trống!")
+            await ctx.send(tr(s, "music.pl_empty", name=name))
             return
         player = await self._ensure(ctx)
         if not player:
             return
         
         tracks = pl["tracks"]
-        msg = await ctx.send(f"⏳ Đang tải bài 1 từ playlist **{name}**...")
+        msg = await ctx.send(tr(s, "music.pl_loading_first", name=name))
         
         # 1. Phát bài đầu tiên ngay lập tức (không chờ cả playlist)
         first_track_data = tracks[0]
@@ -922,11 +940,11 @@ class Music(commands.Cog, name="Music"):
             else:
                 player.queue.append(first_track)
             if len(tracks) > 1:
-                await msg.edit(content=f"▶️ Đang phát bài 1 và nạp ngầm **{len(tracks) - 1}** bài còn lại từ **{name}**...")
+                await msg.edit(content=tr(s, "music.pl_loading_bg", cnt=len(tracks) - 1, name=name))
             else:
-                await msg.edit(content=f"▶️ Đã nạp playlist **{name}**!")
+                await msg.edit(content=tr(s, "music.pl_loaded", name=name))
         else:
-            await msg.edit(content=f"⚠️ Không thể tải bài 1. Đang nạp các bài tiếp theo từ playlist **{name}**...")
+            await msg.edit(content=tr(s, "music.pl_fail_first", name=name))
 
         # 2. Nạp ngầm các bài còn lại ở background task
         if len(tracks) > 1:
@@ -938,9 +956,10 @@ class Music(commands.Cog, name="Music"):
     @app_commands.describe(name="Tên của playlist")
     async def playlist_show(self, ctx: commands.Context, *, name: str):
         import database as db
+        s = await async_get_guild_settings(str(ctx.guild.id))
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl or not pl.get("tracks"):
-            await ctx.send(f"❌ Không tìm thấy hoặc playlist **{name}** đang trống!")
+            await ctx.send(tr(s, "music.pl_empty", name=name))
             return
         desc = ""
         for i, t in enumerate(pl["tracks"], 1):
@@ -950,40 +969,42 @@ class Music(commands.Cog, name="Music"):
             if i >= 15:
                 rem = len(pl["tracks"]) - 15
                 if rem > 0:
-                    desc += f"\n*... và {rem} bài khác*"
+                    desc += tr(s, "music.queue_more", cnt=rem)
                 break
         embed = discord.Embed(title=f"🎵 Playlist: {pl['name']}", description=desc, color=0x5865F2)
         if pl.get("creator_name"):
-            embed.set_footer(text=f"Tạo bởi: {pl['creator_name']} • {len(pl['tracks'])} bài hát")
+            embed.set_footer(text=tr(s, "music.pl_footer", user=pl['creator_name'], cnt=len(pl['tracks'])))
         await ctx.send(embed=embed)
 
     @playlist_group.command(name="remove", description="Xóa playlist do bạn tạo")
     @app_commands.describe(name="Tên của playlist")
     async def playlist_remove(self, ctx: commands.Context, *, name: str):
         import database as db
+        s = await async_get_guild_settings(str(ctx.guild.id))
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl:
-            await ctx.send(f"❌ Không tìm thấy playlist **{name}**!")
+            await ctx.send(tr(s, "music.pl_not_found", name=name))
             return
         if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
-            await ctx.send("❌ Bạn không có quyền xóa playlist của người khác!")
+            await ctx.send(tr(s, "music.pl_del_no_perm"))
             return
         await db.async_delete_playlist(pl["id"], str(ctx.guild.id))
-        await ctx.send(f"✅ Đã xóa playlist **{name}**!")
+        await ctx.send(tr(s, "music.pl_deleted", name=name))
 
     @playlist_group.command(name="removesong", description="Xóa một bài hát khỏi playlist")
     @app_commands.describe(name="Tên của playlist")
     async def playlist_removesong(self, ctx: commands.Context, *, name: str):
         import database as db
+        s = await async_get_guild_settings(str(ctx.guild.id))
         pl = await db.async_get_playlist_by_name(str(ctx.guild.id), name)
         if not pl:
-            await ctx.send(f"❌ Không tìm thấy playlist **{name}**!")
+            await ctx.send(tr(s, "music.pl_not_found", name=name))
             return
         if pl.get("creator_id") and pl["creator_id"] != str(ctx.author.id) and not ctx.author.guild_permissions.administrator:
-            await ctx.send("❌ Bạn không có quyền chỉnh sửa playlist của người khác!")
+            await ctx.send(tr(s, "music.pl_edit_no_perm"))
             return
         if not pl.get("tracks"):
-            await ctx.send(f"❌ Playlist **{name}** đang trống!")
+            await ctx.send(tr(s, "music.pl_empty", name=name))
             return
         desc = ""
         for i, t in enumerate(pl["tracks"], 1):
@@ -996,11 +1017,11 @@ class Music(commands.Cog, name="Music"):
                     desc += f"\n*... và {rem} bài khác (menu hiển thị tối đa 25 bài)*"
                 break
         embed = discord.Embed(
-            title=f"🗑️ Xóa bài hát khỏi: {pl['name']}",
+            title=tr(s, "music.pl_del_title", name=pl['name']),
             description=desc,
             color=discord.Color.red(),
         )
-        embed.set_footer(text="Chọn bài từ menu ↓ rồi bấm Xác nhận")
+        embed.set_footer(text=tr(s, "music.pl_del_footer"))
         view = RemoveSongView(ctx, pl, pl["tracks"])
         view.message = await ctx.send(embed=embed, view=view)
 

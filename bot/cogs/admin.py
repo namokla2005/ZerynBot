@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings, async_is_module_enabled
 import checks
+from i18n import tr
 
 
 class Admin(commands.Cog):
@@ -28,10 +29,11 @@ class Admin(commands.Cog):
 
         wc = s.get("welcome_channel_id")
         gc = s.get("goodbye_channel_id")
-        w_ch  = f"<#{wc}>" if wc else "⚠️ Chưa cài đặt"
-        g_ch  = f"<#{gc}>" if gc else "⚠️ Chưa cài đặt"
-        w_type = "📦 Embed" if s.get("welcome_use_embed") else "💬 Text"
-        g_type = "📦 Embed" if s.get("goodbye_use_embed") else "💬 Text"
+        not_cfg = tr(s, "admin.not_configured")
+        w_ch  = f"<#{wc}>" if wc else not_cfg
+        g_ch  = f"<#{gc}>" if gc else not_cfg
+        w_type = tr(s, "admin.embed_type") if s.get("welcome_use_embed") else tr(s, "admin.text_type")
+        g_type = tr(s, "admin.embed_type") if s.get("goodbye_use_embed") else tr(s, "admin.text_type")
 
         modules = {
             "welcome_goodbye": await async_is_module_enabled(guild_id, "welcome_goodbye"),
@@ -55,29 +57,29 @@ class Admin(commands.Cog):
         mod_col2 = "\n".join(f"{'✅' if modules[k] else '❌'} `{k}`" for k in mod_keys[half:])
 
         embed = discord.Embed(
-            title=f"⚙️ Cài đặt — {ctx.guild.name}",
+            title=tr(s, "admin.config_title", server=ctx.guild.name),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc),
         )
-        embed.add_field(name="🎉 Welcome Channel",  value=w_ch,    inline=True)
-        embed.add_field(name="🎉 Kiểu tin nhắn",    value=w_type,  inline=True)
-        embed.add_field(name="\u200b",               value="\u200b",inline=True)
-        embed.add_field(name="👋 Goodbye Channel",  value=g_ch,    inline=True)
-        embed.add_field(name="👋 Kiểu tin nhắn",    value=g_type,  inline=True)
-        embed.add_field(name="\u200b",               value="\u200b",inline=True)
+        embed.add_field(name=tr(s, "admin.welcome_channel"),  value=w_ch,    inline=True)
+        embed.add_field(name=tr(s, "admin.welcome_type"),     value=w_type,  inline=True)
+        embed.add_field(name="\u200b",                         value="\u200b",inline=True)
+        embed.add_field(name=tr(s, "admin.goodbye_channel"),  value=g_ch,    inline=True)
+        embed.add_field(name=tr(s, "admin.goodbye_type"),     value=g_type,  inline=True)
+        embed.add_field(name="\u200b",                         value="\u200b",inline=True)
         
-        embed.add_field(name="🧩 Modules (1)",      value=mod_col1, inline=True)
-        embed.add_field(name="🧩 Modules (2)",      value=mod_col2, inline=True)
-        embed.add_field(name="\u200b",               value="\u200b",inline=True)
+        embed.add_field(name=tr(s, "admin.modules_label", num=1), value=mod_col1, inline=True)
+        embed.add_field(name=tr(s, "admin.modules_label", num=2), value=mod_col2, inline=True)
+        embed.add_field(name="\u200b",                            value="\u200b",inline=True)
 
         embed.add_field(
-            name="🌐 Dashboard",
-            value=f"[Mở Dashboard]({config.DASHBOARD_URL}/dashboard/{guild_id})",
+            name=tr(s, "admin.dashboard_label"),
+            value=f"[{tr(s, 'admin.open_dashboard')}]({config.DASHBOARD_URL}/dashboard/{guild_id})",
             inline=False,
         )
 
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(label="Mở Dashboard", style=discord.ButtonStyle.link, url=f"{config.DASHBOARD_URL}/dashboard/{guild_id}", emoji="🌐"))
+        view.add_item(discord.ui.Button(label=tr(s, "admin.open_dashboard"), style=discord.ButtonStyle.link, url=f"{config.DASHBOARD_URL}/dashboard/{guild_id}", emoji="🌐"))
 
         await ctx.send(embed=embed, view=view)
 
@@ -87,14 +89,15 @@ class Admin(commands.Cog):
     @checks.is_bot_admin()
     async def reactionroles_cmd(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
+        s = await async_get_guild_settings(guild_id)
         embed = discord.Embed(
-            title="🎭 Reaction Roles",
-            description="Tính năng này được cấu hình trực quan thông qua Dashboard.",
+            title=tr(s, "admin.rr_title"),
+            description=tr(s, "admin.rr_desc"),
             color=config.COLOR_INFO,
         )
         embed.add_field(
             name="🌐 Link",
-            value=f"[Mở trang cấu hình]({config.DASHBOARD_URL}/dashboard/{guild_id}/reactionroles)"
+            value=f"[{tr(s, 'admin.open_config')}]({config.DASHBOARD_URL}/dashboard/{guild_id}/reactionroles)"
         )
         await ctx.send(embed=embed)
 
@@ -103,9 +106,10 @@ class Admin(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @checks.is_bot_admin()
     async def sync_cmd(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
         async with ctx.typing():
             synced = await self.bot.tree.sync()
-            await ctx.send(f"✅ Đã đồng bộ {len(synced)} lệnh slash commands.")
+            await ctx.send(tr(s, "admin.sync_success", count=len(synced)))
 
     @commands.hybrid_command(name="ticket", description="Truy cập Dashboard để tạo panel ticket")
     @commands.guild_only()
@@ -113,17 +117,19 @@ class Admin(commands.Cog):
     @checks.is_bot_admin()
     async def ticket_cmd(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
+        s = await async_get_guild_settings(guild_id)
         embed = discord.Embed(
-            title="🎫 Ticket System",
-            description="Tính năng này được cấu hình trực quan thông qua Dashboard.",
+            title=tr(s, "admin.ticket_title"),
+            description=tr(s, "admin.ticket_desc"),
             color=config.COLOR_INFO,
         )
         embed.add_field(
             name="🌐 Link",
-            value=f"[Mở trang cấu hình]({config.DASHBOARD_URL}/dashboard/{guild_id}/tickets)"
+            value=f"[{tr(s, 'admin.open_config')}]({config.DASHBOARD_URL}/dashboard/{guild_id}/tickets)"
         )
         await ctx.send(embed=embed)
 
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Admin(bot))
+

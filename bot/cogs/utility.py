@@ -244,13 +244,14 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="poll", description="Tạo một cuộc bình chọn nhanh")
     @discord.app_commands.describe(question="Câu hỏi bình chọn")
     async def poll(self, ctx: commands.Context, *, question: str):
+        s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         embed = discord.Embed(
-            title="📊 Bình chọn",
-            description=f"**{question}**\n\nThả cảm xúc bên dưới để bình chọn!",
+            title=tr(s, "utility.poll_title"),
+            description=tr(s, "utility.poll_desc", question=question),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )
-        embed.set_footer(text=f"Tạo bởi {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+        embed.set_footer(text=tr(s, "utility.poll_created_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
         msg = await ctx.send(embed=embed)
         await msg.add_reaction("👍")
         await msg.add_reaction("👎")
@@ -260,13 +261,14 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="roll", description="Tung xúc xắc (ngẫu nhiên từ 1 đến số chỉ định)")
     @discord.app_commands.describe(max_number="Số lớn nhất (mặc định là 100)")
     async def roll(self, ctx: commands.Context, max_number: int = 100):
+        s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         if max_number <= 1:
-            await ctx.send("❌ Số lớn nhất phải lớn hơn 1!")
+            await ctx.send(tr(s, "utility.roll_min_err"))
             return
         result = random.randint(1, max_number)
         embed = discord.Embed(
-            title="🎲 Tung xúc xắc",
-            description=f"Bạn đã tung ra số: **{result}** (1 - {max_number})",
+            title=tr(s, "utility.roll_title"),
+            description=tr(s, "utility.roll_result", res=result, max=max_number),
             color=0xFEE75C
         )
         await ctx.send(embed=embed)
@@ -275,14 +277,15 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="choose", description="Bot sẽ chọn ngẫu nhiên giúp bạn một phương án")
     @discord.app_commands.describe(options="Các phương án cách nhau bởi dấu phẩy (VD: Ăn cơm, Ăn phở, Nhịn)")
     async def choose(self, ctx: commands.Context, *, options: str):
+        s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         opts = [o.strip() for o in options.split(",") if o.strip()]
         if len(opts) < 2:
-            await ctx.send("❌ Vui lòng nhập ít nhất 2 phương án, cách nhau bằng dấu phẩy!")
+            await ctx.send(tr(s, "utility.choose_min_err"))
             return
         result = random.choice(opts)
         embed = discord.Embed(
-            title="🤔 Lựa chọn ngẫu nhiên",
-            description=f"Giữa các phương án: `{', '.join(opts)}`\n\n🎯 Mình chọn: **{result}**",
+            title=tr(s, "utility.choose_title"),
+            description=tr(s, "utility.choose_result", opts=", ".join(opts), res=result),
             color=config.COLOR_INFO
         )
         await ctx.send(embed=embed)
@@ -290,3 +293,4 @@ class Utility(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utility(bot))
+

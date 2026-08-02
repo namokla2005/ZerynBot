@@ -23,6 +23,7 @@ from database import (
     async_cache_roles,
     async_is_blacklisted,
 )
+from i18n import tr
 
 
 def hex_to_int(hex_color: str) -> int:
@@ -72,12 +73,10 @@ class Events(commands.Cog):
             try:
                 # Thông báo trước khi rời (nếu có system channel)
                 if guild.system_channel:
+                    s = await async_get_guild_settings(str(guild.id))
                     embed = discord.Embed(
-                        title="⛔ Bot bị chặn",
-                        description=(
-                            "Server này đã bị **Owner bot** đưa vào danh sách đen.\n"
-                            "Bot sẽ tự động rời ngay lập tức."
-                        ),
+                        title=tr(s, "events.blacklist_title"),
+                        description=tr(s, "events.blacklist_desc"),
                         color=0xED4245,
                     )
                     await guild.system_channel.send(embed=embed)
@@ -183,21 +182,21 @@ class Events(commands.Cog):
             # Fallback: standard embed
             color = hex_to_int(s.get("welcome_embed_color", "#57F287"))
             embed = discord.Embed(
-                title=s.get("welcome_embed_title", "🎉 Chào mừng!"),
+                title=s.get("welcome_embed_title", tr(s, "events.welcome_title")),
                 description=message,
                 color=color,
                 timestamp=datetime.now(timezone.utc),
             )
             embed.set_thumbnail(url=member.display_avatar.url)
-            embed.add_field(name="👤 Thành viên", value=str(member.name), inline=True)
-            embed.add_field(name="🪪 ID",          value=f"`{member.id}`", inline=True)
+            embed.add_field(name=tr(s, "events.member_field"), value=str(member.name), inline=True)
+            embed.add_field(name=tr(s, "events.id_field"),     value=f"`{member.id}`", inline=True)
             embed.add_field(
-                name="📅 Ngày tạo tài khoản",
+                name=tr(s, "events.created_at_field"),
                 value=f"<t:{int(member.created_at.timestamp())}:D>",
                 inline=True,
             )
             embed.add_field(
-                name="👥 Thành viên thứ",
+                name=tr(s, "events.member_number_field"),
                 value=f"**{member.guild.member_count}**",
                 inline=True,
             )
@@ -248,24 +247,25 @@ class Events(commands.Cog):
             # Fallback: standard embed
             color = hex_to_int(s.get("goodbye_embed_color", "#ED4245"))
             joined_at = member.joined_at
-            duration = "Không rõ"
+            duration = tr(s, "events.unknown_duration")
             if joined_at:
                 days = (datetime.now(timezone.utc) - joined_at).days
-                duration = f"{days} ngày" if days > 0 else "Chưa đầy 1 ngày"
+                duration = tr(s, "events.days", days=days) if days > 0 else tr(s, "events.less_than_day")
 
             roles = [r.mention for r in member.roles if r.name != "@everyone"]
+            no_roles_txt = tr(s, "events.no_roles")
             embed = discord.Embed(
-                title=s.get("goodbye_embed_title", "👋 Tạm biệt!"),
+                title=s.get("goodbye_embed_title", tr(s, "events.goodbye_title")),
                 description=message,
                 color=color,
                 timestamp=datetime.now(timezone.utc),
             )
             embed.set_thumbnail(url=member.display_avatar.url)
-            embed.add_field(name="🪪 ID",             value=f"`{member.id}`", inline=True)
-            embed.add_field(name="⏳ Thời gian ở lại", value=duration,        inline=True)
+            embed.add_field(name=tr(s, "events.id_field"),       value=f"`{member.id}`", inline=True)
+            embed.add_field(name=tr(s, "events.duration_field"), value=duration,        inline=True)
             embed.add_field(
-                name=f"🏷️ Roles ({len(roles)})",
-                value=", ".join(roles) if roles else "Không có",
+                name=f"{tr(s, 'events.roles_field')} ({len(roles)})",
+                value=", ".join(roles) if roles else no_roles_txt,
                 inline=False,
             )
             if member.guild.icon:
@@ -277,3 +277,4 @@ class Events(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Events(bot))
+

@@ -18,9 +18,11 @@ from database import (
     async_is_module_enabled,
     async_get_automod_settings,
     async_add_automod_warning,
+    async_get_guild_settings,
     set_module
 )
 import checks
+from i18n import tr
 
 # Extract domains from URLs
 URL_PATTERN = re.compile(r'https?://(?:www\.)?([a-zA-Z0-9.-]+)\.[a-zA-Z]{2,}')
@@ -77,6 +79,7 @@ class Automod(commands.Cog):
         guild = message.guild
         member = message.author
         guild_id = str(guild.id)
+        s = await async_get_guild_settings(guild_id)
         
         try:
             await message.delete()
@@ -89,7 +92,7 @@ class Automod(commands.Cog):
             try:
                 # Public warning (Short & clean, no bad word exposed)
                 embed = discord.Embed(
-                    description=f"⚠️ {member.mention}, bạn đã vi phạm quy định của máy chủ. Lần vi phạm tiếp theo sẽ bị **Timeout**.",
+                    description=tr(s, "automod.warning_desc", user=member.mention),
                     color=config.COLOR_ERROR
                 )
                 msg = await message.channel.send(content=member.mention, embed=embed)
@@ -101,13 +104,13 @@ class Automod(commands.Cog):
                 
                 # Send DM with detailed reason
                 dm_embed = discord.Embed(
-                    title="⚠️ Cảnh báo Automod",
-                    description=f"Bạn đã vi phạm nội quy tại server **{guild.name}**.",
+                    title=tr(s, "automod.dm_warning_title"),
+                    description=tr(s, "automod.dm_warning_desc", guild=guild.name),
                     color=config.COLOR_ERROR
                 )
-                dm_embed.add_field(name="Lý do", value=reason, inline=False)
+                dm_embed.add_field(name=tr(s, "automod.dm_reason"), value=reason, inline=False)
                 original_text = message.content[:1000] + ("..." if len(message.content) > 1000 else "")
-                dm_embed.add_field(name="Nội dung vi phạm", value=f"```text\n{original_text}\n```", inline=False)
+                dm_embed.add_field(name=tr(s, "automod.dm_content"), value=f"```text\n{original_text}\n```", inline=False)
                 
                 try:
                     await member.send(embed=dm_embed)
@@ -126,7 +129,7 @@ class Automod(commands.Cog):
                 
                 # Public notification
                 embed = discord.Embed(
-                    description=f"⛔ {member.mention} đã bị **Timeout {timeout_mins} phút** do liên tục vi phạm quy định.",
+                    description=tr(s, "automod.timeout_desc", user=member.mention, minutes=timeout_mins),
                     color=config.COLOR_ERROR
                 )
                 msg = await message.channel.send(embed=embed)
@@ -137,12 +140,12 @@ class Automod(commands.Cog):
                 
                 # Send DM
                 dm_embed = discord.Embed(
-                    title="⛔ Hình phạt Automod",
-                    description=f"Bạn đã bị Timeout tại server **{guild.name}**.",
+                    title=tr(s, "automod.dm_timeout_title"),
+                    description=tr(s, "automod.dm_timeout_desc", guild=guild.name),
                     color=config.COLOR_ERROR
                 )
-                dm_embed.add_field(name="Lý do", value=reason, inline=False)
-                dm_embed.add_field(name="Hình phạt", value=f"Bị cấm chat & câm voice trong {timeout_mins} phút.", inline=False)
+                dm_embed.add_field(name=tr(s, "automod.dm_reason"), value=reason, inline=False)
+                dm_embed.add_field(name=tr(s, "automod.dm_penalty"), value=tr(s, "automod.dm_penalty_val", minutes=timeout_mins), inline=False)
                 try:
                     await member.send(embed=dm_embed)
                 except Exception:
@@ -160,21 +163,21 @@ class Automod(commands.Cog):
                 channel = guild.get_channel(int(log_channel_id))
                 if channel:
                     notify_role_id = settings.get("notify_role_id")
-                    ping_text = f"<@&{notify_role_id}> " if notify_role_id else ""
+                    ping_role = f"<@&{notify_role_id}> " if notify_role_id else ""
                     
                     log_embed = discord.Embed(
-                        title="🛡️ Automod Kích Hoạt",
+                        title=tr(s, "automod.log_title"),
                         color=config.COLOR_ERROR,
                         timestamp=datetime.now(timezone.utc)
                     )
-                    log_embed.add_field(name="Người dùng", value=f"{member.mention} (`{member.id}`)", inline=True)
-                    log_embed.add_field(name="Kênh", value=message.channel.mention, inline=True)
-                    log_embed.add_field(name="Lý do", value=reason, inline=False)
-                    log_embed.add_field(name="Hình phạt", value=f"Timeout {timeout_mins} phút", inline=False)
-                    log_embed.add_field(name="Nội dung tin nhắn", value=message.content[:1024] or "[Không có nội dung text]", inline=False)
+                    log_embed.add_field(name=tr(s, "automod.log_user"), value=f"{member.mention} (`{member.id}`)", inline=True)
+                    log_embed.add_field(name=tr(s, "automod.log_channel"), value=message.channel.mention, inline=True)
+                    log_embed.add_field(name=tr(s, "automod.dm_reason"), value=reason, inline=False)
+                    log_embed.add_field(name=tr(s, "automod.dm_penalty"), value=f"Timeout {timeout_mins} phút", inline=False)
+                    log_embed.add_field(name=tr(s, "automod.dm_content"), value=message.content[:1024] or "[No text content]", inline=False)
                     
                     try:
-                        await channel.send(content=f"{ping_text}Người dùng vi phạm quy định!", embed=log_embed)
+                        await channel.send(content=tr(s, "automod.log_notify_text", role=ping_role), embed=log_embed)
                     except discord.Forbidden:
                         pass
 
@@ -301,35 +304,36 @@ class Automod(commands.Cog):
     async def automods(self, ctx: commands.Context):
         pass
 
-
-
     @automods.command(name="show", description="Xem cấu hình Automods hiện tại")
     async def show(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         is_active = await async_is_module_enabled(guild_id, "automods")
         settings = await async_get_automod_settings(guild_id)
+        s = await async_get_guild_settings(guild_id)
         
-        status_str = "🟢 **Đang Hoạt Động**" if is_active else "🔴 **Đã Tắt**"
+        status_str = tr(s, "automod.active") if is_active else tr(s, "automod.inactive")
         
         embed = discord.Embed(
-            title=f"🛡️ Automods — {ctx.guild.name}",
-            description=f"Trạng thái: {status_str}\n*(Để tuỳ chỉnh chi tiết, vui lòng dùng Dashboard)*",
+            title=tr(s, "automod.show_title", guild=ctx.guild.name),
+            description=tr(s, "automod.show_desc", status=status_str),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )
         
         # Modules
-        spam = "✅ Bật" if settings.get("spam_enabled") else "❌ Tắt"
-        bw = "✅ Bật" if settings.get("bad_words_enabled") else "❌ Tắt"
-        lnk = "✅ Bật" if settings.get("links_enabled") else "❌ Tắt"
-        inv = "✅ Bật" if settings.get("anti_invite_enabled") else "❌ Tắt"
-        caps = "✅ Bật" if settings.get("anti_caps_enabled") else "❌ Tắt"
-        ment = "✅ Bật" if settings.get("anti_mentions_enabled") else "❌ Tắt"
+        on_txt = tr(s, "automod.on")
+        off_txt = tr(s, "automod.off")
+        spam = on_txt if settings.get("spam_enabled") else off_txt
+        bw = on_txt if settings.get("bad_words_enabled") else off_txt
+        lnk = on_txt if settings.get("links_enabled") else off_txt
+        inv = on_txt if settings.get("anti_invite_enabled") else off_txt
+        caps = on_txt if settings.get("anti_caps_enabled") else off_txt
+        ment = on_txt if settings.get("anti_mentions_enabled") else off_txt
         
         embed.add_field(
-            name="⚙️ Tính Năng",
-            value=f"**Chống Spam:** {spam} | **Lọc Từ Cấm:** {bw} | **Lọc Link Fake:** {lnk}\n"
-                  f"**Chống Link Mời:** {inv} | **Chống CAPS:** {caps} | **Chống Mass Ping:** {ment}",
+            name=tr(s, "automod.sec_features"),
+            value=f"**{tr(s, 'automod.feat_spam')}:** {spam} | **{tr(s, 'automod.feat_badwords')}:** {bw} | **{tr(s, 'automod.feat_links')}:** {lnk}\n"
+                  f"**{tr(s, 'automod.feat_invite')}:** {inv} | **{tr(s, 'automod.feat_caps')}:** {caps} | **{tr(s, 'automod.feat_mentions')}:** {ment}",
             inline=False
         )
         
@@ -339,18 +343,22 @@ class Automod(commands.Cog):
         wl_list = settings.get("whitelist_links", [])
         
         embed.add_field(
-            name="📝 Bộ Lọc",
-            value=f"**Từ cấm:** {len(bw_list)} từ\n**Blacklist Link:** {len(bl_list)} link\n**Whitelist Link:** {len(wl_list)} link",
+            name=tr(s, "automod.sec_filters"),
+            value=f"{tr(s, 'automod.bad_words_cnt', cnt=len(bw_list))}\n"
+                  f"{tr(s, 'automod.bl_links_cnt', cnt=len(bl_list))}\n"
+                  f"{tr(s, 'automod.wl_links_cnt', cnt=len(wl_list))}",
             inline=False
         )
         
         # Logs
-        log_ch = f"<#{settings.get('log_channel_id')}>" if settings.get("log_channel_id") else "*Không có*"
-        notif_role = f"<@&{settings.get('notify_role_id')}>" if settings.get("notify_role_id") else "*Không có*"
+        none_txt = tr(s, "automod.none")
+        log_ch = f"<#{settings.get('log_channel_id')}>" if settings.get("log_channel_id") else none_txt
+        notif_role = f"<@&{settings.get('notify_role_id')}>" if settings.get("notify_role_id") else none_txt
         
         embed.add_field(
-            name="📢 Thông Báo",
-            value=f"**Kênh Log:** {log_ch}\n**Role Tag (Lần 2):** {notif_role}",
+            name=tr(s, "automod.sec_notif"),
+            value=f"{tr(s, 'automod.log_ch_label', ch=log_ch)}\n"
+                  f"{tr(s, 'automod.role_tag_label', role=notif_role)}",
             inline=False
         )
         
@@ -359,3 +367,4 @@ class Automod(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Automod(bot))
+

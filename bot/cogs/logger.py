@@ -4,7 +4,8 @@ import time
 import datetime
 import traceback
 import config
-from database import async_get_logger_settings, async_is_module_enabled
+from database import async_get_logger_settings, async_is_module_enabled, async_get_guild_settings
+from i18n import tr
 
 COLOR_CREATE = 0x57F287
 COLOR_DELETE = 0xED4245
@@ -45,13 +46,15 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(message.guild, "log_message_delete")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(message.guild.id))
         embed = discord.Embed(
-            title="🗑️ Tin nhắn bị xóa",
-            description=f"Tin nhắn của {message.author.mention} bị xóa trong {message.channel.mention}",
+            title=tr(s, "logger.msg_del_title"),
+            description=tr(s, "logger.msg_del_desc", user=message.author.mention, channel=message.channel.mention),
             color=COLOR_DELETE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.add_field(name="Nội dung", value=message.content[:1024] or "*Không có nội dung*", inline=False)
+        no_cnt = tr(s, "logger.no_content")
+        embed.add_field(name=tr(s, "logger.content"), value=message.content[:1024] or no_cnt, inline=False)
         embed.set_author(name=f"{message.author.name} ({message.author.id})", icon_url=message.author.display_avatar.url)
         embed.set_footer(text=f"Message ID: {message.id}")
         
@@ -68,14 +71,16 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(before.guild, "log_message_edit")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(before.guild.id))
         embed = discord.Embed(
-            title="✏️ Tin nhắn được chỉnh sửa",
-            description=f"Tin nhắn của {before.author.mention} được chỉnh sửa trong {before.channel.mention} [Jump]({after.jump_url})",
+            title=tr(s, "logger.msg_edit_title"),
+            description=tr(s, "logger.msg_edit_desc", user=before.author.mention, channel=before.channel.mention, url=after.jump_url),
             color=COLOR_UPDATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.add_field(name="Trước đó", value=before.content[:1024] or "*Trống*", inline=False)
-        embed.add_field(name="Sau khi sửa", value=after.content[:1024] or "*Trống*", inline=False)
+        empty_txt = tr(s, "logger.empty")
+        embed.add_field(name=tr(s, "logger.before"), value=before.content[:1024] or empty_txt, inline=False)
+        embed.add_field(name=tr(s, "logger.after"), value=after.content[:1024] or empty_txt, inline=False)
         embed.set_author(name=f"{before.author.name} ({before.author.id})", icon_url=before.author.display_avatar.url)
         embed.set_footer(text=f"Message ID: {before.id}")
         
@@ -88,15 +93,16 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(member.guild, "log_member_join_leave")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(member.guild.id))
         embed = discord.Embed(
-            title="📥 Thành viên tham gia",
-            description=f"{member.mention} đã tham gia server",
+            title=tr(s, "logger.member_join_title"),
+            description=tr(s, "logger.member_join_desc", user=member.mention),
             color=COLOR_JOIN,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.add_field(name="Ngày tạo tài khoản", value=f"<t:{int(member.created_at.timestamp())}:R>")
+        embed.add_field(name=tr(s, "logger.account_created"), value=f"<t:{int(member.created_at.timestamp())}:R>")
         embed.set_author(name=f"{member.name} ({member.id})", icon_url=member.display_avatar.url)
-        embed.set_footer(text=f"Thành viên thứ #{member.guild.member_count}")
+        embed.set_footer(text=tr(s, "logger.member_num_footer", cnt=member.guild.member_count))
         
         try: await log_channel.send(embed=embed)
         except Exception: pass
@@ -106,11 +112,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(member.guild, "log_member_join_leave")
         if not log_channel: return
         
-        # Could check audit log for kick, but Discord intents can make it tricky. We'll just log "Leave/Kick" here.
-        # on_member_ban handles bans.
+        s = await async_get_guild_settings(str(member.guild.id))
         embed = discord.Embed(
-            title="📤 Thành viên rời đi",
-            description=f"{member.mention} đã rời khỏi server",
+            title=tr(s, "logger.member_leave_title"),
+            description=tr(s, "logger.member_leave_desc", user=member.mention),
             color=COLOR_LEAVE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -121,9 +126,9 @@ class Logger(commands.Cog):
             try:
                 async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.kick):
                     if entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        embed.title = "👢 Thành viên bị Kick"
-                        embed.description = f"{member.mention} đã bị Kick khỏi server bởi {entry.user.mention}"
-                        embed.add_field(name="Lý do", value=entry.reason or "*Không có*")
+                        embed.title = tr(s, "logger.member_kick_title")
+                        embed.description = tr(s, "logger.member_kick_desc", user=member.mention, by=entry.user.mention)
+                        embed.add_field(name=tr(s, "automod.dm_reason"), value=entry.reason or tr(s, "automod.none"))
                         break
             except Exception:
                 pass
@@ -136,9 +141,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(guild, "log_member_kick_ban")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(guild.id))
         embed = discord.Embed(
-            title="🔨 Thành viên bị Ban",
-            description=f"{user.mention} đã bị Ban khỏi server",
+            title=tr(s, "logger.ban_title"),
+            description=tr(s, "logger.ban_desc", user=user.mention),
             color=COLOR_MOD,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -148,8 +154,8 @@ class Logger(commands.Cog):
             try:
                 async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.ban):
                     if entry.target.id == user.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        embed.description = f"{user.mention} đã bị Ban bởi {entry.user.mention}"
-                        embed.add_field(name="Lý do", value=entry.reason or "*Không có*")
+                        embed.description = tr(s, "logger.ban_by_desc", user=user.mention, by=entry.user.mention)
+                        embed.add_field(name=tr(s, "automod.dm_reason"), value=entry.reason or tr(s, "automod.none"))
                         break
             except Exception:
                 pass
@@ -162,9 +168,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(guild, "log_member_kick_ban")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(guild.id))
         embed = discord.Embed(
-            title="🕊️ Thành viên được Unban",
-            description=f"{user.mention} đã được gỡ Ban",
+            title=tr(s, "logger.unban_title"),
+            description=tr(s, "logger.unban_desc", user=user.mention),
             color=COLOR_JOIN,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -187,18 +194,19 @@ class Logger(commands.Cog):
         if not added_roles and not removed_roles:
             return
             
+        s = await async_get_guild_settings(str(before.guild.id))
         embed = discord.Embed(
-            title="🛡️ Thay đổi Role",
-            description=f"Role của {before.mention} đã bị thay đổi",
+            title=tr(s, "logger.role_change_title"),
+            description=tr(s, "logger.role_change_desc", user=before.mention),
             color=COLOR_UPDATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         embed.set_author(name=f"{before.name} ({before.id})", icon_url=before.display_avatar.url)
         
         if added_roles:
-            embed.add_field(name="Thêm Role", value=" ".join([r.mention for r in added_roles]), inline=False)
+            embed.add_field(name=tr(s, "logger.role_add"), value=" ".join([r.mention for r in added_roles]), inline=False)
         if removed_roles:
-            embed.add_field(name="Bớt Role", value=" ".join([r.mention for r in removed_roles]), inline=False)
+            embed.add_field(name=tr(s, "logger.role_remove"), value=" ".join([r.mention for r in removed_roles]), inline=False)
             
         try: await log_channel.send(embed=embed)
         except Exception: pass
@@ -209,9 +217,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(channel.guild, "log_channel_change")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(channel.guild.id))
         embed = discord.Embed(
-            title="📁 Kênh được tạo mới",
-            description=f"Kênh {channel.mention} (`{channel.name}`) vừa được tạo",
+            title=tr(s, "logger.ch_create_title"),
+            description=tr(s, "logger.ch_create_desc", ch=channel.mention, name=channel.name),
             color=COLOR_CREATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -223,9 +232,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(channel.guild, "log_channel_change")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(channel.guild.id))
         embed = discord.Embed(
-            title="📁 Kênh bị xóa",
-            description=f"Kênh `{channel.name}` đã bị xóa",
+            title=tr(s, "logger.ch_del_title"),
+            description=tr(s, "logger.ch_del_desc", name=channel.name),
             color=COLOR_DELETE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -238,9 +248,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(role.guild, "log_role_change")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(role.guild.id))
         embed = discord.Embed(
-            title="🛡️ Role được tạo mới",
-            description=f"Role {role.mention} (`{role.name}`) vừa được tạo",
+            title=tr(s, "logger.role_create_title"),
+            description=tr(s, "logger.role_create_desc", role=role.mention, name=role.name),
             color=COLOR_CREATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -252,9 +263,10 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(role.guild, "log_role_change")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(role.guild.id))
         embed = discord.Embed(
-            title="🛡️ Role bị xóa",
-            description=f"Role `{role.name}` đã bị xóa",
+            title=tr(s, "logger.role_del_title"),
+            description=tr(s, "logger.role_del_desc", name=role.name),
             color=COLOR_DELETE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -267,17 +279,18 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(guild, "log_automod")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(guild.id))
         embed = discord.Embed(
-            title="⚠️ Vi phạm Automod",
-            description=f"{user.mention} đã vi phạm Automod",
+            title=tr(s, "logger.automod_violation_title"),
+            description=tr(s, "logger.automod_violation_desc", user=user.mention),
             color=COLOR_MOD,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         embed.set_author(name=f"{user.name} ({user.id})", icon_url=user.display_avatar.url if hasattr(user, 'display_avatar') else None)
-        embed.add_field(name="Hành động", value=action_type, inline=True)
-        embed.add_field(name="Lý do", value=reason, inline=True)
+        embed.add_field(name=tr(s, "logger.action"), value=action_type, inline=True)
+        embed.add_field(name=tr(s, "automod.dm_reason"), value=reason, inline=True)
         if jump_url:
-            embed.add_field(name="Tin nhắn gốc", value=f"[Link đến tin nhắn]({jump_url})", inline=False)
+            embed.add_field(name=tr(s, "logger.orig_msg"), value=tr(s, "logger.msg_link", url=jump_url), inline=False)
             
         try: await log_channel.send(embed=embed)
         except Exception: pass
@@ -287,9 +300,11 @@ class Logger(commands.Cog):
         log_channel = await self.get_log_channel(guild, "log_ticket")
         if not log_channel: return
         
+        s = await async_get_guild_settings(str(guild.id))
+        user_str = user.mention if user else tr(s, "logger.ticket_system")
         embed = discord.Embed(
-            title="🎫 Hoạt động Ticket",
-            description=f"{user.mention if user else 'Hệ thống'} đã **{action_type}** ticket `{ticket_name}`",
+            title=tr(s, "logger.ticket_act_title"),
+            description=tr(s, "logger.ticket_act_desc", user=user_str, action=action_type, name=ticket_name),
             color=COLOR_INFO,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
@@ -299,3 +314,4 @@ class Logger(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Logger(bot))
+

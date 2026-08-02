@@ -74,16 +74,21 @@ class Stats(commands.Cog):
     @commands.Cog.listener()
     async def on_automod_action(self, guild: discord.Guild, user: discord.Member, action_type: str, reason: str, jump_url: str = None):
         guild_id = str(guild.id)
-        action_label = "warn" if "Cảnh báo" in action_type else ("timeout" if "Timeout" in action_type else "other")
+        is_warn = "Cảnh báo" in action_type or "Warn" in action_type or "Warning" in action_type
+        is_timeout = "Timeout" in action_type or "Aislamiento" in action_type or "Castigo" in action_type or "Exclusion" in action_type or "禁言" in action_type
+        action_label = "warn" if is_warn else ("timeout" if is_timeout else "other")
         key = (guild_id, "automod", action_label)
         self._stat_buffer[key] = self._stat_buffer.get(key, 0) + 1
 
     @commands.Cog.listener()
     async def on_ticket_action(self, guild: discord.Guild, user: discord.Member, action_type: str, ticket_name: str):
         guild_id = str(guild.id)
-        action_label = "open" if "Mở" in action_type else ("close" if "Đóng" in action_type else "other")
+        is_open = "Mở" in action_type or "Open" in action_type or "Created" in action_type
+        is_close = "Đóng" in action_type or "Close" in action_type or "Deleted" in action_type
+        action_label = "open" if is_open else ("close" if is_close else "other")
         key = (guild_id, "ticket", action_label)
         self._stat_buffer[key] = self._stat_buffer.get(key, 0) + 1
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Stats(bot))
+

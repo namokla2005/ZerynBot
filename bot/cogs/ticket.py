@@ -12,6 +12,7 @@ from discord.ext import commands
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import database as db
+from i18n import tr
 
 log = logging.getLogger("BotV2.Ticket")
 
@@ -27,7 +28,8 @@ class Ticket(commands.Cog, name="Tickets"):
             return
         enabled = await db.async_is_module_enabled(str(ctx.guild.id), "tickets")
         if not enabled:
-            await ctx.send("❌ Module **Tickets** đã bị tắt trong server này!")
+            settings = await db.async_get_guild_settings(str(ctx.guild.id))
+            await ctx.send(tr(settings, "ticket.disabled"))
             raise commands.CommandError("Module disabled")
 
     @commands.Cog.listener()
@@ -49,10 +51,14 @@ class Ticket(commands.Cog, name="Tickets"):
             guild = interaction.guild
             if not guild:
                 return
-            enabled = await db.async_is_module_enabled(str(guild.id), "tickets")
+            
+            guild_id = str(guild.id)
+            settings = await db.async_get_guild_settings(guild_id)
+
+            enabled = await db.async_is_module_enabled(guild_id, "tickets")
             if not enabled:
                 await interaction.response.send_message(
-                    "❌ Tính năng Ticket đã bị tắt trong server này!", ephemeral=True
+                    tr(settings, "ticket.disabled"), ephemeral=True
                 )
                 return
 
@@ -62,7 +68,7 @@ class Ticket(commands.Cog, name="Tickets"):
             btn_data = await db.async_get_ticket_button(btn_id)
             if not btn_data:
                 await interaction.followup.send(
-                    "❌ Nút bấm này không còn khả dụng (đã bị xóa trên dashboard)!", ephemeral=True
+                    tr(settings, "ticket.btn_unavailable"), ephemeral=True
                 )
                 return
 
@@ -70,7 +76,7 @@ class Ticket(commands.Cog, name="Tickets"):
             category = guild.get_channel(category_id)
             if not category or not isinstance(category, discord.CategoryChannel):
                 await interaction.followup.send(
-                    "❌ Thất bại: Không tìm thấy danh mục để tạo kênh hỗ trợ!", ephemeral=True
+                    tr(settings, "ticket.category_not_found"), ephemeral=True
                 )
                 return
 
@@ -84,7 +90,7 @@ class Ticket(commands.Cog, name="Tickets"):
             )
             if existing:
                 await interaction.followup.send(
-                    f"❌ Bạn đã có một ticket đang mở tại {existing.mention}!", ephemeral=True
+                    tr(settings, "ticket.already_exists", ch=existing.mention), ephemeral=True
                 )
                 return
 
@@ -123,31 +129,29 @@ class Ticket(commands.Cog, name="Tickets"):
                     name=channel_name,
                     category=category,
                     overwrites=overwrites,
-                    topic=f"Ticket của {member.name} (ID: {member.id}) | Hỗ trợ: {btn_data['label']}"
+                    topic=f"Ticket: {member.name} (ID: {member.id}) | {btn_data['label']}"
                 )
             except Exception as e:
                 await interaction.followup.send(
-                    f"❌ Không thể tạo kênh ticket: {e}", ephemeral=True
+                    f"❌ {e}", ephemeral=True
                 )
                 return
 
             # Send welcome embed inside the ticket channel
             embed = discord.Embed(
-                title=f"🎫 Ticket: {btn_data['label']}",
-                description=f"Xin chào {member.mention}! Cảm ơn bạn đã gửi yêu cầu hỗ trợ.\n"
-                            f"Vui lòng nhập chi tiết câu hỏi hoặc yêu cầu của bạn dưới đây.\n"
-                            f"Đội ngũ quản trị và hỗ trợ sẽ phản hồi sớm nhất có thể.",
+                title=tr(settings, "ticket.welcome_title", label=btn_data['label']),
+                description=tr(settings, "ticket.welcome_desc", user=member.mention),
                 color=0x5865F2
             )
-            embed.add_field(name="👤 Người tạo", value=member.mention, inline=True)
+            embed.add_field(name=tr(settings, "ticket.creator"), value=member.mention, inline=True)
             if support_roles:
-                embed.add_field(name="🛡️ Đội hỗ trợ", value=", ".join(r.mention for r in support_roles), inline=True)
-            embed.set_footer(text="Nhấn nút màu đỏ bên dưới khi bạn đã trao đổi xong.")
+                embed.add_field(name=tr(settings, "ticket.support_team"), value=", ".join(r.mention for r in support_roles), inline=True)
+            embed.set_footer(text=tr(settings, "ticket.footer"))
 
             # Custom close view with static custom_id
             close_view = discord.ui.View(timeout=None)
             close_btn = discord.ui.Button(
-                label="🔒 Đóng Ticket",
+                label=tr(settings, "ticket.close_btn"),
                 style=discord.ButtonStyle.danger,
                 custom_id="ticket:close"
             )
@@ -159,7 +163,7 @@ class Ticket(commands.Cog, name="Tickets"):
 
             await ticket_channel.send(content=mentions, embed=embed, view=close_view)
             await interaction.followup.send(
-                f"✅ Đã tạo ticket thành công tại {ticket_channel.mention}!", ephemeral=True
+                tr(settings, "ticket.created_success", ch=ticket_channel.mention), ephemeral=True
             )
             
             self.bot.dispatch('ticket_action', guild, member, "Mở", channel_name)
@@ -173,10 +177,12 @@ class Ticket(commands.Cog, name="Tickets"):
             if not guild or not channel:
                 return
 
+            settings = await db.async_get_guild_settings(str(guild.id))
+
             # Verify it is a ticket channel
             if not channel.name.startswith("ticket-"):
                 await interaction.followup.send(
-                    "❌ Lệnh này chỉ thực hiện được trong kênh ticket!", ephemeral=True
+                    tr(settings, "ticket.only_in_ticket_ch"), ephemeral=True
                 )
                 return
 
@@ -192,12 +198,12 @@ class Ticket(commands.Cog, name="Tickets"):
 
             if not is_allowed:
                 await interaction.followup.send(
-                    "❌ Bạn không có quyền đóng ticket này!", ephemeral=True
+                    tr(settings, "ticket.no_close_perm"), ephemeral=True
                 )
                 return
 
             await channel.send(
-                "🔒 **Kênh hỗ trợ này sẽ bị đóng và xóa hoàn toàn sau 5 giây...**"
+                tr(settings, "ticket.closing_notice")
             )
             
             self.bot.dispatch('ticket_action', guild, member, "Đóng/Xóa", channel.name)
@@ -211,3 +217,4 @@ class Ticket(commands.Cog, name="Tickets"):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Ticket(bot))
+
