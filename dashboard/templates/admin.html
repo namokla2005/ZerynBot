@@ -380,6 +380,15 @@
     {% endfor %}
   };
   const TOTAL_SERVERS = {{ total_servers }};
+  window.I18N_A = {
+    selected: "{{ t('admin.selected_count', count='${count}') }}",
+    sendToAll: "Send to ALL ${TOTAL_SERVERS} active servers.",
+    sendToServer: "Send to server: ",
+    sendToCount: "Send to ${count} selected servers.",
+    cannotInvite: "{{ t('admin.invite_error_default') }}",
+    apiError: "API Connection error: ",
+    copied: "Copied invite link: "
+  };
 
   function switchTab(tab, el) {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
@@ -395,17 +404,6 @@
       row.style.display = match ? '' : 'none';
     });
   }
-
-  function updateSelected() {
-  window.I18N_A = {
-    selected: "{{ t('admin.selected_count', count='${count}') }}",
-    sendToAll: "Send to ALL ${TOTAL_SERVERS} active servers.",
-    sendToServer: "Send to server: ",
-    sendToCount: "Send to ${count} selected servers.",
-    cannotInvite: "{{ t('admin.invite_error_default') }}",
-    apiError: "API Connection error: ",
-    copied: "Copied invite link: "
-  };
 
   function updateSelected() {
     const checks = document.querySelectorAll('.guild-check:checked');
