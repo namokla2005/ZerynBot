@@ -25,7 +25,7 @@ log = logging.getLogger("BotV2")
 
 # ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
 # Thêm -headers Referer/Origin cho googlevideo → giảm 'Connection reset by peer' và 403
-FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -headers "Referer: https://www.youtube.com/\r\nOrigin: https://www.youtube.com\r\n"'
+FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -headers "Referer: https://www.youtube.com/\r\nOrigin: https://www.youtube.com"'
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
@@ -72,12 +72,9 @@ YDL_OPTS = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
-    # ── Cho live stream YouTube (tránh 403) ──────────────────────────────────
-    # Dùng client android + web_safari: ít bị YouTube chặn hơn web mặc định.
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "web_safari"],
-            "player_skip": ["webpage"],  # bỏ fetch webpage → nhanh hơn
+            "player_client": ["android", "web_creator", "web"],
         }
     },
     "nocheckcertificate": True,
@@ -158,19 +155,44 @@ async def extract_info(query: str) -> dict | None:
 
 
 def _get_stream_url(info: dict) -> str | None:
-    """Lấy URL stream tốt nhất từ info dict."""
+    """Lấy URL stream tốt nhất từ info dict (lọc bỏ hoàn toàn các file ảnh storyboard/mhtml)."""
     if not info:
         return None
-    # Ưu tiên opus/webm (không cần transcode)
+
+    valid_formats = []
     for f in info.get("formats", []):
-        if f.get("acodec") == "opus" and f.get("vcodec") == "none" and f.get("url"):
+        url = f.get("url", "")
+        ext = (f.get("ext") or "").lower()
+        acodec = (f.get("acodec") or "").lower()
+        
+        # Bỏ các format storyboard / file ảnh
+        if acodec == "none" or ext in ["mhtml", "jpg", "jpeg", "png", "webp"]:
+            continue
+        if "storyboard" in url or "/sb/" in url:
+            continue
+        if url.startswith("http"):
+            valid_formats.append(f)
+
+    # 1. Ưu tiên opus audio-only
+    for f in valid_formats:
+        if f.get("acodec") == "opus" and f.get("vcodec") == "none":
             return f["url"]
-    # Fallback: audio-only bất kỳ
-    for f in info.get("formats", []):
-        if f.get("vcodec") == "none" and f.get("url"):
+
+    # 2. Ưu tiên audio-only bất kỳ (m4a, webm, mp3, aac)
+    for f in valid_formats:
+        if f.get("vcodec") == "none":
             return f["url"]
-    # Cuối cùng: url trực tiếp
-    return info.get("url")
+
+    # 3. Fallback: format có chứa audio bất kỳ (ví dụ format 18 / mp4)
+    if valid_formats:
+        return valid_formats[-1]["url"]
+
+    # 4. Trực tiếp info.get("url") nếu hợp lệ
+    direct_url = info.get("url")
+    if direct_url and direct_url.startswith("http") and not any(x in direct_url for x in ["storyboard", ".jpg", ".png", ".mhtml"]):
+        return direct_url
+
+    return None
 
 
 def _get_best_thumbnail(info: dict) -> str:
