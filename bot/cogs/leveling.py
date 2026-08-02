@@ -291,20 +291,20 @@ class Leveling(commands.Cog):
     async def xp(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
             s = await async_get_guild_settings(str(ctx.guild.id))
-            await ctx.send(tr(s, "music.xp_usage"))
+            await ctx.send(tr(s, "leveling.xp_usage"))
 
     @xp.command(name="set", description="Thiết lập XP cho một người dùng")
     @app_commands.describe(member="Người dùng", amount="Số lượng XP mới")
     async def xp_set(self, ctx: commands.Context, member: discord.Member, amount: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         if amount < 0:
-            return await ctx.send(tr(s, "music.xp_negative"))
+            return await ctx.send(tr(s, "leveling.xp_negative"))
             
         guild_id = str(ctx.guild.id)
         new_level = calc_level_from_xp(amount)
         await async_update_user_xp(guild_id, str(member.id), amount, new_level)
         
-        await ctx.send(tr(s, "music.xp_set_success", mention=member.mention, amount=amount, level=new_level))
+        await ctx.send(tr(s, "leveling.xp_set_success", mention=member.mention, amount=amount, level=new_level))
 
     @xp.command(name="reset", description="Khôi phục XP của một người dùng về 0")
     @app_commands.describe(member="Người dùng")
@@ -312,7 +312,7 @@ class Leveling(commands.Cog):
         s = await async_get_guild_settings(str(ctx.guild.id))
         guild_id = str(ctx.guild.id)
         await async_reset_user_xp(guild_id, str(member.id))
-        await ctx.send(tr(s, "music.xp_reset_success", mention=member.mention))
+        await ctx.send(tr(s, "leveling.xp_reset_success", mention=member.mention))
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Leveling(bot))

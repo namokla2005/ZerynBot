@@ -96,10 +96,8 @@ class Giveaway(commands.Cog):
                     
                 embed = interaction.message.embeds[0]
                 part_title = tr(g_settings, "giveaway.part_cnt")
-                for i, field in enumerate(embed.fields):
-                    if "Số người tham gia" in field.name or "Participants" in field.name or "参与人数" in field.name:
-                        embed.set_field_at(i, name=part_title, value=tr(g_settings, "giveaway.part_val", cnt=len(participants)), inline=True)
-                        break
+                if len(embed.fields) > 2:
+                    embed.set_field_at(2, name=part_title, value=tr(g_settings, "giveaway.part_val", cnt=len(participants)), inline=True)
                 try:
                     await interaction.message.edit(embed=embed)
                 except:
@@ -181,7 +179,7 @@ class Giveaway(commands.Cog):
         embed.color = discord.Color.dark_gray()
         
         for i, field in enumerate(embed.fields):
-            if "Kết thúc" in field.name or "Ends" in field.name or "结束" in field.name:
+            if "Kết thúc" in field.name or "Ends" in field.name or "结束" in field.name or field.name == tr(s, "giveaway.ends_label"):
                 embed.set_field_at(i, name=tr(s, "giveaway.ended_at_label"), value=f"<t:{gw['end_at']}:f>", inline=False)
                 break
                 
@@ -211,6 +209,9 @@ class Giveaway(commands.Cog):
         now = time.time()
         for gw in active_gws:
             if gw["end_at"] <= now:
+                gw_fresh = await async_get_giveaway(gw["message_id"])
+                if gw_fresh and gw_fresh.get("ended") == 1:
+                    continue
                 await async_update_giveaway(gw["message_id"], ended=1)
                 await self.roll_giveaway(gw)
 
@@ -240,10 +241,8 @@ class Giveaway(commands.Cog):
                     await interaction.response.send_message(tr(g_settings, "giveaway.join_msg"), ephemeral=True)
                 embed = interaction.message.embeds[0]
                 part_title = tr(g_settings, "giveaway.part_cnt")
-                for i, field in enumerate(embed.fields):
-                    if "Số người tham gia" in field.name or "Participants" in field.name or "参与人数" in field.name:
-                        embed.set_field_at(i, name=part_title, value=tr(g_settings, "giveaway.part_val", cnt=len(participants)), inline=True)
-                        break
+                if len(embed.fields) > 2:
+                    embed.set_field_at(2, name=part_title, value=tr(g_settings, "giveaway.part_val", cnt=len(participants)), inline=True)
                 try:
                     await interaction.message.edit(embed=embed)
                 except:

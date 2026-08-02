@@ -10,37 +10,36 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings
 from i18n import tr
-
-
 class HelpSelect(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, ctx: commands.Context):
+    def __init__(self, bot: commands.Bot, ctx: commands.Context, settings: dict):
         self.bot = bot
         self.ctx = ctx
+        self.settings = settings
         options = [
-            discord.SelectOption(label="Trang chủ", description="Xem giới thiệu chung", emoji="🏠", value="home"),
-            discord.SelectOption(label="Tiện ích", description="Các lệnh tiện ích cơ bản", emoji="⚙️", value="utility"),
-            discord.SelectOption(label="Thông tin", description="Thông tin server, người dùng", emoji="ℹ️", value="info"),
-            discord.SelectOption(label="Âm nhạc", description="Phát nhạc và quản lý hàng chờ", emoji="🎵", value="music"),
-            discord.SelectOption(label="Cài đặt (Admin)", description="Quản trị viên và cấu hình", emoji="🛠️", value="admin")
+            discord.SelectOption(label=tr(settings, "help.home_label"), description=tr(settings, "help.home_desc"), emoji="🏠", value="home"),
+            discord.SelectOption(label=tr(settings, "help.utility_label"), description=tr(settings, "help.utility_desc"), emoji="⚙️", value="utility"),
+            discord.SelectOption(label=tr(settings, "help.info_label"), description=tr(settings, "help.info_desc"), emoji="ℹ️", value="info"),
+            discord.SelectOption(label=tr(settings, "help.music_label"), description=tr(settings, "help.music_desc"), emoji="🎵", value="music"),
+            discord.SelectOption(label=tr(settings, "help.admin_label"), description=tr(settings, "help.admin_desc"), emoji="🛠️", value="admin")
         ]
-        super().__init__(placeholder="Chọn danh mục lệnh để xem chi tiết...", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=tr(settings, "help.placeholder"), min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user != self.ctx.author:
-            return await interaction.response.send_message("❌ Bạn không có quyền thao tác menu này!", ephemeral=True)
+            return await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
         
         embed = discord.Embed(color=config.COLOR_INFO, timestamp=datetime.now(timezone.utc))
-        embed.set_footer(text=f"Yêu cầu bởi {self.ctx.author.display_name}", icon_url=self.ctx.author.display_avatar.url)
+        embed.set_footer(text=tr(self.settings, "common.requested_by", user=self.ctx.author.display_name), icon_url=self.ctx.author.display_avatar.url)
         
         val = self.values[0]
         if val == "home":
-            embed.title = "📖 Danh sách lệnh"
-            embed.description = "Các lệnh dùng bằng cách Tag bot hoặc dùng tiền tố `/` (VD: `@ThienKhong play ...` hoặc `/play ...`)"
+            embed.title = tr(self.settings, "help.home_title")
+            embed.description = tr(self.settings, "help.description")
             if self.bot.user.display_avatar:
                 embed.set_thumbnail(url=self.bot.user.display_avatar.url)
-            embed.add_field(name="📢 Hướng dẫn", value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động & Nâng cao:**\n🎉 **Welcome & Goodbye:** Lời chào, ảnh nền và embed đẹp mắt.\n🪪 **Auto Roles:** Tự động gắn role cho thành viên/bot mới.\n⭐ **Leveling & XP:** Tích luỹ kinh nghiệm, tự động thăng cấp và nhận role thưởng.\n🎵 **Music:** Phát nhạc YouTube, Lofi, Playlist, Autoplay chất lượng cao.\n🎫 **Tickets:** Tạo hệ thống hỗ trợ với menu trực quan.\n✨ **Reaction Roles:** Gắn role bằng cách thả cảm xúc vào tin nhắn.\n🛡️ **Automods:** Chống spam, link độc hại, từ ngữ cấm.\n📝 **Logging:** Ghi nhận mọi hoạt động sửa/xoá tin nhắn, role, kênh...\n🎁 **Giveaways:** Tạo sự kiện tặng quà tự động quay thưởng.", inline=False)
+            embed.add_field(name=tr(self.settings, "help.guide_name"), value=tr(self.settings, "help.guide_value"), inline=False)
         elif val == "utility":
-            embed.title = "⚙️ Tiện ích"
+            embed.title = tr(self.settings, "help.utility_title")
             embed.description = (
                 "`/ping` — Kiểm tra độ trễ kết nối của bot\n"
                 "`/membercount` — Thống kê số lượng thành viên và bot trong server\n"
@@ -50,7 +49,7 @@ class HelpSelect(discord.ui.Select):
                 "`/choose [opt1, opt2]` — Bot sẽ chọn ngẫu nhiên giúp bạn"
             )
         elif val == "info":
-            embed.title = "ℹ️ Thông tin"
+            embed.title = tr(self.settings, "help.info_title")
             embed.description = (
                 "`/serverinfo` — Hiển thị thông tin chi tiết về server\n"
                 "`/userinfo [@user]` — Hiển thị thông tin chi tiết về người dùng\n"
@@ -60,7 +59,7 @@ class HelpSelect(discord.ui.Select):
                 "`/channelinfo [#channel]` — Hiển thị thông tin về một Kênh"
             )
         elif val == "music":
-            embed.title = "🎵 Âm nhạc"
+            embed.title = tr(self.settings, "help.music_title")
             embed.description = (
                 "`/join` — Bot vào kênh voice của bạn\n"
                 "`/leave` — Bot rời kênh voice và xóa hàng chờ\n"
@@ -80,7 +79,7 @@ class HelpSelect(discord.ui.Select):
                 "`/playlist removesong [tên]` — Xóa một bài hát khỏi playlist"
             )
         elif val == "admin":
-            embed.title = "🛠️ Cài đặt (Admin)"
+            embed.title = tr(self.settings, "help.admin_title")
             embed.description = (
                 "`config` — Xem cấu hình hiện tại của server và link dashboard (Dùng text hoặc tag bot)\n"
                 "`/reactionroles` — Link cấu hình Reaction Roles trên Dashboard\n"
@@ -94,12 +93,13 @@ class HelpSelect(discord.ui.Select):
 
 
 class HelpView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, ctx: commands.Context):
+    def __init__(self, bot: commands.Bot, ctx: commands.Context, settings: dict):
         super().__init__(timeout=180)
         self.bot = bot
         self.ctx = ctx
+        self.settings = settings
         self.message = None
-        self.add_item(HelpSelect(bot, ctx))
+        self.add_item(HelpSelect(bot, ctx, settings))
         
         self.add_item(discord.ui.Button(label="Join Support Server", style=discord.ButtonStyle.link, url="https://discord.gg/VPybhdNbXC", emoji="💬"))
         self.add_item(discord.ui.Button(label="View Dashboard", style=discord.ButtonStyle.link, url="https://zerynbot.id.vn", emoji="🌐"))
@@ -124,7 +124,8 @@ class Utility(commands.Cog):
         from database import async_is_module_enabled
         enabled = await async_is_module_enabled(str(ctx.guild.id), "utility")
         if not enabled:
-            await ctx.send("❌ Module **Utility** đã bị tắt trong server này!")
+            s = await async_get_guild_settings(str(ctx.guild.id))
+            await ctx.send(tr(s, "common.module_disabled", module="Utility"))
             raise commands.CommandError("Module disabled")
 
     # ─── ping ──────────────────────────────────────────────────────────────────
@@ -204,11 +205,11 @@ class Utility(commands.Cog):
         embed.add_field(name=f"📊 {tr(settings, 'utility.membercount_total')}",  value=f"**{total}**", inline=True)
         embed.add_field(name=f"👤 {tr(settings, 'utility.membercount_humans')}", value=f"**{humans}** ({human_pct}%)", inline=True)
         embed.add_field(name=f"🤖 {tr(settings, 'utility.membercount_bots')}",   value=f"**{bots}** ({bot_pct}%)", inline=True)
-        embed.add_field(name="📈 Tỉ lệ", value=progress, inline=False)
-        embed.add_field(name="🟢 Online", value=f"**{online}**",  inline=True)
-        embed.add_field(name="🌙 Idle",   value=f"**{idle}**",    inline=True)
-        embed.add_field(name="🔴 DND",    value=f"**{dnd}**",     inline=True)
-        embed.add_field(name="⚫ Offline", value=f"**{offline}**", inline=True)
+        embed.add_field(name=f"{tr(settings, 'utility.membercount_ratio')}", value=progress, inline=False)
+        embed.add_field(name=f"{tr(settings, 'utility.membercount_online')}", value=f"**{online}**",  inline=True)
+        embed.add_field(name=f"{tr(settings, 'utility.membercount_idle')}",   value=f"**{idle}**",    inline=True)
+        embed.add_field(name=f"{tr(settings, 'utility.membercount_dnd')}",    value=f"**{dnd}**",     inline=True)
+        embed.add_field(name=f"{tr(settings, 'utility.membercount_offline')}", value=f"**{offline}**", inline=True)
         embed.set_footer(
             text=tr(settings, "common.requested_by", user=ctx.author.display_name),
             icon_url=ctx.author.display_avatar.url,
@@ -218,9 +219,10 @@ class Utility(commands.Cog):
     # ─── help ──────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="help", description="Danh sách tất cả các lệnh của bot")
     async def help_cmd(self, ctx: commands.Context):
+        settings = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         embed = discord.Embed(
-            title="📖 Danh sách lệnh",
-            description="Các lệnh dùng bằng cách Tag bot hoặc dùng tiền tố `/` (VD: `@ThienKhong play ...` hoặc `/play ...`)",
+            title=tr(settings, "help.title"),
+            description=tr(settings, "help.description"),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc),
         )
@@ -228,16 +230,16 @@ class Utility(commands.Cog):
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
         embed.add_field(
-            name="📢 Hướng dẫn",
-            value="Vui lòng chọn danh mục ở menu bên dưới để xem chi tiết các lệnh.\n\n**Tính năng tự động & Nâng cao:**\n🎉 **Welcome & Goodbye:** Lời chào, ảnh nền và embed đẹp mắt.\n🪪 **Auto Roles:** Tự động gắn role cho thành viên/bot mới.\n⭐ **Leveling & XP:** Tích luỹ kinh nghiệm, tự động thăng cấp và nhận role thưởng.\n🎵 **Music:** Phát nhạc YouTube, Lofi, Playlist, Autoplay chất lượng cao.\n🎫 **Tickets:** Tạo hệ thống hỗ trợ với menu trực quan.\n✨ **Reaction Roles:** Gắn role bằng cách thả cảm xúc vào tin nhắn.\n🛡️ **Automods:** Chống spam, link độc hại, từ ngữ cấm.\n📝 **Logging:** Ghi nhận mọi hoạt động sửa/xoá tin nhắn, role, kênh...\n🎁 **Giveaways:** Tạo sự kiện tặng quà tự động quay thưởng.",
+            name=tr(settings, "help.guide_name"),
+            value=tr(settings, "help.guide_value"),
             inline=False,
         )
         embed.set_footer(
-            text=f"Yêu cầu bởi {ctx.author.display_name}",
+            text=tr(settings, "common.requested_by", user=ctx.author.display_name),
             icon_url=ctx.author.display_avatar.url,
         )
 
-        view = HelpView(self.bot, ctx)
+        view = HelpView(self.bot, ctx, settings)
         view.message = await ctx.send(embed=embed, view=view)
 
     # ─── poll ──────────────────────────────────────────────────────────────────
