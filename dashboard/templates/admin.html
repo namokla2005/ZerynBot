@@ -646,6 +646,14 @@
       const term = document.getElementById('terminalOutput');
       if (term.lastChild) term.removeChild(term.lastChild);
 
+      if (data.cwd) {
+        const parts = data.cwd.split(/[\\/]/).filter(Boolean);
+        const folderName = parts.length > 0 ? parts[parts.length - 1] : '~';
+        document.querySelectorAll('.term-prompt').forEach(el => {
+          el.textContent = `root@zerynbot:${folderName}#`;
+        });
+      }
+
       if (data.ok) {
         appendTerminalOutput(command, data.output, data.returncode !== 0);
       } else {

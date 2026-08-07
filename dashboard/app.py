@@ -1422,35 +1422,65 @@ def admin_broadcast():
 @owner_required
 def admin_system_terminal():
     """Chạy lệnh shell terminal trực tiếp trên máy chủ host (Termux / Linux / Windows)."""
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) or request.form or {}
     command = data.get("command", "").strip()
 
     if not command:
-        return jsonify({"ok": False, "output": "⚠️ Lệnh không được để trống!", "returncode": 1}), 400
+        return jsonify({"ok": False, "output": "⚠️ Lệnh không được để trống!", "returncode": 1}), 200
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    current_cwd = session.get("term_cwd")
+    if not current_cwd or not os.path.isdir(current_cwd):
+        current_cwd = base_dir
+
+    # Handle directory navigation (cd command)
+    if command == "cd" or command.startswith("cd ") or command.startswith("cd\t"):
+        target = command[2:].strip()
+        if not target or target in ("~", "/"):
+            new_dir = base_dir
+        else:
+            new_dir = os.path.abspath(os.path.join(current_cwd, target))
+
+        if os.path.isdir(new_dir):
+            session["term_cwd"] = new_dir
+            return jsonify({
+                "ok": True,
+                "command": command,
+                "output": f"📂 Đã chuyển thư mục làm việc sang: {new_dir}",
+                "cwd": new_dir,
+                "returncode": 0
+            }), 200
+        else:
+            return jsonify({
+                "ok": False,
+                "command": command,
+                "output": f"bash: cd: {target}: No such file or directory",
+                "cwd": current_cwd,
+                "returncode": 1
+            }), 200
 
     # Shortcut aliases
     if command.lower() in ("restart", "reset"):
-        command = "python main.py --restart"
+        command = f"{sys.executable} main.py --restart"
     elif command.lower() in ("status", "info"):
-        command = "python main.py --status"
+        command = f"{sys.executable} main.py --status"
     elif command.lower() in ("pull", "update"):
         command = "git pull"
 
     try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         res = subprocess.run(
             command,
             shell=True,
             capture_output=True,
             text=True,
-            cwd=base_dir,
+            cwd=current_cwd,
             timeout=30,
             encoding="utf-8",
             errors="replace"
         )
-        output = res.stdout or ""
+        output = (res.stdout or "").replace("\r\n", "\n")
         if res.stderr:
-            output += ("\n" if output else "") + res.stderr
+            output += ("\n" if output else "") + res.stderr.replace("\r\n", "\n")
         if not output.strip():
             output = "(Lệnh đã thực thi thành công, không có output trả về)"
 
@@ -1458,12 +1488,25 @@ def admin_system_terminal():
             "ok": True,
             "command": command,
             "output": output,
+            "cwd": current_cwd,
             "returncode": res.returncode
-        })
+        }), 200
     except subprocess.TimeoutExpired:
-        return jsonify({"ok": False, "command": command, "output": "⏱️ Lệnh thực thi quá thời hạn cho phép (Timeout 30s)!", "returncode": -1}), 504
+        return jsonify({
+            "ok": False,
+            "command": command,
+            "output": "⏱️ Lệnh thực thi quá thời hạn cho phép (Timeout 30s)!",
+            "cwd": current_cwd,
+            "returncode": -1
+        }), 200
     except Exception as e:
-        return jsonify({"ok": False, "command": command, "output": f"❌ Lỗi thực thi lệnh: {e}", "returncode": -1}), 500
+        return jsonify({
+            "ok": False,
+            "command": command,
+            "output": f"❌ Lỗi thực thi lệnh: {e}",
+            "cwd": current_cwd,
+            "returncode": -1
+        }), 200
 
 
 @app.route("/admin/system/git-pull", methods=["POST"])
