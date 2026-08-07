@@ -363,3 +363,4 @@ These are known past bugs and traps that **MUST** be avoided when editing this c
 | 7 | Using sync DB call (`get_guild_settings`) inside an async bot cog | Always use `await async_get_guild_settings(...)` in bot code |
 | 8 | Forgetting to call `await cache.adelete(...)` after writing new settings | Old settings will be served from Redis cache (TTL = 300s) |
 | 9 | Defining `window.I18N_*` inside a function body in admin.html | Define it at top-level script scope so all modal functions can access it |
+| 10 | Executing interactive TTY commands (`nano`, `vim`, `top`) in Web Console | Use non-interactive commands like `cat <file>` to view file contents |

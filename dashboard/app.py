@@ -4,6 +4,13 @@ app.py — Flask dashboard for Discord Bot v2.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Force UTF-8 encoding on stdout/stderr for Flask (prevents cp1252 UnicodeEncodeError on Windows)
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except AttributeError:
+    pass
+
 from flask import Flask, render_template, redirect, url_for, session, request, flash, jsonify
 from datetime import datetime, timezone
 import json
@@ -1459,6 +1466,20 @@ def admin_system_terminal():
                 "returncode": 1
             }), 200
 
+    # Block interactive TTY programs that hang or crash non-interactive HTTP subprocesses
+    interactive_cmds = ("nano", "vim", "vi", "top", "htop", "less", "more", "gdb")
+    cmd_words = command.split()
+    first_cmd = cmd_words[0].lower() if cmd_words else ""
+    if first_cmd in interactive_cmds or command.strip() == "python":
+        target_file = cmd_words[1] if len(cmd_words) > 1 else ".env"
+        return jsonify({
+            "ok": False,
+            "command": command,
+            "output": f"⚠️ '{first_cmd}' là trình chỉnh sửa / chương trình tương tác TTY nên không thể chạy trực tiếp trong Web Console.\n💡 Gợi ý: Dùng lệnh 'cat {target_file}' để xem nội dung file trên màn hình terminal!",
+            "cwd": current_cwd,
+            "returncode": 1
+        }), 200
+
     # Shortcut aliases
     if command.lower() in ("restart", "reset"):
         command = f"{sys.executable} main.py --restart"
@@ -1500,10 +1521,11 @@ def admin_system_terminal():
             "returncode": -1
         }), 200
     except Exception as e:
+        err_msg = str(e)
         return jsonify({
             "ok": False,
             "command": command,
-            "output": f"❌ Lỗi thực thi lệnh: {e}",
+            "output": f"❌ Lỗi thực thi lệnh: {err_msg}",
             "cwd": current_cwd,
             "returncode": -1
         }), 200
