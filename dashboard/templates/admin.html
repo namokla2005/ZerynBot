@@ -55,9 +55,28 @@
     .guild-icon-sm-placeholder{width:36px;height:36px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,#3a3d44,#52555d);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;}
     .guild-name-cell{font-weight:600;color:var(--text-primary);}
     .guild-id-cell{font-size:.78rem;color:var(--text-muted);margin-top:2px;font-family:monospace;}
-    .member-count{color:var(--text-secondary);font-size:.85rem;}
-    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.75rem;font-weight:600;}
     .badge-active{background:rgba(67,181,129,.15);color:#43b581;border:1px solid rgba(67,181,129,.3);}
+    .terminal-box{background:#0c0c10;border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.4);font-family:'Consolas','Fira Code','Monaco',monospace;}
+    .terminal-header{background:#14141c;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);}
+    .terminal-dots{display:flex;gap:6px;}
+    .terminal-dots .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+    .terminal-dots .dot.red{background:#ff5f56;}
+    .terminal-dots .dot.yellow{background:#ffbd2e;}
+    .terminal-dots .dot.green{background:#27c93f;}
+    .terminal-title-text{font-size:.8rem;color:var(--text-muted);letter-spacing:.5px;}
+    .terminal-status-badge{font-size:.75rem;color:#43b581;display:flex;align-items:center;gap:6px;}
+    .status-indicator{width:8px;height:8px;border-radius:50%;background:#43b581;box-shadow:0 0 8px #43b581;animation:pulse 2s infinite;}
+    @keyframes pulse{0%{opacity:.4;}50%{opacity:1;}100%{opacity:.4;}}
+    .terminal-body{padding:14px;height:380px;overflow-y:auto;font-size:.88rem;line-height:1.5;color:#e0e0e0;white-space:pre-wrap;word-break:break-word;}
+    .terminal-input-bar{display:flex;align-items:center;padding:8px 12px;background:#111118;border-top:1px solid rgba(255,255,255,.08);gap:10px;}
+    .term-prompt{color:#00ff66;font-weight:700;font-size:.88rem;user-select:none;}
+    #terminalCmdInput{flex:1;background:transparent;border:none;outline:none;color:#ffffff;font-family:inherit;font-size:.9rem;}
+    .btn-term-send{background:#5865f2;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;transition:all .2s;}
+    .btn-term-send:hover{background:#4752c4;}
+    .term-green{color:#00ff66;}
+    .term-yellow{color:#fee75c;}
+    .term-red{color:#ed4245;}
+    .term-muted{color:#80848e;}
     .badge-black{background:rgba(240,71,71,.15);color:#f04747;border:1px solid rgba(240,71,71,.3);}
     .action-btns{display:flex;gap:6px;}
     .btn-icon{padding:6px 12px;border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;transition:var(--transition);display:flex;align-items:center;gap:5px;background:none;text-decoration:none;}
@@ -171,6 +190,9 @@
         <span style="background:rgba(240,71,71,.2);color:#f04747;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_blacklist }}</span>
         {% endif %}
       </button>
+      <button class="admin-tab" onclick="switchTab('terminal',this)">
+        <i class="bi bi-terminal-fill"></i> {{ t('admin.tab_terminal') }}
+      </button>
     </div>
 
     <div class="tab-panel active" id="panel-servers">
@@ -278,6 +300,59 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Panel 3: Terminal & System Control -->
+    <div class="tab-panel" id="panel-terminal">
+      <div class="server-table-wrap" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="server-table-title" style="font-size:1.15rem;">
+              <i class="bi bi-terminal-fill" style="color:#5865F2;"></i> {{ t('admin.terminal_title') }}
+            </div>
+            <div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px;">
+              {{ t('admin.terminal_sub') }}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn-icon" style="background:rgba(237,66,69,0.15);color:#ed4245;border:1px solid rgba(237,66,69,0.3);padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;" onclick="confirmResetSystem()">
+              <i class="bi bi-arrow-clockwise"></i> {{ t('admin.btn_reset') }}
+            </button>
+            <button type="button" class="btn-icon" style="background:rgba(87,242,135,0.15);color:#57f287;border:1px solid rgba(87,242,135,0.3);padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;" onclick="executeGitPull()">
+              <i class="bi bi-download"></i> {{ t('admin.btn_git_pull') }}
+            </button>
+            <button type="button" class="btn-icon" style="background:rgba(88,101,242,0.15);color:#5865f2;border:1px solid rgba(88,101,242,0.3);padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;" onclick="executeSystemStatus()">
+              <i class="bi bi-activity"></i> {{ t('admin.btn_status') }}
+            </button>
+            <button type="button" class="btn-icon" style="background:rgba(255,255,255,0.05);color:var(--text-muted);border:1px solid rgba(255,255,255,0.1);padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;" onclick="clearTerminalScreen()">
+              <i class="bi bi-trash3"></i> {{ t('admin.btn_clear_terminal') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="terminal-box">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="terminal-title-text">root@zerynbot:~ (Termux / Linux SSH)</div>
+            <div class="terminal-status-badge">
+              <span class="status-indicator"></span> Connected
+            </div>
+          </div>
+          <div class="terminal-body" id="terminalOutput"><span class="term-green">Terminal Ready...</span>
+<span class="term-muted">Connected to ZerynBot V2 Host System. Type commands or click action buttons above.</span></div>
+          <div class="terminal-input-bar">
+            <span class="term-prompt">root@zerynbot:~#</span>
+            <input type="text" id="terminalCmdInput" placeholder="{{ t('admin.terminal_placeholder') }}" autocomplete="off" onkeydown="handleTerminalKeyDown(event)">
+            <button type="button" class="btn-term-send" onclick="sendTerminalCommand()">
+              <i class="bi bi-send-fill"></i>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -501,6 +576,109 @@
     if (/^#[0-9A-Fa-f]{6}$/.test(input.value))
       document.getElementById('broadcastColorPicker').value = input.value;
   }
+
+  // Terminal Command History & Execution Logic
+  let termCmdHistory = [];
+  let termHistoryIndex = -1;
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function appendTerminalOutput(cmd, output, isError = false) {
+    const term = document.getElementById('terminalOutput');
+    const block = document.createElement('div');
+    block.style.marginBottom = '10px';
+
+    if (cmd) {
+      const cmdLine = document.createElement('div');
+      cmdLine.innerHTML = `<span class="term-prompt">root@zerynbot:~#</span> <span style="color:#ffffff;font-weight:600;">${escapeHtml(cmd)}</span>`;
+      block.appendChild(cmdLine);
+    }
+
+    const outLine = document.createElement('div');
+    outLine.className = isError ? 'term-red' : 'term-green';
+    outLine.textContent = output;
+    block.appendChild(outLine);
+
+    term.appendChild(block);
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function clearTerminalScreen() {
+    document.getElementById('terminalOutput').innerHTML = '<span class="term-green">Terminal Cleared. Ready for input...</span>';
+  }
+
+  function sendTerminalCommand(customCmd = null) {
+    const inputEl = document.getElementById('terminalCmdInput');
+    const command = (customCmd !== null ? customCmd : inputEl.value).trim();
+    if (!command) return;
+
+    if (customCmd === null) {
+      inputEl.value = '';
+      termCmdHistory.push(command);
+      termHistoryIndex = termCmdHistory.length;
+    }
+
+    appendTerminalOutput(command, '⏳ Running command...');
+
+    fetch('/admin/system/terminal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: command })
+    })
+    .then(res => res.json())
+    .then(data => {
+      const term = document.getElementById('terminalOutput');
+      if (term.lastChild) term.removeChild(term.lastChild);
+
+      if (data.ok) {
+        appendTerminalOutput(command, data.output, data.returncode !== 0);
+      } else {
+        appendTerminalOutput(command, data.output || 'Execution error', true);
+      }
+    })
+    .catch(err => {
+      const term = document.getElementById('terminalOutput');
+      if (term.lastChild) term.removeChild(term.lastChild);
+      appendTerminalOutput(command, 'API Error: ' + err, true);
+    });
+  }
+
+  function handleTerminalKeyDown(e) {
+    if (e.key === 'Enter') {
+      sendTerminalCommand();
+    } else if (e.key === 'ArrowUp') {
+      if (termCmdHistory.length > 0 && termHistoryIndex > 0) {
+        termHistoryIndex--;
+        document.getElementById('terminalCmdInput').value = termCmdHistory[termHistoryIndex];
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (termHistoryIndex < termCmdHistory.length - 1) {
+        termHistoryIndex++;
+        document.getElementById('terminalCmdInput').value = termCmdHistory[termHistoryIndex];
+      } else {
+        termHistoryIndex = termCmdHistory.length;
+        document.getElementById('terminalCmdInput').value = '';
+      }
+    }
+  }
+
+  function executeGitPull() {
+    sendTerminalCommand('git pull');
+  }
+
+  function executeSystemStatus() {
+    sendTerminalCommand('python main.py --status');
+  }
+
+  function confirmResetSystem() {
+    if (confirm("{{ t('admin.confirm_restart') }}")) {
+      sendTerminalCommand('python main.py --restart');
+    }
+  }
+
   document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); closeInviteModal(); } });
 </script>
 </body>

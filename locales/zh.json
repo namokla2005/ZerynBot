@@ -854,5 +854,13 @@
   "help.utility_cmds": "`/ping` — 检查机器人连接延迟\n`/membercount` — 服务器成员及机器人数量统计\n`/help` — 查看所有命令列表\n`/poll [问题]` — 发起快速投票\n`/roll [数字]` — 掷骰子 (默认 1-100)\n`/choose [选项1, 选项2]` — 随机帮助选择",
   "help.info_cmds": "`/serverinfo` — 显示服务器详细信息\n`/userinfo [@用户]` — 显示用户详细信息\n`/avatar [@用户]` — 显示用户高清头像\n`/botinfo` — 显示机器人技术参数\n`/roleinfo [@身份组]` — 显示身份组详细信息\n`/channelinfo [#频道]` — 显示频道详细信息",
   "help.music_cmds": "`/join` — 机器人加入语音频道\n`/leave` — 离开语音频道并清空播放队列\n`/play [名称/链接]` — 播放 YouTube 音乐\n`/search [名称]` — 搜索音乐并从5个结果中选择\n`/stop` — 停止播放并清空队列\n`/resume` — 恢复暂停的音乐\n`/loop` — 切换单曲循环模式\n`/autoplay` — 切换自动续播模式\n`/replay` — 从头重新播放当前歌曲\n`/lofi` — 播放 24/7 Lofi Girl 电台\n`/playlist name [名称]` — 创建新歌单\n`/playlist show [名称]` — 显示歌单内的歌曲\n`/playlist add [名称] [歌曲]` — 添加歌曲到歌单\n`/playlist play [名称]` — 播放整个歌单\n`/playlist remove [名称]` — 删除歌单\n`/playlist removesong [名称]` — 从歌单中移除歌曲",
-  "help.admin_cmds": "`config` — 查看当前服务器配置及控制面板链接\n`/reactionroles` — 反应身份组设置链接\n`/ticket` — 工单系统设置链接\n`/autorole show` — 查看自动身份组配置\n`/automods show` — 查看自动审核配置\n`/giveaway start/end/reroll` — 抽奖管理"
+  "help.admin_cmds": "`config` — 查看当前服务器配置及控制面板链接\n`/reactionroles` — 反应身份组设置链接\n`/ticket` — 工单系统设置链接\n`/autorole show` — 查看自动身份组配置\n`/automods show` — 查看自动审核配置\n`/giveaway start/end/reroll` — 抽奖管理",
+  "admin.tab_terminal": "终端与系统",
+  "admin.terminal_title": "💻 机器人终端与 Termux SSH 控制",
+  "admin.terminal_sub": "直接从浏览器执行终端命令、Git Pull 代码更新并重启机器人。",
+  "admin.btn_reset": "🔄 重启机器人系统",
+  "admin.btn_git_pull": "📥 Git Pull 代码更新",
+  "admin.btn_status": "📊 系统状态",
+  "admin.btn_clear_terminal": "🧹 清空终端",
+  "admin.confirm_restart": "您确定要重启整个机器人和控制面板系统吗？"
 }

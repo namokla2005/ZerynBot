@@ -100,12 +100,12 @@ d:/Project/Discord Bots/v2/
 │       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 856 keys
-│   ├── en.json                 # English — 856 keys
-│   ├── zh.json                 # Chinese — 856 keys
-│   ├── es.json                 # Spanish — 856 keys
-│   ├── pt.json                 # Portuguese — 856 keys
-│   └── fr.json                 # French — 856 keys
+│   ├── vi.json                 # Vietnamese (Default) — 864 keys
+│   ├── en.json                 # English — 864 keys
+│   ├── zh.json                 # Chinese — 864 keys
+│   ├── es.json                 # Spanish — 864 keys
+│   ├── pt.json                 # Portuguese — 864 keys
+│   └── fr.json                 # French — 864 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -245,7 +245,7 @@ The web dashboard is hosted via Flask in `dashboard/app.py` and `dashboard/api.p
 - **Authentication (`auth.py`):** Uses Discord OAuth2 code exchange (`/callback`). Stores user token, ID, username, avatar, and managed guild list in Flask session (`session['user']`).
 - **Authorization (`@login_required`, `@guild_admin_required`):** Checks if the authenticated user has `ADMINISTRATOR` or `MANAGE_GUILD` permission on the requested Discord server.
 - **Module Toggle API:** Endpoints like `/server/<guild_id>/module/<module_name>` toggle modules on/off in `guild_modules` table and clear Redis cache immediately.
-- **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, and managing the server blacklist.
+- **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), and triggering system restarts (`/admin/system/restart`).
 
 ---
 

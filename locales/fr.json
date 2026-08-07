@@ -854,5 +854,13 @@
   "help.utility_cmds": "`/ping` — Check bot connectivity latency\n`/membercount` — Member and bot count statistics\n`/help` — List all bot commands\n`/poll [question]` — Create a quick poll\n`/roll [number]` — Roll a die (default 1-100)\n`/choose [opt1, opt2]` — Randomly pick an option for you",
   "help.info_cmds": "`/serverinfo` — Detailed server information\n`/userinfo [@user]` — Detailed user information\n`/avatar [@user]` — Display full-size user avatar\n`/botinfo` — Display bot technical specs\n`/roleinfo [@role]` — Information about a Role\n`/channelinfo [#channel]` — Information about a Channel",
   "help.music_cmds": "`/join` — Bot joins your voice channel\n`/leave` — Bot leaves voice channel & clears queue\n`/play [name/link]` — Play music from YouTube\n`/search [name]` — Search music and pick from 5 results\n`/stop` — Stop music and clear entire queue\n`/resume` — Resume paused music playback\n`/loop` — Toggle track loop mode\n`/autoplay` — Toggle autoplay mode\n`/replay` — Replay current song from start\n`/lofi` — Stream 24/7 Lofi Girl\n`/playlist name [name]` — Create a new playlist\n`/playlist show [name]` — Show playlist tracks\n`/playlist add [name] [song]` — Add song to playlist\n`/playlist play [name]` — Play entire playlist\n`/playlist remove [name]` — Delete a playlist\n`/playlist removesong [name]` — Remove song from playlist",
-  "help.admin_cmds": "`config` — View server config and dashboard link\n`/reactionroles` — Link to Reaction Roles configuration\n`/ticket` — Link to Ticket System configuration\n`/autorole show` — View Auto Roles configuration\n`/automods show` — View Automods configuration\n`/giveaway start/end/reroll` — Manage Giveaways"
+  "help.admin_cmds": "`config` — View server config and dashboard link\n`/reactionroles` — Link to Reaction Roles configuration\n`/ticket` — Link to Ticket System configuration\n`/autorole show` — View Auto Roles configuration\n`/automods show` — View Automods configuration\n`/giveaway start/end/reroll` — Manage Giveaways",
+  "admin.tab_terminal": "Terminal et Système",
+  "admin.terminal_title": "💻 Terminal du Bot et Contrôle SSH",
+  "admin.terminal_sub": "Exécutez des commandes terminal, git pull et redémarrez le bot depuis le navigateur.",
+  "admin.btn_reset": "🔄 Redémarrer le Bot",
+  "admin.btn_git_pull": "📥 Git Pull Code",
+  "admin.btn_status": "📊 État du Système",
+  "admin.btn_clear_terminal": "🧹 Effacer la Terminal",
+  "admin.confirm_restart": "Êtes-vous sûr de vouloir redémarrer tout le système de bot et de panneau?"
 }

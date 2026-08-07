@@ -1416,6 +1416,106 @@ def admin_broadcast():
     return redirect(url_for("admin_panel"))
 
 
+# ─── System / Terminal Control Routes ──────────────────────────────────────────
+
+@app.route("/admin/system/terminal", methods=["POST"])
+@owner_required
+def admin_system_terminal():
+    """Chạy lệnh shell terminal trực tiếp trên máy chủ host (Termux / Linux / Windows)."""
+    data = request.get_json(silent=True) or request.form
+    command = data.get("command", "").strip()
+
+    if not command:
+        return jsonify({"ok": False, "output": "⚠️ Lệnh không được để trống!", "returncode": 1}), 400
+
+    # Shortcut aliases
+    if command.lower() in ("restart", "reset"):
+        command = "python main.py --restart"
+    elif command.lower() in ("status", "info"):
+        command = "python main.py --status"
+    elif command.lower() in ("pull", "update"):
+        command = "git pull"
+
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        res = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=base_dir,
+            timeout=30,
+            encoding="utf-8",
+            errors="replace"
+        )
+        output = res.stdout or ""
+        if res.stderr:
+            output += ("\n" if output else "") + res.stderr
+        if not output.strip():
+            output = "(Lệnh đã thực thi thành công, không có output trả về)"
+
+        return jsonify({
+            "ok": True,
+            "command": command,
+            "output": output,
+            "returncode": res.returncode
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"ok": False, "command": command, "output": "⏱️ Lệnh thực thi quá thời hạn cho phép (Timeout 30s)!", "returncode": -1}), 504
+    except Exception as e:
+        return jsonify({"ok": False, "command": command, "output": f"❌ Lỗi thực thi lệnh: {e}", "returncode": -1}), 500
+
+
+@app.route("/admin/system/git-pull", methods=["POST"])
+@owner_required
+def admin_system_git_pull():
+    """Cập nhật code mới nhất từ Git (git pull)."""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        res = subprocess.run(
+            "git pull",
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=base_dir,
+            timeout=30,
+            encoding="utf-8",
+            errors="replace"
+        )
+        output = res.stdout or ""
+        if res.stderr:
+            output += ("\n" if output else "") + res.stderr
+
+        return jsonify({
+            "ok": True,
+            "output": output or "Git pull thành công!",
+            "returncode": res.returncode
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "output": f"❌ Lỗi thực thi git pull: {e}", "returncode": -1}), 500
+
+
+@app.route("/admin/system/restart", methods=["POST"])
+@owner_required
+def admin_system_restart():
+    """Khởi động lại toàn bộ hệ thống Bot & Dashboard."""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        main_py = os.path.join(base_dir, "main.py")
+
+        if os.name == "nt":
+            subprocess.Popen([sys.executable, main_py, "--restart"], cwd=base_dir, creationflags=subprocess.CREATE_NEW_CONSOLE)
+        else:
+            subprocess.Popen([sys.executable, main_py, "--restart"], cwd=base_dir, start_new_session=True)
+
+        return jsonify({
+            "ok": True,
+            "message": "🔄 Đã gửi lệnh khởi động lại hệ thống! Bot và Dashboard đang khởi động lại..."
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"❌ Lỗi khởi động lại: {e}"}), 500
+
+
 if __name__ == "__main__":
     db.init_db()
     app.run(host="0.0.0.0", port=5000, debug=True)
