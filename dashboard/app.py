@@ -1,7 +1,7 @@
 """
 app.py — Flask dashboard for Discord Bot v2.
 """
-import sys, os
+import sys, os, subprocess, shutil
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Force UTF-8 encoding on stdout/stderr for Flask (prevents cp1252 UnicodeEncodeError on Windows)
@@ -1488,10 +1488,16 @@ def admin_system_terminal():
     elif command.lower() in ("pull", "update"):
         command = "git pull"
 
+    # Determine shell executable (Termux/Linux requires explicit bash/sh path)
+    exec_shell = None
+    if os.name != "nt":
+        exec_shell = shutil.which("bash") or shutil.which("sh") or "/data/data/com.termux/files/usr/bin/bash" or "/bin/sh"
+
     try:
         res = subprocess.run(
             command,
             shell=True,
+            executable=exec_shell,
             capture_output=True,
             text=True,
             cwd=current_cwd,
@@ -1537,9 +1543,11 @@ def admin_system_git_pull():
     """Cập nhật code mới nhất từ Git (git pull)."""
     try:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        exec_shell = None if os.name == "nt" else (shutil.which("bash") or shutil.which("sh"))
         res = subprocess.run(
             "git pull",
             shell=True,
+            executable=exec_shell,
             capture_output=True,
             text=True,
             cwd=base_dir,
@@ -1547,17 +1555,17 @@ def admin_system_git_pull():
             encoding="utf-8",
             errors="replace"
         )
-        output = res.stdout or ""
+        output = (res.stdout or "").replace("\r\n", "\n")
         if res.stderr:
-            output += ("\n" if output else "") + res.stderr
+            output += ("\n" if output else "") + res.stderr.replace("\r\n", "\n")
 
         return jsonify({
             "ok": True,
             "output": output or "Git pull thành công!",
             "returncode": res.returncode
-        })
+        }), 200
     except Exception as e:
-        return jsonify({"ok": False, "output": f"❌ Lỗi thực thi git pull: {e}", "returncode": -1}), 500
+        return jsonify({"ok": False, "output": f"❌ Lỗi thực thi git pull: {e}", "returncode": -1}), 200
 
 
 @app.route("/admin/system/restart", methods=["POST"])
@@ -1576,9 +1584,9 @@ def admin_system_restart():
         return jsonify({
             "ok": True,
             "message": "🔄 Đã gửi lệnh khởi động lại hệ thống! Bot và Dashboard đang khởi động lại..."
-        })
+        }), 200
     except Exception as e:
-        return jsonify({"ok": False, "message": f"❌ Lỗi khởi động lại: {e}"}), 500
+        return jsonify({"ok": False, "message": f"❌ Lỗi khởi động lại: {e}"}), 200
 
 
 if __name__ == "__main__":

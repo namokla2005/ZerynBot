@@ -364,3 +364,4 @@ These are known past bugs and traps that **MUST** be avoided when editing this c
 | 8 | Forgetting to call `await cache.adelete(...)` after writing new settings | Old settings will be served from Redis cache (TTL = 300s) |
 | 9 | Defining `window.I18N_*` inside a function body in admin.html | Define it at top-level script scope so all modal functions can access it |
 | 10 | Executing interactive TTY commands (`nano`, `vim`, `top`) in Web Console | Use non-interactive commands like `cat <file>` to view file contents |
+| 11 | Calling `subprocess.run(..., shell=True)` on Termux without `executable` parameter | Pass `executable=shutil.which("bash") or shutil.which("sh")` because `/bin/sh` does not exist on Termux |
