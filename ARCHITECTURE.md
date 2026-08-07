@@ -183,8 +183,12 @@ The i18n engine (`i18n.py`) provides fast, zero-I/O O(1) translation lookup by l
    ```
 2. **Dashboard Jinja2 Templates (`t` filter):**
    ```jinja2
-   <h1>{{ t('dashboard.home_title', lang=current_ui_lang) }}</h1>
+   {# In Flask routes, `t()` is injected into Jinja2 context via app.jinja_env.globals #}
+   {# The dashboard currently displays the UI in the server's language or 'vi' by default #}
+   <h1>{{ t('admin.page_title') }}</h1>
+   <p>{{ t('automod.sec_features') }}</p>
    ```
+   > **Note:** Dashboard uses the `t(key)` function (no explicit lang arg needed in templates — lang is pulled from the server's `guild.language` setting injected via Flask's `g` context).
 
 ---
 
@@ -323,11 +327,39 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - Run `python scratch/check_locales_json.py` to verify all 6 JSON files have identical key counts.
+   - All 6 locale files must always contain the **same number of keys**. If you add 1 key to `vi.json`, add the translated equivalent to the other 5 immediately.
 2. **Async vs. Sync Separation:**
    - **Bot code (`bot/cogs/`)** MUST use async database functions (`async_get_guild_settings`, `async_is_module_enabled`, etc.).
    - **Dashboard code (`dashboard/`)** MUST use sync database functions (`get_guild_settings`, `is_module_enabled`, etc.).
-3. **Race Condition Prevention in Async Loops:**
+3. **Module Guard Pattern (mandatory in every cog command):**
+   ```python
+   # Check if the module is enabled before running any command logic:
+   if not await async_is_module_enabled(str(ctx.guild.id), "music"):
+       return await ctx.reply(tr(settings, "common.module_disabled"), ephemeral=True)
+   ```
+   Without this guard, commands will execute even if the server admin has disabled that module.
+4. **Cache Invalidation After Write:**
+   - After any `UPDATE`/`INSERT` to `guilds`, `guild_modules`, or `automod_settings`, always call `await cache.adelete(f"settings:{guild_id}")` or equivalent to prevent stale settings being served.
+5. **Race Condition Prevention in Async Loops:**
    - In background loops (such as `giveaway_loop` or `voice_xp_task`), always re-query database record state before modifying or rolling rewards to prevent duplicate execution.
-4. **Frontend JavaScript Cleanliness:**
+6. **Frontend JavaScript Cleanliness:**
    - Ensure script blocks in Jinja2 HTML templates have valid JS syntax and no duplicate function declarations in the global scope.
+   - Never define `window.I18N_*` variables inside a function body — declare them at the top-level script scope so all functions can access them.
+
+---
+
+## 10. Common Gotchas & Anti-Patterns for AI
+
+These are known past bugs and traps that **MUST** be avoided when editing this codebase:
+
+| # | Anti-Pattern | Correct Approach |
+|---|--------------|------------------|
+| 1 | Hardcoding translated text like `"Chống Spam"` inside a `.py` cog | Always use `tr(settings, "automod.feat_spam")` |
+| 2 | Copying `vi.json` value directly into `en.json`/`zh.json` without translating | Translate the value into the target language properly |
+| 3 | Using `music.*` keys inside `leveling.py` | Use `leveling.*` namespace — e.g. `leveling.xp_added` |
+| 4 | Matching embed field names by string (e.g. `"Số người tham gia"`) to update participant count | Use **index-based** field access: `embed.fields[2]` |
+| 5 | Calling `roll_giveaway()` without re-checking `ended == 1` in the background loop | Always re-fetch the DB row inside `giveaway_loop` before rolling to prevent duplicate endings |
+| 6 | Declaring `function foo()` twice in same `<script>` block in HTML templates | Causes a `SyntaxError` that silently breaks all JS on the page |
+| 7 | Using sync DB call (`get_guild_settings`) inside an async bot cog | Always use `await async_get_guild_settings(...)` in bot code |
+| 8 | Forgetting to call `await cache.adelete(...)` after writing new settings | Old settings will be served from Redis cache (TTL = 300s) |
+| 9 | Defining `window.I18N_*` inside a function body in admin.html | Define it at top-level script scope so all modal functions can access it |
