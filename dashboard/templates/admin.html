@@ -628,7 +628,20 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command: command })
     })
-    .then(res => res.json())
+    .then(async res => {
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        if (res.status === 404) {
+          throw new Error('Endpoint /admin/system/terminal không tìm thấy (404). Vui lòng chạy `python main.py --restart` hoặc khởi động lại Web Dashboard trên máy chủ host để nạp code mới!');
+        } else if (res.status === 401 || res.status === 403 || text.includes('login')) {
+          throw new Error('Phiên làm việc Admin đã hết hạn. Vui lòng F5 đăng nhập lại!');
+        } else {
+          throw new Error(`Máy chủ trả về HTTP ${res.status}. Vui lòng kiểm tra lại dịch vụ Flask Dashboard.`);
+        }
+      }
+      return res.json();
+    })
     .then(data => {
       const term = document.getElementById('terminalOutput');
       if (term.lastChild) term.removeChild(term.lastChild);
@@ -642,7 +655,7 @@
     .catch(err => {
       const term = document.getElementById('terminalOutput');
       if (term.lastChild) term.removeChild(term.lastChild);
-      appendTerminalOutput(command, 'API Error: ' + err, true);
+      appendTerminalOutput(command, err.message || ('API Error: ' + err), true);
     });
   }
 

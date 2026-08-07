@@ -862,5 +862,6 @@
   "admin.btn_git_pull": "📥 Git Pull Código",
   "admin.btn_status": "📊 Status do Sistema",
   "admin.btn_clear_terminal": "🧹 Limpar Terminal",
-  "admin.confirm_restart": "Tem certeza de que deseja reiniciar todo o sistema do bot e do painel?"
+  "admin.confirm_restart": "Tem certeza de que deseja reiniciar todo o sistema do bot e do painel?",
+  "admin.terminal_placeholder": "Digite o comando aqui (ex: git pull, python main.py --status)..."
 }

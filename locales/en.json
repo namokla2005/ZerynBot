@@ -862,5 +862,6 @@
   "admin.btn_git_pull": "📥 Git Pull Code",
   "admin.btn_status": "📊 System Status",
   "admin.btn_clear_terminal": "🧹 Clear Terminal",
-  "admin.confirm_restart": "Are you sure you want to restart the entire Bot and Dashboard system?"
+  "admin.confirm_restart": "Are you sure you want to restart the entire Bot and Dashboard system?",
+  "admin.terminal_placeholder": "Type terminal command here (e.g. git pull, python main.py --status)..."
 }

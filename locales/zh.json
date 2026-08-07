@@ -862,5 +862,6 @@
   "admin.btn_git_pull": "📥 Git Pull 代码更新",
   "admin.btn_status": "📊 系统状态",
   "admin.btn_clear_terminal": "🧹 清空终端",
-  "admin.confirm_restart": "您确定要重启整个机器人和控制面板系统吗？"
+  "admin.confirm_restart": "您确定要重启整个机器人和控制面板系统吗？",
+  "admin.terminal_placeholder": "在此输入终端命令 (例如: git pull, python main.py --status)..."
 }

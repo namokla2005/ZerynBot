@@ -862,5 +862,6 @@
   "admin.btn_git_pull": "📥 Git Pull Code",
   "admin.btn_status": "📊 Trạng Thái System",
   "admin.btn_clear_terminal": "🧹 Xóa màn hình",
-  "admin.confirm_restart": "Bạn có chắc chắn muốn khởi động lại toàn bộ hệ thống Bot và Dashboard?"
+  "admin.confirm_restart": "Bạn có chắc chắn muốn khởi động lại toàn bộ hệ thống Bot và Dashboard?",
+  "admin.terminal_placeholder": "Nhập lệnh terminal ở đây (VD: git pull, python main.py --status)..."
 }

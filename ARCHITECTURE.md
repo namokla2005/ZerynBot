@@ -100,12 +100,12 @@ d:/Project/Discord Bots/v2/
 │       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 864 keys
-│   ├── en.json                 # English — 864 keys
-│   ├── zh.json                 # Chinese — 864 keys
-│   ├── es.json                 # Spanish — 864 keys
-│   ├── pt.json                 # Portuguese — 864 keys
-│   └── fr.json                 # French — 864 keys
+│   ├── vi.json                 # Vietnamese (Default) — 865 keys
+│   ├── en.json                 # English — 865 keys
+│   ├── zh.json                 # Chinese — 865 keys
+│   ├── es.json                 # Spanish — 865 keys
+│   ├── pt.json                 # Portuguese — 865 keys
+│   └── fr.json                 # French — 865 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
