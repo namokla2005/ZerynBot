@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="{{ current_ui_lang or 'vi' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ t('privacy.title') }} — Zeryn Bot</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=8.0">
+  <style>
+    html { scroll-behavior: smooth; }
+    body { background: #120e24; color: #d0d3db; font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Hero Header */
+    .legal-hero {
+      padding: 60px 24px 40px;
+      text-align: center;
+      background: radial-gradient(circle at 50% 0%, rgba(67, 181, 129, 0.18) 0%, rgba(11, 7, 19, 0) 70%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .legal-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: rgba(67, 181, 129, 0.12);
+      border: 1px solid rgba(67, 181, 129, 0.3);
+      color: #57f287;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .legal-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 12px;
+      letter-spacing: -0.5px;
+    }
+    .legal-hero-sub {
+      max-width: 680px;
+      margin: 0 auto 24px;
+      color: #9ca3af;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    .legal-meta-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .meta-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 5px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Main Container */
+    .legal-container {
+      max-width: 1200px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 40px;
+      width: 100%;
+    }
+
+    /* Sidebar Navigation */
+    .legal-sidebar {
+      position: sticky;
+      top: 90px;
+      height: fit-content;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .toc-card {
+      background: rgba(18, 13, 28, 0.85);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 20px;
+      backdrop-filter: blur(16px);
+    }
+    .toc-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #9ca3af;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toc-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .toc-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .toc-link:hover {
+      background: rgba(67, 181, 129, 0.12);
+      color: #ffffff;
+      transform: translateX(4px);
+    }
+    .toc-link .num {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+    .action-card {
+      background: rgba(18, 13, 28, 0.85);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-legal-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-legal-print {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e2e8f0;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    .btn-legal-print:hover { background: rgba(255, 255, 255, 0.12); color: #ffffff; }
+    .btn-legal-support {
+      background: #5865f2;
+      color: #ffffff;
+    }
+    .btn-legal-support:hover { background: #4752c4; }
+
+    /* Content Body */
+    .legal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* Summary Card */
+    .summary-box {
+      background: linear-gradient(135deg, rgba(67, 181, 129, 0.12) 0%, rgba(20, 40, 30, 0.8) 100%);
+      border: 1px solid rgba(67, 181, 129, 0.3);
+      border-radius: 16px;
+      padding: 24px 28px;
+      backdrop-filter: blur(16px);
+    }
+    .summary-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .summary-list {
+      margin: 0;
+      padding-left: 20px;
+      color: #cbd5e1;
+      font-size: 0.92rem;
+      line-height: 1.7;
+    }
+
+    /* Section Card */
+    .section-card {
+      background: rgba(18, 13, 28, 0.85);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 32px;
+      backdrop-filter: blur(20px);
+      scroll-margin-top: 90px;
+      transition: border-color 0.3s;
+    }
+    .section-card:hover {
+      border-color: rgba(67, 181, 129, 0.3);
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .section-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #43b581, #57f287);
+      color: #0b0713;
+      font-size: 0.9rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(67, 181, 129, 0.3);
+    }
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+    }
+    .section-p {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: #cbd5e1;
+      margin-bottom: 14px;
+    }
+    .section-p:last-child { margin-bottom: 0; }
+    .section-ul {
+      margin: 12px 0 16px;
+      padding-left: 22px;
+      color: #cbd5e1;
+      font-size: 0.93rem;
+      line-height: 1.8;
+    }
+    .section-ul li { margin-bottom: 8px; }
+
+    /* Alert Boxes */
+    .callout-box {
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .callout-box.success {
+      background: rgba(67, 181, 129, 0.1);
+      border: 1px solid rgba(67, 181, 129, 0.3);
+      color: #57f287;
+    }
+    .callout-box.info {
+      background: rgba(88, 101, 242, 0.1);
+      border: 1px solid rgba(88, 101, 242, 0.3);
+      color: #93c5fd;
+    }
+
+    /* Print Styles */
+    @media print {
+      .topbar, .legal-sidebar, .btn-legal-action { display: none !important; }
+      .legal-container { grid-template-columns: 1fr; margin: 0; padding: 0; }
+      body { background: #ffffff !important; color: #000000 !important; }
+      .section-card, .summary-box { background: none !important; border: 1px solid #ccc !important; color: #000000 !important; }
+      .section-title, .legal-hero h1 { color: #000000 !important; }
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .legal-container { grid-template-columns: 1fr; }
+      .legal-sidebar { position: static; }
+      .legal-hero h1 { font-size: 1.8rem; }
+      .section-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<header class="topbar">
+  <a href="{{ url_for('home') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
+    <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
+    Zeryn Bot
+  </a>
+  <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
+    <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.home') }}</a>
+    <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.tos') }}</a>
+    <a href="{{ url_for('privacy') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">{{ t('nav.privacy') }}</a>
+  </div>
+  <div class="topbar-right" style="display:flex; gap:16px; align-items:center;">
+    <!-- Language Switcher -->
+    <div class="lang-switcher">
+      <button class="lang-switcher-btn">
+        <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
+        <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
+      </button>
+      <div class="lang-dropdown">
+        <div class="lang-header">{{ t('nav.select_language') }}</div>
+        {% for code, name in available_languages.items() %}
+        <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+           class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+          <span>{{ name }}</span>
+          {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if session.get('user') %}
+      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">{{ t('nav.dashboard') }}</a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">{{ t('nav.login') }}</a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- Hero Banner -->
+<section class="legal-hero">
+  <div class="legal-pill-badge">
+    <i class="bi bi-shield-lock-fill"></i> {{ t('privacy.title') }}
+  </div>
+  <h1>{{ t('privacy.title') }}</h1>
+  <p class="legal-hero-sub">{{ t('privacy.subtitle') }}</p>
+  <div class="legal-meta-row">
+    <div class="meta-badge"><i class="bi bi-calendar3"></i> {{ t('privacy.last_updated') }}</div>
+    <div class="meta-badge"><i class="bi bi-tag-fill"></i> {{ t('privacy.badge_version') }}</div>
+    <div class="meta-badge" style="color:#57f287;"><i class="bi bi-patch-check-fill"></i> {{ t('privacy.badge_status') }}</div>
+  </div>
+</section>
+
+<!-- Main Container -->
+<div class="legal-container">
+
+  <!-- Sidebar TOC -->
+  <aside class="legal-sidebar">
+    <div class="toc-card">
+      <div class="toc-title"><i class="bi bi-list-nested"></i> {{ t('privacy.summary_title') }}</div>
+      <nav class="toc-nav">
+        <a href="#s1" class="toc-link"><span class="num">1</span> {{ t('privacy.s1_title') }}</a>
+        <a href="#s2" class="toc-link"><span class="num">2</span> {{ t('privacy.s2_title') }}</a>
+        <a href="#s3" class="toc-link"><span class="num">3</span> {{ t('privacy.s3_title') }}</a>
+        <a href="#s4" class="toc-link"><span class="num">4</span> {{ t('privacy.s4_title') }}</a>
+        <a href="#s5" class="toc-link"><span class="num">5</span> {{ t('privacy.s5_title') }}</a>
+        <a href="#s6" class="toc-link"><span class="num">6</span> {{ t('privacy.s6_title') }}</a>
+        <a href="#s7" class="toc-link"><span class="num">7</span> {{ t('privacy.s7_title') }}</a>
+        <a href="#s8" class="toc-link"><span class="num">8</span> {{ t('privacy.s8_title') }}</a>
+      </nav>
+    </div>
+
+    <div class="action-card">
+      <button class="btn-legal-action btn-legal-print" onclick="window.print()">
+        <i class="bi bi-printer"></i> In / Lưu PDF
+      </button>
+      <a href="https://discord.gg" target="_blank" class="btn-legal-action btn-legal-support">
+        <i class="bi bi-discord"></i> Discord Support
+      </a>
+    </div>
+  </aside>
+
+  <!-- Body Content -->
+  <main class="legal-body">
+
+    <!-- Summary Box -->
+    <div class="summary-box">
+      <div class="summary-title"><i class="bi bi-shield-check" style="color:#57f287;"></i> {{ t('privacy.summary_title') }}</div>
+      <ul class="summary-list">
+        <li>{{ t('privacy.summary_item1') }}</li>
+        <li>{{ t('privacy.summary_item2') }}</li>
+        <li>{{ t('privacy.summary_item3') }}</li>
+      </ul>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="section-card" id="s1">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2 class="section-title">{{ t('privacy.s1_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s1_desc') }}</p>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="section-card" id="s2">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2 class="section-title">{{ t('privacy.s2_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s2_desc') }}</p>
+      <ul class="section-ul">
+        <li>{{ t('privacy.s2_bullet1') }}</li>
+        <li>{{ t('privacy.s2_bullet2') }}</li>
+        <li>{{ t('privacy.s2_bullet3') }}</li>
+      </ul>
+      <div class="callout-box success">
+        <i class="bi bi-shield-lock-fill" style="font-size:1.2rem;flex-shrink:0;"></i>
+        <div>{{ t('privacy.s2_note') }}</div>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="section-card" id="s3">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2 class="section-title">{{ t('privacy.s3_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s3_desc') }}</p>
+      <ul class="section-ul">
+        <li>{{ t('privacy.s3_bullet1') }}</li>
+        <li>{{ t('privacy.s3_bullet2') }}</li>
+        <li>{{ t('privacy.s3_bullet3') }}</li>
+        <li>{{ t('privacy.s3_bullet4') }}</li>
+      </ul>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="section-card" id="s4">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2 class="section-title">{{ t('privacy.s4_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s4_desc') }}</p>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="section-card" id="s5">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2 class="section-title">{{ t('privacy.s5_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s5_desc') }}</p>
+      <ul class="section-ul">
+        <li>{{ t('privacy.s5_bullet1') }}</li>
+        <li>{{ t('privacy.s5_bullet2') }}</li>
+      </ul>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="section-card" id="s6">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2 class="section-title">{{ t('privacy.s6_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s6_desc') }}</p>
+      <div class="callout-box info">
+        <i class="bi bi-shield-check" style="font-size:1.2rem;flex-shrink:0;"></i>
+        <div>Zeryn Bot cam kết không bao giờ thương mại hóa hoặc cung cấp dữ liệu người dùng cho bên thứ ba.</div>
+      </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="section-card" id="s7">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2 class="section-title">{{ t('privacy.s7_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s7_desc') }}</p>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="section-card" id="s8">
+      <div class="section-header">
+        <div class="section-num">8</div>
+        <h2 class="section-title">{{ t('privacy.s8_title') }}</h2>
+      </div>
+      <p class="section-p">{{ t('privacy.s8_desc') }}</p>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
