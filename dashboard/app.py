@@ -1542,15 +1542,87 @@ def api_test_ai_key(guild_id: str):
     if not key:
         return jsonify({"ok": False, "status": "no_key", "message": "Chưa có API Key (Đang dùng Smart Local Responder)"})
 
-    # Validate key format hint
+    # 1. Groq Cloud (Key starts with gsk_)
+    if key.startswith("gsk_"):
+        groq_url = "https://api.groq.com/openai/v1/chat/completions"
+        groq_payload = json.dumps({
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "user", "content": "Hi"}],
+            "max_tokens": 10
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            groq_url,
+            data=groq_payload,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        t0 = time.time()
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                latency = int((time.time() - t0) * 1000)
+                if resp.status == 200:
+                    return jsonify({
+                        "ok": True,
+                        "status": "active",
+                        "model": "Groq Cloud (Llama 3.3 70B)",
+                        "latency_ms": latency,
+                        "message": f"Kết nối Groq Cloud siêu tốc thành công ({latency}ms) — Model: Llama 3.3 70B"
+                    })
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode('utf-8'))
+                err_msg = err_data.get("error", {}).get("message", f"HTTP {e.code}")
+            except Exception:
+                err_msg = f"HTTP {e.code}"
+            return jsonify({"ok": False, "status": "invalid_key", "message": f"Lỗi Groq API ({err_msg})"})
+        except Exception as e:
+            return jsonify({"ok": False, "status": "error", "message": f"Lỗi kết nối Groq: {str(e)}"})
+
+    # 2. OpenRouter (Key starts with sk-or-)
+    if key.startswith("sk-or-"):
+        or_url = "https://openrouter.ai/api/v1/chat/completions"
+        or_payload = json.dumps({
+            "model": "meta-llama/llama-3.3-70b-instruct:free",
+            "messages": [{"role": "user", "content": "Hi"}],
+            "max_tokens": 10
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            or_url,
+            data=or_payload,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://zerynbot.id.vn"
+            },
+            method="POST"
+        )
+        t0 = time.time()
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                latency = int((time.time() - t0) * 1000)
+                if resp.status == 200:
+                    return jsonify({
+                        "ok": True,
+                        "status": "active",
+                        "model": "OpenRouter Free (Llama 3.3)",
+                        "latency_ms": latency,
+                        "message": f"Kết nối OpenRouter Free thành công ({latency}ms)"
+                    })
+        except Exception as e:
+            return jsonify({"ok": False, "status": "invalid_key", "message": f"Lỗi kết nối OpenRouter: {str(e)}"})
+
+    # 3. Validate key format hint
     if key.startswith("AQ."):
         return jsonify({
             "ok": False,
             "status": "wrong_key_type",
-            "message": "Chuỗi bạn vừa dán bắt đầu bằng 'AQ.' (đây là Project Token, không phải API Key). Google Gemini API Key chuẩn bắt đầu bằng 'AIzaSy...'."
+            "message": "Chuỗi bạn vừa dán bắt đầu bằng 'AQ.' (đây là Project Token, không phải API Key). Hãy lấy API Key Google (AIzaSy...) hoặc tạo nhanh key Groq (gsk_...) tại https://console.groq.com."
         })
 
-    # Test key with Gemini API
+    # 4. Test key with Google Gemini API
     models_to_test = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
     payload = json.dumps({"contents": [{"parts": [{"text": "Hi"}]}]}).encode("utf-8")
     
@@ -1574,7 +1646,7 @@ def api_test_ai_key(guild_id: str):
                     return jsonify({
                         "ok": True,
                         "status": "active",
-                        "model": model,
+                        "model": f"Google Gemini ({model})",
                         "latency_ms": latency,
                         "message": f"API Key hoạt động hoàn hảo với {model} ({latency}ms)"
                     })
@@ -1590,7 +1662,7 @@ def api_test_ai_key(guild_id: str):
             continue
 
     if "API_KEY_INVALID" in last_err_detail or "400" in last_err_detail or "401" in last_err_detail or "UNAUTHENTICATED" in last_err_detail:
-        msg = "API Key không hợp lệ hoặc chưa được kích hoạt. Hãy tạo key mới (bắt đầu bằng AIzaSy...) tại https://aistudio.google.com."
+        msg = "API Key không hợp lệ. Bạn có thể lấy key Google (bắt đầu bằng AIzaSy...) tại https://aistudio.google.com hoặc tạo key Groq (bắt đầu bằng gsk_...) tại https://console.groq.com."
     else:
         msg = f"Lỗi Google API: {last_err_detail}"
 

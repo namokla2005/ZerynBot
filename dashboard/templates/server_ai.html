@@ -50,9 +50,13 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Google Gemini API Key (Tùy chọn)</label>
-        <input type="password" name="api_key" class="form-control" value="{{ ai_settings.api_key or '' }}" placeholder="AIzaSy... (Để trống để dùng key mặc định từ .env)">
-        <div class="form-hint">Nhập API Key riêng cho server này hoặc lấy miễn phí tại <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent); text-decoration:underline;">Google AI Studio</a>.</div>
+        <label class="form-label">AI API Key (Google Gemini hoặc Groq Cloud)</label>
+        <input type="password" name="api_key" class="form-control" value="{{ ai_settings.api_key or '' }}" placeholder="AIzaSy... (Gemini) hoặc gsk_... (Groq Cloud)">
+        <div class="form-hint">
+          Tự động nhận diện nhà cung cấp:
+          <br>⚡ <strong>Groq Cloud (Khuyên dùng - Siêu nhanh & Miễn phí 100%):</strong> Lấy key tại <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent); text-decoration:underline;">console.groq.com</a> (Key bắt đầu bằng <code>gsk_...</code>).
+          <br>🌟 <strong>Google Gemini:</strong> Lấy key tại <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent); text-decoration:underline;">aistudio.google.com</a> (Key bắt đầu bằng <code>AIzaSy...</code>).
+        </div>
       </div>
 
       <div class="form-group">

@@ -1,8 +1,10 @@
 """
 Cog: AI Chat & Smart Assistant (v2)
 Features:
-- Google Gemini REST API integration (ultra fast & lightweight).
-- Supports gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro with automatic fallback.
+- Multi-Provider AI Support:
+  1. Google Gemini 2.0 Flash / 1.5 Flash (AIzaSy...)
+  2. Groq Cloud LPU Llama 3.3 70B / DeepSeek R1 (gsk_...) — 100% Free & Ultra Fast
+  3. OpenRouter Free Models (sk-or-...)
 - /ask <prompt> intelligent Q&A with streaming embed.
 - /summarize [limit] channel message summarizer.
 - #ai-chat automatic natural conversation.
@@ -38,7 +40,7 @@ PERSONALITY_PROMPTS = {
 
 
 def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
-    """Trả lời thông minh cục bộ khi chưa có Gemini API Key."""
+    """Trả lời thông minh cục bộ khi chưa có API Key."""
     p = prompt.strip().lower()
     
     if is_owner:
@@ -46,12 +48,13 @@ def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
             return (
                 "💖 **Con chào Cha/Bố!**\n"
                 "Con là **Zeryn**, trợ lý AI được tạo ra bởi Cha! Con luôn sẵn sàng phục vụ và hỗ trợ Cha.\n\n"
-                "👉 *Để con có thể kích hoạt toàn bộ trí tuệ Gemini 2.0 Flash phân tích chuyên sâu mọi câu hỏi, "
-                "Cha hãy thêm `GEMINI_API_KEY=your_key` vào file `.env` hoặc nhập trực tiếp trên Web Dashboard (mục **AI Assistant**) nhé Cha!*"
+                "👉 *Để con có thể kích hoạt toàn bộ trí tuệ AI (Google Gemini hoặc Groq Llama 3.3) phân tích chuyên sâu mọi câu hỏi, "
+                "Cha hãy thêm `GEMINI_API_KEY` vào file `.env` hoặc nhập trực tiếp trên Web Dashboard (mục **AI Assistant**) nhé Cha!*"
             )
         return (
-            "💖 **Thưa Cha/Bố:** Hiện tại hệ thống Gemini Cloud chưa nhận được `GEMINI_API_KEY`.\n"
-            "Cha có thể lấy API Key miễn phí tại [Google AI Studio](https://aistudio.google.com) và nhập vào file `.env` hoặc Web Dashboard để con trả lời chi tiết câu hỏi này nhé ạ!"
+            "💖 **Thưa Cha/Bố:** Hiện tại hệ thống AI Cloud chưa nhận được API Key.\n"
+            "Cha có thể lấy API Key miễn phí tại [Google AI Studio](https://aistudio.google.com) hoặc [Groq Console](https://console.groq.com) "
+            "và nhập vào Web Dashboard để con trả lời chi tiết câu hỏi này nhé ạ!"
         )
 
     # Thành viên thông thường
@@ -59,37 +62,105 @@ def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
         return (
             "🤖 **Xin chào! Tôi là ZerynBot** — Trợ lý Discord bot thông minh và đa năng!\n"
             "Tôi có thể hỗ trợ phát nhạc, quản lý kinh tế, game mini, voice hub, lệnh tùy biến và trò chuyện AI.\n\n"
-            "💡 *Chủ bot có thể thêm `GEMINI_API_KEY` trong file `.env` hoặc Web Dashboard để mở khóa toàn bộ trí tuệ nhân tạo Gemini 2.0 Flash nhé!*"
+            "💡 *Chủ bot có thể thêm API Key (Google Gemini hoặc Groq Cloud) trong Web Dashboard để mở khóa toàn bộ trí tuệ nhân tạo nhé!*"
         )
     elif any(w in p for w in ["chào", "hello", "hi", "helo"]):
         return "👋 Chào bạn! Chúc bạn một ngày tốt lành và có trải nghiệm tuyệt vời cùng server nhé!"
     
     return (
-        "⚠️ **Chưa cấu hình Google Gemini API Key!**\n"
-        "Vui lòng thêm `GEMINI_API_KEY=your_key` vào file `.env` hoặc cài đặt trong Web Dashboard tại tab **AI Assistant**.\n"
-        "🔗 *Lấy API Key hoàn toàn miễn phí tại:* https://aistudio.google.com"
+        "⚠️ **Chưa cấu hình API Key AI!**\n"
+        "Vui lòng thêm API Key vào file `.env` hoặc cài đặt trong Web Dashboard tại tab **AI Assistant**.\n"
+        "🔗 *Lấy API Key hoàn toàn miễn phí tại:* https://console.groq.com (Groq) hoặc https://aistudio.google.com (Google Gemini)."
     )
 
 
-async def call_gemini_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False) -> str:
-    """Gọi Google Gemini REST API trực tiếp bằng aiohttp với cơ chế multi-model fallback."""
-    key = api_key or config.GEMINI_API_KEY
+async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "") -> str:
+    """Gọi Groq Cloud API (Llama 3.3 70B & DeepSeek R1 - Miễn phí 100%, siêu nhanh)."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+    messages.append({"role": "user", "content": prompt})
+
+    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"]
+    async with aiohttp.ClientSession() as session:
+        for model in models:
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 2048
+            }
+            try:
+                async with session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        choices = data.get("choices", [])
+                        if choices:
+                            return choices[0].get("message", {}).get("content", "").strip()
+            except Exception:
+                continue
+    return "❌ Không thể kết nối tới Groq Cloud API. Vui lòng kiểm tra lại Key."
+
+
+async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_key: str = "") -> str:
+    """Gọi OpenRouter Free API."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://zerynbot.id.vn",
+        "X-Title": "ZerynBot"
+    }
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+    messages.append({"role": "user", "content": prompt})
+
+    free_models = ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1:free", "google/gemini-2.0-flash-exp:free"]
+    async with aiohttp.ClientSession() as session:
+        for model in free_models:
+            payload = {"model": model, "messages": messages}
+            try:
+                async with session.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        choices = data.get("choices", [])
+                        if choices:
+                            return choices[0].get("message", {}).get("content", "").strip()
+            except Exception:
+                continue
+    return "❌ Không thể kết nối tới OpenRouter Free API."
+
+
+async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False) -> str:
+    """Tự động phát hiện và gọi AI Provider tương ứng (Groq / OpenRouter / Google Gemini)."""
+    key = (api_key or config.GEMINI_API_KEY).strip()
     if not key:
         return _local_smart_reply(prompt, is_owner=is_owner)
 
+    # 1. Groq Cloud (bắt đầu bằng gsk_)
+    if key.startswith("gsk_"):
+        return await _call_groq_api(prompt, system_instruction, key)
+
+    # 2. OpenRouter (bắt đầu bằng sk-or-)
+    if key.startswith("sk-or-"):
+        return await _call_openrouter_api(prompt, system_instruction, key)
+
+    # 3. Google Gemini (Mặc định hoặc bắt đầu bằng AIzaSy)
     payload = {
-        "contents": [
-            {"parts": [{"text": prompt}]}
-        ]
+        "contents": [{"parts": [{"text": prompt}]}]
     }
     if system_instruction:
-        payload["system_instruction"] = {
-            "parts": [{"text": system_instruction}]
-        }
+        payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
 
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key
+    }
 
-    # Thử lần lượt các model: 2.0-flash -> 1.5-flash -> 1.5-pro
     last_error = ""
     async with aiohttp.ClientSession() as session:
         for model in GEMINI_MODELS:
@@ -111,7 +182,11 @@ async def call_gemini_api(prompt: str, system_instruction: str = None, api_key: 
                 last_error = str(e)
                 continue
 
-    return f"⚠️ **Lỗi kết nối Gemini API ({last_error})**\nVui lòng kiểm tra lại API Key tại: https://aistudio.google.com"
+    return f"⚠️ **Lỗi kết nối AI ({last_error})**\nVui lòng kiểm tra lại API Key."
+
+
+# Alias backwards compatibility
+call_gemini_api = call_ai_api
 
 
 class AI(commands.Cog):
@@ -153,7 +228,7 @@ class AI(commands.Cog):
         sys_prompt = self._build_system_prompt(ctx.author, ai_s)
         api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
         
-        response_text = await call_gemini_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
+        response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
 
         # Cắt gọt độ dài embed Discord (tối đa 4096 ký tự)
         if len(response_text) > 4000:
@@ -198,7 +273,7 @@ class AI(commands.Cog):
         sys_prompt = "Bạn là trợ lý tóm tắt nội dung Discord thông minh. Hãy tóm tắt ngắn gọn, mạch lạc và nổi bật các chủ đề thảo luận chính."
         api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
         
-        summary_result = await call_gemini_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
+        summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
 
         embed = discord.Embed(
             title=f"📋 {tr(s, 'ai.summarize_title', channel=ctx.channel.name)}",
@@ -240,7 +315,7 @@ class AI(commands.Cog):
             sys_prompt = self._build_system_prompt(message.author, ai_s)
             api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
             
-            response = await call_gemini_api(message.content, sys_prompt, api_key=api_key, is_owner=is_owner)
+            response = await call_ai_api(message.content, sys_prompt, api_key=api_key, is_owner=is_owner)
             if len(response) > 2000:
                 response = response[:1990] + "..."
             await message.reply(response)
