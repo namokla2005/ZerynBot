@@ -192,9 +192,20 @@
     }
 
     /* ─── Hero Section ────────────────────────────────────────────────────────── */
+    .hero-section-wrapper {
+      min-height: calc(100vh - 72px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 40px 0 60px;
+      box-sizing: border-box;
+    }
+
     .hero-container {
       max-width: 1200px;
-      margin: 60px auto 70px;
+      width: 100%;
+      margin: 0 auto;
       padding: 0 28px;
       display: grid;
       grid-template-columns: 1.1fr 0.9fr;
@@ -691,35 +702,37 @@
 </header>
 
 <!-- Hero Section -->
-<section class="hero-container">
-  <div>
-    <div class="hero-badge-pill">
-      <i class="bi bi-stars"></i> {{ t('landing.badge') }}
+<section class="hero-section-wrapper">
+  <div class="hero-container">
+    <div>
+      <div class="hero-badge-pill">
+        <i class="bi bi-stars"></i> {{ t('landing.badge') }}
+      </div>
+      <h1 class="hero-heading">
+        {{ t('landing.hero_title_1') }}<br>
+        <span>{{ t('landing.hero_title_2') }}</span>
+      </h1>
+      <p class="hero-lead">
+        {{ t('landing.hero_subtitle') }}
+      </p>
+      <div class="hero-cta-group">
+        <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:14px 28px; font-size:1rem;">
+          <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
+        </a>
+        <a href="#features" class="btn-outline-pill" style="padding:14px 28px; font-size:1rem;">
+          <i class="bi bi-compass"></i> {{ t('landing.btn_explore') }}
+        </a>
+      </div>
     </div>
-    <h1 class="hero-heading">
-      {{ t('landing.hero_title_1') }}<br>
-      <span>{{ t('landing.hero_title_2') }}</span>
-    </h1>
-    <p class="hero-lead">
-      {{ t('landing.hero_subtitle') }}
-    </p>
-    <div class="hero-cta-group">
-      <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:14px 28px; font-size:1rem;">
-        <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
-      </a>
-      <a href="#features" class="btn-outline-pill" style="padding:14px 28px; font-size:1rem;">
-        <i class="bi bi-compass"></i> {{ t('landing.btn_explore') }}
-      </a>
-    </div>
-  </div>
-  <div class="hero-avatar-wrapper">
-    <div class="hero-avatar-ring">
-      <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
-      <!-- Cute Floating Stickers around Avatar -->
-      <div class="sticker-pill st-top-left">💖</div>
-      <div class="sticker-pill st-top-right">✨</div>
-      <div class="sticker-pill st-bottom-left">🎵</div>
-      <div class="sticker-pill st-bottom-right">⭐</div>
+    <div class="hero-avatar-wrapper">
+      <div class="hero-avatar-ring">
+        <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
+        <!-- Cute Floating Stickers around Avatar -->
+        <div class="sticker-pill st-top-left">💖</div>
+        <div class="sticker-pill st-top-right">✨</div>
+        <div class="sticker-pill st-bottom-left">🎵</div>
+        <div class="sticker-pill st-bottom-right">⭐</div>
+      </div>
     </div>
   </div>
 </section>
