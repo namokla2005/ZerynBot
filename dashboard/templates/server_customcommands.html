@@ -3,61 +3,83 @@
 {% block title %}{{ t('nav.customcommands') | default('Custom Commands') }}{% endblock %}
 
 {% block content %}
-<div class="page-header d-flex align-items-center justify-content-between mb-4">
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>{{ t('customcmd.page_title') | default('Lệnh Tùy Biến & Auto-Responders') }}</h1>
-    <p class="text-muted">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed khi thành viên gõ từ khóa kích hoạt.') }}</p>
+    <h1 class="page-title"><i class="bi bi-lightning-charge-fill" style="color:var(--warning); margin-right:8px;"></i>{{ t('customcmd.page_title') | default('Lệnh Tùy Biến & Auto-Responders') }}</h1>
+    <p class="page-subtitle">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed khi thành viên gõ từ khóa kích hoạt.') }}</p>
   </div>
   <div>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCmdModal">
-      <i class="bi bi-plus-lg me-1"></i> {{ t('customcmd.btn_create') | default('Tạo Lệnh Mới') }}
+    <button type="button" class="btn btn-primary" onclick="openModal('addCmdModal')">
+      <i class="bi bi-plus-lg" style="margin-right:6px;"></i> {{ t('customcmd.btn_create') | default('Tạo Lệnh Mới') }}
     </button>
   </div>
 </div>
 
-<div class="card p-4">
-  <div class="table-responsive">
-    <table class="table table-dark table-hover align-middle">
+<div class="card">
+  <div class="card-title" style="margin-bottom:4px;">
+    <i class="bi bi-list-task" style="color:var(--accent);"></i> Danh Sách Lệnh Tùy Biến (Auto-Responders)
+  </div>
+  <div class="card-desc" style="margin-bottom:18px;">
+    Bot sẽ tự động bắt từ khóa khi thành viên nhắn tin trong server và phản hồi ngay lập tức.
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
       <thead>
-        <tr>
-          <th>ID</th>
-          <th>{{ t('customcmd.th_trigger') | default('Từ khóa (Trigger)') }}</th>
-          <th>{{ t('customcmd.th_type') | default('Kiểu khớp') }}</th>
-          <th>{{ t('customcmd.th_response') | default('Nội dung phản hồi') }}</th>
-          <th>{{ t('customcmd.th_uses') | default('Đã dùng') }}</th>
-          <th>{{ t('common.status') | default('Trạng thái') }}</th>
-          <th class="text-end">{{ t('common.actions') | default('Hành động') }}</th>
+        <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em;">
+          <th style="padding:10px 8px;">ID</th>
+          <th style="padding:10px 8px;">{{ t('customcmd.th_trigger') | default('Từ khóa (Trigger)') }}</th>
+          <th style="padding:10px 8px;">{{ t('customcmd.th_type') | default('Kiểu khớp') }}</th>
+          <th style="padding:10px 8px;">{{ t('customcmd.th_response') | default('Nội dung phản hồi') }}</th>
+          <th style="padding:10px 8px;">{{ t('customcmd.th_uses') | default('Đã dùng') }}</th>
+          <th style="padding:10px 8px;">{{ t('common.status') | default('Trạng thái') }}</th>
+          <th style="padding:10px 8px; text-align:right;">{{ t('common.actions') | default('Hành động') }}</th>
         </tr>
       </thead>
       <tbody>
         {% for cmd in custom_cmds %}
-        <tr>
-          <td><code>#{{ cmd.id }}</code></td>
-          <td><strong class="text-info">{{ cmd.trigger }}</strong></td>
-          <td><span class="badge bg-secondary">{{ cmd.match_type }}</span></td>
-          <td>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+          <td style="padding:12px 8px; color:var(--text-muted);"><code>#{{ cmd.id }}</code></td>
+          <td style="padding:12px 8px;">
+            <span style="padding:3px 8px; border-radius:6px; background:rgba(255,158,194,0.15); color:var(--accent); font-weight:700; font-family:monospace;">{{ cmd.trigger }}</span>
+          </td>
+          <td style="padding:12px 8px;">
+            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-secondary);">{{ cmd.match_type }}</span>
+          </td>
+          <td style="padding:12px 8px;">
             {% if cmd.embed_json %}
-            <span class="badge bg-primary"><i class="bi bi-card-text me-1"></i> Rich Embed</span>
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; padding:2px 7px; border-radius:4px; background:rgba(88,101,242,0.25); color:#5865f2; font-weight:600; margin-right:6px;">
+              <i class="bi bi-card-text"></i> Rich Embed
+            </span>
             {% endif %}
-            <small class="text-light text-truncate d-inline-block" style="max-width: 250px;">{{ cmd.response_text or '' }}</small>
+            <span style="color:var(--text-secondary); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; vertical-align:middle;">
+              {{ cmd.response_text or '' }}
+            </span>
           </td>
-          <td><span class="badge bg-dark border border-secondary">{{ cmd.uses_count }}</span></td>
-          <td>
+          <td style="padding:12px 8px;">
+            <span style="font-weight:700; color:var(--text-primary);">{{ cmd.uses_count }}</span>
+          </td>
+          <td style="padding:12px 8px;">
             {% if cmd.is_enabled %}
-            <span class="badge bg-success">{{ t('common.active') | default('Bật') }}</span>
+            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:var(--success-bg); color:var(--success); font-weight:600;">{{ t('common.active') | default('Bật') }}</span>
             {% else %}
-            <span class="badge bg-secondary">{{ t('common.disabled') | default('Tắt') }}</span>
+            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-disabled); font-weight:600;">{{ t('common.disabled') | default('Tắt') }}</span>
             {% endif %}
           </td>
-          <td class="text-end">
+          <td style="padding:12px 8px; text-align:right;">
             <form method="POST" action="{{ url_for('server_customcommands_delete', guild_id=guild_id, cmd_id=cmd.id) }}" style="display:inline;" onsubmit="return confirm('Bạn có chắc muốn xóa lệnh này?');">
-              <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
+              <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="Xóa">
+                <i class="bi bi-trash"></i>
+              </button>
             </form>
           </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="7" class="text-center text-muted py-4">{{ t('customcmd.no_cmds') | default('Chưa có lệnh tùy biến nào. Hãy bấm "Tạo Lệnh Mới" để thêm!') }}</td>
+          <td colspan="7" style="text-align:center; color:var(--text-muted); padding:36px 8px;">
+            <i class="bi bi-chat-square-dots" style="font-size:2rem; display:block; margin-bottom:8px; opacity:0.4;"></i>
+            {{ t('customcmd.no_cmds') | default('Chưa có lệnh tùy biến nào. Hãy bấm "Tạo Lệnh Mới" để thêm!') }}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -66,77 +88,96 @@
 </div>
 
 <!-- Modal Tạo Lệnh Mới -->
-<div class="modal fade" id="addCmdModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content bg-dark border-secondary text-light">
-      <div class="modal-header border-secondary">
-        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>{{ t('customcmd.modal_title') | default('Tạo Lệnh Tùy Biến / Auto-Responder Mới') }}</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form method="POST" action="{{ url_for('server_customcommands_add', guild_id=guild_id) }}">
-        <div class="modal-body">
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">{{ t('customcmd.label_trigger') | default('Từ khóa kích hoạt (Trigger)') }}</label>
-              <input type="text" name="trigger" class="form-control" placeholder="VD: !ip hoặc !rules" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">{{ t('customcmd.label_match') | default('Kiểu khớp từ khóa') }}</label>
-              <select name="match_type" class="form-select">
-                <option value="exact">Khớp chính xác (Exact match: ==)</option>
-                <option value="startswith">Bắt đầu bằng (Starts with)</option>
-                <option value="contains">Chứa từ khóa (Contains)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">{{ t('customcmd.label_response') | default('Nội dung phản hồi (Văn bản)') }}</label>
-            <textarea name="response_text" class="form-control" rows="3" placeholder="Xin chào {user}, địa chỉ IP server Minecraft là play.example.com!"></textarea>
-            <div class="mt-2">
-              <small class="text-muted me-2">Biến động hỗ trợ:</small>
-              <span class="badge bg-secondary cursor-pointer" onclick="insertVar('{user}')">{user}</span>
-              <span class="badge bg-secondary cursor-pointer" onclick="insertVar('{mention}')">{mention}</span>
-              <span class="badge bg-secondary cursor-pointer" onclick="insertVar('{server}')">{server}</span>
-              <span class="badge bg-secondary cursor-pointer" onclick="insertVar('{members}')">{members}</span>
-              <span class="badge bg-secondary cursor-pointer" onclick="insertVar('{random:1-100}')">{random:1-100}</span>
-            </div>
-          </div>
-
-          <!-- Embed Options -->
-          <div class="card bg-black p-3 border-secondary mb-3">
-            <h6 class="text-primary mb-3"><i class="bi bi-palette me-1"></i> {{ t('customcmd.sec_embed_opt') | default('Tùy Chọn Phản Hồi Bằng Rich Embed (Không bắt buộc)') }}</h6>
-            <div class="row g-2 mb-2">
-              <div class="col-md-8">
-                <input type="text" name="embed_title" class="form-control form-control-sm" placeholder="Tiêu đề Embed">
-              </div>
-              <div class="col-md-4">
-                <input type="color" name="embed_color" class="form-control form-control-color form-control-sm w-100" value="#5865F2">
-              </div>
-            </div>
-            <div class="mb-2">
-              <textarea name="embed_description" class="form-control form-control-sm" rows="2" placeholder="Mô tả Embed (Hỗ trợ markdown)"></textarea>
-            </div>
-            <div class="row g-2">
-              <div class="col-md-6">
-                <input type="url" name="embed_image" class="form-control form-control-sm" placeholder="Link ảnh lớn (Image URL)">
-              </div>
-              <div class="col-md-6">
-                <input type="text" name="embed_footer" class="form-control form-control-sm" placeholder="Chữ chân trang (Footer)">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-secondary">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('common.cancel') | default('Hủy') }}</button>
-          <button type="submit" class="btn btn-primary">{{ t('common.save') | default('Tạo Lệnh') }}</button>
-        </div>
-      </form>
+<div id="addCmdModal" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event, 'addCmdModal')">
+  <div class="modal-box" onclick="event.stopPropagation();" style="max-width:650px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="bi bi-plus-circle-fill" style="color:var(--accent); margin-right:6px;"></i>{{ t('customcmd.modal_title') | default('Tạo Lệnh Tùy Biến / Auto-Responder Mới') }}</span>
+      <button type="button" class="modal-close-btn" onclick="closeModal('addCmdModal')">×</button>
     </div>
+    <form method="POST" action="{{ url_for('server_customcommands_add', guild_id=guild_id) }}">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">{{ t('customcmd.label_trigger') | default('Từ khóa kích hoạt (Trigger)') }}</label>
+            <input type="text" name="trigger" class="form-control" placeholder="VD: !ip hoặc !rules" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">{{ t('customcmd.label_match') | default('Kiểu khớp từ khóa') }}</label>
+            <select name="match_type" class="form-control">
+              <option value="exact">Khớp chính xác (Exact match: ==)</option>
+              <option value="startswith">Bắt đầu bằng (Starts with)</option>
+              <option value="contains">Chứa từ khóa (Contains)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">{{ t('customcmd.label_response') | default('Nội dung phản hồi (Văn bản)') }}</label>
+          <textarea name="response_text" class="form-control" rows="3" placeholder="Xin chào {user}, địa chỉ IP server Minecraft là play.example.com!"></textarea>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px;">
+            <span style="font-size:0.75rem; color:var(--text-muted);">Biến hỗ trợ:</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{user}')">{user}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{mention}')">{mention}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{server}')">{server}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{members}')">{members}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{random:1-100}')">{random:1-100}</span>
+          </div>
+        </div>
+
+        <!-- Embed Options Container -->
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-top:16px;">
+          <div style="font-size:0.85rem; font-weight:700; color:var(--accent); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+            <i class="bi bi-palette-fill"></i> {{ t('customcmd.sec_embed_opt') | default('Tùy Chọn Phản Hồi Bằng Rich Embed (Không bắt buộc)') }}
+          </div>
+          
+          <div class="form-row" style="margin-bottom:12px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Tiêu đề Embed</label>
+              <input type="text" name="embed_title" class="form-control" placeholder="...">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Màu viền Embed</label>
+              <input type="color" name="embed_color" class="form-control" value="#5865F2" style="height:42px; padding:4px; cursor:pointer;">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Mô tả Embed</label>
+            <textarea name="embed_description" class="form-control" rows="2" placeholder="Nội dung hiển thị bên trong embed..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Link ảnh (Image URL)</label>
+              <input type="url" name="embed_image" class="form-control" placeholder="https://...">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Chữ chân trang (Footer)</label>
+              <input type="text" name="embed_footer" class="form-control" placeholder="...">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addCmdModal')">{{ t('common.cancel') | default('Hủy') }}</button>
+        <button type="submit" class="btn btn-primary">{{ t('common.save') | default('Tạo Lệnh') }}</button>
+      </div>
+    </form>
   </div>
 </div>
 
 <script>
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'flex';
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+function closeModalOnOverlay(e, id) {
+  if (e.target.id === id) closeModal(id);
+}
 function insertVar(varName) {
   const textarea = document.querySelector('textarea[name="response_text"]');
   if (textarea) {
