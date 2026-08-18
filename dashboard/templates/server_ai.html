@@ -1,0 +1,90 @@
+{% extends "base_server.html" %}
+
+{% block title %}{{ t('nav.ai') | default('AI Assistant') }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="page-title"><i class="bi bi-robot text-primary me-2"></i>{{ t('ai.page_title') | default('Trợ Lý AI & Smart Chatbot') }}</h1>
+    <p class="text-muted">{{ t('ai.page_subtitle') | default('Tích hợp trí tuệ nhân tạo Google Gemini: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện tự động.') }}</p>
+  </div>
+  <div>
+    <button type="submit" form="ai-settings-form" class="btn btn-primary"><i class="bi bi-floppy2-fill me-1"></i> {{ t('common.save') | default('Lưu Cài Đặt') }}</button>
+  </div>
+</div>
+
+<form id="ai-settings-form" method="POST" action="{{ url_for('server_ai', guild_id=guild_id) }}">
+  <div class="row g-4">
+    <!-- Cấu hình kênh và công tắc -->
+    <div class="col-lg-6">
+      <div class="card p-4">
+        <h3 class="card-title mb-3"><i class="bi bi-toggles me-2"></i>{{ t('ai.sec_general') | default('Cài Đặt Chung') }}</h3>
+        
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="enabled" id="aiEnabled" value="1" {% if ai_settings.enabled %}checked{% endif %}>
+          <label class="form-check-label fw-bold" for="aiEnabled">{{ t('ai.enable_label') | default('Bật tính năng Kênh Chat AI Tự Động') }}</label>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ t('ai.channel_label') | default('Kênh Trò Chuyện AI (#ai-chat)') }}</label>
+          <select name="ai_channel_id" class="form-select">
+            <option value="" {% if not ai_settings.ai_channel_id %}selected{% endif %}>— Chọn kênh chat tự động —</option>
+            {% for c in text_channels %}
+            <option value="{{ c.id }}" {% if ai_settings.ai_channel_id == c.id|string %}selected{% endif %}># {{ c.name }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">{{ t('ai.channel_hint') | default('Khi thành viên nhắn tin trong kênh này, Bot sẽ tự động trả lời tự nhiên theo ngữ cảnh.') }}</small>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ t('ai.rate_limit_label') | default('Giới hạn tin nhắn (Tin/phút/thành viên)') }}</label>
+          <input type="number" name="rate_limit" class="form-control" value="{{ ai_settings.rate_limit or 5 }}" min="1" max="30">
+        </div>
+
+        <h5 class="mt-4 mb-2">{{ t('ai.sec_commands') | default('Bật/Tắt Lệnh Slash') }}</h5>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="allow_ask" id="allowAsk" value="1" {% if ai_settings.allow_ask %}checked{% endif %}>
+          <label class="form-check-label" for="allowAsk">Cho phép lệnh <code>/ask &lt;câu hỏi&gt;</code></label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="allow_summarize" id="allowSummarize" value="1" {% if ai_settings.allow_summarize %}checked{% endif %}>
+          <label class="form-check-label" for="allowSummarize">Cho phép lệnh <code>/summarize [limit]</code></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cấu hình tính cách AI -->
+    <div class="col-lg-6">
+      <div class="card p-4">
+        <h3 class="card-title mb-3"><i class="bi bi-person-gear me-2"></i>{{ t('ai.sec_personality') | default('Tính Cách AI & System Prompt') }}</h3>
+        
+        <div class="mb-3">
+          <label class="form-label">{{ t('ai.preset_label') | default('Chọn phong cách tính cách mẫu') }}</label>
+          <select name="personality_preset" class="form-select">
+            <option value="friendly" {% if ai_settings.personality_preset == 'friendly' %}selected{% endif %}>🌟 Thân thiện, dễ thương & hữu ích (Mặc định)</option>
+            <option value="expert" {% if ai_settings.personality_preset == 'expert' %}selected{% endif %}>🎓 Chuyên gia cố vấn học tập & kỹ thuật</option>
+            <option value="gamer" {% if ai_settings.personality_preset == 'gamer' %}selected{% endif %}>🎮 Gamer vui tính, hài hước & năng động</option>
+            <option value="custom" {% if ai_settings.personality_preset == 'custom' %}selected{% endif %}>✍️ Tùy biến System Prompt riêng</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ t('ai.custom_prompt_label') | default('Mô tả tính cách tùy biến (Custom System Prompt)') }}</label>
+          <textarea name="custom_prompt" class="form-control" rows="5" placeholder="VD: Bạn là quản gia quý tộc của gia tộc Zeryn, luôn trả lời lịch thiệp và xưng hô 'Kính thưa quý khách'..."></textarea>
+          <small class="text-muted">{{ t('ai.custom_prompt_hint') | default('Chỉ áp dụng nếu bạn chọn "Tùy biến System Prompt riêng" hoặc muốn bổ sung chỉ dẫn.') }}</small>
+        </div>
+
+        <div class="alert alert-info border-0 bg-opacity-25 bg-primary mt-3">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-star-fill text-warning me-2 fs-5"></i>
+            <div>
+              <strong>{{ t('ai.owner_persona_badge') | default('Đặc quyền Chủ Bot:') }}</strong>
+              <span class="small d-block">{{ t('ai.owner_persona_desc') | default('AI sẽ tự động nhận diện Chủ sở hữu bot (BOT_OWNER_ID) và xưng hô tôn trọng là "Cha" hoặc "Bố".') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

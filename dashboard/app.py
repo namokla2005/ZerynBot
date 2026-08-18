@@ -1152,6 +1152,215 @@ def delete_track_route(guild_id: str, track_id: int):
 
 
 
+# ─── Routes: Economy & Shop ───────────────────────────────────────────────────
+
+@app.route("/dashboard/<guild_id>/economy", methods=["GET", "POST"])
+@guild_access_required
+def server_economy(guild_id: str):
+    if request.method == "POST":
+        daily_amount = int(request.form.get("daily_amount", 100))
+        streak_bonus = int(request.form.get("streak_bonus", 20))
+        starting_balance = int(request.form.get("starting_balance", 50))
+        currency_symbol = request.form.get("currency_symbol", "🪙").strip() or "🪙"
+        currency_name = request.form.get("currency_name", "Coins").strip() or "Coins"
+        
+        db.update_economy_settings(guild_id, daily_amount, streak_bonus, starting_balance, currency_symbol, currency_name)
+        flash("✅ Đã lưu cài đặt Economy thành công!", "success")
+        return redirect(url_for("server_economy", guild_id=guild_id))
+
+    guild_info = _get_guild_from_session(guild_id)
+    modules = db.get_guild_modules(guild_id)
+    eco_settings = db.get_economy_settings(guild_id)
+    shop_items = db.get_economy_shop(guild_id)
+    roles = db.get_guild_roles(guild_id)
+    top_users = db.get_top_economy_users(guild_id, limit=1)
+    richest_user = top_users[0] if top_users else None
+    
+    # Calculate total circulating currency
+    all_users = db.get_top_economy_users(guild_id, limit=1000)
+    total_circulating = sum(u.get("total", 0) for u in all_users)
+
+    return render_template(
+        "server_economy.html",
+        guild=guild_info,
+        guild_id=guild_id,
+        modules=modules,
+        active_page="economy",
+        eco_settings=eco_settings,
+        shop_items=shop_items,
+        roles=roles,
+        richest_user=richest_user,
+        total_circulating=total_circulating
+    )
+
+
+@app.route("/dashboard/<guild_id>/economy/add_item", methods=["POST"])
+@guild_access_required
+def server_economy_add_item(guild_id: str):
+    name = request.form.get("name", "").strip()
+    role_id = request.form.get("role_id", "").strip()
+    price = int(request.form.get("price", 100))
+    stock = int(request.form.get("stock", -1))
+
+    if not name or not role_id:
+        flash("❌ Vui lòng nhập đầy đủ tên và chọn Role!", "error")
+    else:
+        db.add_economy_shop_item(guild_id, role_id, name, price, stock)
+        flash(f"✅ Đã thêm '{name}' vào Cửa hàng Shop!", "success")
+    return redirect(url_for("server_economy", guild_id=guild_id))
+
+
+@app.route("/dashboard/<guild_id>/economy/delete_item/<int:item_id>", methods=["POST", "GET"])
+@guild_access_required
+def server_economy_delete_item(guild_id: str, item_id: int):
+    db.delete_economy_shop_item(item_id, guild_id)
+    flash("✅ Đã xóa vật phẩm khỏi Cửa hàng!", "success")
+    return redirect(url_for("server_economy", guild_id=guild_id))
+
+
+# ─── Routes: Temp Voice Hub ───────────────────────────────────────────────────
+
+@app.route("/dashboard/<guild_id>/tempvoice", methods=["GET", "POST"])
+@guild_access_required
+def server_tempvoice(guild_id: str):
+    if request.method == "POST":
+        enabled = 1 if request.form.get("enabled") == "1" else 0
+        hub_channel_id = request.form.get("hub_channel_id", "").strip()
+        category_id = request.form.get("category_id", "").strip()
+        name_template = request.form.get("name_template", "🔊 Phòng của {user}").strip() or "🔊 Phòng của {user}"
+        default_limit = int(request.form.get("default_limit", 0))
+
+        db.update_tempvoice_settings(guild_id, enabled, hub_channel_id, category_id, name_template, default_limit)
+        # Update guild_modules toggle
+        db.set_module_enabled(guild_id, "tempvoice", bool(enabled))
+        flash("✅ Đã lưu cài đặt Temp Voice thành công!", "success")
+        return redirect(url_for("server_tempvoice", guild_id=guild_id))
+
+    guild_info = _get_guild_from_session(guild_id)
+    modules = db.get_guild_modules(guild_id)
+    tv_settings = db.get_tempvoice_settings(guild_id)
+    active_channels = db.get_active_temp_channels(guild_id)
+    
+    channels = db.get_guild_channels(guild_id)
+    voice_channels = [c for c in channels if c.get("channel_type") == 2]
+    categories = [c for c in channels if c.get("channel_type") == 4]
+
+    return render_template(
+        "server_tempvoice.html",
+        guild=guild_info,
+        guild_id=guild_id,
+        modules=modules,
+        active_page="tempvoice",
+        tv_settings=tv_settings,
+        active_channels=active_channels,
+        voice_channels=voice_channels,
+        categories=categories
+    )
+
+
+@app.route("/dashboard/<guild_id>/tempvoice/delete_channel/<channel_id>", methods=["POST", "GET"])
+@guild_access_required
+def server_tempvoice_delete_channel(guild_id: str, channel_id: str):
+    import database as db_mod
+    with sqlite3.connect(db_mod.DB_PATH) as conn:
+        conn.execute("DELETE FROM tempvoice_active WHERE channel_id = ?", (channel_id,))
+        conn.commit()
+    flash("✅ Đã xóa phòng voice tạm thời!", "success")
+    return redirect(url_for("server_tempvoice", guild_id=guild_id))
+
+
+# ─── Routes: Custom Commands ───────────────────────────────────────────────────
+
+@app.route("/dashboard/<guild_id>/customcommands", methods=["GET"])
+@guild_access_required
+def server_customcommands(guild_id: str):
+    guild_info = _get_guild_from_session(guild_id)
+    modules = db.get_guild_modules(guild_id)
+    custom_cmds = db.get_custom_commands(guild_id)
+
+    return render_template(
+        "server_customcommands.html",
+        guild=guild_info,
+        guild_id=guild_id,
+        modules=modules,
+        active_page="customcommands",
+        custom_cmds=custom_cmds
+    )
+
+
+@app.route("/dashboard/<guild_id>/customcommands/add", methods=["POST"])
+@guild_access_required
+def server_customcommands_add(guild_id: str):
+    trigger = request.form.get("trigger", "").strip()
+    match_type = request.form.get("match_type", "exact")
+    response_text = request.form.get("response_text", "").strip()
+    
+    embed_title = request.form.get("embed_title", "").strip()
+    embed_json = None
+    if embed_title:
+        embed_dict = {
+            "title": embed_title,
+            "color": request.form.get("embed_color", "#5865F2"),
+            "description": request.form.get("embed_description", ""),
+            "image_url": request.form.get("embed_image", ""),
+            "footer_text": request.form.get("embed_footer", "")
+        }
+        embed_json = json.dumps(embed_dict, ensure_ascii=False)
+
+    if not trigger:
+        flash("❌ Từ khóa kích hoạt không được để trống!", "error")
+    else:
+        user = session.get("user", {})
+        db.add_custom_command(guild_id, trigger, match_type, response_text, embed_json, creator_id=user.get("id", ""))
+        flash(f"✅ Đã tạo lệnh '{trigger}' thành công!", "success")
+
+    return redirect(url_for("server_customcommands", guild_id=guild_id))
+
+
+@app.route("/dashboard/<guild_id>/customcommands/delete/<int:cmd_id>", methods=["POST", "GET"])
+@guild_access_required
+def server_customcommands_delete(guild_id: str, cmd_id: int):
+    db.delete_custom_command(cmd_id, guild_id)
+    flash("✅ Đã xóa lệnh tùy biến!", "success")
+    return redirect(url_for("server_customcommands", guild_id=guild_id))
+
+
+# ─── Routes: AI Assistant ──────────────────────────────────────────────────────
+
+@app.route("/dashboard/<guild_id>/ai", methods=["GET", "POST"])
+@guild_access_required
+def server_ai(guild_id: str):
+    if request.method == "POST":
+        enabled = 1 if request.form.get("enabled") == "1" else 0
+        ai_channel_id = request.form.get("ai_channel_id", "").strip()
+        personality_preset = request.form.get("personality_preset", "friendly")
+        custom_prompt = request.form.get("custom_prompt", "").strip()
+        allow_ask = 1 if request.form.get("allow_ask") == "1" else 0
+        allow_summarize = 1 if request.form.get("allow_summarize") == "1" else 0
+        rate_limit = int(request.form.get("rate_limit", 5))
+
+        db.update_ai_settings(guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit)
+        db.set_module_enabled(guild_id, "ai", bool(enabled))
+        flash("✅ Đã lưu cấu hình AI Assistant thành công!", "success")
+        return redirect(url_for("server_ai", guild_id=guild_id))
+
+    guild_info = _get_guild_from_session(guild_id)
+    modules = db.get_guild_modules(guild_id)
+    ai_settings = db.get_ai_settings(guild_id)
+    channels = db.get_guild_channels(guild_id)
+    text_channels = [c for c in channels if c.get("channel_type") == 0]
+
+    return render_template(
+        "server_ai.html",
+        guild=guild_info,
+        guild_id=guild_id,
+        modules=modules,
+        active_page="ai",
+        ai_settings=ai_settings,
+        text_channels=text_channels
+    )
+
+
 # ─── Bot Owner / Admin Panel ───────────────────────────────────────────────────
 
 def owner_required(f):

@@ -1,0 +1,170 @@
+{% extends "base_server.html" %}
+
+{% block title %}{{ t('nav.economy') | default('Economy & Shop') }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="page-title"><i class="bi bi-coin text-warning me-2"></i>{{ t('economy.page_title') | default('Hệ Thống Kinh Tế & Cửa Hàng Role') }}</h1>
+    <p class="text-muted">{{ t('economy.page_subtitle') | default('Quản lý tiền tệ server, điểm danh hàng ngày, trò chơi và tạo shop mua role bằng tiền ảo.') }}</p>
+  </div>
+  <div>
+    <button type="submit" form="economy-settings-form" class="btn btn-primary"><i class="bi bi-floppy2-fill me-1"></i> {{ t('common.save') | default('Lưu Cài Đặt') }}</button>
+  </div>
+</div>
+
+<!-- Thống kê tổng quan -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="bi bi-cash-stack text-success"></i></div>
+      <div class="stat-value">{{ eco_settings.currency_symbol }} {{ total_circulating | default(0) | int }}</div>
+      <div class="stat-label">{{ t('economy.stat_circulating') | default('Tổng tiền tệ lưu thông') }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="bi bi-trophy-fill text-warning"></i></div>
+      <div class="stat-value">{% if richest_user %}{{ richest_user.total | default(0) | int }} {{ eco_settings.currency_symbol }}{% else %}—{% endif %}</div>
+      <div class="stat-label">{{ t('economy.stat_richest') | default('Thành viên giàu nhất') }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="bi bi-bag-check-fill text-primary"></i></div>
+      <div class="stat-value">{{ shop_items | length }}</div>
+      <div class="stat-label">{{ t('economy.stat_items') | default('Vật phẩm Role trong Shop') }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Cài đặt kinh tế cơ bản -->
+  <div class="col-lg-5">
+    <div class="card p-4">
+      <h3 class="card-title mb-3"><i class="bi bi-sliders me-2"></i>{{ t('economy.sec_settings') | default('Cấu Hình Phần Thưởng') }}</h3>
+      <form id="economy-settings-form" method="POST" action="{{ url_for('server_economy', guild_id=guild_id) }}">
+        <div class="mb-3">
+          <label class="form-label">{{ t('economy.label_daily') | default('Tiền thưởng Daily cơ bản') }}</label>
+          <input type="number" name="daily_amount" class="form-control" value="{{ eco_settings.daily_amount }}" min="1" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ t('economy.label_streak') | default('Thưởng chuỗi ngày (Streak bonus mỗi ngày)') }}</label>
+          <input type="number" name="streak_bonus" class="form-control" value="{{ eco_settings.streak_bonus }}" min="0" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ t('economy.label_starting') | default('Số dư ban đầu cho thành viên mới') }}</label>
+          <input type="number" name="starting_balance" class="form-control" value="{{ eco_settings.starting_balance }}" min="0" required>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">{{ t('economy.label_symbol') | default('Biểu tượng tiền') }}</label>
+            <input type="text" name="currency_symbol" class="form-control" value="{{ eco_settings.currency_symbol }}" maxlength="5">
+          </div>
+          <div class="col-6">
+            <label class="form-label">{{ t('economy.label_name') | default('Tên tiền tệ') }}</label>
+            <input type="text" name="currency_name" class="form-control" value="{{ eco_settings.currency_name }}" maxlength="20">
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quản lý Cửa Hàng Role -->
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="card-title mb-0"><i class="bi bi-shop me-2"></i>{{ t('economy.sec_shop') | default('Cửa Hàng Role Server') }}</h3>
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+          <i class="bi bi-plus-lg me-1"></i> {{ t('economy.btn_add_item') | default('Thêm Role Bán') }}
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>{{ t('economy.th_item_name') | default('Tên hiển thị') }}</th>
+              <th>Role</th>
+              <th>{{ t('economy.th_price') | default('Giá') }}</th>
+              <th>{{ t('economy.th_stock') | default('Tồn kho') }}</th>
+              <th class="text-end">{{ t('common.actions') | default('Hành động') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in shop_items %}
+            <tr>
+              <td><code>#{{ item.id }}</code></td>
+              <td><strong>{{ item.name }}</strong></td>
+              <td>
+                {% set r = roles | selectattr('id', 'equalto', item.role_id) | first %}
+                {% if r %}
+                <span class="badge" style="background-color: {{ r.color_hex or '#5865F2' }}; color: #fff;">@{{ r.name }}</span>
+                {% else %}
+                <span class="badge bg-secondary">Role: {{ item.role_id }}</span>
+                {% endif %}
+              </td>
+              <td><span class="text-warning fw-bold">{{ item.price | int }} {{ eco_settings.currency_symbol }}</span></td>
+              <td>{% if item.stock >= 0 %}{{ item.stock }}{% else %}<span class="badge bg-success">{{ t('economy.unlimited') | default('Vô hạn') }}</span>{% endif %}</td>
+              <td class="text-end">
+                <form method="POST" action="{{ url_for('server_economy_delete_item', guild_id=guild_id, item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('Bạn có chắc muốn xóa vật phẩm này?');">
+                  <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">{{ t('economy.no_items') | default('Chưa có Role nào được bán trong shop. Hãy bấm Thêm Role Bán!') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Thêm Vật Phẩm Shop -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>{{ t('economy.modal_add_title') | default('Thêm Role Vào Cửa Hàng') }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('server_economy_add_item', guild_id=guild_id) }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">{{ t('economy.modal_item_name') | default('Tên hiển thị vật phẩm') }}</label>
+            <input type="text" name="name" class="form-control" placeholder="VD: VIP Member Role" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Chọn Role Discord</label>
+            <select name="role_id" class="form-select" required>
+              <option value="" disabled selected>— Chọn role cần bán —</option>
+              {% for r in roles %}
+              <option value="{{ r.id }}">@{{ r.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">{{ t('economy.modal_price') | default('Giá bán') }}</label>
+              <input type="number" name="price" class="form-control" value="500" min="1" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">{{ t('economy.modal_stock') | default('Số lượng (-1 = vô hạn)') }}</label>
+              <input type="number" name="stock" class="form-control" value="-1" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('common.cancel') | default('Hủy') }}</button>
+          <button type="submit" class="btn btn-primary">{{ t('common.save') | default('Thêm Vào Shop') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

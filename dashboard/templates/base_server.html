@@ -116,6 +116,30 @@
             <span class="status-dot nav-dot-logger
             {% if modules.get('logger', False) %}on{% else %}off{% endif %}"></span>
           </a>
+          <a href="{{ url_for('server_economy', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'economy' %}active{% endif %}">
+            <i class="nav-icon bi bi-coin"></i> Economy &amp; Shop
+            <span class="status-dot nav-dot-economy
+            {% if modules.get('economy', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'tempvoice' %}active{% endif %}">
+            <i class="nav-icon bi bi-mic-fill"></i> Temp Voice Hub
+            <span class="status-dot nav-dot-tempvoice
+            {% if modules.get('tempvoice', False) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'customcommands' %}active{% endif %}">
+            <i class="nav-icon bi bi-lightning-charge-fill"></i> Custom Commands
+            <span class="status-dot nav-dot-customcommands
+            {% if modules.get('customcommands', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_ai', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'ai' %}active{% endif %}">
+            <i class="nav-icon bi bi-robot"></i> AI Assistant
+            <span class="status-dot nav-dot-ai
+            {% if modules.get('ai', False) %}on{% else %}off{% endif %}"></span>
+          </a>
         </div>
       </nav>
 

@@ -251,6 +251,76 @@ def init_db():
                 reason     TEXT,
                 kicked_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS economy_settings (
+                guild_id            TEXT PRIMARY KEY,
+                daily_amount        INTEGER DEFAULT 100,
+                streak_bonus        INTEGER DEFAULT 20,
+                starting_balance    INTEGER DEFAULT 50,
+                currency_symbol     TEXT DEFAULT '🪙',
+                currency_name       TEXT DEFAULT 'Coins'
+            );
+
+            CREATE TABLE IF NOT EXISTS economy_users (
+                guild_id        TEXT NOT NULL,
+                user_id         TEXT NOT NULL,
+                wallet          INTEGER DEFAULT 50,
+                bank            INTEGER DEFAULT 0,
+                daily_streak    INTEGER DEFAULT 0,
+                last_daily_at   REAL DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS economy_shop (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                role_id     TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                price       INTEGER NOT NULL DEFAULT 100,
+                stock       INTEGER DEFAULT -1,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS tempvoice_settings (
+                guild_id            TEXT PRIMARY KEY,
+                enabled             INTEGER DEFAULT 0,
+                hub_channel_id      TEXT,
+                category_id         TEXT,
+                name_template       TEXT DEFAULT '🔊 Phòng của {user}',
+                default_limit       INTEGER DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS tempvoice_active (
+                channel_id      TEXT PRIMARY KEY,
+                guild_id        TEXT NOT NULL,
+                owner_id        TEXT NOT NULL,
+                is_locked       INTEGER DEFAULT 0,
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS custom_commands (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id        TEXT NOT NULL,
+                trigger         TEXT NOT NULL,
+                match_type      TEXT DEFAULT 'exact',
+                response_text   TEXT,
+                embed_json      TEXT,
+                is_enabled      INTEGER DEFAULT 1,
+                uses_count      INTEGER DEFAULT 0,
+                creator_id      TEXT,
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_settings (
+                guild_id            TEXT PRIMARY KEY,
+                enabled             INTEGER DEFAULT 0,
+                ai_channel_id       TEXT,
+                personality_preset  TEXT DEFAULT 'friendly',
+                custom_prompt       TEXT DEFAULT '',
+                allow_ask           INTEGER DEFAULT 1,
+                allow_summarize     INTEGER DEFAULT 1,
+                rate_limit          INTEGER DEFAULT 5
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -302,7 +372,11 @@ def init_db():
             
         conn.commit()
 
-DEFAULT_MODULES = ["utility", "welcome_goodbye", "info", "music", "tickets", "autoroles", "reactionroles", "automods", "leveling"]
+DEFAULT_MODULES = [
+    "utility", "welcome_goodbye", "info", "music", "tickets",
+    "autoroles", "reactionroles", "automods", "leveling",
+    "economy", "tempvoice", "customcommands", "ai"
+]
 
 # ─── Blacklist (sync — Flask) ──────────────────────────────────────────────────
 
@@ -1444,3 +1518,408 @@ async def async_set_guild_language(guild_id: str, language: str) -> None:
     await asyncio.to_thread(upsert_guild, guild_id, language=language)
     # Invalidate Redis/memory cache so bot picks up the change immediately
     await cache.adelete(f"settings:{guild_id}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: ECONOMY & SERVER SHOP ─────────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════════
+
+def get_economy_settings(guild_id: str) -> dict:
+    """Sync — Get economy settings for dashboard."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM economy_settings WHERE guild_id = ?", (guild_id,)).fetchone()
+        if not row:
+            return {"guild_id": guild_id, "daily_amount": 100, "streak_bonus": 20, "starting_balance": 50, "currency_symbol": "🪙", "currency_name": "Coins"}
+        return _row_to_dict(row)
+
+
+def update_economy_settings(guild_id: str, daily_amount: int, streak_bonus: int, starting_balance: int, currency_symbol: str = "🪙", currency_name: str = "Coins") -> None:
+    """Sync — Update economy settings."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO economy_settings (guild_id, daily_amount, streak_bonus, starting_balance, currency_symbol, currency_name)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                daily_amount=excluded.daily_amount,
+                streak_bonus=excluded.streak_bonus,
+                starting_balance=excluded.starting_balance,
+                currency_symbol=excluded.currency_symbol,
+                currency_name=excluded.currency_name
+        """, (guild_id, daily_amount, streak_bonus, starting_balance, currency_symbol, currency_name))
+        conn.commit()
+
+
+def get_economy_shop(guild_id: str) -> list:
+    """Sync — List all shop items in a server."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM economy_shop WHERE guild_id = ? ORDER BY price ASC", (guild_id,)).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def add_economy_shop_item(guild_id: str, role_id: str, name: str, price: int, stock: int = -1) -> int:
+    """Sync — Add new role to server shop."""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute("""
+            INSERT INTO economy_shop (guild_id, role_id, name, price, stock)
+            VALUES (?, ?, ?, ?, ?)
+        """, (guild_id, role_id, name, price, stock))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def delete_economy_shop_item(item_id: int, guild_id: str) -> None:
+    """Sync — Delete a shop item."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM economy_shop WHERE id = ? AND guild_id = ?", (item_id, guild_id))
+        conn.commit()
+
+
+def get_top_economy_users(guild_id: str, limit: int = 10) -> list:
+    """Sync — Get top richest members for leaderboard."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("""
+            SELECT user_id, wallet, bank, (wallet + bank) as total, daily_streak
+            FROM economy_users
+            WHERE guild_id = ?
+            ORDER BY total DESC LIMIT ?
+        """, (guild_id, limit)).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def update_user_balance(guild_id: str, user_id: str, wallet: int, bank: int) -> None:
+    """Sync — Admin update user balance on web."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO economy_users (guild_id, user_id, wallet, bank)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                wallet=excluded.wallet,
+                bank=excluded.bank
+        """, (guild_id, user_id, wallet, bank))
+        conn.commit()
+
+
+# Async Economy (Bot)
+async def async_get_economy_settings(guild_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM economy_settings WHERE guild_id = ?", (guild_id,)) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return {"guild_id": guild_id, "daily_amount": 100, "streak_bonus": 20, "starting_balance": 50, "currency_symbol": "🪙", "currency_name": "Coins"}
+            return dict(row)
+
+
+async def async_get_economy_user(guild_id: str, user_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM economy_users WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                # Lấy starting balance
+                settings = await async_get_economy_settings(guild_id)
+                start_bal = settings.get("starting_balance", 50)
+                await db.execute("""
+                    INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+                    VALUES (?, ?, ?, 0, 0, 0)
+                """, (guild_id, user_id, start_bal))
+                await db.commit()
+                return {"guild_id": guild_id, "user_id": user_id, "wallet": start_bal, "bank": 0, "daily_streak": 0, "last_daily_at": 0}
+            return dict(row)
+
+
+async def async_claim_daily(guild_id: str, user_id: str, reward: int, streak: int) -> dict:
+    import time
+    now = time.time()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, ?, 0, ?, ?)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                wallet = wallet + ?,
+                daily_streak = ?,
+                last_daily_at = ?
+        """, (guild_id, user_id, reward, streak, now, reward, streak, now))
+        await db.commit()
+    return await async_get_economy_user(guild_id, user_id)
+
+
+async def async_modify_wallet(guild_id: str, user_id: str, delta: int) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Ensure user exists
+        await async_get_economy_user(guild_id, user_id)
+        await db.execute("""
+            UPDATE economy_users
+            SET wallet = MAX(0, wallet + ?)
+            WHERE guild_id = ? AND user_id = ?
+        """, (delta, guild_id, user_id))
+        await db.commit()
+    return await async_get_economy_user(guild_id, user_id)
+
+
+async def async_transfer_money(guild_id: str, from_user_id: str, to_user_id: str, amount: int) -> bool:
+    if amount <= 0:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT wallet FROM economy_users WHERE guild_id = ? AND user_id = ?", (guild_id, from_user_id)) as cur:
+            sender = await cur.fetchone()
+            if not sender or sender["wallet"] < amount:
+                return False
+        
+        await db.execute("UPDATE economy_users SET wallet = wallet - ? WHERE guild_id = ? AND user_id = ?", (amount, guild_id, from_user_id))
+        # Ensure receiver exists
+        await async_get_economy_user(guild_id, to_user_id)
+        await db.execute("UPDATE economy_users SET wallet = wallet + ? WHERE guild_id = ? AND user_id = ?", (amount, guild_id, to_user_id))
+        await db.commit()
+        return True
+
+
+async def async_get_economy_shop(guild_id: str) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM economy_shop WHERE guild_id = ? ORDER BY price ASC", (guild_id,)) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tuple[bool, str, str]:
+    """Return (success, role_id, error_message_or_item_name)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM economy_shop WHERE id = ? AND guild_id = ?", (item_id, guild_id)) as cur:
+            item = await cur.fetchone()
+            if not item:
+                return False, "", "item_not_found"
+            if item["stock"] == 0:
+                return False, "", "out_of_stock"
+            
+            user = await async_get_economy_user(guild_id, user_id)
+            if user["wallet"] < item["price"]:
+                return False, "", "not_enough_money"
+            
+            # Trừ tiền và trừ stock nếu có giới hạn
+            await db.execute("UPDATE economy_users SET wallet = wallet - ? WHERE guild_id = ? AND user_id = ?", (item["price"], guild_id, user_id))
+            if item["stock"] > 0:
+                await db.execute("UPDATE economy_shop SET stock = stock - 1 WHERE id = ?", (item_id,))
+            await db.commit()
+            return True, item["role_id"], item["name"]
+
+
+async def async_get_top_economy(guild_id: str, limit: int = 10) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT user_id, wallet, bank, (wallet + bank) as total, daily_streak
+            FROM economy_users
+            WHERE guild_id = ?
+            ORDER BY total DESC LIMIT ?
+        """, (guild_id, limit)) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: TEMPORARY VOICE CHANNELS ──────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════════
+
+def get_tempvoice_settings(guild_id: str) -> dict:
+    """Sync — Get tempvoice settings."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM tempvoice_settings WHERE guild_id = ?", (guild_id,)).fetchone()
+        if not row:
+            return {"guild_id": guild_id, "enabled": 0, "hub_channel_id": "", "category_id": "", "name_template": "🔊 Phòng của {user}", "default_limit": 0}
+        return _row_to_dict(row)
+
+
+def update_tempvoice_settings(guild_id: str, enabled: int, hub_channel_id: str, category_id: str, name_template: str = "🔊 Phòng của {user}", default_limit: int = 0) -> None:
+    """Sync — Update tempvoice settings."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO tempvoice_settings (guild_id, enabled, hub_channel_id, category_id, name_template, default_limit)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                enabled=excluded.enabled,
+                hub_channel_id=excluded.hub_channel_id,
+                category_id=excluded.category_id,
+                name_template=excluded.name_template,
+                default_limit=excluded.default_limit
+        """, (guild_id, enabled, hub_channel_id, category_id, name_template, default_limit))
+        conn.commit()
+
+
+def get_active_temp_channels(guild_id: str) -> list:
+    """Sync — List currently active temporary voice channels."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM tempvoice_active WHERE guild_id = ? ORDER BY created_at DESC", (guild_id,)).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+async def async_get_tempvoice_settings(guild_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM tempvoice_settings WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return {"guild_id": guild_id, "enabled": 0, "hub_channel_id": "", "category_id": "", "name_template": "🔊 Phòng của {user}", "default_limit": 0}
+            return dict(row)
+
+
+async def async_add_active_temp_channel(channel_id: str, guild_id: str, owner_id: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT OR REPLACE INTO tempvoice_active (channel_id, guild_id, owner_id, is_locked)
+            VALUES (?, ?, ?, 0)
+        """, (channel_id, guild_id, owner_id))
+        await db.commit()
+
+
+async def async_remove_active_temp_channel(channel_id: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM tempvoice_active WHERE channel_id = ?", (channel_id,))
+        await db.commit()
+
+
+async def async_get_active_temp_channel(channel_id: str) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM tempvoice_active WHERE channel_id = ?", (channel_id,)) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+
+async def async_update_temp_channel_lock(channel_id: str, is_locked: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE tempvoice_active SET is_locked = ? WHERE channel_id = ?", (is_locked, channel_id))
+        await db.commit()
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: CUSTOM COMMANDS & AUTO-RESPONDERS ─────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════════
+
+def get_custom_commands(guild_id: str) -> list:
+    """Sync — List all custom commands for dashboard."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM custom_commands WHERE guild_id = ? ORDER BY id DESC", (guild_id,)).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+
+def get_custom_command(cmd_id: int, guild_id: str) -> dict | None:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM custom_commands WHERE id = ? AND guild_id = ?", (cmd_id, guild_id)).fetchone()
+        return _row_to_dict(row) if row else None
+
+
+def add_custom_command(guild_id: str, trigger: str, match_type: str, response_text: str, embed_json: str = None, creator_id: str = "") -> int:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute("""
+            INSERT INTO custom_commands (guild_id, trigger, match_type, response_text, embed_json, is_enabled, uses_count, creator_id)
+            VALUES (?, ?, ?, ?, ?, 1, 0, ?)
+        """, (guild_id, trigger.strip().lower(), match_type, response_text, embed_json, creator_id))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def update_custom_command(cmd_id: int, guild_id: str, trigger: str, match_type: str, response_text: str, embed_json: str = None, is_enabled: int = 1) -> None:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            UPDATE custom_commands
+            SET trigger = ?, match_type = ?, response_text = ?, embed_json = ?, is_enabled = ?
+            WHERE id = ? AND guild_id = ?
+        """, (trigger.strip().lower(), match_type, response_text, embed_json, is_enabled, cmd_id, guild_id))
+        conn.commit()
+
+
+def delete_custom_command(cmd_id: int, guild_id: str) -> None:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("DELETE FROM custom_commands WHERE id = ? AND guild_id = ?", (cmd_id, guild_id))
+        conn.commit()
+
+
+async def async_get_custom_commands(guild_id: str) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM custom_commands WHERE guild_id = ? AND is_enabled = 1", (guild_id,)) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def async_find_custom_command(guild_id: str, message_content: str) -> dict | None:
+    """Find matching custom command (exact, contains, startswith)."""
+    text = message_content.strip().lower()
+    commands = await async_get_custom_commands(guild_id)
+    for cmd in commands:
+        trigger = cmd["trigger"].lower()
+        mtype = cmd.get("match_type", "exact")
+        if mtype == "exact" and text == trigger:
+            return cmd
+        elif mtype == "startswith" and text.startswith(trigger):
+            return cmd
+        elif mtype == "contains" and trigger in text:
+            return cmd
+    return None
+
+
+async def async_increment_custom_command_usage(cmd_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE custom_commands SET uses_count = uses_count + 1 WHERE id = ?", (cmd_id,))
+        await db.commit()
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: AI CHAT & SMART ASSISTANT ─────────────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════════
+
+def get_ai_settings(guild_id: str) -> dict:
+    """Sync — Get AI settings for dashboard."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM ai_settings WHERE guild_id = ?", (guild_id,)).fetchone()
+        if not row:
+            return {
+                "guild_id": guild_id, "enabled": 0, "ai_channel_id": "",
+                "personality_preset": "friendly", "custom_prompt": "",
+                "allow_ask": 1, "allow_summarize": 1, "rate_limit": 5
+            }
+        return _row_to_dict(row)
+
+
+def update_ai_settings(guild_id: str, enabled: int, ai_channel_id: str, personality_preset: str = "friendly", custom_prompt: str = "", allow_ask: int = 1, allow_summarize: int = 1, rate_limit: int = 5) -> None:
+    """Sync — Update AI settings."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO ai_settings (guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                enabled=excluded.enabled,
+                ai_channel_id=excluded.ai_channel_id,
+                personality_preset=excluded.personality_preset,
+                custom_prompt=excluded.custom_prompt,
+                allow_ask=excluded.allow_ask,
+                allow_summarize=excluded.allow_summarize,
+                rate_limit=excluded.rate_limit
+        """, (guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit))
+        conn.commit()
+
+
+async def async_get_ai_settings(guild_id: str) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM ai_settings WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return {
+                    "guild_id": guild_id, "enabled": 0, "ai_channel_id": "",
+                    "personality_preset": "friendly", "custom_prompt": "",
+                    "allow_ask": 1, "allow_summarize": 1, "rate_limit": 5
+                }
+            return dict(row)
+

@@ -14,10 +14,13 @@ import importlib.util
 
 import aiohttp
 
-# Ensure parent directory is in sys.path
+# Ensure parent directory and bot directory are in sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
+if BOT_DIR not in sys.path:
+    sys.path.insert(0, BOT_DIR)
 
 import config
 from cache import cache
@@ -230,6 +233,46 @@ class SystemTester:
             error_details["Admin & System"] = traceback.format_exc()
             results.append("🔴 **Admin & System** — FAIL")
 
+        # 12. Economy & Shop Check
+        try:
+            from database import async_get_economy_settings
+            await asyncio.wait_for(async_get_economy_settings("0"), timeout=5.0)
+            results.append("🟢 **Economy & Shop** — OK")
+        except Exception as e:
+            failed_modules.append("Economy & Shop")
+            error_details["Economy & Shop"] = traceback.format_exc()
+            results.append("🔴 **Economy & Shop** — FAIL")
+
+        # 13. Temp Voice Hub Check
+        try:
+            from database import async_get_tempvoice_settings
+            await asyncio.wait_for(async_get_tempvoice_settings("0"), timeout=5.0)
+            results.append("🟢 **Temp Voice Hub** — OK")
+        except Exception as e:
+            failed_modules.append("Temp Voice Hub")
+            error_details["Temp Voice Hub"] = traceback.format_exc()
+            results.append("🔴 **Temp Voice Hub** — FAIL")
+
+        # 14. Custom Commands Check
+        try:
+            from database import async_get_custom_commands
+            await asyncio.wait_for(async_get_custom_commands("0"), timeout=5.0)
+            results.append("🟢 **Custom Commands** — OK")
+        except Exception as e:
+            failed_modules.append("Custom Commands")
+            error_details["Custom Commands"] = traceback.format_exc()
+            results.append("🔴 **Custom Commands** — FAIL")
+
+        # 15. AI Assistant Check
+        try:
+            from database import async_get_ai_settings
+            await asyncio.wait_for(async_get_ai_settings("0"), timeout=5.0)
+            results.append("🟢 **AI Assistant** — OK")
+        except Exception as e:
+            failed_modules.append("AI Assistant")
+            error_details["AI Assistant"] = traceback.format_exc()
+            results.append("🔴 **AI Assistant** — FAIL")
+
         # ─── Process Results ──────────────────────────────────────────────────
         if failed_modules:
             _safe_print(f"❌ [Tester] Phát hiện lỗi ở {len(failed_modules)} module: {', '.join(failed_modules)}")
@@ -254,9 +297,9 @@ class SystemTester:
             )
             return False
 
-        # All 11 tests passed!
-        _safe_print("✅ [Tester] Tất cả 11/11 modules đã kiểm thử thành công!")
-        desc = "\n".join(results) + "\n\n*🎉 Tất cả 11/11 modules kiểm thử thành công! Bot sẵn sàng hoạt động.*"
+        # All 15 tests passed!
+        _safe_print("✅ [Tester] Tất cả 15/15 modules đã kiểm thử thành công!")
+        desc = "\n".join(results) + "\n\n*🎉 Tất cả 15/15 modules kiểm thử thành công! Bot sẵn sàng hoạt động.*"
         await _send_webhook_report(
             title="🚀 BÁO CÁO KIỂM THỬ KHỞI ĐỘNG HỆ THỐNG",
             description=desc,
