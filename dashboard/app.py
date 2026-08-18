@@ -1533,6 +1533,43 @@ def server_ai(guild_id: str):
     )
 
 
+@app.route("/api/guild/<guild_id>/test_ai_key", methods=["POST"])
+@guild_access_required
+def api_test_ai_key(guild_id: str):
+    import urllib.request, time
+    ai_settings = db.get_ai_settings(guild_id)
+    key = ai_settings.get("api_key") or config.GEMINI_API_KEY
+    if not key:
+        return jsonify({"ok": False, "status": "no_key", "message": "Chưa có API Key (Đang dùng Smart Local Responder)"})
+
+    # Test key with Gemini API
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
+    payload = json.dumps({"contents": [{"parts": [{"text": "Hi"}]}]}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            latency = int((time.time() - t0) * 1000)
+            if resp.status == 200:
+                return jsonify({"ok": True, "status": "active", "model": "gemini-2.0-flash", "latency_ms": latency, "message": f"API Key hoạt động hoàn hảo ({latency}ms)"})
+            return jsonify({"ok": False, "status": "error", "message": f"HTTP {resp.status}"})
+    except urllib.error.HTTPError as e:
+        # Fallback to 1.5-flash
+        try:
+            fb_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
+            fb_req = urllib.request.Request(fb_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(fb_req, timeout=8) as fb_resp:
+                latency = int((time.time() - t0) * 1000)
+                if fb_resp.status == 200:
+                    return jsonify({"ok": True, "status": "active", "model": "gemini-1.5-flash", "latency_ms": latency, "message": f"API Key hoạt động (Gemini 1.5 Flash - {latency}ms)"})
+        except Exception:
+            pass
+        return jsonify({"ok": False, "status": "invalid_key", "message": f"Lỗi xác thực (HTTP {e.code}): Key không đúng hoặc bị giới hạn"})
+    except Exception as e:
+        return jsonify({"ok": False, "status": "network_error", "message": f"Lỗi kết nối: {str(e)}"})
+
+
 # ─── Bot Owner / Admin Panel ───────────────────────────────────────────────────
 
 def owner_required(f):

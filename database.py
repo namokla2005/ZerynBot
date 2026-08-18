@@ -537,6 +537,8 @@ def set_module(guild_id: str, module_name: str, enabled: bool):
         conn.commit()
     cache.delete(f"modules:{guild_id}")
 
+set_module_enabled = set_module
+
 def get_guild_channels(guild_id: str) -> List[Dict]:
     """Return cached text channels (type=0) for a guild."""
     with sqlite3.connect(DB_PATH) as conn:
