@@ -484,9 +484,11 @@
     }
 
     .aio-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      display: grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
       gap: 16px;
+      max-width: 960px;
+      margin: 0 auto;
       text-align: left;
     }
     .aio-pill-card {
@@ -641,12 +643,14 @@
       }
       .showcase-row.reverse .showcase-copy { order: 1; }
       .showcase-row.reverse .showcase-visual { order: 2; }
+      .aio-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .guides-grid { grid-template-columns: 1fr; }
       .footer-inner { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 580px) {
       .landing-nav-links { display: none; }
       .hero-heading { font-size: 2.6rem; }
+      .aio-grid { grid-template-columns: 1fr !important; }
       .footer-inner { grid-template-columns: 1fr; }
     }
   </style>
