@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 import config
 from database import (
     async_get_guild_settings, async_is_module_enabled,
-    async_get_ai_settings
+    async_get_ai_settings, async_get_global_setting
 )
 from i18n import tr
 from cache import cache
@@ -227,7 +227,8 @@ class AI(commands.Cog):
 
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = self._build_system_prompt(ctx.author, ai_s)
-        api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
+        global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+        api_key = ai_s.get("api_key") or global_key
         
         response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
 
@@ -272,7 +273,8 @@ class AI(commands.Cog):
 
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = "Bạn là trợ lý tóm tắt nội dung Discord thông minh. Hãy tóm tắt ngắn gọn, mạch lạc và nổi bật các chủ đề thảo luận chính."
-        api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
+        global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+        api_key = ai_s.get("api_key") or global_key
         
         summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
 
@@ -314,7 +316,8 @@ class AI(commands.Cog):
         async with message.channel.typing():
             is_owner = (config.BOT_OWNER_ID and message.author.id == config.BOT_OWNER_ID)
             sys_prompt = self._build_system_prompt(message.author, ai_s)
-            api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
+            global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+            api_key = ai_s.get("api_key") or global_key
             
             response = await call_ai_api(message.content, sys_prompt, api_key=api_key, is_owner=is_owner)
             if len(response) > 2000:

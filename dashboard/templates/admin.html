@@ -190,6 +190,9 @@
         <span style="background:rgba(240,71,71,.2);color:#f04747;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_blacklist }}</span>
         {% endif %}
       </button>
+      <button class="admin-tab" onclick="switchTab('ai_settings',this)">
+        <i class="bi bi-cpu-fill"></i> Cấu Hình AI Toàn Cục
+      </button>
       <button class="admin-tab" onclick="switchTab('terminal',this)">
         <i class="bi bi-terminal-fill"></i> {{ t('admin.tab_terminal') }}
       </button>
@@ -353,6 +356,94 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Panel: Global AI Settings -->
+    <div class="tab-panel" id="panel-ai_settings">
+      <div class="server-table-wrap" style="padding:28px 32px; background:var(--bg-card);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+          <div>
+            <h2 style="font-size:1.25rem; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:10px; margin:0;">
+              <i class="bi bi-cpu-fill" style="color:var(--accent);"></i> Cấu Hình Trí Tuệ Nhân Tạo (AI API Key Toàn Cục)
+            </h2>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:4px; margin-bottom:0;">
+              Key này được lưu an toàn tại máy chủ và tự động kích hoạt tính năng AI cho <strong>TẤT CẢ các server</strong> mà bot tham gia.
+            </p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" class="btn-icon" style="background:rgba(88,101,242,0.15); color:#5865f2; border:1px solid rgba(88,101,242,0.3); padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.85rem; cursor:pointer;" onclick="testAdminAiKey()">
+              <i class="bi bi-arrow-repeat" id="admin-test-spinner"></i> Kiểm Tra Trạng Thái Key
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Status Card -->
+        <div id="admin-ai-status-box" style="background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-md); padding:18px 20px; margin-bottom:24px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <span id="admin-ai-dot" style="width:12px; height:12px; border-radius:50%; background:{% if global_ai_key %}var(--success){% else %}var(--warning){% endif %}; display:inline-block; box-shadow:0 0 10px {% if global_ai_key %}var(--success){% else %}var(--warning){% endif %};"></span>
+            <span id="admin-ai-status-title" style="font-size:0.95rem; font-weight:700; color:var(--text-primary);">
+              {% if global_ai_key %}
+              Đã Cấu Hình AI Key Toàn Cục
+              {% else %}
+              Chưa Có AI API Key (Đang dùng Smart Local Responder)
+              {% endif %}
+            </span>
+          </div>
+          <div id="admin-ai-status-desc" style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5;">
+            {% if global_ai_key %}
+            Hệ thống đã nạp key. Bấm nút "Kiểm Tra Trạng Thái Key" ở trên để kiểm tra kết nối API thời gian thực đến nhà cung cấp (Groq / Gemini).
+            {% else %}
+            Bot hiện đang dùng bộ não thông minh tích hợp sẵn. Hãy nhập API Key bên dưới để kích hoạt sức mạnh Groq Cloud (Llama 3.3 70B) hoặc Google Gemini!
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Form save Global Key -->
+        <form method="POST" action="{{ url_for('admin_save_ai_key') }}">
+          <div style="margin-bottom:24px;">
+            <label style="display:block; font-size:0.88rem; font-weight:700; margin-bottom:8px; color:var(--text-primary);">
+              Global AI API Key (Google Gemini hoặc Groq Cloud)
+            </label>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <input type="text" name="global_ai_key" id="globalAiKeyInput" class="modal-input" value="{{ global_ai_key or '' }}" placeholder="gsk_... (Groq) hoặc AIzaSy... (Gemini)" style="flex:1; min-width:280px; font-family:monospace; font-size:0.9rem;">
+              <button type="submit" class="btn-icon broadcast" style="padding:10px 24px; font-size:0.9rem; font-weight:700; border-radius:8px; cursor:pointer;">
+                <i class="bi bi-floppy-fill"></i> Lưu Key Toàn Cục
+              </button>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:8px; line-height:1.4;">
+              Hệ thống tự động phát hiện loại Key: <code>gsk_...</code> ➔ <strong>Groq Cloud</strong> | <code>AIzaSy...</code> ➔ <strong>Google Gemini</strong> | <code>sk-or-...</code> ➔ <strong>OpenRouter</strong>.
+            </div>
+          </div>
+        </form>
+
+        <!-- Provider Recommendations -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:28px;">
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:var(--radius-md); padding:18px;">
+            <div style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">
+              ⚡ <strong>Groq Cloud (Khuyên dùng số 1)</strong>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+              Miễn phí 100%, lấy key chỉ mất 5 giây, tốc độ phản hồi ~0.2s siêu nhanh với Meta Llama 3.3 70B & DeepSeek R1.
+            </p>
+            <a href="https://console.groq.com/keys" target="_blank" class="btn-icon broadcast" style="display:inline-flex; font-size:0.78rem; text-decoration:none; padding:5px 12px;">
+              <i class="bi bi-box-arrow-up-right"></i> Lấy Key Tại Groq Console
+            </a>
+          </div>
+
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:var(--radius-md); padding:18px;">
+            <div style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">
+              🌟 <strong>Google Gemini</strong>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.5; margin-bottom:12px;">
+              Mô hình Gemini 2.0 Flash thông minh và đa dụng. Key chuẩn bắt đầu bằng <code>AIzaSy...</code>.
+            </p>
+            <a href="https://aistudio.google.com/api-keys" target="_blank" class="btn-icon broadcast" style="display:inline-flex; font-size:0.78rem; text-decoration:none; padding:5px 12px;">
+              <i class="bi bi-box-arrow-up-right"></i> Lấy Key Tại Google AI Studio
+            </a>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -700,7 +791,62 @@
     }
   }
 
+  async function testAdminAiKey() {
+    const btn = document.getElementById('admin-test-spinner');
+    const dot = document.getElementById('admin-ai-dot');
+    const title = document.getElementById('admin-ai-status-title');
+    const desc = document.getElementById('admin-ai-status-desc');
+    const keyInput = document.getElementById('globalAiKeyInput');
+    const apiKey = keyInput ? keyInput.value.trim() : '';
+
+    if (btn) btn.classList.add('spin-anim');
+    if (title) title.innerText = 'Đang kiểm tra kết nối API AI...';
+
+    try {
+      const res = await fetch('/api/admin/test_ai_key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey })
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        dot.style.background = 'var(--success)';
+        dot.style.boxShadow = '0 0 12px var(--success)';
+        title.innerText = '🟢 ' + data.model + ' (Hoạt Động)';
+        desc.innerHTML = '<span style="color:var(--success); font-weight:600;">' + data.message + '</span>. Hệ thống đã sẵn sàng phục vụ cho toàn bộ bot!';
+      } else {
+        dot.style.background = 'var(--danger)';
+        dot.style.boxShadow = '0 0 12px var(--danger)';
+        title.innerText = '🔴 ' + (data.status === 'no_key' ? 'Chưa Có API Key' : 'API Key Không Hợp Lệ');
+        desc.innerHTML = '<span style="color:var(--danger); font-weight:600;">' + data.message + '</span>';
+      }
+    } catch (err) {
+      dot.style.background = 'var(--danger)';
+      title.innerText = '❌ Lỗi Kiểm Tra';
+      desc.innerText = 'Không thể kết nối tới server: ' + err.message;
+    } finally {
+      if (btn) btn.classList.remove('spin-anim');
+    }
+  }
+
+  // Auto switch tab if URL has hash
+  window.addEventListener('DOMContentLoaded', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'ai_settings') {
+      const btn = document.querySelector('button[onclick*="ai_settings"]');
+      if (btn) switchTab('ai_settings', btn);
+    } else if (hash === 'terminal') {
+      const btn = document.querySelector('button[onclick*="terminal"]');
+      if (btn) switchTab('terminal', btn);
+    }
+  });
+
   document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); closeInviteModal(); } });
 </script>
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spin-anim { display: inline-block; animation: spin 0.8s linear infinite; }
+</style>
 </body>
 </html>

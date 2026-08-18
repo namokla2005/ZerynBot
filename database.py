@@ -322,6 +322,11 @@ def init_db():
                 rate_limit          INTEGER DEFAULT 5,
                 api_key             TEXT DEFAULT ''
             );
+
+            CREATE TABLE IF NOT EXISTS bot_global_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -1943,4 +1948,46 @@ async def async_get_ai_settings(guild_id: str) -> dict:
                     "api_key": ""
                 }
             return dict(row)
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: BOT GLOBAL SETTINGS (ADMIN / BOT OWNER) ───────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════════
+
+def get_global_setting(key: str, default: str = "") -> str:
+    """Sync — Get a global bot configuration setting."""
+    cache_key = f"global_setting:{key}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute("SELECT value FROM bot_global_settings WHERE key = ?", (key,)).fetchone()
+        val = str(row[0]) if row and row[0] is not None else default
+        cache.set(cache_key, val, ttl=300)
+        return val
+
+
+def set_global_setting(key: str, value: str) -> None:
+    """Sync — Save a global bot configuration setting."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO bot_global_settings (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """, (key, value))
+        conn.commit()
+    cache.delete(f"global_setting:{key}")
+
+
+async def async_get_global_setting(key: str, default: str = "") -> str:
+    """Async — Get a global bot configuration setting."""
+    cache_key = f"global_setting:{key}"
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT value FROM bot_global_settings WHERE key = ?", (key,)) as cur:
+            row = await cur.fetchone()
+            val = str(row[0]) if row and row[0] is not None else default
+            await cache.aset(cache_key, val, ttl=300)
+            return val
 

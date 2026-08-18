@@ -1514,9 +1514,9 @@ def server_ai(guild_id: str):
         allow_ask = 1 if request.form.get("allow_ask") == "1" else 0
         allow_summarize = 1 if request.form.get("allow_summarize") == "1" else 0
         rate_limit = int(request.form.get("rate_limit", 5))
-        api_key = request.form.get("api_key", "").strip()
 
-        db.update_ai_settings(guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit, api_key)
+        old_s = db.get_ai_settings(guild_id)
+        db.update_ai_settings(guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit, old_s.get("api_key", ""))
         db.set_module_enabled(guild_id, "ai", bool(enabled))
         flash("✅ Đã lưu cấu hình AI Assistant thành công!", "success")
         return redirect(url_for("server_ai", guild_id=guild_id))
@@ -1533,12 +1533,90 @@ def server_ai(guild_id: str):
     )
 
 
-@app.route("/api/guild/<guild_id>/test_ai_key", methods=["POST"])
-@guild_access_required
-def api_test_ai_key(guild_id: str):
+# ─── Bot Owner / Admin Panel ───────────────────────────────────────────────────
+
+def owner_required(f):
+    """Decorator: chỉ Bot Owner mới được truy cập."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        user_id = str(session["user"].get("id", ""))
+        owner_id = str(config.BOT_OWNER_ID)
+        if not owner_id or owner_id == "0" or user_id != owner_id:
+            flash("⛔ Bạn không có quyền truy cập khu vực này.", "error")
+            return redirect(url_for("home"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _get_all_bot_guilds_detailed() -> list:
+    """Lấy danh sách tất cả server bot đang có mặt, kèm thông tin chi tiết."""
+    try:
+        resp = requests.get(
+            f"{config.DISCORD_API_BASE}/users/@me/guilds",
+            headers={"Authorization": f"Bot {config.TOKEN}"},
+            timeout=10,
+        )
+        if not resp.ok:
+            return []
+        guilds = resp.json()
+    except Exception as e:
+        print(f"[Admin] Error fetching bot guilds: {e}")
+        return []
+
+    # Bổ sung thông tin icon_url
+    result = []
+    for g in guilds:
+        g["icon_url"] = (
+            f"https://cdn.discordapp.com/icons/{g['id']}/{g['icon']}.png"
+            if g.get("icon") else None
+        )
+        # Lấy member count từ guild_meta cache trong DB
+        meta = db.get_guild_meta(g["id"]) or {}
+        g["member_count"] = meta.get("member_count", 0)
+        g["cached_name"]  = meta.get("guild_name") or g.get("name", "Unknown")
+        result.append(g)
+    return result
+
+
+@app.route("/admin")
+@owner_required
+def admin_panel():
+    guilds    = _get_all_bot_guilds_detailed()
+    blacklist = db.get_blacklist()
+    blacklist_ids = {b["guild_id"] for b in blacklist}
+    global_ai_key = db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+    return render_template(
+        "admin.html",
+        user=session["user"],
+        avatar=session.get("avatar"),
+        guilds=guilds,
+        blacklist=blacklist,
+        blacklist_ids=blacklist_ids,
+        total_servers=len(guilds),
+        total_blacklist=len(blacklist),
+        global_ai_key=global_ai_key,
+    )
+
+
+@app.route("/admin/ai_key", methods=["POST"])
+@owner_required
+def admin_save_ai_key():
+    key = request.form.get("global_ai_key", "").strip()
+    db.set_global_setting("gemini_api_key", key)
+    flash("✅ Đã lưu cấu hình AI API Key toàn cục thành công!", "success")
+    return redirect(url_for("admin_panel") + "#ai_settings")
+
+
+@app.route("/api/admin/test_ai_key", methods=["POST"])
+@owner_required
+def api_admin_test_ai_key():
     import urllib.request, time
-    ai_settings = db.get_ai_settings(guild_id)
-    key = ai_settings.get("api_key") or config.GEMINI_API_KEY
+    data = request.get_json(silent=True) or {}
+    key = data.get("api_key") or db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+    key = key.strip()
     if not key:
         return jsonify({"ok": False, "status": "no_key", "message": "Chưa có API Key (Đang dùng Smart Local Responder)"})
 
@@ -1668,72 +1746,6 @@ def api_test_ai_key(guild_id: str):
         msg = f"Lỗi Google API: {last_err_detail}"
 
     return jsonify({"ok": False, "status": "invalid_key", "message": msg})
-
-
-# ─── Bot Owner / Admin Panel ───────────────────────────────────────────────────
-
-def owner_required(f):
-    """Decorator: chỉ Bot Owner mới được truy cập."""
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "user" not in session:
-            return redirect(url_for("login"))
-        user_id = str(session["user"].get("id", ""))
-        owner_id = str(config.BOT_OWNER_ID)
-        if not owner_id or owner_id == "0" or user_id != owner_id:
-            flash("⛔ Bạn không có quyền truy cập khu vực này.", "error")
-            return redirect(url_for("home"))
-        return f(*args, **kwargs)
-    return decorated
-
-
-def _get_all_bot_guilds_detailed() -> list:
-    """Lấy danh sách tất cả server bot đang có mặt, kèm thông tin chi tiết."""
-    try:
-        resp = requests.get(
-            f"{config.DISCORD_API_BASE}/users/@me/guilds",
-            headers={"Authorization": f"Bot {config.TOKEN}"},
-            timeout=10,
-        )
-        if not resp.ok:
-            return []
-        guilds = resp.json()
-    except Exception as e:
-        print(f"[Admin] Error fetching bot guilds: {e}")
-        return []
-
-    # Bổ sung thông tin icon_url
-    result = []
-    for g in guilds:
-        g["icon_url"] = (
-            f"https://cdn.discordapp.com/icons/{g['id']}/{g['icon']}.png"
-            if g.get("icon") else None
-        )
-        # Lấy member count từ guild_meta cache trong DB
-        meta = db.get_guild_meta(g["id"]) or {}
-        g["member_count"] = meta.get("member_count", 0)
-        g["cached_name"]  = meta.get("guild_name") or g.get("name", "Unknown")
-        result.append(g)
-    return result
-
-
-@app.route("/admin")
-@owner_required
-def admin_panel():
-    guilds    = _get_all_bot_guilds_detailed()
-    blacklist = db.get_blacklist()
-    blacklist_ids = {b["guild_id"] for b in blacklist}
-    return render_template(
-        "admin.html",
-        user=session["user"],
-        avatar=session.get("avatar"),
-        guilds=guilds,
-        blacklist=blacklist,
-        blacklist_ids=blacklist_ids,
-        total_servers=len(guilds),
-        total_blacklist=len(blacklist),
-    )
 
 
 @app.route("/admin/kick/<guild_id>", methods=["POST"])

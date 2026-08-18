@@ -6,12 +6,33 @@
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
   <div>
     <h1 class="page-title"><i class="bi bi-robot" style="color:var(--accent); margin-right:8px;"></i>{{ t('ai.page_title') | default('Trợ Lý AI & Smart Chatbot') }}</h1>
-    <p class="page-subtitle">{{ t('ai.page_subtitle') | default('Tích hợp trí tuệ nhân tạo Google Gemini 2.0 Flash: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện tự động.') }}</p>
+    <p class="page-subtitle">{{ t('ai.page_subtitle') | default('Tích hợp trí tuệ nhân tạo thế hệ mới: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện tự nhiên.') }}</p>
   </div>
   <div>
     <button type="submit" form="ai-settings-form" class="btn btn-primary">
       <i class="bi bi-floppy-fill" style="margin-right:6px;"></i> {{ t('common.save') | default('Lưu thay đổi') }}
     </button>
+  </div>
+</div>
+
+<!-- Global AI Security & Status Banner -->
+<div style="background:linear-gradient(135deg, rgba(88,101,242,0.12) 0%, rgba(138,75,255,0.12) 100%); border:1px solid rgba(88,101,242,0.3); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+  <div style="display:flex; align-items:center; gap:14px;">
+    <div style="width:40px; height:40px; border-radius:12px; background:rgba(88,101,242,0.2); display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--accent); flex-shrink:0;">
+      <i class="bi bi-shield-check"></i>
+    </div>
+    <div>
+      <div style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin-bottom:2px;">
+        Hệ Thống Trí Tuệ Nhân Tạo Toàn Cục Đang Sẵn Sàng
+      </div>
+      <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+        Mô hình AI đám mây (Groq / Gemini) được bảo mật và cấu hình tập trung từ Chủ Bot (Admin Panel). Mọi máy chủ đều có thể sử dụng mượt mà và an toàn tuyệt đối.
+      </div>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:6px; background:rgba(67,181,129,0.15); border:1px solid rgba(67,181,129,0.3); padding:6px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:#43b581;">
+    <span style="width:8px; height:8px; border-radius:50%; background:#43b581; box-shadow:0 0 8px #43b581;"></span>
+    AI Active
   </div>
 </div>
 
@@ -24,7 +45,7 @@
         <i class="bi bi-sliders" style="color:var(--accent);"></i> {{ t('ai.sec_general') | default('Cài Đặt Chung') }}
       </div>
       <div class="card-desc" style="margin-bottom:18px;">
-        Thiết lập kênh trò chuyện tự động và phân quyền lệnh AI trên server.
+        Thiết lập kênh trò chuyện tự động và phân quyền lệnh AI trên máy chủ của bạn.
       </div>
       
       <div class="toggle-row" style="margin-bottom:18px;">
@@ -50,19 +71,9 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">AI API Key (Google Gemini hoặc Groq Cloud)</label>
-        <input type="password" name="api_key" class="form-control" value="{{ ai_settings.api_key or '' }}" placeholder="AIzaSy... (Gemini) hoặc gsk_... (Groq Cloud)">
-        <div class="form-hint">
-          Tự động nhận diện nhà cung cấp:
-          <br>⚡ <strong>Groq Cloud (Khuyên dùng - Siêu nhanh & Miễn phí 100%):</strong> Lấy key tại <a href="https://console.groq.com/keys" target="_blank" style="color:var(--accent); text-decoration:underline;">console.groq.com</a> (Key bắt đầu bằng <code>gsk_...</code>).
-          <br>🌟 <strong>Google Gemini:</strong> Lấy key tại <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent); text-decoration:underline;">aistudio.google.com</a> (Key bắt đầu bằng <code>AIzaSy...</code>).
-        </div>
-      </div>
-
-      <div class="form-group">
         <label class="form-label">{{ t('ai.rate_limit_label') | default('Giới hạn tin nhắn (Tin/phút/thành viên)') }}</label>
         <input type="number" name="rate_limit" class="form-control" value="{{ ai_settings.rate_limit or 5 }}" min="1" max="30">
-        <div class="form-hint">Chống spam API và kiểm soát chi phí hạn mức.</div>
+        <div class="form-hint">Chống spam tin nhắn liên tục trong kênh chat AI.</div>
       </div>
 
       <div style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em; margin-top:20px; margin-bottom:10px;">
@@ -92,39 +103,13 @@
       </div>
     </div>
 
-    <!-- Cấu hình tính cách AI & Status Key -->
+    <!-- Cấu hình tính cách AI -->
     <div class="card">
-      <!-- Status Card for API Key -->
-      <div id="ai-key-status-box" style="background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span id="ai-status-dot" style="width:10px; height:10px; border-radius:50%; background:{% if ai_settings.api_key %}var(--success){% else %}var(--warning){% endif %}; display:inline-block; box-shadow:0 0 8px {% if ai_settings.api_key %}var(--success){% else %}var(--warning){% endif %};"></span>
-            <span id="ai-status-text" style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">
-              {% if ai_settings.api_key %}
-              Google Gemini Cloud API (Đã có Key)
-              {% else %}
-              Smart Local AI Responder (Chưa có Key)
-              {% endif %}
-            </span>
-          </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-test-key" onclick="testGeminiKey()" style="font-size:0.75rem; padding:4px 10px;">
-            <i class="bi bi-arrow-repeat" id="test-key-spinner"></i> Kiểm Tra Trạng Thái Key
-          </button>
-        </div>
-        <div id="ai-status-desc" style="font-size:0.78rem; color:var(--text-muted); line-height:1.4;">
-          {% if ai_settings.api_key %}
-          Hệ thống kết nối Google Gemini 2.0 Flash / 1.5 Flash. Bấm nút "Kiểm Tra" để kiểm tra kết nối API thời gian thực.
-          {% else %}
-          Bot hiện đang sử dụng bộ não thông minh tích hợp sẵn. Hãy dán API Key bên trái để mở khóa toàn bộ sức mạnh AI Gemini!
-          {% endif %}
-        </div>
-      </div>
-
       <div class="card-title">
         <i class="bi bi-person-gear" style="color:var(--accent);"></i> {{ t('ai.sec_personality') | default('Tính Cách AI & System Prompt') }}
       </div>
       <div class="card-desc" style="margin-bottom:18px;">
-        Định hình phong cách trả lời và giọng điệu của AI khi tương tác với thành viên.
+        Định hình phong cách trả lời và giọng điệu của AI khi tương tác với thành viên trong server.
       </div>
       
       <div class="form-group">
@@ -139,8 +124,8 @@
 
       <div class="form-group">
         <label class="form-label">{{ t('ai.custom_prompt_label') | default('Mô tả tính cách tùy biến (Custom System Prompt)') }}</label>
-        <textarea name="custom_prompt" class="form-control" rows="4" placeholder="VD: Bạn là quản gia quý tộc của gia tộc Zeryn, luôn trả lời lịch thiệp và xưng hô 'Kính thưa quý khách'...">{{ ai_settings.custom_prompt or '' }}</textarea>
-        <div class="form-hint">{{ t('ai.custom_prompt_hint') | default('Chỉ áp dụng nếu bạn chọn "Tùy biến System Prompt riêng" hoặc muốn bổ sung chỉ dẫn.') }}</div>
+        <textarea name="custom_prompt" class="form-control" rows="5" placeholder="VD: Bạn là quản gia quý tộc của gia tộc Zeryn, luôn trả lời lịch thiệp và xưng hô 'Kính thưa quý khách'...">{{ ai_settings.custom_prompt or '' }}</textarea>
+        <div class="form-hint">{{ t('ai.custom_prompt_hint') | default('Chỉ áp dụng nếu bạn chọn "Tùy biến System Prompt riêng" hoặc muốn bổ sung chỉ dẫn đặc thù cho máy chủ.') }}</div>
       </div>
 
       <!-- Special Owner Persona Badge -->
@@ -159,56 +144,4 @@
 
   </div>
 </form>
-
-<script>
-async function testGeminiKey() {
-  const btn = document.getElementById('btn-test-key');
-  const spinner = document.getElementById('test-key-spinner');
-  const dot = document.getElementById('ai-status-dot');
-  const title = document.getElementById('ai-status-text');
-  const desc = document.getElementById('ai-status-desc');
-
-  if (btn) btn.disabled = true;
-  if (spinner) spinner.classList.add('spin-anim');
-  if (title) title.innerText = 'Đang kiểm tra kết nối API...';
-
-  try {
-    const res = await fetch('/api/guild/{{ guild_id }}/test_ai_key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-
-    if (data.ok) {
-      dot.style.background = 'var(--success)';
-      dot.style.boxShadow = '0 0 10px var(--success)';
-      title.innerText = '🟢 ' + data.model + ' (Hoạt Động)';
-      desc.innerHTML = '<span style="color:var(--success); font-weight:600;">' + data.message + '</span>. Trí tuệ nhân tạo Gemini đã sẵn sàng phục vụ!';
-    } else {
-      dot.style.background = 'var(--danger)';
-      dot.style.boxShadow = '0 0 10px var(--danger)';
-      title.innerText = '🔴 ' + (data.status === 'no_key' ? 'Chưa Có API Key' : 'API Key Không Hợp Lệ');
-      desc.innerHTML = '<span style="color:var(--danger); font-weight:600;">' + data.message + '</span>';
-    }
-  } catch (err) {
-    dot.style.background = 'var(--danger)';
-    title.innerText = '❌ Lỗi Kiểm Tra';
-    desc.innerText = 'Không thể kết nối tới server dashboard: ' + err.message;
-  } finally {
-    if (btn) btn.disabled = false;
-    if (spinner) spinner.classList.remove('spin-anim');
-  }
-}
-</script>
-
-<style>
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.spin-anim {
-  display: inline-block;
-  animation: spin 0.8s linear infinite;
-}
-</style>
 {% endblock %}
