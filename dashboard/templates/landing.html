@@ -293,33 +293,11 @@
     .st-bottom-left { bottom: 20px; left: -15px; }
     .st-bottom-right { bottom: 0px; right: 0px; }
 
-    /* ─── "Trusted By" Section ────────────────────────────────────────────────── */
-    .trusted-section {
-      text-align: center;
-      max-width: 900px;
-      margin: 20px auto 90px;
-      padding: 0 24px;
-    }
-    .trusted-title-label {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 6px;
-    }
-    .trusted-highlight-text {
-      font-family: 'Playfair Display', serif;
-      font-style: italic;
-      font-size: 2.3rem;
-      font-weight: 700;
-      color: var(--accent-pink);
-      line-height: 1.3;
-      margin-bottom: 8px;
-    }
-    .trusted-subtitle {
-      font-size: 0.95rem;
-      color: var(--text-muted);
+    /* ─── Section Spacer ─────────────────────────────────────────────────────── */
+    .section-spacer {
+      height: 60px;
+      margin: 20px auto 40px;
+      max-width: 1140px;
     }
 
     /* ─── Zig-zag Feature Showcase Section ────────────────────────────────────── */
@@ -327,6 +305,11 @@
       max-width: 1140px;
       margin: 0 auto 100px;
       padding: 0 28px;
+      scroll-margin-top: 100px;
+    }
+
+    #all-in-one, .all-in-one-wrapper {
+      scroll-margin-top: 100px;
     }
 
     .showcase-row {
@@ -741,12 +724,8 @@
   </div>
 </section>
 
-<!-- "Trusted By" Section (Nekotina Style) -->
-<section class="trusted-section">
-  <div class="trusted-title-label">{{ t('landing.trusted_by') }}</div>
-  <div class="trusted-highlight-text">{{ t('landing.trusted_highlight') }}</div>
-  <div class="trusted-subtitle">{{ t('landing.trusted_sub') }}</div>
-</section>
+<!-- Section Spacer -->
+<div class="section-spacer"></div>
 
 <!-- Feature Showcase Section (Zig-zag with Cute Corner Stickers) -->
 <section id="features" class="showcase-container">
