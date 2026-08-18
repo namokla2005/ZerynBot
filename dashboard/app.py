@@ -1514,8 +1514,9 @@ def server_ai(guild_id: str):
         allow_ask = 1 if request.form.get("allow_ask") == "1" else 0
         allow_summarize = 1 if request.form.get("allow_summarize") == "1" else 0
         rate_limit = int(request.form.get("rate_limit", 5))
+        api_key = request.form.get("api_key", "").strip()
 
-        db.update_ai_settings(guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit)
+        db.update_ai_settings(guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit, api_key)
         db.set_module_enabled(guild_id, "ai", bool(enabled))
         flash("✅ Đã lưu cấu hình AI Assistant thành công!", "success")
         return redirect(url_for("server_ai", guild_id=guild_id))

@@ -319,7 +319,8 @@ def init_db():
                 custom_prompt       TEXT DEFAULT '',
                 allow_ask           INTEGER DEFAULT 1,
                 allow_summarize     INTEGER DEFAULT 1,
-                rate_limit          INTEGER DEFAULT 5
+                rate_limit          INTEGER DEFAULT 5,
+                api_key             TEXT DEFAULT ''
             );
         """)
         # Schema migration checks
@@ -369,6 +370,11 @@ def init_db():
             conn.execute("ALTER TABLE music_playlists ADD COLUMN creator_id TEXT")
         if "creator_name" not in pl_cols:
             conn.execute("ALTER TABLE music_playlists ADD COLUMN creator_name TEXT")
+            
+        cursor.execute("PRAGMA table_info(ai_settings)")
+        ai_cols = [row[1] for row in cursor.fetchall()]
+        if "api_key" not in ai_cols:
+            conn.execute("ALTER TABLE ai_settings ADD COLUMN api_key TEXT DEFAULT ''")
             
         conn.commit()
 
@@ -1897,17 +1903,18 @@ def get_ai_settings(guild_id: str) -> dict:
             return {
                 "guild_id": guild_id, "enabled": 0, "ai_channel_id": "",
                 "personality_preset": "friendly", "custom_prompt": "",
-                "allow_ask": 1, "allow_summarize": 1, "rate_limit": 5
+                "allow_ask": 1, "allow_summarize": 1, "rate_limit": 5,
+                "api_key": ""
             }
         return _row_to_dict(row)
 
 
-def update_ai_settings(guild_id: str, enabled: int, ai_channel_id: str, personality_preset: str = "friendly", custom_prompt: str = "", allow_ask: int = 1, allow_summarize: int = 1, rate_limit: int = 5) -> None:
+def update_ai_settings(guild_id: str, enabled: int, ai_channel_id: str, personality_preset: str = "friendly", custom_prompt: str = "", allow_ask: int = 1, allow_summarize: int = 1, rate_limit: int = 5, api_key: str = "") -> None:
     """Sync — Update AI settings."""
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
-            INSERT INTO ai_settings (guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ai_settings (guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit, api_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(guild_id) DO UPDATE SET
                 enabled=excluded.enabled,
                 ai_channel_id=excluded.ai_channel_id,
@@ -1915,8 +1922,9 @@ def update_ai_settings(guild_id: str, enabled: int, ai_channel_id: str, personal
                 custom_prompt=excluded.custom_prompt,
                 allow_ask=excluded.allow_ask,
                 allow_summarize=excluded.allow_summarize,
-                rate_limit=excluded.rate_limit
-        """, (guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit))
+                rate_limit=excluded.rate_limit,
+                api_key=excluded.api_key
+        """, (guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit, api_key))
         conn.commit()
 
 
@@ -1929,7 +1937,8 @@ async def async_get_ai_settings(guild_id: str) -> dict:
                 return {
                     "guild_id": guild_id, "enabled": 0, "ai_channel_id": "",
                     "personality_preset": "friendly", "custom_prompt": "",
-                    "allow_ask": 1, "allow_summarize": 1, "rate_limit": 5
+                    "allow_ask": 1, "allow_summarize": 1, "rate_limit": 5,
+                    "api_key": ""
                 }
             return dict(row)
 

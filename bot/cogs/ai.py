@@ -2,6 +2,7 @@
 Cog: AI Chat & Smart Assistant (v2)
 Features:
 - Google Gemini REST API integration (ultra fast & lightweight).
+- Supports gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro with automatic fallback.
 - /ask <prompt> intelligent Q&A with streaming embed.
 - /summarize [limit] channel message summarizer.
 - #ai-chat automatic natural conversation.
@@ -23,9 +24,11 @@ from database import (
 from i18n import tr
 from cache import cache
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-GEMINI_FALLBACK_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-
+GEMINI_MODELS = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro"
+]
 
 PERSONALITY_PROMPTS = {
     "friendly": "Bạn là Zeryn, trợ lý Discord bot thông minh, thân thiện, dễ thương và hữu ích.",
@@ -34,13 +37,46 @@ PERSONALITY_PROMPTS = {
 }
 
 
-async def call_gemini_api(prompt: str, system_instruction: str = None, api_key: str = "") -> str:
-    """Gọi Google Gemini REST API trực tiếp bằng aiohttp (tiết kiệm 100% RAM so với SDK nặng)."""
+def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
+    """Trả lời thông minh cục bộ khi chưa có Gemini API Key."""
+    p = prompt.strip().lower()
+    
+    if is_owner:
+        if any(w in p for w in ["bạn là ai", "ai đấy", "who are you", "tên gì", "chào", "hello", "hi"]):
+            return (
+                "💖 **Con chào Cha/Bố!**\n"
+                "Con là **Zeryn**, trợ lý AI được tạo ra bởi Cha! Con luôn sẵn sàng phục vụ và hỗ trợ Cha.\n\n"
+                "👉 *Để con có thể kích hoạt toàn bộ trí tuệ Gemini 2.0 Flash phân tích chuyên sâu mọi câu hỏi, "
+                "Cha hãy thêm `GEMINI_API_KEY=your_key` vào file `.env` hoặc nhập trực tiếp trên Web Dashboard (mục **AI Assistant**) nhé Cha!*"
+            )
+        return (
+            "💖 **Thưa Cha/Bố:** Hiện tại hệ thống Gemini Cloud chưa nhận được `GEMINI_API_KEY`.\n"
+            "Cha có thể lấy API Key miễn phí tại [Google AI Studio](https://aistudio.google.com) và nhập vào file `.env` hoặc Web Dashboard để con trả lời chi tiết câu hỏi này nhé ạ!"
+        )
+
+    # Thành viên thông thường
+    if any(w in p for w in ["bạn là ai", "ai đấy", "who are you", "tên gì"]):
+        return (
+            "🤖 **Xin chào! Tôi là ZerynBot** — Trợ lý Discord bot thông minh và đa năng!\n"
+            "Tôi có thể hỗ trợ phát nhạc, quản lý kinh tế, game mini, voice hub, lệnh tùy biến và trò chuyện AI.\n\n"
+            "💡 *Chủ bot có thể thêm `GEMINI_API_KEY` trong file `.env` hoặc Web Dashboard để mở khóa toàn bộ trí tuệ nhân tạo Gemini 2.0 Flash nhé!*"
+        )
+    elif any(w in p for w in ["chào", "hello", "hi", "helo"]):
+        return "👋 Chào bạn! Chúc bạn một ngày tốt lành và có trải nghiệm tuyệt vời cùng server nhé!"
+    
+    return (
+        "⚠️ **Chưa cấu hình Google Gemini API Key!**\n"
+        "Vui lòng thêm `GEMINI_API_KEY=your_key` vào file `.env` hoặc cài đặt trong Web Dashboard tại tab **AI Assistant**.\n"
+        "🔗 *Lấy API Key hoàn toàn miễn phí tại:* https://aistudio.google.com"
+    )
+
+
+async def call_gemini_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False) -> str:
+    """Gọi Google Gemini REST API trực tiếp bằng aiohttp với cơ chế multi-model fallback."""
     key = api_key or config.GEMINI_API_KEY
     if not key:
-        return "⚠️ **Chưa cấu hình GEMINI_API_KEY!**\nVui lòng thêm `GEMINI_API_KEY=your_key` vào file `.env` để kích hoạt tính năng AI (Lấy key miễn phí tại: https://aistudio.google.com)."
+        return _local_smart_reply(prompt, is_owner=is_owner)
 
-    url = f"{GEMINI_API_URL}?key={key}"
     payload = {
         "contents": [
             {"parts": [{"text": prompt}]}
@@ -53,32 +89,29 @@ async def call_gemini_api(prompt: str, system_instruction: str = None, api_key: 
 
     headers = {"Content-Type": "application/json"}
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts:
-                            return parts[0].get("text", "").strip()
-                    return "❌ AI không tạo được câu trả lời phù hợp."
-                else:
-                    # Fallback to gemini-1.5-flash
-                    fb_url = f"{GEMINI_FALLBACK_URL}?key={key}"
-                    async with session.post(fb_url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as fb_resp:
-                        if fb_resp.status == 200:
-                            fb_data = await fb_resp.json()
-                            candidates = fb_data.get("candidates", [])
-                            if candidates:
-                                parts = candidates[0].get("content", {}).get("parts", [])
-                                if parts:
-                                    return parts[0].get("text", "").strip()
+    # Thử lần lượt các model: 2.0-flash -> 1.5-flash -> 1.5-pro
+    last_error = ""
+    async with aiohttp.ClientSession() as session:
+        for model in GEMINI_MODELS:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+            try:
+                async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                return parts[0].get("text", "").strip()
+                        return "❌ AI không tạo được câu trả lời phù hợp."
+                    else:
                         err_text = await resp.text()
-                        return f"⚠️ Lỗi API Gemini (HTTP {resp.status}): {err_text[:150]}"
-    except Exception as e:
-        return f"❌ Lỗi kết nối AI: {e}"
+                        last_error = f"HTTP {resp.status}: {err_text[:120]}"
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+    return f"⚠️ **Lỗi kết nối Gemini API ({last_error})**\nVui lòng kiểm tra lại API Key tại: https://aistudio.google.com"
 
 
 class AI(commands.Cog):
@@ -92,9 +125,9 @@ class AI(commands.Cog):
             return False
         return await async_is_module_enabled(str(ctx.guild.id), "ai")
 
-    def _build_system_prompt(self, user: discord.Member, ai_settings: dict) -> str:
-        preset = ai_settings.get("personality_preset", "friendly")
-        custom_p = ai_settings.get("custom_prompt", "")
+    def _build_system_prompt(self, user: discord.Member, ai_s: dict) -> str:
+        preset = ai_s.get("personality_preset", "friendly")
+        custom_p = ai_s.get("custom_prompt", "")
         
         base_prompt = custom_p if custom_p else PERSONALITY_PROMPTS.get(preset, PERSONALITY_PROMPTS["friendly"])
         
@@ -116,8 +149,11 @@ class AI(commands.Cog):
             await ctx.send(tr(s, "ai.ask_disabled"), ephemeral=True)
             return
 
+        is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = self._build_system_prompt(ctx.author, ai_s)
-        response_text = await call_gemini_api(prompt, sys_prompt)
+        api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
+        
+        response_text = await call_gemini_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
 
         # Cắt gọt độ dài embed Discord (tối đa 4096 ký tự)
         if len(response_text) > 4000:
@@ -158,8 +194,11 @@ class AI(commands.Cog):
         history_text = "\n".join(messages[:clamped_limit])
         prompt = f"Hãy tóm tắt ngắn gọn các ý chính của cuộc trò chuyện sau đây trong Discord thành các gạch đầu dòng rõ ràng, dễ hiểu:\n\n{history_text}"
 
+        is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = "Bạn là trợ lý tóm tắt nội dung Discord thông minh. Hãy tóm tắt ngắn gọn, mạch lạc và nổi bật các chủ đề thảo luận chính."
-        summary_result = await call_gemini_api(prompt, sys_prompt)
+        api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
+        
+        summary_result = await call_gemini_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
 
         embed = discord.Embed(
             title=f"📋 {tr(s, 'ai.summarize_title', channel=ctx.channel.name)}",
@@ -187,7 +226,7 @@ class AI(commands.Cog):
         if not ai_channel_id or str(message.channel.id) != ai_channel_id:
             return
 
-        # Rate-limiting per user (5 calls / min)
+        # Rate-limiting per user
         rate_key = f"ai_rate:{message.guild.id}:{message.author.id}"
         calls = await cache.aget(rate_key) or 0
         if calls >= ai_s.get("rate_limit", 5):
@@ -197,8 +236,11 @@ class AI(commands.Cog):
         await cache.aset(rate_key, calls + 1, ttl=60)
 
         async with message.channel.typing():
+            is_owner = (config.BOT_OWNER_ID and message.author.id == config.BOT_OWNER_ID)
             sys_prompt = self._build_system_prompt(message.author, ai_s)
-            response = await call_gemini_api(message.content, sys_prompt)
+            api_key = ai_s.get("api_key") or config.GEMINI_API_KEY
+            
+            response = await call_gemini_api(message.content, sys_prompt, api_key=api_key, is_owner=is_owner)
             if len(response) > 2000:
                 response = response[:1990] + "..."
             await message.reply(response)

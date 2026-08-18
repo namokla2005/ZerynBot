@@ -137,7 +137,15 @@
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label">Màu viền Embed</label>
-              <input type="color" name="embed_color" class="form-control" value="#5865F2" style="height:42px; padding:4px; cursor:pointer;">
+              <div class="color-row">
+                <div class="color-swatch" id="cmd-color-swatch" style="background:#5865f2">
+                  <input type="color" id="cmd-color" name="embed_color" value="#5865f2"
+                         oninput="document.getElementById('cmd-color-swatch').style.background=this.value; document.getElementById('cmd-color-display').value=this.value;">
+                </div>
+                <input type="text" id="cmd-color-display" class="form-control color-text-input"
+                       value="#5865f2" placeholder="#5865f2" maxlength="7" style="width:110px; flex-shrink:0"
+                       oninput="document.getElementById('cmd-color').value=this.value; document.getElementById('cmd-color-swatch').style.background=this.value;">
+              </div>
             </div>
           </div>
 
