@@ -75,17 +75,18 @@ def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
 
 
 async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "") -> str:
-    """Gọi Groq Cloud API (Llama 3.3 70B & DeepSeek R1 - Miễn phí 100%, siêu nhanh)."""
+    """Gọi Groq Cloud API (Miễn phí 100%, siêu nhanh)."""
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
     messages = []
     if system_instruction:
         messages.append({"role": "system", "content": system_instruction})
     messages.append({"role": "user", "content": prompt})
 
-    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"]
+    models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b"]
     async with aiohttp.ClientSession() as session:
         for model in models:
             payload = {

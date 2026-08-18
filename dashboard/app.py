@@ -1546,7 +1546,7 @@ def api_test_ai_key(guild_id: str):
     if key.startswith("gsk_"):
         groq_url = "https://api.groq.com/openai/v1/chat/completions"
         groq_payload = json.dumps({
-            "model": "llama-3.3-70b-versatile",
+            "model": "openai/gpt-oss-120b",
             "messages": [{"role": "user", "content": "Hi"}],
             "max_tokens": 10
         }).encode("utf-8")
@@ -1555,7 +1555,8 @@ def api_test_ai_key(guild_id: str):
             data=groq_payload,
             headers={
                 "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
             },
             method="POST"
         )
@@ -1567,9 +1568,9 @@ def api_test_ai_key(guild_id: str):
                     return jsonify({
                         "ok": True,
                         "status": "active",
-                        "model": "Groq Cloud (Llama 3.3 70B)",
+                        "model": "Groq Cloud (GPT-OSS 120B / Llama 3.3)",
                         "latency_ms": latency,
-                        "message": f"Kết nối Groq Cloud siêu tốc thành công ({latency}ms) — Model: Llama 3.3 70B"
+                        "message": f"Kết nối Groq Cloud siêu tốc thành công ({latency}ms)"
                     })
         except urllib.error.HTTPError as e:
             try:
