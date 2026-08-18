@@ -551,6 +551,16 @@ def get_guild_categories(guild_id: str) -> List[Dict]:
         ).fetchall()
     return [_row_to_dict(r) for r in rows]
 
+def get_guild_voice_channels(guild_id: str) -> List[Dict]:
+    """Return cached voice channels (type=2) for a guild."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM guild_channels WHERE guild_id = ? AND channel_type = 2 ORDER BY channel_name",
+            (guild_id,),
+        ).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
 def get_guild_roles(guild_id: str) -> List[Dict]:
     """Return cached roles for a guild."""
     with sqlite3.connect(DB_PATH) as conn:

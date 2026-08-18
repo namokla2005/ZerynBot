@@ -911,6 +911,194 @@ _COMMANDS_DATA = [
             },
         ]
     },
+    {
+        "category": "Kinh tế & Shop",
+        "icon": "🪙",
+        "commands": [
+            {
+                "name": "daily", "emoji": "📅",
+                "desc": "Điểm danh hàng ngày nhận tiền thưởng và chuỗi streak",
+                "usage": "/daily", "example": "/daily", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#FEE75C", "title": "📅 Điểm Danh Hàng Ngày",
+                    "desc": "🎉 Bạn đã nhận được **+100** 🪙!<br>🔥 Chuỗi điểm danh: **3 ngày liên tiếp**"
+                }
+            },
+            {
+                "name": "balance", "emoji": "💰",
+                "desc": "Xem số dư ví tiền mặt, ngân hàng và tổng tài sản",
+                "usage": "/balance [@member]", "example": "/balance @Nam",
+                "args": [{"name": "member", "type": "Mention", "required": False, "desc": "Thành viên cần xem số dư"}],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "Ví Tiền & Tài Sản — Nam",
+                    "desc": "💵 **Ví:** `500 🪙`<br>🏦 **Ngân hàng:** `2,500 🪙`<br>💎 **Tổng tài sản:** `3,000 🪙`"
+                }
+            },
+            {
+                "name": "pay", "emoji": "💸",
+                "desc": "Chuyển tiền mặt cho thành viên khác trong server",
+                "usage": "/pay <@member> <amount>", "example": "/pay @Nam 200",
+                "args": [
+                    {"name": "member", "type": "Mention", "required": True, "desc": "Thành viên nhận tiền"},
+                    {"name": "amount", "type": "Number", "required": True, "desc": "Số tiền cần chuyển"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "💸 Chuyển Tiền Thành Công",
+                    "desc": "✅ Bạn đã chuyển thành công **200 🪙** cho @Nam!"
+                }
+            },
+            {
+                "name": "rich", "emoji": "🏆",
+                "desc": "Bảng xếp hạng đại gia tiền tệ trong server",
+                "usage": "/rich", "example": "/rich", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#FEE75C", "title": "🏆 Bảng Xếp Hạng Đại Gia",
+                    "desc": "🥇 **Nam** — `15,400 🪙`<br>🥈 **Alex** — `9,850 🪙`<br>🥉 **Cú** — `5,200 🪙`"
+                }
+            },
+            {
+                "name": "coinflip", "emoji": "🪙",
+                "desc": "Cược tiền trò chơi tung đồng xu (Ngửa / Sấp)",
+                "usage": "/coinflip <heads/tails> <bet>", "example": "/coinflip heads 50",
+                "args": [
+                    {"name": "choice", "type": "Choice", "required": True, "desc": "Chọn Mặt Ngửa (heads) hoặc Mặt Sấp (tails)"},
+                    {"name": "bet", "type": "Number", "required": True, "desc": "Số tiền cược"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "🪙 Thắng Cược Tung Đồng Xu!",
+                    "desc": "Đồng xu rơi vào mặt **Ngửa**!<br>🎉 Bạn nhận được **+100 🪙**!"
+                }
+            },
+            {
+                "name": "slots", "emoji": "🎰",
+                "desc": "Quay hũ Slot Machine may mắn với nhiều mức nhân thưởng",
+                "usage": "/slots <bet>", "example": "/slots 50",
+                "args": [{"name": "bet", "type": "Number", "required": True, "desc": "Số tiền cược"}],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "🎰 Thắng Lớn Slot Machine!",
+                    "desc": "[ 💎 | 💎 | 💎 ]<br>🎉 Bạn trúng x5 và nhận được **+250 🪙**!"
+                }
+            },
+            {
+                "name": "blackjack", "emoji": "🃏",
+                "desc": "Đánh bài Xì Dách 21 điểm với Nhà Cái tương tác bằng nút bấm",
+                "usage": "/blackjack <bet>", "example": "/blackjack 100",
+                "args": [{"name": "bet", "type": "Number", "required": True, "desc": "Số tiền cược"}],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "🃏 Đánh Bài Xì Dách (Blackjack)",
+                    "desc": "**Bài của bạn:** 🂡 🂪 (21 điểm)<br>**Nhà cái:** 🂱 🂸 (19 điểm)<br>🎉 **BẠN THẮNG!** Nhận được **+200 🪙**!"
+                }
+            },
+            {
+                "name": "shop", "emoji": "🛒",
+                "desc": "Xem danh sách các Role đang được bán trong shop server",
+                "usage": "/shop", "example": "/shop", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "🛒 Cửa Hàng Server",
+                    "desc": "• **`#1` VIP Member** — `500 🪙` (Còn 10)<br>• **`#2` Pro Gamer** — `1,000 🪙` (Vô hạn)<br><br>Dùng `/buy <ID>` để mua."
+                }
+            },
+            {
+                "name": "buy", "emoji": "🛍️",
+                "desc": "Mua Role trong shop server bằng tiền ảo",
+                "usage": "/buy <item_id>", "example": "/buy 1",
+                "args": [{"name": "item_id", "type": "Number", "required": True, "desc": "ID vật phẩm trong shop"}],
+                "preview": {
+                    "type": "text", "text": "🎉 Bạn đã mua thành công **VIP Member**!"
+                }
+            }
+        ]
+    },
+    {
+        "category": "Voice Tạm thời",
+        "icon": "🎙️",
+        "commands": [
+            {
+                "name": "voice lock", "emoji": "🔒",
+                "desc": "Khóa phòng voice cá nhân (chỉ người được mời mới vào được)",
+                "usage": "/voice lock", "example": "/voice lock", "args": [],
+                "preview": {"type": "text", "text": "🔒 Đã KHÓA phòng voice riêng của bạn!"}
+            },
+            {
+                "name": "voice unlock", "emoji": "🔓",
+                "desc": "Mở khóa phòng voice cá nhân cho mọi người cùng vào",
+                "usage": "/voice unlock", "example": "/voice unlock", "args": [],
+                "preview": {"type": "text", "text": "🔓 Đã MỞ KHÓA phòng voice cho tất cả thành viên!"}
+            },
+            {
+                "name": "voice limit", "emoji": "👥",
+                "desc": "Đặt giới hạn số lượng người tối đa trong phòng voice",
+                "usage": "/voice limit <number>", "example": "/voice limit 5",
+                "args": [{"name": "limit", "type": "Number", "required": True, "desc": "Số người tối đa (0 = vô hạn)"}],
+                "preview": {"type": "text", "text": "✅ Đã đặt giới hạn phòng thành **5 người**!"}
+            },
+            {
+                "name": "voice rename", "emoji": "✏️",
+                "desc": "Đổi tên phòng voice cá nhân của bạn",
+                "usage": "/voice rename <name>", "example": "/voice rename Phòng Chơi Game",
+                "args": [{"name": "name", "type": "Text", "required": True, "desc": "Tên phòng mới"}],
+                "preview": {"type": "text", "text": "✅ Đã đổi tên phòng voice thành: **Phòng Chơi Game**!"}
+            }
+        ]
+    },
+    {
+        "category": "Lệnh Tùy biến",
+        "icon": "⚡",
+        "commands": [
+            {
+                "name": "customcmd list", "emoji": "📋",
+                "desc": "Xem danh sách các lệnh tùy biến và auto-responders trong server",
+                "usage": "/customcmd list", "example": "/customcmd list", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "⚡ Danh Sách Lệnh Tùy Biến",
+                    "desc": "• **`!ip`** `[exact]` — 45 lần sử dụng<br>• **`!rules`** `[exact]` — 120 lần sử dụng"
+                }
+            },
+            {
+                "name": "customcmd add", "emoji": "➕",
+                "desc": "Thêm một lệnh phản hồi tự động nhanh bằng văn bản",
+                "usage": "/customcmd add <trigger> <response>", "example": "/customcmd add !ip IP server là play.example.com",
+                "args": [
+                    {"name": "trigger", "type": "Text", "required": True, "desc": "Từ khóa kích hoạt (VD: !ip)"},
+                    {"name": "response", "type": "Text", "required": True, "desc": "Nội dung phản hồi (hỗ trợ {user}, {server})"}
+                ],
+                "preview": {"type": "text", "text": "✅ Đã tạo lệnh tùy biến mới: **`!ip`**!"}
+            },
+            {
+                "name": "customcmd delete", "emoji": "🗑️",
+                "desc": "Xóa một lệnh tùy biến trong server",
+                "usage": "/customcmd delete <trigger>", "example": "/customcmd delete !ip",
+                "args": [{"name": "trigger", "type": "Text", "required": True, "desc": "Từ khóa của lệnh cần xóa"}],
+                "preview": {"type": "text", "text": "🗑️ Đã xóa lệnh tùy biến: **`!ip`**!"}
+            }
+        ]
+    },
+    {
+        "category": "Trợ lý AI",
+        "icon": "🤖",
+        "commands": [
+            {
+                "name": "ask", "emoji": "💡",
+                "desc": "Đặt câu hỏi thông minh cho trợ lý AI Google Gemini 2.0",
+                "usage": "/ask <prompt>", "example": "/ask Giải thích cách hoạt động của hố đen",
+                "args": [{"name": "prompt", "type": "Text", "required": True, "desc": "Câu hỏi cần giải đáp"}],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "🤖 Trợ Lý AI Zeryn",
+                    "desc": "Hố đen là một vùng không gian có trường hấp dẫn mạnh đến mức không vật chất hay bức xạ nào có thể thoát ra..."
+                }
+            },
+            {
+                "name": "summarize", "emoji": "📋",
+                "desc": "Đọc và tóm tắt ngắn gọn các tin nhắn gần nhất trong kênh chat",
+                "usage": "/summarize [limit]", "example": "/summarize 30",
+                "args": [{"name": "limit", "type": "Number", "required": False, "desc": "Số lượng tin nhắn cần tóm tắt (10-50)"}],
+                "preview": {
+                    "type": "embed", "color": "#FEE75C", "title": "📋 Tóm Tắt Cuộc Trò Chuyện",
+                    "desc": "• **Chủ đề chính:** Mọi người đang bàn về kế hoạch chơi game cuối tuần.<br>• **Quyết định:** Thống nhất chơi Valorant lúc 20h tối thứ 7."
+                }
+            }
+        ]
+    }
 ]
 
 @app.route("/dashboard/<guild_id>/commands")
@@ -922,6 +1110,10 @@ def server_commands(guild_id: str):
         "Tổng quát": t("commands.cat_overview", lang=ui_lang),
         "Thông tin": t("commands.cat_info", lang=ui_lang),
         "Music 🎵": t("commands.cat_music", lang=ui_lang),
+        "Kinh tế & Shop": t("nav.economy", lang=ui_lang),
+        "Voice Tạm thời": t("nav.tempvoice", lang=ui_lang),
+        "Lệnh Tùy biến": t("nav.customcommands", lang=ui_lang),
+        "Trợ lý AI": t("nav.ai", lang=ui_lang),
     }
     localized_data = []
     for c in _COMMANDS_DATA:
@@ -1168,8 +1360,6 @@ def server_economy(guild_id: str):
         flash("✅ Đã lưu cài đặt Economy thành công!", "success")
         return redirect(url_for("server_economy", guild_id=guild_id))
 
-    guild_info = _get_guild_from_session(guild_id)
-    modules = db.get_guild_modules(guild_id)
     eco_settings = db.get_economy_settings(guild_id)
     shop_items = db.get_economy_shop(guild_id)
     roles = db.get_guild_roles(guild_id)
@@ -1182,10 +1372,7 @@ def server_economy(guild_id: str):
 
     return render_template(
         "server_economy.html",
-        guild=guild_info,
-        guild_id=guild_id,
-        modules=modules,
-        active_page="economy",
+        **_server_ctx(guild_id, active_page="economy"),
         eco_settings=eco_settings,
         shop_items=shop_items,
         roles=roles,
@@ -1236,21 +1423,15 @@ def server_tempvoice(guild_id: str):
         flash("✅ Đã lưu cài đặt Temp Voice thành công!", "success")
         return redirect(url_for("server_tempvoice", guild_id=guild_id))
 
-    guild_info = _get_guild_from_session(guild_id)
-    modules = db.get_guild_modules(guild_id)
     tv_settings = db.get_tempvoice_settings(guild_id)
     active_channels = db.get_active_temp_channels(guild_id)
     
-    channels = db.get_guild_channels(guild_id)
-    voice_channels = [c for c in channels if c.get("channel_type") == 2]
-    categories = [c for c in channels if c.get("channel_type") == 4]
+    voice_channels = db.get_guild_voice_channels(guild_id)
+    categories = db.get_guild_categories(guild_id)
 
     return render_template(
         "server_tempvoice.html",
-        guild=guild_info,
-        guild_id=guild_id,
-        modules=modules,
-        active_page="tempvoice",
+        **_server_ctx(guild_id, active_page="tempvoice"),
         tv_settings=tv_settings,
         active_channels=active_channels,
         voice_channels=voice_channels,
@@ -1274,16 +1455,11 @@ def server_tempvoice_delete_channel(guild_id: str, channel_id: str):
 @app.route("/dashboard/<guild_id>/customcommands", methods=["GET"])
 @guild_access_required
 def server_customcommands(guild_id: str):
-    guild_info = _get_guild_from_session(guild_id)
-    modules = db.get_guild_modules(guild_id)
     custom_cmds = db.get_custom_commands(guild_id)
 
     return render_template(
         "server_customcommands.html",
-        guild=guild_info,
-        guild_id=guild_id,
-        modules=modules,
-        active_page="customcommands",
+        **_server_ctx(guild_id, active_page="customcommands"),
         custom_cmds=custom_cmds
     )
 
@@ -1344,18 +1520,13 @@ def server_ai(guild_id: str):
         flash("✅ Đã lưu cấu hình AI Assistant thành công!", "success")
         return redirect(url_for("server_ai", guild_id=guild_id))
 
-    guild_info = _get_guild_from_session(guild_id)
-    modules = db.get_guild_modules(guild_id)
     ai_settings = db.get_ai_settings(guild_id)
     channels = db.get_guild_channels(guild_id)
     text_channels = [c for c in channels if c.get("channel_type") == 0]
 
     return render_template(
         "server_ai.html",
-        guild=guild_info,
-        guild_id=guild_id,
-        modules=modules,
-        active_page="ai",
+        **_server_ctx(guild_id, active_page="ai"),
         ai_settings=ai_settings,
         text_channels=text_channels
     )

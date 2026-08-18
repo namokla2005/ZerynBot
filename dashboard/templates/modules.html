@@ -292,6 +292,74 @@
     </label>
   </div>
 
+  <!-- Economy & Shop -->
+  <div class="module-card {% if modules.get('economy', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🪙</span> Economy &amp; Shop</div>
+      <div class="mod-desc">{{ t('economy.page_subtitle') | default('Tiền tệ server, điểm danh hàng ngày, trò chơi và cửa hàng Role.') }}</div>
+      <a href="{{ url_for('server_economy', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="economy"
+             {% if modules.get('economy', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Temp Voice Hub -->
+  <div class="module-card {% if modules.get('tempvoice', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🎙️</span> Temp Voice Hub</div>
+      <div class="mod-desc">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub.') }}</div>
+      <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="tempvoice"
+             {% if modules.get('tempvoice', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Custom Commands -->
+  <div class="module-card {% if modules.get('customcommands', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">⚡</span> Custom Commands</div>
+      <div class="mod-desc">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed theo từ khóa.') }}</div>
+      <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="customcommands"
+             {% if modules.get('customcommands', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- AI Assistant -->
+  <div class="module-card {% if modules.get('ai', False) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🤖</span> AI Assistant</div>
+      <div class="mod-desc">{{ t('ai.page_subtitle') | default('Trí tuệ nhân tạo Gemini: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện.') }}</div>
+      <a href="{{ url_for('server_ai', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="ai"
+             {% if modules.get('ai', False) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
 </div>
 
 <div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">

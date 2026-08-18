@@ -282,6 +282,66 @@
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">🪙</div>
+    <div class="fast-card-title">
+      Economy &amp; Shop
+      <span class="server-chip {% if modules.get('economy', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('economy', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('economy.page_subtitle') | default('Tiền tệ server, điểm danh hàng ngày, trò chơi và cửa hàng Role.') }}</div>
+    <a href="{{ url_for('server_economy', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">🎙️</div>
+    <div class="fast-card-title">
+      Temp Voice Hub
+      <span class="server-chip {% if modules.get('tempvoice', False) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('tempvoice', False) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub.') }}</div>
+    <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">⚡</div>
+    <div class="fast-card-title">
+      Custom Commands
+      <span class="server-chip {% if modules.get('customcommands', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('customcommands', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed theo từ khóa.') }}</div>
+    <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">🤖</div>
+    <div class="fast-card-title">
+      AI Assistant
+      <span class="server-chip {% if modules.get('ai', False) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('ai', False) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('ai.page_subtitle') | default('Trí tuệ nhân tạo Gemini: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện.') }}</div>
+    <a href="{{ url_for('server_ai', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
 </div>
 
 <script>
