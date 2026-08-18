@@ -16,23 +16,26 @@
       flex-direction: column;
       min-height: 100vh;
       width: 100%;
-      background-color: #120e24;
+      background-color: #100b20;
       background-image: 
         radial-gradient(at 0% 0%, rgba(255, 158, 194, 0.16) 0px, transparent 55%),
         radial-gradient(at 100% 0%, rgba(88, 101, 242, 0.18) 0px, transparent 55%),
-        radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 60%),
-        radial-gradient(at 50% 30%, rgba(99, 102, 241, 0.08) 0px, transparent 70%);
+        radial-gradient(at 50% 60%, rgba(139, 92, 246, 0.14) 0px, transparent 65%),
+        radial-gradient(at 50% 100%, rgba(254, 231, 92, 0.08) 0px, transparent 60%);
       background-attachment: fixed;
       color: #e3e5e8;
       overflow-x: hidden;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
 
     .landing-header {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(22, 17, 42, 0.88);
+      background: rgba(16, 11, 32, 0.88);
       backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,0.12);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
       padding: 14px 28px;
     }
 
@@ -46,24 +49,21 @@
       font-weight: 800; font-size: 1.25rem; color: #fff;
       text-decoration: none;
     }
-    .landing-brand img { width: 36px; height: 36px; border-radius: 50%; }
+    .landing-brand img { width: 38px; height: 38px; border-radius: 50%; box-shadow: 0 0 16px rgba(255,158,194,0.4); }
 
     .landing-nav-left { display: flex; align-items: center; gap: 32px; }
     .landing-nav-links { display: flex; align-items: center; gap: 24px; }
     .landing-nav-links a {
-      color: #a3a6af; font-weight: 500; font-size: 0.95rem;
+      color: #a3a6af; font-weight: 600; font-size: 0.92rem;
       transition: color 0.2s; text-decoration: none;
     }
     .landing-nav-links a:hover { color: #fff; }
 
-    html {
-      scroll-behavior: smooth;
-    }
-
+    /* Hero Section */
     .hero-section {
-      max-width: 1200px; margin: 60px auto 140px;
+      max-width: 1200px; margin: 50px auto 80px;
       padding: 0 24px;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+      display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 50px;
       align-items: center;
     }
 
@@ -71,50 +71,56 @@
       display: inline-flex; align-items: center; gap: 8px;
       padding: 6px 16px; border-radius: 20px;
       background: rgba(255, 158, 194, 0.12); border: 1px solid rgba(255, 158, 194, 0.3);
-      color: #ff9ec2; font-size: 0.85rem; font-weight: 600;
+      color: #ff9ec2; font-size: 0.85rem; font-weight: 700;
       margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(255, 158, 194, 0.15);
     }
 
     .hero-title {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 3.4rem; font-weight: 800; line-height: 1.15;
+      font-size: 3.5rem; font-weight: 800; line-height: 1.12;
       color: #fff; margin-bottom: 20px;
+      letter-spacing: -0.02em;
     }
     .hero-title span {
-      background: linear-gradient(135deg, #ff9ec2 0%, #5865f2 100%);
+      background: linear-gradient(135deg, #ff9ec2 0%, #a855f7 50%, #5865f2 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
 
     .hero-subtitle {
-      font-size: 1.1rem; color: #a3a6af; line-height: 1.7;
-      margin-bottom: 36px; max-width: 520px;
+      font-size: 1.12rem; color: #a3a6af; line-height: 1.7;
+      margin-bottom: 36px; max-width: 540px;
     }
 
     .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
 
     .btn-hero-primary {
-      background: #ff9ec2; color: #0f0a1a;
-      padding: 14px 28px; border-radius: 12px;
-      font-weight: 700; font-size: 1rem;
+      background: linear-gradient(135deg, #ff9ec2 0%, #eb6f92 100%); color: #0f0a1a;
+      padding: 14px 28px; border-radius: 14px;
+      font-weight: 800; font-size: 1rem;
       display: inline-flex; align-items: center; gap: 10px;
-      transition: all 0.2s ease; text-decoration: none;
-      box-shadow: 0 8px 24px rgba(255, 158, 194, 0.25);
+      transition: all 0.25s ease; text-decoration: none;
+      box-shadow: 0 10px 30px rgba(255, 158, 194, 0.35);
     }
     .btn-hero-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(255, 158, 194, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 14px 40px rgba(255, 158, 194, 0.5);
+      color: #0f0a1a;
     }
 
     .btn-hero-secondary {
       background: rgba(255, 255, 255, 0.08); color: #fff;
-      padding: 14px 28px; border-radius: 12px;
-      font-weight: 600; font-size: 1rem;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 14px 28px; border-radius: 14px;
+      font-weight: 700; font-size: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
       display: inline-flex; align-items: center; gap: 10px;
-      transition: all 0.2s ease; text-decoration: none;
+      transition: all 0.25s ease; text-decoration: none;
+      backdrop-filter: blur(12px);
     }
     .btn-hero-secondary:hover {
-      background: rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.16);
+      transform: translateY(-2px);
+      color: #fff;
     }
 
     .hero-graphic {
@@ -122,96 +128,141 @@
     }
     .hero-avatar-card {
       width: 320px; height: 320px; border-radius: 50%;
-      padding: 12px; background: linear-gradient(135deg, #ff9ec2, #5865f2);
-      box-shadow: 0 20px 60px rgba(88, 101, 242, 0.3);
+      padding: 10px; background: linear-gradient(135deg, #ff9ec2, #a855f7, #5865f2);
+      box-shadow: 0 20px 70px rgba(168, 85, 247, 0.35);
       position: relative;
+      animation: floatAvatar 6s ease-in-out infinite;
+    }
+    @keyframes floatAvatar {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
     }
     .hero-avatar-card img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+    /* Stats Bar */
+    .stats-bar-wrap {
+      max-width: 1140px; margin: 0 auto 100px; padding: 0 24px;
+    }
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
+      background: rgba(26, 20, 48, 0.7); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px; padding: 24px 32px; backdrop-filter: blur(20px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+    }
+    .stat-item {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .stat-num { font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .stat-txt { font-size: 0.82rem; color: #a3a6af; margin-top: 4px; font-weight: 500; }
 
     /* Showcase Blocks */
     .showcase-section {
       max-width: 1140px;
-      margin: 40px auto 140px;
-      padding: 20px 24px 0;
+      margin: 0 auto 100px;
+      padding: 0 24px;
       scroll-margin-top: 100px;
     }
     .showcase-block {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
-      margin-bottom: 100px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center;
+      margin-bottom: 90px;
     }
-    .showcase-block.reverse { grid-template-columns: 1fr 1fr; }
     .showcase-block.reverse .showcase-text { order: 2; }
     .showcase-block.reverse .showcase-preview { order: 1; }
 
+    .showcase-text .feature-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      background: rgba(88,101,242,0.15); border: 1px solid rgba(88,101,242,0.3);
+      color: #5865f2; font-size: 0.8rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
+    }
     .showcase-text h2 {
       font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 16px;
+      letter-spacing: -0.01em; line-height: 1.25; font-family: 'Plus Jakarta Sans', sans-serif;
     }
     .showcase-text p {
-      font-size: 1.05rem; color: #a3a6af; line-height: 1.7; margin-bottom: 24px;
+      font-size: 1.02rem; color: #a3a6af; line-height: 1.7; margin-bottom: 24px;
     }
 
     .showcase-preview {
-      background: rgba(30, 24, 56, 0.85);
-      border: 1px solid rgba(255,255,255,0.14); border-radius: 18px;
-      padding: 24px; box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+      background: rgba(26, 20, 48, 0.85);
+      border: 1px solid rgba(255,255,255,0.14); border-radius: 20px;
+      padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
       backdrop-filter: blur(20px);
+      transition: transform 0.3s ease;
+    }
+    .showcase-preview:hover {
+      transform: translateY(-4px);
     }
 
+    /* Discord Mockup Components */
     .discord-msg-preview {
       background: #313338; border-radius: 12px; padding: 16px; font-size: 0.9rem;
     }
-    .discord-msg-header { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
-    .discord-msg-bot { font-weight: 700; color: #fff; }
-    .discord-msg-tag { background: #5865f2; color: #fff; font-size: 0.65rem; padding: 1px 4px; border-radius: 3px; }
+    .discord-msg-header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+    .discord-msg-bot { font-weight: 700; color: #fff; font-size: 0.95rem; }
+    .discord-msg-tag { background: #5865f2; color: #fff; font-size: 0.65rem; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
+    
+    .discord-embed-box {
+      background: #2b2d31; border-radius: 8px; border-left: 4px solid #5865f2;
+      padding: 12px 16px; margin-top: 8px;
+    }
 
     /* All in One Section */
     .all-in-one-section {
       text-align: center; max-width: 1140px; margin: 0 auto 120px; padding: 0 24px;
     }
-    .all-in-one-section h2 { font-size: 2.5rem; font-weight: 800; color: #fff; margin-bottom: 12px; }
+    .all-in-one-section h2 { font-size: 2.5rem; font-weight: 800; color: #fff; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', sans-serif; }
     .all-in-one-section p { color: #a3a6af; font-size: 1.1rem; margin-bottom: 48px; }
 
     .category-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px;
     }
     .category-card {
-      background: rgba(30, 24, 56, 0.7); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 14px; padding: 20px 16px; text-align: center;
-      transition: all 0.2s ease;
+      background: rgba(26, 20, 48, 0.7); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px; padding: 22px 18px; text-align: left;
+      transition: all 0.25s ease;
       backdrop-filter: blur(16px);
+      display: flex; gap: 14px; align-items: flex-start;
     }
     .category-card:hover {
-      background: rgba(45, 36, 80, 0.85); transform: translateY(-4px);
+      background: rgba(45, 36, 80, 0.9); transform: translateY(-4px);
       border-color: rgba(255,158,194,0.5);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
     }
-    .category-icon { font-size: 1.8rem; margin-bottom: 10px; }
-    .category-name { font-weight: 700; color: #fff; font-size: 0.95rem; }
+    .category-icon-box {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+    }
+    .category-name { font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px; }
+    .category-desc { font-size: 0.78rem; color: #a3a6af; line-height: 1.4; }
 
     /* Footer CTA */
     .cta-banner {
-      background: linear-gradient(135deg, rgba(255,158,194,0.20), rgba(88,101,242,0.20));
-      border: 1px solid rgba(255,255,255,0.16); border-radius: 24px;
-      padding: 60px 36px; text-align: center; max-width: 1000px; margin: 0 auto 80px;
-      backdrop-filter: blur(20px);
+      background: linear-gradient(135deg, rgba(255,158,194,0.22), rgba(168,85,247,0.22), rgba(88,101,242,0.22));
+      border: 1px solid rgba(255,255,255,0.18); border-radius: 28px;
+      padding: 60px 36px; text-align: center; max-width: 1040px; margin: 0 auto 90px;
+      backdrop-filter: blur(20px); box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     }
-    .cta-banner h2 { font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 14px; }
-    .cta-banner p { color: #a3a6af; font-size: 1.05rem; margin-bottom: 28px; }
+    .cta-banner h2 { font-size: 2.3rem; font-weight: 800; color: #fff; margin-bottom: 14px; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .cta-banner p { color: #dbdee1; font-size: 1.05rem; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
 
     .site-footer {
-      border-top: 1px solid rgba(255,255,255,0.12);
-      padding: 60px 24px 40px; background: rgba(18, 14, 34, 0.95);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 60px 24px 40px; background: rgba(14, 10, 26, 0.95);
     }
     .footer-container {
       max-width: 1140px; margin: 0 auto;
       display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
     }
-    .footer-brand { font-weight: 800; color: #fff; font-size: 1.3rem; margin-bottom: 12px; }
-    .footer-desc { color: #80848e; font-size: 0.9rem; line-height: 1.6; }
+    .footer-brand { font-weight: 800; color: #fff; font-size: 1.35rem; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .footer-brand img { width: 32px; height: 32px; border-radius: 50%; }
+    .footer-desc { color: #80848e; font-size: 0.9rem; line-height: 1.6; max-width: 340px; }
     .footer-title { font-weight: 700; color: #fff; margin-bottom: 16px; font-size: 0.95rem; }
-    .footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; padding: 0; }
     .footer-links a { color: #949ba4; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-    .footer-links a:hover { color: #fff; }
+    .footer-links a:hover { color: #ff9ec2; }
 
     @media (max-width: 900px) {
       .hero-section, .showcase-block, .showcase-block.reverse { grid-template-columns: 1fr; text-align: center; }
@@ -272,7 +323,7 @@
   </div>
 </header>
 
-<!-- Hero -->
+<!-- Hero Section -->
 <section class="hero-section">
   <div>
     <div class="hero-badge">
@@ -301,14 +352,51 @@
   </div>
 </section>
 
-<!-- Feature Showcase Section (Nekotina Style) -->
+<!-- Stats Bar -->
+<div class="stats-bar-wrap">
+  <div class="stats-bar">
+    <div class="stat-item">
+      <i class="bi bi-lightning-charge-fill" style="color:#ff9ec2; font-size:1.8rem;"></i>
+      <div>
+        <div class="stat-num">&lt; 0.3s</div>
+        <div class="stat-txt">{{ t('landing.stat_response') | default('Tốc Độ Phản Hồi AI') }}</div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <i class="bi bi-translate" style="color:#a855f7; font-size:1.8rem;"></i>
+      <div>
+        <div class="stat-num">6 Quốc Gia</div>
+        <div class="stat-txt">Hỗ Trợ Đa Ngôn Ngữ</div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <i class="bi bi-shield-fill-check" style="color:#57f287; font-size:1.8rem;"></i>
+      <div>
+        <div class="stat-num">99.9%</div>
+        <div class="stat-txt">{{ t('landing.stat_uptime') | default('Thời Gian Hoạt Động') }}</div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <i class="bi bi-gift-fill" style="color:#fee75c; font-size:1.8rem;"></i>
+      <div>
+        <div class="stat-num">100% Free</div>
+        <div class="stat-txt">{{ t('landing.stat_free') | default('Miễn Phí Vĩnh Viễn') }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Feature Showcase Section -->
 <section id="features" class="showcase-section">
   
-  <!-- Block 1: Welcome Messages -->
+  <!-- Showcase 1: AI Assistant & Chatbot (NEW) -->
   <div class="showcase-block">
     <div class="showcase-text">
-      <h2>{{ t('landing.f4_title') }}</h2>
-      <p>{{ t('landing.f4_desc') }}</p>
+      <div class="feature-badge" style="background:rgba(168,85,247,0.15); border-color:rgba(168,85,247,0.3); color:#a855f7;">
+        <i class="bi bi-stars"></i> Next-Gen AI
+      </div>
+      <h2>{{ t('landing.f7_title') | default('Trợ Lý AI & Smart Chatbot') }}</h2>
+      <p>{{ t('landing.f7_desc') | default('Tích hợp trí tuệ nhân tạo thế hệ mới (Groq Cloud & Google Gemini) phản hồi siêu tốc trong 0.2s, hỗ trợ kênh chat tự động, giải đáp câu hỏi và tóm tắt tin nhắn.') }}</p>
       <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
         {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
       </a>
@@ -320,16 +408,81 @@
           <span class="discord-msg-bot">Zeryn Bot</span>
           <span class="discord-msg-tag">BOT</span>
         </div>
-        <div style="color:#dbdee1; line-height:1.5;">
-          👋 Welcome to the server, <strong>@User</strong>! Glad to have you here! 🎉
+        <div class="discord-embed-box" style="border-left-color:#a855f7;">
+          <div style="font-weight:700; color:#a855f7; margin-bottom:4px;">🤖 Zeryn Trợ Lý AI (Groq LPU / Gemini 2.0)</div>
+          <div style="color:#dbdee1; line-height:1.5; font-size:0.88rem;">
+            Chào bạn! Tôi đã phân tích và tóm tắt 30 tin nhắn gần nhất:
+            <br>• Server đang thảo luận kế hoạch tổ chức sự kiện Game Night.
+            <br>• Giải thưởng 100,000 Coins đã được nạp vào Role Shop!
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Block 2: Leveling & XP -->
+  <!-- Showcase 2: Economy & Role Shop (NEW) -->
   <div class="showcase-block reverse">
     <div class="showcase-text">
+      <div class="feature-badge" style="background:rgba(254,231,92,0.15); border-color:rgba(254,231,92,0.3); color:#fee75c;">
+        <i class="bi bi-coin"></i> Economy & Minigames
+      </div>
+      <h2>{{ t('landing.f8_title') | default('Kinh Tế, Shop Role & Mini-Games') }}</h2>
+      <p>{{ t('landing.f8_desc') | default('Tiền tệ ảo Coins, bảng xếp hạng tài phiệt, 8+ minigames cá cược giải trí (Tài Xỉu, Coinflip, Slots, Xổ Số, Câu Cá) và cửa hàng mua Role tự động cấp quyền.') }}</p>
+      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
+        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-preview">
+      <div class="discord-msg-preview">
+        <div class="discord-msg-header">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" style="width:28px; height:28px; border-radius:50%;">
+          <span class="discord-msg-bot">Zeryn Bot</span>
+          <span class="discord-msg-tag">BOT</span>
+        </div>
+        <div class="discord-embed-box" style="border-left-color:#fee75c;">
+          <div style="font-weight:700; color:#fee75c; margin-bottom:4px;">🎲 Tài Xỉu Thành Công! (+2,000 🪙)</div>
+          <div style="color:#dbdee1; font-size:0.88rem; line-height:1.5;">
+            Xúc xắc: ⚄ ⚅ ⚂ ➔ <strong>Tổng: 14 (Tài)</strong>
+            <br>Số dư hiện tại: <strong>15,400 Coins</strong> • Đã mở khóa Role <strong>VIP Diamond</strong>!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Showcase 3: Temp Voice Hub (NEW) -->
+  <div class="showcase-block">
+    <div class="showcase-text">
+      <div class="feature-badge" style="background:rgba(87,242,135,0.15); border-color:rgba(87,242,135,0.3); color:#57f287;">
+        <i class="bi bi-mic-fill"></i> Dynamic Voice Hub
+      </div>
+      <h2>{{ t('landing.f9_title') | default('Phòng Thoại Tự Động (Temp Voice)') }}</h2>
+      <p>{{ t('landing.f9_desc') | default('Tham gia kênh Hub để tự động tạo phòng voice riêng tư có đầy đủ bảng điều khiển khóa/mở, đổi tên, giới hạn người và kick thành viên.') }}</p>
+      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
+        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-preview">
+      <div style="background:#1e1f22; border-radius:12px; padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="color:#fff; font-weight:700; font-size:0.95rem;">🔊 Phòng của @User (🔒 Đã Khóa)</span>
+          <span style="color:#57f287; font-size:0.78rem; font-weight:700; background:rgba(87,242,135,0.15); padding:3px 8px; border-radius:12px;">2 / 4 Thành viên</span>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span style="background:#2b2d31; color:#dbdee1; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:600;">🔒 Khóa Phòng</span>
+          <span style="background:#2b2d31; color:#dbdee1; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:600;">✏️ Đổi Tên</span>
+          <span style="background:#2b2d31; color:#dbdee1; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:600;">👥 Giới Hạn</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Showcase 4: Leveling & XP Card -->
+  <div class="showcase-block reverse">
+    <div class="showcase-text">
+      <div class="feature-badge">
+        <i class="bi bi-trophy-fill"></i> Leveling & Rank Cards
+      </div>
       <h2>{{ t('landing.f1_title') }}</h2>
       <p>{{ t('landing.f1_desc') }}</p>
       <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
@@ -339,20 +492,23 @@
     <div class="showcase-preview">
       <div style="background:#1e1f22; border-radius:12px; padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:700;">
-          <span>🏆 XP Leaderboard</span>
-          <span style="color:#ff9ec2;">#1 User</span>
+          <span>🏆 XP Leaderboard (Thẻ Rank Card Đồ Họa)</span>
+          <span style="color:#ff9ec2;">Rank #1</span>
         </div>
-        <div style="margin-top:12px; background:#2b2d31; border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:#dbdee1; font-size:0.9rem;">🥇 Top Chatter</span>
+        <div style="margin-top:12px; background:#2b2d31; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#dbdee1; font-size:0.9rem; font-weight:600;">🥇 Top Chatter</span>
           <span style="color:#57f287; font-weight:700; font-size:0.9rem;">Level 45 • 12,450 XP</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Block 3: Music & Lofi -->
+  <!-- Showcase 5: Music & Lofi 24/7 -->
   <div class="showcase-block">
     <div class="showcase-text">
+      <div class="feature-badge" style="background:rgba(255,158,194,0.15); border-color:rgba(255,158,194,0.3); color:#ff9ec2;">
+        <i class="bi bi-music-note-beamed"></i> High Quality Audio
+      </div>
       <h2>{{ t('landing.f3_title') }}</h2>
       <p>{{ t('landing.f3_desc') }}</p>
       <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
@@ -361,51 +517,103 @@
     </div>
     <div class="showcase-preview">
       <div style="background:#1e1f22; border-radius:12px; padding:16px; border-left:4px solid #5865f2;">
-        <div style="font-weight:700; color:#fff; margin-bottom:4px;">🎶 Now Playing: Lofi Hip Hop Beats 24/7</div>
-        <div style="color:#949ba4; font-size:0.85rem;">Requested by @User • Volume: 80%</div>
+        <div style="font-weight:700; color:#fff; margin-bottom:4px; font-size:0.95rem;">🎶 Now Playing: Lofi Hip Hop Beats 24/7</div>
+        <div style="color:#949ba4; font-size:0.85rem;">Requested by @User • Volume: 80% • Loop: On</div>
       </div>
     </div>
   </div>
 
 </section>
 
-<!-- All in One Grid Section -->
+<!-- All in One Grid Section (12 Modules) -->
 <section class="all-in-one-section">
   <h2>{{ t('landing.all_in_one') }}</h2>
   <p>{{ t('landing.all_in_one_sub') }}</p>
 
   <div class="category-grid">
     <div class="category-card">
-      <div class="category-icon">👋</div>
-      <div class="category-name">Welcome</div>
+      <div class="category-icon-box" style="background:rgba(168,85,247,0.15); color:#a855f7;">🤖</div>
+      <div>
+        <div class="category-name">AI Assistant</div>
+        <div class="category-desc">Trí tuệ nhân tạo Groq & Gemini phản hồi siêu tốc</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">🛡️</div>
-      <div class="category-name">Automod</div>
+      <div class="category-icon-box" style="background:rgba(254,231,92,0.15); color:#fee75c;">💰</div>
+      <div>
+        <div class="category-name">Kinh Tế & Shop</div>
+        <div class="category-desc">Coins ảo, 8+ minigames cá cược và mua Role tự động</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">🎵</div>
-      <div class="category-name">Music</div>
+      <div class="category-icon-box" style="background:rgba(87,242,135,0.15); color:#57f287;">🔊</div>
+      <div>
+        <div class="category-name">Temp Voice</div>
+        <div class="category-desc">Tạo phòng voice tự động kèm bảng điều khiển riêng</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">🪪</div>
-      <div class="category-name">Leveling</div>
+      <div class="category-icon-box" style="background:rgba(88,101,242,0.15); color:#5865f2;">⚡</div>
+      <div>
+        <div class="category-name">Lệnh Tùy Biến</div>
+        <div class="category-desc">Tạo keyword lệnh không giới hạn với biến động</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">🎫</div>
-      <div class="category-name">Tickets</div>
+      <div class="category-icon-box" style="background:rgba(255,158,194,0.15); color:#ff9ec2;">👋</div>
+      <div>
+        <div class="category-name">Welcome & Auto Role</div>
+        <div class="category-desc">Ảnh chào mừng đồ họa và tự trao Role thành viên</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">✨</div>
-      <div class="category-name">Reaction Roles</div>
+      <div class="category-icon-box" style="background:rgba(237,66,69,0.15); color:#ed4245;">🛡️</div>
+      <div>
+        <div class="category-name">Automod Bảo Vệ</div>
+        <div class="category-desc">Lọc từ cấm, chống spam, link độc hại và caps 24/7</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">🎁</div>
-      <div class="category-name">Giveaways</div>
+      <div class="category-icon-box" style="background:rgba(88,101,242,0.15); color:#5865f2;">🎵</div>
+      <div>
+        <div class="category-name">Âm Nhạc & Lofi</div>
+        <div class="category-desc">Phát nhạc YouTube chất lượng cao và Lofi 24/7</div>
+      </div>
     </div>
     <div class="category-card">
-      <div class="category-icon">📖</div>
-      <div class="category-name">Audit Logs</div>
+      <div class="category-icon-box" style="background:rgba(254,231,92,0.15); color:#fee75c;">🪪</div>
+      <div>
+        <div class="category-name">Leveling & XP</div>
+        <div class="category-desc">Cày cấp Chat & Voice, mở khóa Rank Card đồ họa</div>
+      </div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon-box" style="background:rgba(87,242,135,0.15); color:#57f287;">🎫</div>
+      <div>
+        <div class="category-name">Hỗ Trợ Ticket</div>
+        <div class="category-desc">Kênh hỗ trợ riêng tư kèm sao lưu lịch sử Transcript</div>
+      </div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon-box" style="background:rgba(255,158,194,0.15); color:#ff9ec2;">✨</div>
+      <div>
+        <div class="category-name">Reaction Roles</div>
+        <div class="category-desc">Tự chọn Role bằng cách thả cảm xúc trên tin nhắn</div>
+      </div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon-box" style="background:rgba(254,231,92,0.15); color:#fee75c;">🎁</div>
+      <div>
+        <div class="category-name">Giveaways</div>
+        <div class="category-desc">Tổ chức sự kiện phát quà và quay thưởng tự động</div>
+      </div>
+    </div>
+    <div class="category-card">
+      <div class="category-icon-box" style="background:rgba(88,101,242,0.15); color:#5865f2;">📖</div>
+      <div>
+        <div class="category-name">Audit Logs</div>
+        <div class="category-desc">Ghi lại toàn bộ hành vi quản trị và sự kiện máy chủ</div>
+      </div>
     </div>
   </div>
 </section>
@@ -423,15 +631,20 @@
 <footer class="site-footer">
   <div class="footer-container">
     <div>
-      <div class="footer-brand">Zeryn Bot</div>
+      <div class="footer-brand">
+        <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
+        Zeryn Bot
+      </div>
       <div class="footer-desc">{{ t('landing.badge') }}</div>
     </div>
     <div>
       <div class="footer-title">{{ t('nav.features') }}</div>
       <ul class="footer-links">
+        <li><a href="#features">{{ t('landing.f7_title') | default('Trợ Lý AI') }}</a></li>
+        <li><a href="#features">{{ t('landing.f8_title') | default('Kinh Tế & Shop') }}</a></li>
+        <li><a href="#features">{{ t('landing.f9_title') | default('Temp Voice') }}</a></li>
         <li><a href="#features">{{ t('landing.f1_title') }}</a></li>
         <li><a href="#features">{{ t('landing.f3_title') }}</a></li>
-        <li><a href="#features">{{ t('landing.f2_title') }}</a></li>
       </ul>
     </div>
     <div>

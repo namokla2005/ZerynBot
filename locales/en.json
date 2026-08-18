@@ -1051,5 +1051,17 @@
   "ai.summarize_no_messages": "❌ No recent messages to summarize!",
   "ai.summarize_title": "Conversation Summary — #{channel}",
   "ai.summarize_footer": "Analyzed {count} recent messages.",
-  "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds."
+  "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds.",
+  "landing.f7_title": "AI Assistant & Smart Chatbot",
+  "landing.f7_desc": "Next-gen AI integration (Groq Cloud & Google Gemini) with blazing 0.2s response, automated #ai-chat, /ask Q&A, and /summarize channel history.",
+  "landing.f8_title": "Economy, Role Shop & Mini-Games",
+  "landing.f8_desc": "Virtual Coins, server leaderboards, 8+ interactive gambling minigames (Dice, Coinflip, Slots, Lottery, Fishing) and custom Role Shop with auto-assignment.",
+  "landing.f9_title": "Temporary Voice Hub (Temp Voice)",
+  "landing.f9_desc": "Join to Create dynamic voice rooms with intuitive control panel for locking/unlocking, renaming, user limits, and moderation.",
+  "landing.f10_title": "Custom Commands & Dynamic Embeds",
+  "landing.f10_desc": "Create unlimited trigger keywords with dynamic placeholders {user}, {mention}, {server} and customizable colorful Rich Embeds.",
+  "landing.stat_servers": "Trusted Servers",
+  "landing.stat_uptime": "System Uptime",
+  "landing.stat_response": "AI Response Time",
+  "landing.stat_free": "100% Free"
 }

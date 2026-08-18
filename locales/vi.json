@@ -1051,5 +1051,17 @@
   "ai.summarize_no_messages": "❌ Không có tin nhắn nào gần đây để tóm tắt!",
   "ai.summarize_title": "Tóm Tắt Cuộc Trò Chuyện — #{channel}",
   "ai.summarize_footer": "Đã phân tích {count} tin nhắn gần nhất.",
-  "ai.rate_limited": "⏳ Bạn đang chat quá nhanh với AI! Vui lòng chờ vài giây."
+  "ai.rate_limited": "⏳ Bạn đang chat quá nhanh với AI! Vui lòng chờ vài giây.",
+  "landing.f7_title": "Trợ Lý AI & Smart Chatbot",
+  "landing.f7_desc": "Tích hợp trí tuệ nhân tạo thế hệ mới (Groq Cloud & Google Gemini) phản hồi siêu tốc 0.2s, tự động trò chuyện #ai-chat, giải đáp /ask và tóm tắt cuộc trò chuyện /summarize.",
+  "landing.f8_title": "Kinh Tế, Shop Role & Mini-Games",
+  "landing.f8_desc": "Tiền tệ ảo Coins, bảng xếp hạng tài phiệt, 8+ minigames cá cược giải trí (Tài Xỉu, Coinflip, Slots, Xổ Số, Câu Cá) và cửa hàng mua Role tự động cấp quyền.",
+  "landing.f9_title": "Phòng Thoại Tự Động (Temp Voice)",
+  "landing.f9_desc": "Tham gia kênh Hub để tự động tạo phòng voice riêng tư có đầy đủ bảng điều khiển khóa/mở, đổi tên, giới hạn người và kick thành viên.",
+  "landing.f10_title": "Lệnh Tùy Biến (Custom Commands)",
+  "landing.f10_desc": "Tạo lệnh với từ khóa không giới hạn, hỗ trợ biến động thông minh {user}, {mention}, {server} và thiết kế giao diện Rich Embed đổi màu bắt mắt.",
+  "landing.stat_servers": "Máy Chủ Tin Dùng",
+  "landing.stat_uptime": "Thời Gian Hoạt Động",
+  "landing.stat_response": "Tốc Độ Phản Hồi AI",
+  "landing.stat_free": "Miễn Phí 100%"
 }

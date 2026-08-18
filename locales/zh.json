@@ -1051,5 +1051,17 @@
   "ai.summarize_no_messages": "❌ No recent messages to summarize!",
   "ai.summarize_title": "Conversation Summary — #{channel}",
   "ai.summarize_footer": "Analyzed {count} recent messages.",
-  "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds."
+  "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds.",
+  "landing.f7_title": "AI 智能助手与聊天机器人",
+  "landing.f7_desc": "集成新一代人工智能（Groq Cloud 与 Google Gemini），0.2秒极速响应，支持 #ai-chat 自动对话、/ask 智能问答和 /summarize 消息摘要。",
+  "landing.f8_title": "经济系统、身份组商店与小游戏",
+  "landing.f8_desc": "虚拟金币、服务器排行榜、8+ 互动娱乐小游戏（骰子、抛硬币、老虎机、彩票、钓鱼）以及自动发放身份组的商店。",
+  "landing.f9_title": "临时语音频道 (Temp Voice)",
+  "landing.f9_desc": "加入即创建专属语音房间，配备直观控制面板支持上锁/解锁、重命名、人数限制与踢出成员。",
+  "landing.f10_title": "自定义指令与动态嵌入消息",
+  "landing.f10_desc": "创建无限关键词指令，支持 {user}、{mention}、{server} 等动态变量和多彩 Rich Embed 消息。",
+  "landing.stat_servers": "受信任服务器",
+  "landing.stat_uptime": "运行稳定性",
+  "landing.stat_response": "AI 响应速度",
+  "landing.stat_free": "100% 免费"
 }

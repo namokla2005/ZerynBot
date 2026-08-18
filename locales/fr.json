@@ -1051,5 +1051,17 @@
   "ai.summarize_no_messages": "❌ No recent messages to summarize!",
   "ai.summarize_title": "Conversation Summary — #{channel}",
   "ai.summarize_footer": "Analyzed {count} recent messages.",
-  "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds."
+  "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds.",
+  "landing.f7_title": "Assistant IA & Chatbot Intelligent",
+  "landing.f7_desc": "Intégration d'IA nouvelle génération (Groq Cloud & Google Gemini) avec réponse ultra-rapide en 0.2s, #ai-chat automatique, Q&R /ask et résumés /summarize.",
+  "landing.f8_title": "Économie, Boutique de Rôles & Mini-jeux",
+  "landing.f8_desc": "Pièces virtuelles, classements de serveur, 8+ mini-jeux interactifs (Dés, Pile ou Face, Machine à sous, Loterie, Pêche) et boutique de rôles automatiques.",
+  "landing.f9_title": "Salons Vocaux Temporaires (Temp Voice)",
+  "landing.f9_desc": "Rejoignez pour créer des salons vocaux privés avec panneau de configuration pour verrouiller/déverrouiller, renommer et limiter les membres.",
+  "landing.f10_title": "Commandes Personnalisées & Embeds Dynamiques",
+  "landing.f10_desc": "Créez des commandes illimitées avec variables dynamiques {user}, {mention}, {server} et de superbes Rich Embeds colorés.",
+  "landing.stat_servers": "Serveurs Confiants",
+  "landing.stat_uptime": "Disponibilité",
+  "landing.stat_response": "Vitesse de l'IA",
+  "landing.stat_free": "100% Gratuit"
 }
