@@ -8,10 +8,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Database
+# Database & Runtime Data
 *.db
 *.sqlite3
 database.db
+data/
+*.log
+*.pid
 
 # File IDE / Hệ điều hành
 .vscode/
