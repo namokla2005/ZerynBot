@@ -6,271 +6,654 @@
   <title>Zeryn Bot — {{ t('landing.badge') }}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=8.0">
   
   <style>
-    body.landing-body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      width: 100%;
-      background-color: #100b20;
-      background-image: 
-        radial-gradient(at 0% 0%, rgba(255, 158, 194, 0.16) 0px, transparent 55%),
-        radial-gradient(at 100% 0%, rgba(88, 101, 242, 0.18) 0px, transparent 55%),
-        radial-gradient(at 50% 60%, rgba(139, 92, 246, 0.14) 0px, transparent 65%),
-        radial-gradient(at 50% 100%, rgba(254, 231, 92, 0.08) 0px, transparent 60%);
-      background-attachment: fixed;
-      color: #e3e5e8;
-      overflow-x: hidden;
+    :root {
+      --bg-main: #131217;
+      --bg-surface: #19181f;
+      --bg-card: rgba(26, 24, 34, 0.85);
+      --bg-card-hover: rgba(35, 33, 46, 0.95);
+      --accent-pink: #f4a7bb;
+      --accent-pink-hover: #ffb8ca;
+      --accent-pink-glow: rgba(244, 167, 187, 0.35);
+      --accent-purple: #9d8df1;
+      --accent-blue: #5865f2;
+      --text-primary: #ffffff;
+      --text-secondary: #a3a1b0;
+      --text-muted: #6f6d7e;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(244, 167, 187, 0.35);
+      --radius-pill: 9999px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     html {
       scroll-behavior: smooth;
     }
 
+    body.landing-body {
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(244, 167, 187, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(157, 141, 241, 0.09) 0%, transparent 45%),
+        radial-gradient(circle at 50% 60%, rgba(88, 101, 242, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 90%, rgba(244, 167, 187, 0.06) 0%, transparent 40%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── Header & Navigation ─────────────────────────────────────────────────── */
     .landing-header {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(16, 11, 32, 0.88);
+      background: rgba(19, 18, 23, 0.85);
       backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 14px 28px;
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 32px;
     }
 
     .landing-nav {
-      max-width: 1240px; margin: 0 auto;
+      max-width: 1200px; margin: 0 auto;
       display: flex; align-items: center; justify-content: space-between;
     }
 
     .landing-brand {
       display: flex; align-items: center; gap: 12px;
       font-weight: 800; font-size: 1.25rem; color: #fff;
-      text-decoration: none;
+      text-decoration: none; letter-spacing: -0.01em;
     }
-    .landing-brand img { width: 38px; height: 38px; border-radius: 50%; box-shadow: 0 0 16px rgba(255,158,194,0.4); }
+    .landing-brand img {
+      width: 38px; height: 38px; border-radius: 50%;
+      box-shadow: 0 0 16px var(--accent-pink-glow);
+    }
 
-    .landing-nav-left { display: flex; align-items: center; gap: 32px; }
-    .landing-nav-links { display: flex; align-items: center; gap: 24px; }
+    .landing-nav-links {
+      display: flex; align-items: center; gap: 28px;
+    }
     .landing-nav-links a {
-      color: #a3a6af; font-weight: 600; font-size: 0.92rem;
-      transition: color 0.2s; text-decoration: none;
+      color: var(--text-secondary); font-weight: 600; font-size: 0.92rem;
+      transition: color 0.2s ease; text-decoration: none;
     }
     .landing-nav-links a:hover { color: #fff; }
 
-    /* Hero Section */
-    .hero-section {
-      max-width: 1200px; margin: 50px auto 80px;
-      padding: 0 24px;
-      display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 50px;
-      align-items: center;
+    .nav-actions {
+      display: flex; align-items: center; gap: 14px;
     }
 
-    .hero-badge {
+    /* Language Switcher */
+    .lang-switcher {
+      position: relative;
+    }
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 7px 14px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex; align-items: center; gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .lang-dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: #1e1c26;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 6px;
+      min-width: 170px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      display: none;
+      z-index: 150;
+    }
+    .lang-switcher:hover .lang-dropdown { display: block; }
+    .lang-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .lang-item:hover {
+      background: rgba(244, 167, 187, 0.15);
+      color: #fff;
+    }
+    .lang-item.active {
+      color: var(--accent-pink);
+      background: rgba(244, 167, 187, 0.1);
+    }
+
+    /* Buttons */
+    .btn-pink-pill {
+      background: var(--accent-pink);
+      color: #16121f;
+      padding: 10px 22px;
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      font-size: 0.92rem;
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 16px; border-radius: 20px;
-      background: rgba(255, 158, 194, 0.12); border: 1px solid rgba(255, 158, 194, 0.3);
-      color: #ff9ec2; font-size: 0.85rem; font-weight: 700;
-      margin-bottom: 20px;
-      box-shadow: 0 0 20px rgba(255, 158, 194, 0.15);
+      text-decoration: none;
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 18px var(--accent-pink-glow);
+      transition: all 0.25s ease;
+    }
+    .btn-pink-pill:hover {
+      background: var(--accent-pink-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px var(--accent-pink-glow);
+      color: #16121f;
     }
 
-    .hero-title {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 3.5rem; font-weight: 800; line-height: 1.12;
-      color: #fff; margin-bottom: 20px;
-      letter-spacing: -0.02em;
+    .btn-outline-pill {
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      font-size: 0.92rem;
+      display: inline-flex; align-items: center; gap: 8px;
+      text-decoration: none;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.25s ease;
     }
-    .hero-title span {
-      background: linear-gradient(135deg, #ff9ec2 0%, #a855f7 50%, #5865f2 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-
-    .hero-subtitle {
-      font-size: 1.12rem; color: #a3a6af; line-height: 1.7;
-      margin-bottom: 36px; max-width: 540px;
-    }
-
-    .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
-
-    .btn-hero-primary {
-      background: linear-gradient(135deg, #ff9ec2 0%, #eb6f92 100%); color: #0f0a1a;
-      padding: 14px 28px; border-radius: 14px;
-      font-weight: 800; font-size: 1rem;
-      display: inline-flex; align-items: center; gap: 10px;
-      transition: all 0.25s ease; text-decoration: none;
-      box-shadow: 0 10px 30px rgba(255, 158, 194, 0.35);
-    }
-    .btn-hero-primary:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 14px 40px rgba(255, 158, 194, 0.5);
-      color: #0f0a1a;
-    }
-
-    .btn-hero-secondary {
-      background: rgba(255, 255, 255, 0.08); color: #fff;
-      padding: 14px 28px; border-radius: 14px;
-      font-weight: 700; font-size: 1rem;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      display: inline-flex; align-items: center; gap: 10px;
-      transition: all 0.25s ease; text-decoration: none;
-      backdrop-filter: blur(12px);
-    }
-    .btn-hero-secondary:hover {
-      background: rgba(255, 255, 255, 0.16);
+    .btn-outline-pill:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.25);
       transform: translateY(-2px);
       color: #fff;
     }
 
-    .hero-graphic {
-      position: relative; display: flex; justify-content: center; align-items: center;
+    /* ─── Hero Section ────────────────────────────────────────────────────────── */
+    .hero-container {
+      max-width: 1200px;
+      margin: 60px auto 70px;
+      padding: 0 28px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 40px;
+      align-items: center;
     }
-    .hero-avatar-card {
-      width: 320px; height: 320px; border-radius: 50%;
-      padding: 10px; background: linear-gradient(135deg, #ff9ec2, #a855f7, #5865f2);
-      box-shadow: 0 20px 70px rgba(168, 85, 247, 0.35);
+
+    .hero-badge-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px;
+      border-radius: var(--radius-pill);
+      background: rgba(244, 167, 187, 0.08);
+      border: 1px solid rgba(244, 167, 187, 0.25);
+      color: var(--accent-pink);
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      box-shadow: 0 0 24px rgba(244, 167, 187, 0.12);
+    }
+
+    .hero-heading {
+      font-size: 3.6rem;
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -0.025em;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .hero-heading span {
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent-pink) 60%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-lead {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 36px;
+      max-width: 520px;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-avatar-wrapper {
       position: relative;
-      animation: floatAvatar 6s ease-in-out infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    @keyframes floatAvatar {
+    .hero-avatar-ring {
+      width: 340px; height: 340px;
+      border-radius: 50%;
+      padding: 10px;
+      background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple), var(--accent-blue));
+      box-shadow: 0 20px 80px rgba(157, 141, 241, 0.35);
+      position: relative;
+      animation: gentleFloat 6s ease-in-out infinite;
+    }
+    @keyframes gentleFloat {
       0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
+      50% { transform: translateY(-12px); }
     }
-    .hero-avatar-card img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .hero-avatar-ring img {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
 
-    /* Stats Bar */
-    .stats-bar-wrap {
-      max-width: 1140px; margin: 0 auto 100px; padding: 0 24px;
+    /* Floating Cute Stickers around avatar */
+    .sticker-pill {
+      position: absolute;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: #1f1c2b;
+      border: 2px solid var(--accent-pink);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      z-index: 5;
+      animation: pulseSticker 3s ease-in-out infinite;
     }
-    .stats-bar {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
-      background: rgba(26, 20, 48, 0.7); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 20px; padding: 24px 32px; backdrop-filter: blur(20px);
-      box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+    @keyframes pulseSticker {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
     }
-    .stat-item {
-      display: flex; align-items: center; gap: 16px;
-    }
-    .stat-num { font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1; font-family: 'Plus Jakarta Sans', sans-serif; }
-    .stat-txt { font-size: 0.82rem; color: #a3a6af; margin-top: 4px; font-weight: 500; }
+    .st-top-left { top: 10px; left: -10px; }
+    .st-top-right { top: -10px; right: 20px; }
+    .st-bottom-left { bottom: 20px; left: -15px; }
+    .st-bottom-right { bottom: 0px; right: 0px; }
 
-    /* Showcase Blocks */
-    .showcase-section {
+    /* ─── "Trusted By" Section ────────────────────────────────────────────────── */
+    .trusted-section {
+      text-align: center;
+      max-width: 900px;
+      margin: 20px auto 90px;
+      padding: 0 24px;
+    }
+    .trusted-title-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+    .trusted-highlight-text {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: var(--accent-pink);
+      line-height: 1.3;
+      margin-bottom: 8px;
+    }
+    .trusted-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── Zig-zag Feature Showcase Section ────────────────────────────────────── */
+    .showcase-container {
       max-width: 1140px;
       margin: 0 auto 100px;
-      padding: 0 24px;
-      scroll-margin-top: 100px;
+      padding: 0 28px;
     }
-    .showcase-block {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center;
-      margin-bottom: 90px;
-    }
-    .showcase-block.reverse .showcase-text { order: 2; }
-    .showcase-block.reverse .showcase-preview { order: 1; }
 
-    .showcase-text .feature-badge {
+    .showcase-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      margin-bottom: 110px;
+    }
+    .showcase-row.reverse .showcase-copy { order: 2; }
+    .showcase-row.reverse .showcase-visual { order: 1; }
+
+    .showcase-badge {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 12px; border-radius: 20px;
-      background: rgba(88,101,242,0.15); border: 1px solid rgba(88,101,242,0.3);
-      color: #5865f2; font-size: 0.8rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
-    }
-    .showcase-text h2 {
-      font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 16px;
-      letter-spacing: -0.01em; line-height: 1.25; font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-    .showcase-text p {
-      font-size: 1.02rem; color: #a3a6af; line-height: 1.7; margin-bottom: 24px;
+      padding: 4px 14px;
+      border-radius: var(--radius-pill);
+      background: rgba(244, 167, 187, 0.1);
+      border: 1px solid rgba(244, 167, 187, 0.25);
+      color: var(--accent-pink);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
     }
 
-    .showcase-preview {
-      background: rgba(26, 20, 48, 0.85);
-      border: 1px solid rgba(255,255,255,0.14); border-radius: 20px;
-      padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-      backdrop-filter: blur(20px);
-      transition: transform 0.3s ease;
+    .showcase-heading {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.25;
+      letter-spacing: -0.015em;
+      margin-bottom: 16px;
     }
-    .showcase-preview:hover {
+
+    .showcase-description {
+      font-size: 1.02rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .showcase-btn-link {
+      color: var(--accent-pink);
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: inline-flex; align-items: center; gap: 6px;
+      text-decoration: none;
+      transition: gap 0.2s ease, color 0.2s ease;
+    }
+    .showcase-btn-link:hover {
+      color: #fff;
+      gap: 10px;
+    }
+
+    /* Showcase Visual Cards with Floating Corner Badges */
+    .showcase-visual {
+      position: relative;
+    }
+    .mockup-card {
+      background: #1b1924;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .mockup-card:hover {
       transform: translateY(-4px);
+      border-color: var(--border-hover);
     }
 
-    /* Discord Mockup Components */
-    .discord-msg-preview {
-      background: #313338; border-radius: 12px; padding: 16px; font-size: 0.9rem;
+    .corner-badge {
+      position: absolute;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: #23202e;
+      border: 1.5px solid var(--accent-pink);
+      color: var(--accent-pink);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+      z-index: 10;
     }
-    .discord-msg-header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-    .discord-msg-bot { font-weight: 700; color: #fff; font-size: 0.95rem; }
-    .discord-msg-tag { background: #5865f2; color: #fff; font-size: 0.65rem; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
-    
-    .discord-embed-box {
-      background: #2b2d31; border-radius: 8px; border-left: 4px solid #5865f2;
-      padding: 12px 16px; margin-top: 8px;
-    }
+    .cb-top-left { top: -14px; left: -14px; }
+    .cb-top-right { top: -14px; right: -14px; }
+    .cb-bottom-left { bottom: -14px; left: -14px; }
+    .cb-bottom-right { bottom: -14px; right: -14px; }
 
-    /* All in One Section */
-    .all-in-one-section {
-      text-align: center; max-width: 1140px; margin: 0 auto 120px; padding: 0 24px;
-    }
-    .all-in-one-section h2 { font-size: 2.5rem; font-weight: 800; color: #fff; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', sans-serif; }
-    .all-in-one-section p { color: #a3a6af; font-size: 1.1rem; margin-bottom: 48px; }
-
-    .category-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px;
-    }
-    .category-card {
-      background: rgba(26, 20, 48, 0.7); border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 16px; padding: 22px 18px; text-align: left;
-      transition: all 0.25s ease;
-      backdrop-filter: blur(16px);
+    /* Discord Chat Style Elements inside Mockups */
+    .dc-chat-item {
       display: flex; gap: 14px; align-items: flex-start;
     }
-    .category-card:hover {
-      background: rgba(45, 36, 80, 0.9); transform: translateY(-4px);
-      border-color: rgba(255,158,194,0.5);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+    .dc-avatar {
+      width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
     }
-    .category-icon-box {
-      width: 44px; height: 44px; border-radius: 12px;
+    .dc-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+    }
+    .dc-bot-name { font-weight: 700; color: #fff; font-size: 0.95rem; }
+    .dc-bot-tag {
+      background: var(--accent-blue); color: #fff;
+      font-size: 0.65rem; font-weight: 700;
+      padding: 1px 5px; border-radius: 4px;
+    }
+    .dc-time { font-size: 0.72rem; color: var(--text-muted); }
+    .dc-content { color: #dcddde; font-size: 0.9rem; line-height: 1.5; }
+    
+    .dc-embed {
+      background: #23202e;
+      border-radius: 8px;
+      border-left: 4px solid var(--accent-pink);
+      padding: 14px 16px;
+      margin-top: 8px;
+    }
+    .dc-embed-title { font-weight: 700; color: #fff; font-size: 0.92rem; margin-bottom: 6px; }
+    .dc-embed-desc { color: #b9bbbe; font-size: 0.85rem; line-height: 1.5; }
+
+    /* Rank Card / Leaderboard Mockup */
+    .rank-mockup-row {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #23202e; border-radius: 10px; padding: 12px 16px;
+      margin-top: 10px;
+    }
+    .rank-badge { font-weight: 800; color: var(--accent-pink); font-size: 0.95rem; }
+    .rank-user { font-weight: 700; color: #fff; font-size: 0.9rem; }
+    .rank-score { font-weight: 700; color: #57f287; font-size: 0.85rem; }
+
+    /* Voice Controller Mockup */
+    .voice-control-box {
+      background: #23202e; border-radius: 12px; padding: 16px;
+    }
+    .vc-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    }
+    .vc-btn-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .vc-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 8px;
+      color: #fff; font-size: 0.78rem; font-weight: 600;
+      text-align: center;
+    }
+
+    /* ─── "The All in One Bot" Section ────────────────────────────────────────── */
+    .all-in-one-wrapper {
+      max-width: 1140px;
+      margin: 0 auto 120px;
+      padding: 0 28px;
+      text-align: center;
+    }
+    .aio-title {
+      font-size: 2.4rem; font-weight: 800; color: #fff;
+      margin-bottom: 8px; letter-spacing: -0.015em;
+    }
+    .aio-subtitle {
+      font-size: 1.05rem; color: var(--text-secondary);
+      margin-bottom: 48px;
+    }
+
+    .aio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      text-align: left;
+    }
+    .aio-pill-card {
+      background: #191822;
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+    .aio-pill-card:hover {
+      background: #221f2e;
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    .aio-icon-box {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: rgba(244, 167, 187, 0.1);
+      color: var(--accent-pink);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; flex-shrink: 0;
+      font-size: 1.3rem; flex-shrink: 0;
     }
-    .category-name { font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px; }
-    .category-desc { font-size: 0.78rem; color: #a3a6af; line-height: 1.4; }
+    .aio-card-title {
+      font-weight: 700; color: #fff; font-size: 0.95rem;
+    }
+    .aio-card-tag {
+      font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;
+    }
 
-    /* Footer CTA */
-    .cta-banner {
-      background: linear-gradient(135deg, rgba(255,158,194,0.22), rgba(168,85,247,0.22), rgba(88,101,242,0.22));
-      border: 1px solid rgba(255,255,255,0.18); border-radius: 28px;
-      padding: 60px 36px; text-align: center; max-width: 1040px; margin: 0 auto 90px;
-      backdrop-filter: blur(20px); box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    /* ─── Guides & Highlights ─────────────────────────────────────────────────── */
+    .guides-wrapper {
+      max-width: 1140px;
+      margin: 0 auto 120px;
+      padding: 0 28px;
+      text-align: center;
     }
-    .cta-banner h2 { font-size: 2.3rem; font-weight: 800; color: #fff; margin-bottom: 14px; font-family: 'Plus Jakarta Sans', sans-serif; }
-    .cta-banner p { color: #dbdee1; font-size: 1.05rem; margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .guides-title {
+      font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 8px;
+    }
+    .guides-subtitle {
+      font-size: 1rem; color: var(--text-secondary); margin-bottom: 40px;
+    }
+    .guides-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      text-align: left;
+    }
+    .guide-card {
+      background: #191822;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      transition: all 0.25s ease;
+    }
+    .guide-card:hover {
+      background: #201e2c;
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+    }
+    .guide-icon {
+      font-size: 1.8rem; color: var(--accent-pink); margin-bottom: 14px;
+    }
+    .guide-card h3 {
+      font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 8px;
+    }
+    .guide-card p {
+      font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;
+    }
 
-    .site-footer {
-      border-top: 1px solid rgba(255,255,255,0.1);
-      padding: 60px 24px 40px; background: rgba(14, 10, 26, 0.95);
+    /* ─── Bottom CTA Banner ──────────────────────────────────────────────────── */
+    .cta-container {
+      max-width: 1000px;
+      margin: 0 auto 100px;
+      padding: 0 24px;
+      text-align: center;
     }
-    .footer-container {
+    .cta-card {
+      background: linear-gradient(135deg, rgba(244, 167, 187, 0.12) 0%, rgba(157, 141, 241, 0.12) 100%);
+      border: 1px solid rgba(244, 167, 187, 0.25);
+      border-radius: 28px;
+      padding: 60px 32px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-sparkle {
+      font-size: 1.6rem; margin-bottom: 10px; display: inline-block;
+    }
+    .cta-title {
+      font-size: 2.4rem; font-weight: 800; color: #fff;
+      margin-bottom: 14px; letter-spacing: -0.015em;
+    }
+    .cta-desc {
+      font-size: 1.05rem; color: var(--text-secondary);
+      max-width: 580px; margin: 0 auto 30px; line-height: 1.6;
+    }
+
+    /* ─── Footer ──────────────────────────────────────────────────────────────── */
+    .landing-footer {
+      border-top: 1px solid var(--border-subtle);
+      background: #0f0e13;
+      padding: 60px 32px 40px;
+    }
+    .footer-inner {
       max-width: 1140px; margin: 0 auto;
-      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
     }
-    .footer-brand { font-weight: 800; color: #fff; font-size: 1.35rem; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
-    .footer-brand img { width: 32px; height: 32px; border-radius: 50%; }
-    .footer-desc { color: #80848e; font-size: 0.9rem; line-height: 1.6; max-width: 340px; }
-    .footer-title { font-weight: 700; color: #fff; margin-bottom: 16px; font-size: 0.95rem; }
-    .footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; padding: 0; }
-    .footer-links a { color: #949ba4; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-    .footer-links a:hover { color: #ff9ec2; }
+    .footer-brand-title {
+      font-weight: 800; font-size: 1.3rem; color: #fff;
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .footer-brand-title img { width: 32px; height: 32px; border-radius: 50%; }
+    .footer-desc-text {
+      color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; max-width: 320px;
+      margin-bottom: 20px;
+    }
+    .footer-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    .footer-column h4 {
+      font-size: 0.92rem; font-weight: 700; color: #fff;
+      margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .footer-column ul {
+      list-style: none; display: flex; flex-direction: column; gap: 10px;
+    }
+    .footer-column a {
+      color: var(--text-secondary); text-decoration: none; font-size: 0.88rem;
+      transition: color 0.2s;
+    }
+    .footer-column a:hover { color: var(--accent-pink); }
+    .footer-bottom-copy {
+      text-align: center; color: var(--text-muted); font-size: 0.82rem;
+      margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
 
-    @media (max-width: 900px) {
-      .hero-section, .showcase-block, .showcase-block.reverse { grid-template-columns: 1fr; text-align: center; }
-      .showcase-block.reverse .showcase-text { order: 1; }
-      .showcase-block.reverse .showcase-preview { order: 2; }
-      .hero-subtitle { margin: 0 auto 36px; }
-      .hero-actions { justify-content: center; }
-      .footer-container { grid-template-columns: 1fr 1fr; }
+    /* ─── Responsive ──────────────────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .hero-container {
+        grid-template-columns: 1fr; text-align: center; margin: 30px auto 60px;
+      }
+      .hero-lead { margin-left: auto; margin-right: auto; }
+      .hero-cta-group { justify-content: center; }
+      .hero-avatar-ring { width: 280px; height: 280px; }
+      .showcase-row, .showcase-row.reverse {
+        grid-template-columns: 1fr; text-align: center; gap: 36px;
+      }
+      .showcase-row.reverse .showcase-copy { order: 1; }
+      .showcase-row.reverse .showcase-visual { order: 2; }
+      .guides-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 580px) {
+      .landing-nav-links { display: none; }
+      .hero-heading { font-size: 2.6rem; }
+      .footer-inner { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -279,43 +662,44 @@
 <!-- Header -->
 <header class="landing-header">
   <div class="landing-nav">
-    <div class="landing-nav-left">
+    <div style="display:flex; align-items:center; gap:36px;">
       <a href="{{ url_for('home') }}" class="landing-brand">
         <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
         Zeryn Bot
       </a>
-      <div class="landing-nav-links">
+      <nav class="landing-nav-links">
         <a href="#features">{{ t('nav.features') }}</a>
+        <a href="#all-in-one">{{ t('landing.all_in_one') }}</a>
         <a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a>
         <a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a>
-      </div>
+      </nav>
     </div>
     
-    <div style="display:flex; gap:16px; align-items:center;">
+    <div class="nav-actions">
       <!-- Language Switcher -->
       <div class="lang-switcher">
-        <button class="lang-switcher-btn">
+        <button class="lang-btn">
           <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
-          <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
+          <i class="bi bi-chevron-down" style="font-size:.7rem;"></i>
         </button>
         <div class="lang-dropdown">
-          <div class="lang-header">{{ t('nav.select_language') }}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); padding:4px 10px; font-weight:700; text-transform:uppercase;">{{ t('nav.select_language') }}</div>
           {% for code, name in available_languages.items() %}
           <a href="{{ url_for('set_ui_language', lang_code=code) }}"
-             class="lang-option {% if current_ui_lang == code %}active{% endif %}">
+             class="lang-item {% if current_ui_lang == code %}active{% endif %}">
             <span>{{ name }}</span>
-            {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
+            {% if current_ui_lang == code %}<i class="bi bi-check2"></i>{% endif %}
           </a>
           {% endfor %}
         </div>
       </div>
 
       {% if session.get('user') %}
-        <a href="{{ url_for('home') }}" class="btn-hero-primary" style="padding:10px 20px; font-size:0.9rem;">
+        <a href="{{ url_for('home') }}" class="btn-pink-pill">
           <i class="bi bi-speedometer2"></i> {{ t('nav.dashboard') }}
         </a>
       {% else %}
-        <a href="{{ url_for('login') }}" class="btn-hero-primary" style="padding:10px 20px; font-size:0.9rem;">
+        <a href="{{ url_for('login') }}" class="btn-pink-pill">
           <i class="bi bi-discord"></i> {{ t('nav.login') }}
         </a>
       {% endif %}
@@ -324,345 +708,414 @@
 </header>
 
 <!-- Hero Section -->
-<section class="hero-section">
+<section class="hero-container">
   <div>
-    <div class="hero-badge">
+    <div class="hero-badge-pill">
       <i class="bi bi-stars"></i> {{ t('landing.badge') }}
     </div>
-    <h1 class="hero-title">
+    <h1 class="hero-heading">
       {{ t('landing.hero_title_1') }}<br>
       <span>{{ t('landing.hero_title_2') }}</span>
     </h1>
-    <p class="hero-subtitle">
+    <p class="hero-lead">
       {{ t('landing.hero_subtitle') }}
     </p>
-    <div class="hero-actions">
-      <a href="{{ invite_url }}" target="_blank" class="btn-hero-primary">
+    <div class="hero-cta-group">
+      <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:14px 28px; font-size:1rem;">
         <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
       </a>
-      <a href="#features" class="btn-hero-secondary">
+      <a href="#features" class="btn-outline-pill" style="padding:14px 28px; font-size:1rem;">
         <i class="bi bi-compass"></i> {{ t('landing.btn_explore') }}
       </a>
     </div>
   </div>
-  <div class="hero-graphic">
-    <div class="hero-avatar-card">
+  <div class="hero-avatar-wrapper">
+    <div class="hero-avatar-ring">
       <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
+      <!-- Cute Floating Stickers around Avatar -->
+      <div class="sticker-pill st-top-left">💖</div>
+      <div class="sticker-pill st-top-right">✨</div>
+      <div class="sticker-pill st-bottom-left">🎵</div>
+      <div class="sticker-pill st-bottom-right">⭐</div>
     </div>
   </div>
 </section>
 
-<!-- Stats Bar -->
-<div class="stats-bar-wrap">
-  <div class="stats-bar">
-    <div class="stat-item">
-      <i class="bi bi-lightning-charge-fill" style="color:#ff9ec2; font-size:1.8rem;"></i>
-      <div>
-        <div class="stat-num">&lt; 0.3s</div>
-        <div class="stat-txt">{{ t('landing.stat_response') | default('Tốc Độ Phản Hồi AI') }}</div>
-      </div>
-    </div>
-    <div class="stat-item">
-      <i class="bi bi-translate" style="color:#a855f7; font-size:1.8rem;"></i>
-      <div>
-        <div class="stat-num">6 Quốc Gia</div>
-        <div class="stat-txt">Hỗ Trợ Đa Ngôn Ngữ</div>
-      </div>
-    </div>
-    <div class="stat-item">
-      <i class="bi bi-shield-fill-check" style="color:#57f287; font-size:1.8rem;"></i>
-      <div>
-        <div class="stat-num">99.9%</div>
-        <div class="stat-txt">{{ t('landing.stat_uptime') | default('Thời Gian Hoạt Động') }}</div>
-      </div>
-    </div>
-    <div class="stat-item">
-      <i class="bi bi-gift-fill" style="color:#fee75c; font-size:1.8rem;"></i>
-      <div>
-        <div class="stat-num">100% Free</div>
-        <div class="stat-txt">{{ t('landing.stat_free') | default('Miễn Phí Vĩnh Viễn') }}</div>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- "Trusted By" Section (Nekotina Style) -->
+<section class="trusted-section">
+  <div class="trusted-title-label">{{ t('landing.trusted_by') }}</div>
+  <div class="trusted-highlight-text">{{ t('landing.trusted_highlight') }}</div>
+  <div class="trusted-subtitle">{{ t('landing.trusted_sub') }}</div>
+</section>
 
-<!-- Feature Showcase Section -->
-<section id="features" class="showcase-section">
-  
-  <!-- Showcase 1: AI Assistant & Chatbot (NEW) -->
-  <div class="showcase-block">
-    <div class="showcase-text">
-      <div class="feature-badge" style="background:rgba(168,85,247,0.15); border-color:rgba(168,85,247,0.3); color:#a855f7;">
-        <i class="bi bi-stars"></i> Next-Gen AI
-      </div>
-      <h2>{{ t('landing.f7_title') | default('Trợ Lý AI & Smart Chatbot') }}</h2>
-      <p>{{ t('landing.f7_desc') | default('Tích hợp trí tuệ nhân tạo thế hệ mới (Groq Cloud & Google Gemini) phản hồi siêu tốc trong 0.2s, hỗ trợ kênh chat tự động, giải đáp câu hỏi và tóm tắt tin nhắn.') }}</p>
-      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
-        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+<!-- Feature Showcase Section (Zig-zag with Cute Corner Stickers) -->
+<section id="features" class="showcase-container">
+
+  <!-- 1. AI Assistant & Smart Chatbot -->
+  <div class="showcase-row">
+    <div class="showcase-copy">
+      <div class="showcase-badge"><i class="bi bi-stars"></i> {{ t('landing.f7_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f7_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f7_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link">
+        {{ t('landing.f7_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
-    <div class="showcase-preview">
-      <div class="discord-msg-preview">
-        <div class="discord-msg-header">
-          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" style="width:28px; height:28px; border-radius:50%;">
-          <span class="discord-msg-bot">Zeryn Bot</span>
-          <span class="discord-msg-tag">BOT</span>
-        </div>
-        <div class="discord-embed-box" style="border-left-color:#a855f7;">
-          <div style="font-weight:700; color:#a855f7; margin-bottom:4px;">🤖 Zeryn Trợ Lý AI (Groq LPU / Gemini 2.0)</div>
-          <div style="color:#dbdee1; line-height:1.5; font-size:0.88rem;">
-            Chào bạn! Tôi đã phân tích và tóm tắt 30 tin nhắn gần nhất:
-            <br>• Server đang thảo luận kế hoạch tổ chức sự kiện Game Night.
-            <br>• Giải thưởng 100,000 Coins đã được nạp vào Role Shop!
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-left">🤖</div>
+      <div class="corner-badge cb-bottom-right">⚡</div>
+      <div class="mockup-card">
+        <div class="dc-chat-item">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
+          <div style="flex:1;">
+            <div class="dc-header">
+              <span class="dc-bot-name">Zeryn Bot</span>
+              <span class="dc-bot-tag">BOT</span>
+              <span class="dc-time">Today at 12:00</span>
+            </div>
+            <div class="dc-embed" style="border-left-color:var(--accent-purple);">
+              <div class="dc-embed-title" style="color:var(--accent-purple);">🤖 Zeryn Trợ Lý AI (Groq LPU / Gemini)</div>
+              <div class="dc-embed-desc">
+                Chào bạn! Tôi đã phân tích và tóm tắt 30 tin nhắn gần nhất:
+                <br>• Server đang thảo luận kế hoạch tổ chức sự kiện Game Night.
+                <br>• Giải thưởng 100,000 Coins đã được nạp vào Role Shop!
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Showcase 2: Economy & Role Shop (NEW) -->
-  <div class="showcase-block reverse">
-    <div class="showcase-text">
-      <div class="feature-badge" style="background:rgba(254,231,92,0.15); border-color:rgba(254,231,92,0.3); color:#fee75c;">
-        <i class="bi bi-coin"></i> Economy & Minigames
-      </div>
-      <h2>{{ t('landing.f8_title') | default('Kinh Tế, Shop Role & Mini-Games') }}</h2>
-      <p>{{ t('landing.f8_desc') | default('Tiền tệ ảo Coins, bảng xếp hạng tài phiệt, 8+ minigames cá cược giải trí (Tài Xỉu, Coinflip, Slots, Xổ Số, Câu Cá) và cửa hàng mua Role tự động cấp quyền.') }}</p>
-      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
-        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+  <!-- 2. Virtual Currency & Role Shop (Economy) -->
+  <div class="showcase-row reverse">
+    <div class="showcase-copy">
+      <div class="showcase-badge" style="color:#fee75c; border-color:rgba(254,231,92,0.3); background:rgba(254,231,92,0.1);"><i class="bi bi-coin"></i> {{ t('landing.f8_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f8_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f8_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#fee75c;">
+        {{ t('landing.f8_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
-    <div class="showcase-preview">
-      <div class="discord-msg-preview">
-        <div class="discord-msg-header">
-          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" style="width:28px; height:28px; border-radius:50%;">
-          <span class="discord-msg-bot">Zeryn Bot</span>
-          <span class="discord-msg-tag">BOT</span>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-right" style="border-color:#fee75c; color:#fee75c;">💰</div>
+      <div class="corner-badge cb-bottom-left" style="border-color:#fee75c; color:#fee75c;">🎲</div>
+      <div class="mockup-card">
+        <div style="font-weight:700; color:#fff; font-size:0.95rem; margin-bottom:12px; display:flex; justify-content:space-between;">
+          <span>🏆 Ranking Global — Top Richest</span>
+          <span style="color:#fee75c;">🪙 Coins</span>
         </div>
-        <div class="discord-embed-box" style="border-left-color:#fee75c;">
-          <div style="font-weight:700; color:#fee75c; margin-bottom:4px;">🎲 Tài Xỉu Thành Công! (+2,000 🪙)</div>
-          <div style="color:#dbdee1; font-size:0.88rem; line-height:1.5;">
-            Xúc xắc: ⚄ ⚅ ⚂ ➔ <strong>Tổng: 14 (Tài)</strong>
-            <br>Số dư hiện tại: <strong>15,400 Coins</strong> • Đã mở khóa Role <strong>VIP Diamond</strong>!
+        <div class="rank-mockup-row">
+          <span class="rank-badge">#1</span>
+          <span class="rank-user">👑 @Sakura</span>
+          <span class="rank-score" style="color:#fee75c;">1,250,000 🪙</span>
+        </div>
+        <div class="rank-mockup-row">
+          <span class="rank-badge" style="color:#a3a1b0;">#2</span>
+          <span class="rank-user">⚔️ @Kaito</span>
+          <span class="rank-score" style="color:#fee75c;">840,500 🪙</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Temporary Voice Hub -->
+  <div class="showcase-row">
+    <div class="showcase-copy">
+      <div class="showcase-badge" style="color:#57f287; border-color:rgba(87,242,135,0.3); background:rgba(87,242,135,0.1);"><i class="bi bi-mic-fill"></i> {{ t('landing.f9_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f9_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f9_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#57f287;">
+        {{ t('landing.f9_btn') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-left" style="border-color:#57f287; color:#57f287;">🔊</div>
+      <div class="corner-badge cb-bottom-right" style="border-color:#57f287; color:#57f287;">🔒</div>
+      <div class="mockup-card">
+        <div class="voice-control-box">
+          <div class="vc-header">
+            <span style="color:#fff; font-weight:700; font-size:0.95rem;">🔊 Phòng của @User (🔒 Đã Khóa)</span>
+            <span style="color:#57f287; font-size:0.78rem; font-weight:700; background:rgba(87,242,135,0.15); padding:2px 8px; border-radius:10px;">2 / 4 Người</span>
+          </div>
+          <div class="vc-btn-grid">
+            <div class="vc-btn">🔒 Khóa Phòng</div>
+            <div class="vc-btn">✏️ Đổi Tên</div>
+            <div class="vc-btn">👥 Giới Hạn</div>
+            <div class="vc-btn">👑 Trao Quyền</div>
+            <div class="vc-btn">🚫 Chặn User</div>
+            <div class="vc-btn">⚡ Tăng Bitrate</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Showcase 3: Temp Voice Hub (NEW) -->
-  <div class="showcase-block">
-    <div class="showcase-text">
-      <div class="feature-badge" style="background:rgba(87,242,135,0.15); border-color:rgba(87,242,135,0.3); color:#57f287;">
-        <i class="bi bi-mic-fill"></i> Dynamic Voice Hub
-      </div>
-      <h2>{{ t('landing.f9_title') | default('Phòng Thoại Tự Động (Temp Voice)') }}</h2>
-      <p>{{ t('landing.f9_desc') | default('Tham gia kênh Hub để tự động tạo phòng voice riêng tư có đầy đủ bảng điều khiển khóa/mở, đổi tên, giới hạn người và kick thành viên.') }}</p>
-      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
-        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+  <!-- 4. Leveling & XP Card -->
+  <div class="showcase-row reverse">
+    <div class="showcase-copy">
+      <div class="showcase-badge"><i class="bi bi-trophy-fill"></i> {{ t('landing.f1_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f1_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f1_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link">
+        {{ t('landing.f1_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
-    <div class="showcase-preview">
-      <div style="background:#1e1f22; border-radius:12px; padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span style="color:#fff; font-weight:700; font-size:0.95rem;">🔊 Phòng của @User (🔒 Đã Khóa)</span>
-          <span style="color:#57f287; font-size:0.78rem; font-weight:700; background:rgba(87,242,135,0.15); padding:3px 8px; border-radius:12px;">2 / 4 Thành viên</span>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <span style="background:#2b2d31; color:#dbdee1; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:600;">🔒 Khóa Phòng</span>
-          <span style="background:#2b2d31; color:#dbdee1; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:600;">✏️ Đổi Tên</span>
-          <span style="background:#2b2d31; color:#dbdee1; padding:6px 12px; border-radius:8px; font-size:0.8rem; font-weight:600;">👥 Giới Hạn</span>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-right">🪪</div>
+      <div class="corner-badge cb-bottom-left">⭐</div>
+      <div class="mockup-card">
+        <div class="dc-chat-item">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
+          <div style="flex:1;">
+            <div class="dc-header">
+              <span class="dc-bot-name">Zeryn Bot</span>
+              <span class="dc-bot-tag">BOT</span>
+              <span class="dc-time">Today at 14:20</span>
+            </div>
+            <div class="dc-embed" style="border-left-color:var(--accent-pink);">
+              <div class="dc-embed-title" style="color:var(--accent-pink);">🎉 LEVEL UP! — @User</div>
+              <div class="dc-embed-desc">
+                Chúc mừng bạn đã đạt <strong>Level 45</strong>! Bạn đã nhận được Role thưởng <strong>🌟 VIP Legend</strong>!
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Showcase 4: Leveling & XP Card -->
-  <div class="showcase-block reverse">
-    <div class="showcase-text">
-      <div class="feature-badge">
-        <i class="bi bi-trophy-fill"></i> Leveling & Rank Cards
-      </div>
-      <h2>{{ t('landing.f1_title') }}</h2>
-      <p>{{ t('landing.f1_desc') }}</p>
-      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
-        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+  <!-- 5. Music Player & 24/7 Lofi -->
+  <div class="showcase-row">
+    <div class="showcase-copy">
+      <div class="showcase-badge" style="color:#5865f2; border-color:rgba(88,101,242,0.3); background:rgba(88,101,242,0.1);"><i class="bi bi-music-note-beamed"></i> {{ t('landing.f3_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f3_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f3_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#5865f2;">
+        {{ t('landing.f3_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
-    <div class="showcase-preview">
-      <div style="background:#1e1f22; border-radius:12px; padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:700;">
-          <span>🏆 XP Leaderboard (Thẻ Rank Card Đồ Họa)</span>
-          <span style="color:#ff9ec2;">Rank #1</span>
-        </div>
-        <div style="margin-top:12px; background:#2b2d31; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:#dbdee1; font-size:0.9rem; font-weight:600;">🥇 Top Chatter</span>
-          <span style="color:#57f287; font-weight:700; font-size:0.9rem;">Level 45 • 12,450 XP</span>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-left" style="border-color:#5865f2; color:#5865f2;">🎵</div>
+      <div class="corner-badge cb-bottom-right" style="border-color:#5865f2; color:#5865f2;">🎧</div>
+      <div class="mockup-card" style="border-left:4px solid var(--accent-blue);">
+        <div style="font-weight:700; color:#fff; font-size:1rem; margin-bottom:4px;">🎶 Now Playing: Lofi Hip Hop Beats 24/7</div>
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">Requested by @User • Volume: 80% • Loop: On</div>
+        <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+          <div style="width:65%; height:100%; background:var(--accent-blue);"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Showcase 5: Music & Lofi 24/7 -->
-  <div class="showcase-block">
-    <div class="showcase-text">
-      <div class="feature-badge" style="background:rgba(255,158,194,0.15); border-color:rgba(255,158,194,0.3); color:#ff9ec2;">
-        <i class="bi bi-music-note-beamed"></i> High Quality Audio
-      </div>
-      <h2>{{ t('landing.f3_title') }}</h2>
-      <p>{{ t('landing.f3_desc') }}</p>
-      <a href="{{ invite_url }}" class="btn-hero-secondary" style="font-size:0.9rem; padding:10px 20px;">
-        {{ t('landing.btn_add') }} <i class="bi bi-arrow-right"></i>
+  <!-- 6. Welcome Banners & Auto Roles -->
+  <div class="showcase-row reverse">
+    <div class="showcase-copy">
+      <div class="showcase-badge"><i class="bi bi-person-plus-fill"></i> {{ t('landing.f4_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f4_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f4_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link">
+        {{ t('landing.f4_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
-    <div class="showcase-preview">
-      <div style="background:#1e1f22; border-radius:12px; padding:16px; border-left:4px solid #5865f2;">
-        <div style="font-weight:700; color:#fff; margin-bottom:4px; font-size:0.95rem;">🎶 Now Playing: Lofi Hip Hop Beats 24/7</div>
-        <div style="color:#949ba4; font-size:0.85rem;">Requested by @User • Volume: 80% • Loop: On</div>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-right">👋</div>
+      <div class="corner-badge cb-bottom-left">💖</div>
+      <div class="mockup-card">
+        <div class="dc-chat-item">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
+          <div style="flex:1;">
+            <div class="dc-header">
+              <span class="dc-bot-name">Zeryn Bot</span>
+              <span class="dc-bot-tag">BOT</span>
+              <span class="dc-time">Today at 18:30</span>
+            </div>
+            <div style="color:#dbdee1; font-size:0.9rem; line-height:1.5;">
+              👋 Welcome to the server, <strong>@User</strong>! Glad to have you here! 🎉 (Tự động cấp Role <strong>Member</strong>)
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
 </section>
 
-<!-- All in One Grid Section (12 Modules) -->
-<section class="all-in-one-section">
-  <h2>{{ t('landing.all_in_one') }}</h2>
-  <p>{{ t('landing.all_in_one_sub') }}</p>
+<!-- "The All in One Bot" Interactive Pill Grid Section -->
+<section id="all-in-one" class="all-in-one-wrapper">
+  <h2 class="aio-title">{{ t('landing.all_in_one') }}</h2>
+  <p class="aio-subtitle">{{ t('landing.all_in_one_sub') }}</p>
 
-  <div class="category-grid">
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(168,85,247,0.15); color:#a855f7;">🤖</div>
+  <div class="aio-grid">
+    <div class="aio-pill-card">
+      <div class="aio-icon-box"><i class="bi bi-cpu-fill"></i></div>
       <div>
-        <div class="category-name">AI Assistant</div>
-        <div class="category-desc">Trí tuệ nhân tạo Groq & Gemini phản hồi siêu tốc</div>
+        <div class="aio-card-title">{{ t('landing.mod_ai') }}</div>
+        <div class="aio-card-tag">Groq LPU / Gemini</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(254,231,92,0.15); color:#fee75c;">💰</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-coin"></i></div>
       <div>
-        <div class="category-name">Kinh Tế & Shop</div>
-        <div class="category-desc">Coins ảo, 8+ minigames cá cược và mua Role tự động</div>
+        <div class="aio-card-title">{{ t('landing.mod_economy') }}</div>
+        <div class="aio-card-tag">Coins & Role Shop</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(87,242,135,0.15); color:#57f287;">🔊</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#57f287; background:rgba(87,242,135,0.1);"><i class="bi bi-mic-fill"></i></div>
       <div>
-        <div class="category-name">Temp Voice</div>
-        <div class="category-desc">Tạo phòng voice tự động kèm bảng điều khiển riêng</div>
+        <div class="aio-card-title">{{ t('landing.mod_tempvoice') }}</div>
+        <div class="aio-card-tag">Join to Create Hub</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(88,101,242,0.15); color:#5865f2;">⚡</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#5865f2; background:rgba(88,101,242,0.1);"><i class="bi bi-terminal-fill"></i></div>
       <div>
-        <div class="category-name">Lệnh Tùy Biến</div>
-        <div class="category-desc">Tạo keyword lệnh không giới hạn với biến động</div>
+        <div class="aio-card-title">{{ t('landing.mod_customcmd') }}</div>
+        <div class="aio-card-tag">Dynamic Variables</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(255,158,194,0.15); color:#ff9ec2;">👋</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box"><i class="bi bi-hand-thumbs-up-fill"></i></div>
       <div>
-        <div class="category-name">Welcome & Auto Role</div>
-        <div class="category-desc">Ảnh chào mừng đồ họa và tự trao Role thành viên</div>
+        <div class="aio-card-title">{{ t('landing.mod_welcome') }}</div>
+        <div class="aio-card-tag">Card Banner Pillow</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(237,66,69,0.15); color:#ed4245;">🛡️</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#ed4245; background:rgba(237,66,69,0.1);"><i class="bi bi-shield-fill-check"></i></div>
       <div>
-        <div class="category-name">Automod Bảo Vệ</div>
-        <div class="category-desc">Lọc từ cấm, chống spam, link độc hại và caps 24/7</div>
+        <div class="aio-card-title">{{ t('landing.mod_automod') }}</div>
+        <div class="aio-card-tag">Spam / Bad words</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(88,101,242,0.15); color:#5865f2;">🎵</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#5865f2; background:rgba(88,101,242,0.1);"><i class="bi bi-music-note-beamed"></i></div>
       <div>
-        <div class="category-name">Âm Nhạc & Lofi</div>
-        <div class="category-desc">Phát nhạc YouTube chất lượng cao và Lofi 24/7</div>
+        <div class="aio-card-title">{{ t('landing.mod_music') }}</div>
+        <div class="aio-card-tag">YouTube / Lofi 24/7</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(254,231,92,0.15); color:#fee75c;">🪪</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-trophy-fill"></i></div>
       <div>
-        <div class="category-name">Leveling & XP</div>
-        <div class="category-desc">Cày cấp Chat & Voice, mở khóa Rank Card đồ họa</div>
+        <div class="aio-card-title">{{ t('landing.mod_leveling') }}</div>
+        <div class="aio-card-tag">Chat & Voice XP</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(87,242,135,0.15); color:#57f287;">🎫</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#57f287; background:rgba(87,242,135,0.1);"><i class="bi bi-ticket-perforated-fill"></i></div>
       <div>
-        <div class="category-name">Hỗ Trợ Ticket</div>
-        <div class="category-desc">Kênh hỗ trợ riêng tư kèm sao lưu lịch sử Transcript</div>
+        <div class="aio-card-title">{{ t('landing.mod_tickets') }}</div>
+        <div class="aio-card-tag">Support Transcript</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(255,158,194,0.15); color:#ff9ec2;">✨</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box"><i class="bi bi-emoji-smile-fill"></i></div>
       <div>
-        <div class="category-name">Reaction Roles</div>
-        <div class="category-desc">Tự chọn Role bằng cách thả cảm xúc trên tin nhắn</div>
+        <div class="aio-card-title">{{ t('landing.mod_reactionroles') }}</div>
+        <div class="aio-card-tag">Self-assign Roles</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(254,231,92,0.15); color:#fee75c;">🎁</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-gift-fill"></i></div>
       <div>
-        <div class="category-name">Giveaways</div>
-        <div class="category-desc">Tổ chức sự kiện phát quà và quay thưởng tự động</div>
+        <div class="aio-card-title">{{ t('landing.mod_giveaways') }}</div>
+        <div class="aio-card-tag">Auto Roll Winner</div>
       </div>
     </div>
-    <div class="category-card">
-      <div class="category-icon-box" style="background:rgba(88,101,242,0.15); color:#5865f2;">📖</div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#5865f2; background:rgba(88,101,242,0.1);"><i class="bi bi-journal-text"></i></div>
       <div>
-        <div class="category-name">Audit Logs</div>
-        <div class="category-desc">Ghi lại toàn bộ hành vi quản trị và sự kiện máy chủ</div>
+        <div class="aio-card-title">{{ t('landing.mod_logging') }}</div>
+        <div class="aio-card-tag">Comprehensive Logs</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Footer CTA Banner -->
-<section class="cta-banner">
-  <h2>{{ t('landing.cta_title') }}</h2>
-  <p>{{ t('landing.cta_desc') }}</p>
-  <a href="{{ invite_url }}" target="_blank" class="btn-hero-primary">
-    <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
-  </a>
+<!-- Tutorials and Guides Section (Nekotina Style) -->
+<section class="guides-wrapper">
+  <h2 class="guides-title">{{ t('landing.guides_title') }}</h2>
+  <p class="guides-subtitle">{{ t('landing.guides_sub') }}</p>
+
+  <div class="guides-grid">
+    <div class="guide-card">
+      <div class="guide-icon"><i class="bi bi-journal-bookmark-fill"></i></div>
+      <h3>{{ t('landing.guide1_title') }}</h3>
+      <p>{{ t('landing.guide1_desc') }}</p>
+    </div>
+    <div class="guide-card">
+      <div class="guide-icon"><i class="bi bi-sliders"></i></div>
+      <h3>{{ t('landing.guide2_title') }}</h3>
+      <p>{{ t('landing.guide2_desc') }}</p>
+    </div>
+    <div class="guide-card">
+      <div class="guide-icon"><i class="bi bi-people-fill"></i></div>
+      <h3>{{ t('landing.guide3_title') }}</h3>
+      <p>{{ t('landing.guide3_desc') }}</p>
+    </div>
+  </div>
+</section>
+
+<!-- "Shall We Begin Our Story?" Bottom CTA Banner -->
+<section class="cta-container">
+  <div class="cta-card">
+    <div class="cta-sparkle">✨</div>
+    <h2 class="cta-title">{{ t('landing.cta_title') }}</h2>
+    <p class="cta-desc">{{ t('landing.cta_desc') }}</p>
+    <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:14px 32px; font-size:1.05rem;">
+      <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
+    </a>
+  </div>
 </section>
 
 <!-- Footer -->
-<footer class="site-footer">
-  <div class="footer-container">
+<footer class="landing-footer">
+  <div class="footer-inner">
     <div>
-      <div class="footer-brand">
+      <div class="footer-brand-title">
         <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
         Zeryn Bot
       </div>
-      <div class="footer-desc">{{ t('landing.badge') }}</div>
+      <p class="footer-desc-text">{{ t('landing.footer_tagline') }}</p>
+      <div class="footer-btns">
+        <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:8px 18px; font-size:0.85rem;">
+          <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
+        </a>
+      </div>
     </div>
-    <div>
-      <div class="footer-title">{{ t('nav.features') }}</div>
-      <ul class="footer-links">
-        <li><a href="#features">{{ t('landing.f7_title') | default('Trợ Lý AI') }}</a></li>
-        <li><a href="#features">{{ t('landing.f8_title') | default('Kinh Tế & Shop') }}</a></li>
-        <li><a href="#features">{{ t('landing.f9_title') | default('Temp Voice') }}</a></li>
+    
+    <div class="footer-column">
+      <h4>{{ t('nav.features') }}</h4>
+      <ul>
+        <li><a href="#features">{{ t('landing.f7_title') }}</a></li>
+        <li><a href="#features">{{ t('landing.f8_title') }}</a></li>
+        <li><a href="#features">{{ t('landing.f9_title') }}</a></li>
         <li><a href="#features">{{ t('landing.f1_title') }}</a></li>
         <li><a href="#features">{{ t('landing.f3_title') }}</a></li>
       </ul>
     </div>
-    <div>
-      <div class="footer-title">{{ t('nav.resources') }}</div>
-      <ul class="footer-links">
+
+    <div class="footer-column">
+      <h4>{{ t('nav.resources') }}</h4>
+      <ul>
         <li><a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a></li>
         <li><a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a></li>
       </ul>
     </div>
-    <div>
-      <div class="footer-title">{{ t('nav.dashboard') }}</div>
-      <ul class="footer-links">
-        <li><a href="{{ url_for('home') }}">{{ t('nav.login') }}</a></li>
+
+    <div class="footer-column">
+      <h4>{{ t('nav.dashboard') }}</h4>
+      <ul>
+        <li><a href="{{ url_for('home') }}">{{ t('nav.dashboard') }}</a></li>
+        <li><a href="{{ url_for('login') }}">{{ t('nav.login') }}</a></li>
       </ul>
     </div>
   </div>
-  <div style="text-align:center; color:#60646c; font-size:0.85rem; margin-top:40px;">
-    © 2026 Zeryn Bot. All rights reserved.
+
+  <div class="footer-bottom-copy">
+    © 2026 Zeryn Bot. All rights reserved. Built with love for Discord communities.
   </div>
 </footer>
 
