@@ -362,6 +362,15 @@ async def main():
     init_db()
     logger.info("✅  Database ready")
 
+    # Ghi file bot.pid ngay khi khởi động
+    try:
+        pid_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "bot.pid")
+        os.makedirs(os.path.dirname(pid_file), exist_ok=True)
+        with open(pid_file, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
     # ─── Self-Diagnostic Tester ─────────────────────────────
     try:
         from tester import SystemTester

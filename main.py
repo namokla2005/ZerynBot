@@ -116,14 +116,71 @@ def stop_all():
     print("[Main] All services stopped successfully.")
 
 
+def get_live_bot_pid() -> int | None:
+    """Tìm PID chính xác của Bot đang chạy (kể cả khi Watchdog vừa restart)."""
+    # 1. Kiểm tra file bot.pid
+    pid = _read_pid(PID_BOT)
+    if pid and _is_pid_running(pid):
+        return pid
+
+    # 2. Kiểm tra file data/health.json do Bot ghi
+    health_file = os.path.join(PID_DIR, "health.json")
+    if os.path.exists(health_file):
+        try:
+            with open(health_file, "r", encoding="utf-8") as f:
+                h = json.load(f)
+                h_pid = h.get("pid")
+                if h_pid and _is_pid_running(h_pid):
+                    _write_pid(PID_BOT, h_pid)
+                    return h_pid
+        except Exception:
+            pass
+
+    # 3. Quét tiến trình hệ thống (Linux / Termux fallback)
+    if os.name != "nt":
+        try:
+            res = subprocess.check_output("pgrep -f 'main.py --bot'", shell=True, text=True).strip().splitlines()
+            if not res:
+                res = subprocess.check_output("pgrep -f 'bot/bot.py'", shell=True, text=True).strip().splitlines()
+            for p in res:
+                if p.isdigit() and _is_pid_running(int(p)):
+                    live_pid = int(p)
+                    _write_pid(PID_BOT, live_pid)
+                    return live_pid
+        except Exception:
+            pass
+
+    return None
+
+
+def get_live_dash_pid() -> int | None:
+    """Tìm PID chính xác của Dashboard đang chạy."""
+    pid = _read_pid(PID_DASH)
+    if pid and _is_pid_running(pid):
+        return pid
+
+    if os.name != "nt":
+        try:
+            res = subprocess.check_output("pgrep -f 'main.py --dashboard'", shell=True, text=True).strip().splitlines()
+            for p in res:
+                if p.isdigit() and _is_pid_running(int(p)):
+                    live_pid = int(p)
+                    _write_pid(PID_DASH, live_pid)
+                    return live_pid
+        except Exception:
+            pass
+
+    return None
+
+
 def print_status():
     print("[Status] ZerynBot V2 System Status:")
     
-    bot_pid = _read_pid(PID_BOT)
-    dash_pid = _read_pid(PID_DASH)
+    bot_pid = get_live_bot_pid()
+    dash_pid = get_live_dash_pid()
 
-    bot_status   = f"RUNNING (PID {bot_pid})" if _is_pid_running(bot_pid) else "STOPPED"
-    dash_status  = f"RUNNING (PID {dash_pid})" if _is_pid_running(dash_pid) else "STOPPED"
+    bot_status   = f"RUNNING (PID {bot_pid})" if bot_pid else "STOPPED"
+    dash_status  = f"RUNNING (PID {dash_pid})" if dash_pid else "STOPPED"
     print(f"  RAM Cache: IN-MEMORY (Pure Python)")
     print(f"  Bot:       {bot_status}")
     print(f"  Dashboard: {dash_status}")
@@ -131,18 +188,26 @@ def print_status():
 
 def run_only_bot():
     print("[Bot] Starting Bot Discord v2...")
+    _write_pid(PID_BOT, os.getpid())
     try:
         from bot.bot import main as bot_main
     except ModuleNotFoundError:
         from bot import main as bot_main
-    asyncio.run(bot_main())
+    try:
+        asyncio.run(bot_main())
+    finally:
+        _remove_pid(PID_BOT)
 
 
 def run_only_dashboard():
     print("[Dashboard] Starting at http://0.0.0.0:5000...")
+    _write_pid(PID_DASH, os.getpid())
     init_db()
-    from dashboard.app import app
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    try:
+        from dashboard.app import app
+        app.run(host="0.0.0.0", port=5000, debug=False)
+    finally:
+        _remove_pid(PID_DASH)
 
 
 def start_all():
