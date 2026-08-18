@@ -1542,32 +1542,59 @@ def api_test_ai_key(guild_id: str):
     if not key:
         return jsonify({"ok": False, "status": "no_key", "message": "Chưa có API Key (Đang dùng Smart Local Responder)"})
 
-    # Test key with Gemini API
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
-    payload = json.dumps({"contents": [{"parts": [{"text": "Hi"}]}]}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    # Validate key format hint
+    if key.startswith("AQ."):
+        return jsonify({
+            "ok": False,
+            "status": "wrong_key_type",
+            "message": "Chuỗi bạn vừa dán bắt đầu bằng 'AQ.' (đây là Project Token, không phải API Key). Google Gemini API Key chuẩn bắt đầu bằng 'AIzaSy...'."
+        })
 
+    # Test key with Gemini API
+    models_to_test = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    payload = json.dumps({"contents": [{"parts": [{"text": "Hi"}]}]}).encode("utf-8")
+    
     t0 = time.time()
-    try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            latency = int((time.time() - t0) * 1000)
-            if resp.status == 200:
-                return jsonify({"ok": True, "status": "active", "model": "gemini-2.0-flash", "latency_ms": latency, "message": f"API Key hoạt động hoàn hảo ({latency}ms)"})
-            return jsonify({"ok": False, "status": "error", "message": f"HTTP {resp.status}"})
-    except urllib.error.HTTPError as e:
-        # Fallback to 1.5-flash
+    last_err_detail = ""
+    for model in models_to_test:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": key
+            },
+            method="POST"
+        )
         try:
-            fb_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
-            fb_req = urllib.request.Request(fb_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(fb_req, timeout=8) as fb_resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:
                 latency = int((time.time() - t0) * 1000)
-                if fb_resp.status == 200:
-                    return jsonify({"ok": True, "status": "active", "model": "gemini-1.5-flash", "latency_ms": latency, "message": f"API Key hoạt động (Gemini 1.5 Flash - {latency}ms)"})
-        except Exception:
-            pass
-        return jsonify({"ok": False, "status": "invalid_key", "message": f"Lỗi xác thực (HTTP {e.code}): Key không đúng hoặc bị giới hạn"})
-    except Exception as e:
-        return jsonify({"ok": False, "status": "network_error", "message": f"Lỗi kết nối: {str(e)}"})
+                if resp.status == 200:
+                    return jsonify({
+                        "ok": True,
+                        "status": "active",
+                        "model": model,
+                        "latency_ms": latency,
+                        "message": f"API Key hoạt động hoàn hảo với {model} ({latency}ms)"
+                    })
+        except urllib.error.HTTPError as e:
+            try:
+                err_data = json.loads(e.read().decode('utf-8'))
+                last_err_detail = err_data.get("error", {}).get("message", f"HTTP {e.code}")
+            except Exception:
+                last_err_detail = f"HTTP {e.code}"
+            continue
+        except Exception as e:
+            last_err_detail = str(e)
+            continue
+
+    if "API_KEY_INVALID" in last_err_detail or "400" in last_err_detail or "401" in last_err_detail or "UNAUTHENTICATED" in last_err_detail:
+        msg = "API Key không hợp lệ hoặc chưa được kích hoạt. Hãy tạo key mới (bắt đầu bằng AIzaSy...) tại https://aistudio.google.com."
+    else:
+        msg = f"Lỗi Google API: {last_err_detail}"
+
+    return jsonify({"ok": False, "status": "invalid_key", "message": msg})
 
 
 # ─── Bot Owner / Admin Panel ───────────────────────────────────────────────────
