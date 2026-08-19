@@ -601,6 +601,90 @@ select.form-control option { background: #191822; color: #fff; }
 @keyframes fadeIn  { from { opacity: 0; }                            to { opacity: 1; }            }
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); }   to { opacity: 1; transform: scale(1); } }
 
+/* ─── Tabs & Category Filter Pills ─────────────────────────────────────────── */
+.welcome-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  background: rgba(25, 24, 34, 0.85);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+  backdrop-filter: blur(10px);
+}
+.tab-btn:hover {
+  background: rgba(35, 33, 46, 0.95);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: #16121f;
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.tab-btn.active .count-chip {
+  background: rgba(0, 0, 0, 0.2);
+  color: #16121f;
+}
+.count-chip {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  transition: var(--transition);
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── Variables Box ────────────────────────────────────────────────────────── */
+.vars-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-bottom: 24px;
+  backdrop-filter: blur(12px);
+}
+.vars-box strong {
+  color: #ffffff;
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+.var-tag {
+  display: inline-block;
+  background: rgba(244, 167, 187, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(244, 167, 187, 0.25);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 2px 4px 2px 0;
+}
+
 /* ─── Admin Panel Topbar Button ──────────────────────────────────────────────── */
 .topbar-admin-btn {
   display: inline-flex;
