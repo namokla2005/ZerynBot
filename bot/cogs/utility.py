@@ -10,46 +10,189 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings
 from i18n import tr
+class DeleteHelpButton(discord.ui.Button):
+    def __init__(self, settings: dict, author_id: int):
+        super().__init__(
+            label=tr(settings, "help.btn_delete") if tr(settings, "help.btn_delete") != "help.btn_delete" else "Đóng",
+            style=discord.ButtonStyle.secondary,
+            emoji="🗑️",
+            row=1
+        )
+        self.author_id = author_id
+        self.settings = settings
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.author_id and not interaction.user.guild_permissions.manage_messages:
+            return await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
+        try:
+            await interaction.message.delete()
+        except Exception:
+            pass
+
+
 class HelpSelect(discord.ui.Select):
     def __init__(self, bot: commands.Bot, ctx: commands.Context, settings: dict):
         self.bot = bot
         self.ctx = ctx
         self.settings = settings
+
         options = [
-            discord.SelectOption(label=tr(settings, "help.home_label"), description=tr(settings, "help.home_desc"), emoji="🏠", value="home"),
-            discord.SelectOption(label=tr(settings, "help.utility_label"), description=tr(settings, "help.utility_desc"), emoji="⚙️", value="utility"),
-            discord.SelectOption(label=tr(settings, "help.info_label"), description=tr(settings, "help.info_desc"), emoji="ℹ️", value="info"),
-            discord.SelectOption(label=tr(settings, "help.music_label"), description=tr(settings, "help.music_desc"), emoji="🎵", value="music"),
-            discord.SelectOption(label=tr(settings, "help.admin_label"), description=tr(settings, "help.admin_desc"), emoji="🛠️", value="admin")
+            discord.SelectOption(
+                label=tr(settings, "help.home_label"),
+                description=tr(settings, "help.home_desc")[:100],
+                emoji="🏠",
+                value="home",
+                default=True
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_ai_label"),
+                description=tr(settings, "help.cat_ai_desc")[:100],
+                emoji="🤖",
+                value="ai"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_eco_label"),
+                description=tr(settings, "help.cat_eco_desc")[:100],
+                emoji="💰",
+                value="economy"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_voice_label"),
+                description=tr(settings, "help.cat_voice_desc")[:100],
+                emoji="🔊",
+                value="voice"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_level_label"),
+                description=tr(settings, "help.cat_level_desc")[:100],
+                emoji="🪪",
+                value="leveling"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_music_label"),
+                description=tr(settings, "help.cat_music_desc")[:100],
+                emoji="🎵",
+                value="music"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_mod_label"),
+                description=tr(settings, "help.cat_mod_desc")[:100],
+                emoji="🛡️",
+                value="moderation"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_ticket_label"),
+                description=tr(settings, "help.cat_ticket_desc")[:100],
+                emoji="🎫",
+                value="tickets"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_giveaway_label"),
+                description=tr(settings, "help.cat_giveaway_desc")[:100],
+                emoji="🎁",
+                value="giveaway"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_util_label"),
+                description=tr(settings, "help.cat_util_desc")[:100],
+                emoji="⚙️",
+                value="utility"
+            )
         ]
-        super().__init__(placeholder=tr(settings, "help.placeholder"), min_values=1, max_values=1, options=options)
+        super().__init__(
+            placeholder=tr(settings, "help.placeholder"),
+            min_values=1,
+            max_values=1,
+            options=options,
+            row=0
+        )
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user != self.ctx.author:
             return await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
-        
-        embed = discord.Embed(color=config.COLOR_INFO, timestamp=datetime.now(timezone.utc))
-        embed.set_footer(text=tr(self.settings, "common.requested_by", user=self.ctx.author.display_name), icon_url=self.ctx.author.display_avatar.url)
-        
+
+        for opt in self.options:
+            opt.default = (opt.value == self.values[0])
+
         val = self.values[0]
+        color_map = {
+            "home": 0xF4A7BB,
+            "ai": 0x9D8DF1,
+            "economy": 0xFEE75C,
+            "voice": 0x57F287,
+            "leveling": 0xEB6F92,
+            "music": 0x5865F2,
+            "moderation": 0xED4245,
+            "tickets": 0x57F287,
+            "giveaway": 0xFEE75C,
+            "utility": 0x5865F2
+        }
+
+        embed = discord.Embed(
+            color=color_map.get(val, 0xF4A7BB),
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(
+            text=tr(self.settings, "common.requested_by", user=self.ctx.author.display_name),
+            icon_url=self.ctx.author.display_avatar.url
+        )
+
+        if self.bot.user.display_avatar:
+            embed.set_author(
+                name="Zeryn Bot • Command Center",
+                icon_url=self.bot.user.display_avatar.url,
+                url="https://zerynbot.id.vn"
+            )
+
         if val == "home":
             embed.title = tr(self.settings, "help.home_title")
             embed.description = tr(self.settings, "help.description")
             if self.bot.user.display_avatar:
                 embed.set_thumbnail(url=self.bot.user.display_avatar.url)
-            embed.add_field(name=tr(self.settings, "help.guide_name"), value=tr(self.settings, "help.guide_value"), inline=False)
-        elif val == "utility":
-            embed.title = tr(self.settings, "help.utility_title")
-            embed.description = tr(self.settings, "help.utility_cmds")
-        elif val == "info":
-            embed.title = tr(self.settings, "help.info_title")
-            embed.description = tr(self.settings, "help.info_cmds")
+
+            ws_ping = round(self.bot.latency * 1000)
+            embed.add_field(
+                name=tr(self.settings, "help.stats_title"),
+                value=tr(self.settings, "help.stats_val", ping=ws_ping, uptime="99.9%"),
+                inline=True
+            )
+            embed.add_field(
+                name="🧩 Modules (10/10)",
+                value="🤖 `AI` • 💰 `Kinh Tế` • 🔊 `Voice`\n🪪 `Level` • 🎵 `Music` • 🛡️ `Automod`\n🎫 `Ticket` • 🎁 `Giveaway` • ⚙️ `Utility`",
+                inline=True
+            )
+            embed.add_field(
+                name=tr(self.settings, "help.guide_name"),
+                value=tr(self.settings, "help.guide_value"),
+                inline=False
+            )
+        elif val == "ai":
+            embed.title = tr(self.settings, "help.cat_ai_title")
+            embed.description = tr(self.settings, "help.cat_ai_cmds")
+        elif val == "economy":
+            embed.title = tr(self.settings, "help.cat_eco_title")
+            embed.description = tr(self.settings, "help.cat_eco_cmds")
+        elif val == "voice":
+            embed.title = tr(self.settings, "help.cat_voice_title")
+            embed.description = tr(self.settings, "help.cat_voice_cmds")
+        elif val == "leveling":
+            embed.title = tr(self.settings, "help.cat_level_title")
+            embed.description = tr(self.settings, "help.cat_level_cmds")
         elif val == "music":
-            embed.title = tr(self.settings, "help.music_title")
-            embed.description = tr(self.settings, "help.music_cmds")
-        elif val == "admin":
-            embed.title = tr(self.settings, "help.admin_title")
-            embed.description = tr(self.settings, "help.admin_cmds")
+            embed.title = tr(self.settings, "help.cat_music_title")
+            embed.description = tr(self.settings, "help.cat_music_cmds")
+        elif val == "moderation":
+            embed.title = tr(self.settings, "help.cat_mod_title")
+            embed.description = tr(self.settings, "help.cat_mod_cmds")
+        elif val == "tickets":
+            embed.title = tr(self.settings, "help.cat_ticket_title")
+            embed.description = tr(self.settings, "help.cat_ticket_cmds")
+        elif val == "giveaway":
+            embed.title = tr(self.settings, "help.cat_giveaway_title")
+            embed.description = tr(self.settings, "help.cat_giveaway_cmds")
+        elif val == "utility":
+            embed.title = tr(self.settings, "help.cat_util_title")
+            embed.description = tr(self.settings, "help.cat_util_cmds")
 
         await interaction.response.edit_message(embed=embed, view=self.view)
 
@@ -61,18 +204,33 @@ class HelpView(discord.ui.View):
         self.ctx = ctx
         self.settings = settings
         self.message = None
+
+        # Row 0: Select dropdown
         self.add_item(HelpSelect(bot, ctx, settings))
-        
-        self.add_item(discord.ui.Button(label="Join Support Server", style=discord.ButtonStyle.link, url="https://discord.gg/VPybhdNbXC", emoji="💬"))
-        self.add_item(discord.ui.Button(label="View Dashboard", style=discord.ButtonStyle.link, url="https://zerynbot.id.vn", emoji="🌐"))
+
+        # Row 1: Action links & Delete button
+        client_id = config.CLIENT_ID or (str(bot.user.id) if bot.user else "1396825488198078514")
+        invite_url = f"https://discord.com/api/oauth2/authorize?client_id={client_id}&permissions=8&scope=bot%20applications.commands"
+
+        btn_dashboard = tr(settings, "help.btn_dashboard") if tr(settings, "help.btn_dashboard") != "help.btn_dashboard" else "Dashboard"
+        btn_support = tr(settings, "help.btn_support") if tr(settings, "help.btn_support") != "help.btn_support" else "Support Server"
+        btn_invite = tr(settings, "help.btn_invite") if tr(settings, "help.btn_invite") != "help.btn_invite" else "Add Bot"
+
+        self.add_item(discord.ui.Button(label=btn_dashboard, style=discord.ButtonStyle.link, url="https://zerynbot.id.vn", emoji="🌐", row=1))
+        self.add_item(discord.ui.Button(label=btn_support, style=discord.ButtonStyle.link, url="https://discord.gg/VPybhdNbXC", emoji="💬", row=1))
+        self.add_item(discord.ui.Button(label=btn_invite, style=discord.ButtonStyle.link, url=invite_url, emoji="➕", row=1))
+        self.add_item(DeleteHelpButton(settings, ctx.author.id))
+
     async def on_timeout(self):
         for item in self.children:
-            item.disabled = True
+            if not isinstance(item, discord.ui.Button) or item.style != discord.ButtonStyle.link:
+                item.disabled = True
         try:
             if self.message:
                 await self.message.edit(view=self)
         except Exception:
             pass
+
 
 class Utility(commands.Cog):
     """Lệnh tiện ích."""
@@ -179,18 +337,35 @@ class Utility(commands.Cog):
         await ctx.send(embed=embed)
 
     # ─── help ──────────────────────────────────────────────────────────────────
-    @commands.hybrid_command(name="help", description="Danh sách tất cả các lệnh của bot")
+    @commands.hybrid_command(name="help", description="Trung tâm hỗ trợ và hướng dẫn toàn bộ lệnh của Zeryn Bot")
     async def help_cmd(self, ctx: commands.Context):
         settings = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
+        ws_ping = round(self.bot.latency * 1000)
+
         embed = discord.Embed(
             title=tr(settings, "help.title"),
             description=tr(settings, "help.description"),
-            color=config.COLOR_INFO,
+            color=0xF4A7BB,
             timestamp=datetime.now(timezone.utc),
         )
         if self.bot.user.display_avatar:
+            embed.set_author(
+                name="Zeryn Bot • Command Center",
+                icon_url=self.bot.user.display_avatar.url,
+                url="https://zerynbot.id.vn"
+            )
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
+        embed.add_field(
+            name=tr(settings, "help.stats_title"),
+            value=tr(settings, "help.stats_val", ping=ws_ping, uptime="99.9%"),
+            inline=True
+        )
+        embed.add_field(
+            name="🧩 Modules (10/10)",
+            value="🤖 `AI` • 💰 `Kinh Tế` • 🔊 `Voice`\n🪪 `Level` • 🎵 `Music` • 🛡️ `Automod`\n🎫 `Ticket` • 🎁 `Giveaway` • ⚙️ `Utility`",
+            inline=True
+        )
         embed.add_field(
             name=tr(settings, "help.guide_name"),
             value=tr(settings, "help.guide_value"),
