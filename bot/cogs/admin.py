@@ -101,15 +101,22 @@ class Admin(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="sync", description="Đồng bộ lệnh slash commands (Admin only)")
+    @commands.hybrid_command(name="sync", description="Đồng bộ lệnh slash commands tức thì")
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     @checks.is_bot_admin()
     async def sync_cmd(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         async with ctx.typing():
-            synced = await self.bot.tree.sync()
-            await ctx.send(tr(s, "admin.sync_success", count=len(synced)))
+            try:
+                # 1. Đồng bộ tức thì (0s) cho guild hiện tại
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                synced_guild = await self.bot.tree.sync(guild=ctx.guild)
+                # 2. Đồng bộ toàn cầu
+                synced_global = await self.bot.tree.sync()
+                await ctx.send(f"✅ Đã đồng bộ tức thì **{len(synced_guild)}** lệnh Slash vào máy chủ **{ctx.guild.name}**, và **{len(synced_global)}** lệnh toàn cục!")
+            except Exception as e:
+                await ctx.send(f"❌ Lỗi khi đồng bộ: {e}")
 
     @commands.hybrid_command(name="ticket", description="Truy cập Dashboard để tạo panel ticket")
     @commands.guild_only()

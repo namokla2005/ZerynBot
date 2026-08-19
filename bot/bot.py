@@ -292,8 +292,8 @@ class BotV2(commands.Bot):
                 except Exception as exc:
                     logger.error(f"❌  Failed {ext}: {exc}")
 
-        # Sync slash commands chỉ khi có cờ --sync
-        if "--sync" in sys.argv:
+        # Tự động đồng bộ Slash Commands khi khởi động
+        try:
             if config.DEV_GUILD_ID:
                 guild_obj = discord.Object(id=config.DEV_GUILD_ID)
                 self.tree.copy_global_to(guild=guild_obj)
@@ -301,11 +301,9 @@ class BotV2(commands.Bot):
                 logger.info(f"⚡  Synced {len(synced_dev)} commands to dev guild (instant)")
 
             synced_global = await self.tree.sync()
-            logger.info(
-                f"🌐  Synced {len(synced_global)} commands globally (up to 1 hour to propagate)"
-            )
-        else:
-            logger.info("⚡  Skipping command sync (run with 'python bot/bot.py --sync' to force sync)")
+            logger.info(f"🌐  Synced {len(synced_global)} slash commands globally with Discord API!")
+        except Exception as exc:
+            logger.error(f"❌  Failed to sync slash commands on startup: {exc}")
 
     async def on_ready(self):
         if not hasattr(self, "_ready_once"):
