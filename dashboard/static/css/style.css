@@ -87,7 +87,8 @@ button { cursor: pointer; }
 /* ─── Sidebar ───────────────────────────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   backdrop-filter: blur(20px);
@@ -97,7 +98,20 @@ button { cursor: pointer; }
   position: fixed;
   left: 0; top: 0; bottom: 0;
   z-index: 100;
-  overflow-y: auto;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 167, 187, 0.3) transparent;
+}
+.sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(244, 167, 187, 0.25);
+  border-radius: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 167, 187, 0.5);
 }
 .sidebar-header {
   padding: 24px 16px 18px;
