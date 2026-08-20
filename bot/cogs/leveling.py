@@ -301,7 +301,7 @@ class Leveling(commands.Cog):
             return await ctx.send(tr(s, "leveling.xp_add_negative"))
 
         guild_id = str(ctx.guild.id)
-        current = await async_get_user_xp(guild_id, str(member.id))
+        current = await async_get_user_level(guild_id, str(member.id))
         current_xp = current.get("xp", 0) if current else 0
         new_xp = current_xp + amount
         new_level = calc_level_from_xp(new_xp)

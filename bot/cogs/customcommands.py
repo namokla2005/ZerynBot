@@ -146,7 +146,7 @@ class CustomCommands(commands.Cog):
 
         clean_trigger = trigger.strip().lower()
         import database as db
-        db.add_custom_command(
+        await db.async_add_custom_command(
             guild_id=str(interaction.guild.id),
             trigger=clean_trigger,
             match_type="exact",
@@ -173,7 +173,7 @@ class CustomCommands(commands.Cog):
             return
 
         import database as db
-        db.delete_custom_command(target_cmd["id"], str(interaction.guild.id))
+        await db.async_delete_custom_command(target_cmd["id"], str(interaction.guild.id))
         await interaction.response.send_message(tr(s, "customcmd.deleted_success", trigger=clean_trigger), ephemeral=True)
 
 

@@ -327,16 +327,44 @@ class BotV2(commands.Bot):
     async def on_command_error(self, ctx: commands.Context, error: Exception):
         if isinstance(error, commands.CommandNotFound):
             return
-        logger.error(f"Command error: {error}")
+        
+        s = {}
+        if ctx.guild:
+            try:
+                from database import async_get_guild_settings
+                s = await async_get_guild_settings(str(ctx.guild.id))
+            except Exception:
+                pass
+
+        if isinstance(error, commands.MissingPermissions):
+            msg = tr(s, "common.no_permission")
+            return await ctx.send(msg, ephemeral=True)
+        elif isinstance(error, commands.BotMissingPermissions):
+            msg = tr(s, "common.bot_missing_permission")
+            return await ctx.send(msg, ephemeral=True)
+        elif isinstance(error, commands.CheckFailure):
+            return  # Handled by cog checks
+
+        logger.error(f"Command error in {ctx.command}: {error}", exc_info=error)
 
     async def on_app_command_error(
         self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError
     ):
-        msg = "⚠️ Có lỗi xảy ra khi thực hiện lệnh này."
+        s = {}
+        if interaction.guild:
+            try:
+                from database import async_get_guild_settings
+                s = await async_get_guild_settings(str(interaction.guild.id))
+            except Exception:
+                pass
+
+        msg = tr(s, "common.error_occurred")
         if isinstance(error, discord.app_commands.MissingPermissions):
-            msg = "❌ Bạn không có quyền sử dụng lệnh này."
+            msg = tr(s, "common.no_permission")
         elif isinstance(error, discord.app_commands.BotMissingPermissions):
-            msg = "❌ Bot thiếu quyền để thực hiện hành động này."
+            msg = tr(s, "common.bot_missing_permission")
+        elif isinstance(error, discord.app_commands.CheckFailure):
+            return
 
         embed = discord.Embed(description=msg, color=config.COLOR_ERROR)
         try:
@@ -344,9 +372,9 @@ class BotV2(commands.Bot):
                 await interaction.followup.send(embed=embed, ephemeral=True)
             else:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
-        except Exception:
-            pass
-        logger.error(f"App command error: {error}")
+        except Exception as e:
+            logger.debug(f"Failed to send error embed: {e}")
+        logger.error(f"App command error: {error}", exc_info=error)
 
 
 bot = BotV2()
