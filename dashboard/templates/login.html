@@ -51,7 +51,11 @@
     </div>
   </div>
   
-  <div style="margin-top: 24px; display: flex; gap: 24px; justify-content: center;">
+  <div style="margin-top: 24px; display: flex; gap: 24px; justify-content: center; align-items: center; flex-wrap: wrap;">
+    <a href="{{ url_for('index') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">Zeryn</a>
+    <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 4px;">
+      <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
+    </a>
     <a href="{{ url_for('tos') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">{{ t('login.tos') }}</a>
     <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">{{ t('login.privacy') }}</a>
   </div>

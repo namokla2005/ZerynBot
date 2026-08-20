@@ -15,10 +15,10 @@
 
 <!-- Top bar -->
 <header class="topbar">
-  <div class="topbar-brand">
+  <a href="{{ url_for('index') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
     <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
     Zeryn Dashboard
-  </div>
+  </a>
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
     <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px;">
       <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
