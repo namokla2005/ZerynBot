@@ -147,6 +147,21 @@ YDL_OPTS = {
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS["cookiefile"] = _COOKIE_FILE
 
+# Cấu hình Flat Extraction siêu tốc (chỉ lấy metadata, không tải trang player & không giải mã stream)
+YDL_OPTS_FLAT = {
+    "extract_flat": True,
+    "noplaylist": True,
+    "quiet": True,
+    "no_warnings": True,
+    "default_search": "ytsearch",
+    "source_address": "0.0.0.0",
+    "socket_timeout": 5,
+    "nocheckcertificate": True,
+    "ignoreerrors": True,
+}
+if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
+    YDL_OPTS_FLAT["cookiefile"] = _COOKIE_FILE
+
 _extract_semaphore = asyncio.Semaphore(3)
 
 
@@ -203,8 +218,33 @@ def _extract_sync(query: str) -> dict | None:
         return None
 
 
+def _extract_metadata_sync(query: str) -> dict | None:
+    """Trích xuất nhanh metadata bài hát qua Flat Extraction (< 1s)."""
+    try:
+        with yt_dlp.YoutubeDL(YDL_OPTS_FLAT) as ydl:
+            clean_q = query.strip()
+            if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
+                clean_q = f"ytsearch1:{clean_q}"
+            elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
+                clean_q = clean_q.replace("ytsearch:", "ytsearch1:", 1)
+
+            info = ydl.extract_info(clean_q, download=False)
+            if not info:
+                return None
+            if "entries" in info:
+                entries = list(info.get("entries") or [])
+                if entries and entries[0]:
+                    info = entries[0]
+                else:
+                    return None
+            return info
+    except Exception as e:
+        log.warning(f"[Music] yt-dlp flat metadata error for query '{query}': {e}")
+        return None
+
+
 async def extract_info(query: str) -> dict | None:
-    """Lấy thông tin bài hát (tích hợp In-Memory Cache + Thread-Safe)."""
+    """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
     key = query.strip().lower()
     cache_key = f"song_info:{key}"
 
@@ -221,6 +261,31 @@ async def extract_info(query: str) -> dict | None:
     if info:
         # Lưu vào In-Memory Cache (TTL 10 phút)
         await cache.aset(cache_key, info, ttl=600)
+
+    return info
+
+
+async def extract_metadata(query: str) -> dict | None:
+    """Lấy nhanh thông tin cơ bản bài hát cho Playlist / Search (Flat Extraction + RAM Cache 24h)."""
+    key = query.strip().lower()
+    cache_key = f"song_meta:{key}"
+
+    # 1. Kiểm tra RAM Cache (trả về tức thì 0ms)
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
+    # 2. Chạy Flat Extraction siêu tốc trong thread pool
+    loop = asyncio.get_running_loop()
+    info = await loop.run_in_executor(None, _extract_metadata_sync, query)
+
+    if info:
+        # Chuẩn hóa webpage_url nếu bị thiếu
+        video_id = info.get("id")
+        if not info.get("webpage_url") and video_id:
+            info["webpage_url"] = f"https://www.youtube.com/watch?v={video_id}"
+        # Lưu vào RAM Cache (TTL 24 giờ)
+        await cache.aset(cache_key, info, ttl=86400)
 
     return info
 
@@ -1059,17 +1124,19 @@ class Music(commands.Cog, name="Music"):
             return
         
         resolved = await _resolve_external_url(query)
-        info = await extract_info(resolved)
+        info = await extract_metadata(resolved)
         if not info:
             await ctx.send(tr(s, "music.pl_song_not_found"))
             return
 
         thumbnail = _get_best_thumbnail(info)
+        video_id = info.get("id", "")
+        webpage_url = info.get("webpage_url") or (f"https://www.youtube.com/watch?v={video_id}" if video_id else info.get("url", ""))
 
         await db.async_add_track_to_playlist(pl["id"], {
             "title": info.get("title", "Unknown"),
-            "id":    info.get("id", ""),
-            "webpage_url": info.get("webpage_url") or info.get("url", ""),
+            "id":    video_id,
+            "webpage_url": webpage_url,
             "duration": info.get("duration") or -1,
             "uploader": info.get("uploader") or info.get("channel") or "—",
             "thumbnail": thumbnail,
