@@ -1,11 +1,12 @@
 """
-main.py — Điểm vào duy nhất quản lý toàn bộ hệ thống ZerynBot V2.
+main.py — Điểm vào duy nhất quản lý toàn bộ hệ thống Zeryn (ZerynBot V2).
 Hỗ trợ các lệnh:
-  python main.py              (Khởi chạy toàn bộ: Redis, Bot, Dashboard, Watchdog)
+  python main.py              (Khởi chạy toàn bộ: Bot Discord, Dashboard, Watchdog)
   python main.py --start      (Khởi chạy toàn bộ hệ thống)
   python main.py --stop       (Dừng sạch tất cả services và gửi webhook)
   python main.py --restart    (Tắt sạch và khởi động lại)
   python main.py --status     (Kiểm tra trạng thái các services)
+  python main.py --test       (Chạy Self-Diagnostic Tester)
   python main.py --bot        (Chỉ chạy Bot Discord)
   python main.py --dashboard  (Chỉ chạy Web Dashboard)
   python main.py --sync       (Chạy Bot & đồng bộ lại Slash Commands với Discord)

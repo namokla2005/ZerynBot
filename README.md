@@ -165,15 +165,9 @@ python main.py --sync
 
 # 🌐 Chỉ khởi chạy Web Dashboard (HTTP localhost:5000)
 python main.py --dashboard
-```
 
-### Khởi Chạy Trên Linux / Termux (Tự Động)
-
-Dùng script khởi động được tối ưu sẵn cho Android Termux & Linux:
-
-```bash
-chmod +x start.sh
-bash start.sh
+# 🧪 Chạy Self-Diagnostic Tester kiểm tra hệ thống
+python main.py --test
 ```
 
 ---
@@ -183,12 +177,11 @@ bash start.sh
 ```text
 ZerynBot/
 ├── ARCHITECTURE.md      # Tài liệu chi tiết kiến trúc dự án (dành cho Developer & AI)
-├── main.py              # Bộ điều khiển trung tâm (start/stop/restart/status)
+├── main.py              # Điểm vào điều khiển trung tâm (start/stop/restart/status/test)
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
 ├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1187 keys/file)
-├── start.sh             # Script khởi chạy tự động trên Linux / Termux
 ├── requirements.txt     # Danh sách thư viện Python
 ├── .agents/             # Skill & Cấu hình dành cho Trợ lý AI
 ├── bot/                 # 🤖 Discord Bot Source Code

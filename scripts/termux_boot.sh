@@ -18,14 +18,14 @@ termux-wake-lock
 
 # Chuyển đến thư mục bot (tự động nhận diện đường dẫn động hoặc fallback)
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-if [ ! -f "$DIR/start.sh" ]; then
+if [ ! -f "$DIR/main.py" ]; then
     DIR="/storage/emulated/0/Project/Discord Bots/v2"
 fi
 
 if [ -d "$DIR" ]; then
     cd "$DIR"
-    # Gọi script start.sh
-    bash start.sh > data/boot.log 2>&1
+    # Khởi chạy toàn bộ hệ thống qua main.py
+    python main.py > data/boot.log 2>&1
 else
     echo "Không tìm thấy thư mục bot ở $DIR" > ~/bot_boot_error.log
 fi
