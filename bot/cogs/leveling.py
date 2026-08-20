@@ -298,7 +298,7 @@ class Leveling(commands.Cog):
     async def xp_add(self, ctx: commands.Context, member: discord.Member, amount: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         if amount <= 0:
-            return await ctx.send("❌ Số lượng XP cần cộng phải lớn hơn 0!")
+            return await ctx.send(tr(s, "leveling.xp_add_negative"))
 
         guild_id = str(ctx.guild.id)
         current = await async_get_user_xp(guild_id, str(member.id))
@@ -306,7 +306,7 @@ class Leveling(commands.Cog):
         new_xp = current_xp + amount
         new_level = calc_level_from_xp(new_xp)
         await async_update_user_xp(guild_id, str(member.id), new_xp, new_level)
-        await ctx.send(f"✅ Đã cộng **+{amount}** XP cho {member.mention}! Tổng XP: **{new_xp}** (Level **{new_level}**)")
+        await ctx.send(tr(s, "leveling.xp_add_success", amount=amount, mention=member.mention, new_xp=new_xp, level=new_level))
 
     @xp.command(name="set", description="Thiết lập XP cho một người dùng")
     @app_commands.describe(member="Người dùng", amount="Số lượng XP mới")

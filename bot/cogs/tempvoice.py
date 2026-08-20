@@ -66,7 +66,7 @@ class LimitVoiceModal(discord.ui.Modal):
         try:
             val = int(self.limit_input.value)
             if val < 0 or val > 99:
-                await interaction.response.send_message("❌ Số lượng phải từ 0 đến 99!", ephemeral=True)
+                await interaction.response.send_message(tr(self.settings, "tempvoice.invalid_limit"), ephemeral=True)
                 return
             await self.channel.edit(user_limit=val)
             await interaction.response.send_message(
@@ -74,9 +74,9 @@ class LimitVoiceModal(discord.ui.Modal):
                 ephemeral=True
             )
         except ValueError:
-            await interaction.response.send_message("❌ Vui lòng nhập một số hợp lệ!", ephemeral=True)
+            await interaction.response.send_message(tr(self.settings, "tempvoice.invalid_number"), ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(f"❌ Lỗi: {e}", ephemeral=True)
+            await interaction.response.send_message(f"❌ {e}", ephemeral=True)
 
 
 class TempVoiceControlView(discord.ui.View):
@@ -85,6 +85,11 @@ class TempVoiceControlView(discord.ui.View):
         self.channel = channel
         self.owner = owner
         self.settings = settings
+        
+        # Set dynamic localized labels for buttons
+        self.toggle_lock.label = tr(settings, "tempvoice.btn_lock_toggle")
+        self.set_limit.label = tr(settings, "tempvoice.btn_limit")
+        self.rename.label = tr(settings, "tempvoice.btn_rename")
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.owner.id and not interaction.user.guild_permissions.administrator:
@@ -92,7 +97,7 @@ class TempVoiceControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Khóa / Mở", style=discord.ButtonStyle.primary, emoji="🔒", custom_id="tv_lock")
+    @discord.ui.button(label="Lock / Unlock", style=discord.ButtonStyle.primary, emoji="🔒", custom_id="tv_lock")
     async def toggle_lock(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = self.channel.guild
         overwrites = self.channel.overwrites_for(guild.default_role)
@@ -114,12 +119,12 @@ class TempVoiceControlView(discord.ui.View):
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(msg, ephemeral=True)
 
-    @discord.ui.button(label="Giới hạn", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="tv_limit")
+    @discord.ui.button(label="Limit", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="tv_limit")
     async def set_limit(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = LimitVoiceModal(self.channel, self.settings)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Đổi tên", style=discord.ButtonStyle.secondary, emoji="✏️", custom_id="tv_rename")
+    @discord.ui.button(label="Rename", style=discord.ButtonStyle.secondary, emoji="✏️", custom_id="tv_rename")
     async def rename(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = RenameVoiceModal(self.channel, self.settings)
         await interaction.response.send_modal(modal)
@@ -217,12 +222,12 @@ class TempVoice(commands.Cog):
 
     @voice_group.command(name="lock", description="Khóa phòng voice (chỉ người được mời mới vào được)")
     async def voice_lock(self, interaction: discord.Interaction):
+        s = await async_get_guild_settings(str(interaction.guild.id))
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("❌ Bạn cần ở trong phòng voice của mình!", ephemeral=True)
+            await interaction.response.send_message(tr(s, "tempvoice.must_be_in_voice"), ephemeral=True)
             return
         ch = interaction.user.voice.channel
         active = await async_get_active_temp_channel(str(ch.id))
-        s = await async_get_guild_settings(str(interaction.guild.id))
         if not active or (active["owner_id"] != str(interaction.user.id) and not interaction.user.guild_permissions.administrator):
             await interaction.response.send_message(tr(s, "tempvoice.not_owner"), ephemeral=True)
             return
@@ -235,12 +240,12 @@ class TempVoice(commands.Cog):
 
     @voice_group.command(name="unlock", description="Mở khóa phòng voice cho mọi người tham gia")
     async def voice_unlock(self, interaction: discord.Interaction):
+        s = await async_get_guild_settings(str(interaction.guild.id))
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("❌ Bạn cần ở trong phòng voice của mình!", ephemeral=True)
+            await interaction.response.send_message(tr(s, "tempvoice.must_be_in_voice"), ephemeral=True)
             return
         ch = interaction.user.voice.channel
         active = await async_get_active_temp_channel(str(ch.id))
-        s = await async_get_guild_settings(str(interaction.guild.id))
         if not active or (active["owner_id"] != str(interaction.user.id) and not interaction.user.guild_permissions.administrator):
             await interaction.response.send_message(tr(s, "tempvoice.not_owner"), ephemeral=True)
             return
@@ -254,15 +259,15 @@ class TempVoice(commands.Cog):
     @voice_group.command(name="limit", description="Giới hạn số người được vào phòng")
     @app_commands.describe(limit="Số lượng tối đa (0 = Không giới hạn, tối đa 99)")
     async def voice_limit(self, interaction: discord.Interaction, limit: int):
+        s = await async_get_guild_settings(str(interaction.guild.id))
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("❌ Bạn cần ở trong phòng voice của mình!", ephemeral=True)
+            await interaction.response.send_message(tr(s, "tempvoice.must_be_in_voice"), ephemeral=True)
             return
         if limit < 0 or limit > 99:
-            await interaction.response.send_message("❌ Giới hạn phải từ 0 đến 99!", ephemeral=True)
+            await interaction.response.send_message(tr(s, "tempvoice.invalid_limit"), ephemeral=True)
             return
         ch = interaction.user.voice.channel
         active = await async_get_active_temp_channel(str(ch.id))
-        s = await async_get_guild_settings(str(interaction.guild.id))
         if not active or (active["owner_id"] != str(interaction.user.id) and not interaction.user.guild_permissions.administrator):
             await interaction.response.send_message(tr(s, "tempvoice.not_owner"), ephemeral=True)
             return
@@ -273,12 +278,12 @@ class TempVoice(commands.Cog):
     @voice_group.command(name="rename", description="Đổi tên phòng voice của bạn")
     @app_commands.describe(name="Tên mới cho phòng voice")
     async def voice_rename(self, interaction: discord.Interaction, name: str):
+        s = await async_get_guild_settings(str(interaction.guild.id))
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message("❌ Bạn cần ở trong phòng voice của mình!", ephemeral=True)
+            await interaction.response.send_message(tr(s, "tempvoice.must_be_in_voice"), ephemeral=True)
             return
         ch = interaction.user.voice.channel
         active = await async_get_active_temp_channel(str(ch.id))
-        s = await async_get_guild_settings(str(interaction.guild.id))
         if not active or (active["owner_id"] != str(interaction.user.id) and not interaction.user.guild_permissions.administrator):
             await interaction.response.send_message(tr(s, "tempvoice.not_owner"), ephemeral=True)
             return

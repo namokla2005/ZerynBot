@@ -73,7 +73,7 @@ class Language(commands.Cog, name="Language"):
                 settings = await async_get_guild_settings(str(ctx.guild.id))
                 await ctx.send(tr(settings, "lang.no_permission"), ephemeral=True)
             except Exception:
-                await ctx.send("❌ Bạn không có quyền **Manage Server** để đổi ngôn ngữ!", ephemeral=True)
+                await ctx.send(tr("vi", "lang.no_permission"), ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

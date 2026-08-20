@@ -153,7 +153,7 @@ class Giveaway(commands.Cog):
             await channel.send(f"{tr(s, 'giveaway.reroll_msg', user=f'<@{winner_id}>', prize=gw['prize'])}\n({msg_link})")
             await ctx.send(tr(s, "giveaway.reroll_success"))
         else:
-            await ctx.send("❌ Channel not found!")
+            await ctx.send(tr(s, "giveaway.channel_not_found"))
 
     async def roll_giveaway(self, gw: dict):
         channel = self.bot.get_channel(int(gw["channel_id"]))

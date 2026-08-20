@@ -468,7 +468,7 @@ class Economy(commands.Cog):
         desc = tr(s, "economy.shop_guide") + "\n\n"
         for it in items:
             role = ctx.guild.get_role(int(it["role_id"])) if it.get("role_id") else None
-            role_mention = role.mention if role else "`Role không tồn tại`"
+            role_mention = role.mention if role else f"`{tr(s, 'economy.role_not_found')}`"
             stock_str = f"({tr(s, 'economy.stock')}: {it['stock']})" if it["stock"] >= 0 else ""
             desc += f"`ID: {it['id']}` • **{it['name']}** ({role_mention}) — **{it['price']:,}** {sym} {stock_str}\n"
 

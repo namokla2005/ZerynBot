@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ t('privacy.title') }} — Zeryn Bot</title>
+  <title>{{ t('privacy.title') }} — Zeryn</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -311,7 +311,7 @@
 <header class="topbar">
   <a href="{{ url_for('home') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
     <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
-    Zeryn Bot
+    Zeryn
   </a>
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
     <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.home') }}</a>
@@ -474,7 +474,7 @@
       <p class="section-p">{{ t('privacy.s6_desc') }}</p>
       <div class="callout-box info">
         <i class="bi bi-shield-check" style="font-size:1.2rem;flex-shrink:0;"></i>
-        <div>Zeryn Bot cam kết không bao giờ thương mại hóa hoặc cung cấp dữ liệu người dùng cho bên thứ ba.</div>
+        <div>{{ t('privacy.s6_commitment') }}</div>
       </div>
     </div>
 

@@ -113,10 +113,9 @@ class Admin(commands.Cog):
                 self.bot.tree.copy_global_to(guild=ctx.guild)
                 synced_guild = await self.bot.tree.sync(guild=ctx.guild)
                 # 2. Đồng bộ toàn cầu
-                synced_global = await self.bot.tree.sync()
-                await ctx.send(f"✅ Đã đồng bộ tức thì **{len(synced_guild)}** lệnh Slash vào máy chủ **{ctx.guild.name}**, và **{len(synced_global)}** lệnh toàn cục!")
+                await ctx.send(tr(s, "admin.sync_success_detailed", guild_count=len(synced_guild), global_count=len(synced_global), guild_name=ctx.guild.name))
             except Exception as e:
-                await ctx.send(f"❌ Lỗi khi đồng bộ: {e}")
+                await ctx.send(tr(s, "admin.sync_error", error=str(e)))
 
     @commands.hybrid_command(name="ticket", description="Truy cập Dashboard để tạo panel ticket")
     @commands.guild_only()

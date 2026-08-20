@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ t('tos.title') }} — Zeryn Bot</title>
+  <title>{{ t('tos.title') }} — Zeryn</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -311,7 +311,7 @@
 <header class="topbar">
   <a href="{{ url_for('home') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
     <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
-    Zeryn Bot
+    Zeryn
   </a>
   <div class="topbar-nav" style="margin-left: auto; margin-right: 24px; display: flex; gap: 24px; align-items: center;">
     <a href="{{ url_for('home') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.home') }}</a>
@@ -425,7 +425,7 @@
       </ul>
       <div class="callout-box warning">
         <i class="bi bi-exclamation-triangle-fill" style="font-size:1.2rem;flex-shrink:0;"></i>
-        <div>Việc cố tình lạm dụng lệnh hoặc tấn công hạ tầng Zeryn Bot sẽ bị tự động đưa vào Blacklist toàn hệ thống ngay lập tức.</div>
+        <div>{{ t('tos.s2_warning') }}</div>
       </div>
     </div>
 
@@ -447,7 +447,7 @@
       <p class="section-p">{{ t('tos.s4_desc') }}</p>
       <div class="callout-box info">
         <i class="bi bi-info-circle-fill" style="font-size:1.2rem;flex-shrink:0;"></i>
-        <div>Thời gian bảo trì định kỳ hoặc sự cố gián đoạn từ phía Discord Gateway API không thuộc trách nhiệm đền bù của Zeryn Bot.</div>
+        <div>{{ t('tos.s4_info') }}</div>
       </div>
     </div>
 

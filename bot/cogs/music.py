@@ -684,32 +684,35 @@ class RemoveSongView(discord.ui.View):
         self.message        : discord.Message | None = None
         self.add_item(RemoveSongSelect(tracks))
 
-    @discord.ui.button(label="✅ Xác nhận xóa", style=discord.ButtonStyle.danger, row=1)
+    @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger, row=1)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        import database as db
+        s = await db.async_get_guild_settings(str(interaction.guild.id))
         if interaction.user != self.ctx.author:
-            return await interaction.response.send_message("❌ Bạn không có quyền thao tác!", ephemeral=True)
+            return await interaction.response.send_message(tr(s, "common.no_permission"), ephemeral=True)
         if self.selected_index is None:
-            return await interaction.response.send_message("❌ Vui lòng chọn bài hát trước!", ephemeral=True)
+            return await interaction.response.send_message(tr(s, "music.select_song_first"), ephemeral=True)
         await interaction.response.defer()
         track = self.tracks[self.selected_index]
-        import database as db
         await db.async_delete_track_from_playlist(track["id"])
         for item in self.children:
             item.disabled = True
         await interaction.message.edit(
-            content=f"✅ Đã xóa **{track.get('title', 'Unknown')}** khỏi playlist **{self.pl['name']}**!",
+            content=tr(s, "music.song_removed_from_pl", track=track.get('title', 'Unknown'), pl=self.pl['name']),
             embed=None, view=self,
         )
         self.stop()
 
-    @discord.ui.button(label="❌ Hủy bỏ", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, row=1)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        import database as db
+        s = await db.async_get_guild_settings(str(interaction.guild.id))
         if interaction.user != self.ctx.author:
-            return await interaction.response.send_message("❌ Bạn không có quyền thao tác!", ephemeral=True)
+            return await interaction.response.send_message(tr(s, "common.no_permission"), ephemeral=True)
         await interaction.response.defer()
         for item in self.children:
             item.disabled = True
-        await interaction.message.edit(content="↩️ Đã hủy thao tác.", embed=None, view=self)
+        await interaction.message.edit(content=tr(s, "music.op_cancelled"), embed=None, view=self)
         self.stop()
 
     async def on_timeout(self):
@@ -717,7 +720,9 @@ class RemoveSongView(discord.ui.View):
             item.disabled = True
         if self.message:
             try:
-                await self.message.edit(content="⏳ Hết thời gian chờ, thao tác bị hủy.", embed=None, view=self)
+                import database as db
+                s = await db.async_get_guild_settings(str(self.ctx.guild.id))
+                await self.message.edit(content=tr(s, "music.op_timeout"), embed=None, view=self)
             except Exception:
                 pass
 
@@ -1200,12 +1205,15 @@ class Music(commands.Cog, name="Music"):
 
     @playlist_group.command(name="loop", description="Đổi chế độ lặp lại hàng chờ")
     async def playlist_loop(self, ctx: commands.Context):
+        import database as db
+        s = await db.async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
         if not player:
-            await ctx.send("❌ Không có nhạc đang phát!")
+            await ctx.send(tr(s, "music.no_song"))
             return
         player.loop_mode = (player.loop_mode + 1) % 3
-        await ctx.send(["➡️ Đã TẮT lặp lại!", "🔂 Lặp bài hiện tại!", "🔁 Lặp toàn bộ hàng chờ!"][player.loop_mode])
+        loop_msgs = [tr(s, "music.loop_off"), tr(s, "music.loop_one"), tr(s, "music.loop_all")]
+        await ctx.send(loop_msgs[player.loop_mode])
 
 
 async def setup(bot: commands.Bot):

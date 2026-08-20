@@ -133,7 +133,7 @@ class Ticket(commands.Cog, name="Tickets"):
                 )
             except Exception as e:
                 await interaction.followup.send(
-                    f"❌ {e}", ephemeral=True
+                    tr(settings, "ticket.create_error", error=str(e)), ephemeral=True
                 )
                 return
 
@@ -166,7 +166,7 @@ class Ticket(commands.Cog, name="Tickets"):
                 tr(settings, "ticket.created_success", ch=ticket_channel.mention), ephemeral=True
             )
             
-            self.bot.dispatch('ticket_action', guild, member, "Mở", channel_name)
+            self.bot.dispatch('ticket_action', guild, member, tr(settings, "ticket.action_open"), channel_name)
 
         # ─── Ticket Close Button Click ────────────────────────────────────────
         elif custom_id == "ticket:close":
@@ -206,7 +206,7 @@ class Ticket(commands.Cog, name="Tickets"):
                 tr(settings, "ticket.closing_notice")
             )
             
-            self.bot.dispatch('ticket_action', guild, member, "Đóng/Xóa", channel.name)
+            self.bot.dispatch('ticket_action', guild, member, tr(settings, "ticket.action_close"), channel.name)
             
             await asyncio.sleep(5)
             try:
