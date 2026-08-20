@@ -1263,5 +1263,7 @@
   "ai.preset_friendly": "🌟 Thân thiện, dễ thương & hữu ích (Mặc định)",
   "ai.preset_expert": "🎓 Chuyên gia cố vấn học tập & kỹ thuật",
   "ai.preset_gamer": "🎮 Gamer vui tính, hài hước & năng động",
-  "ai.preset_custom": "✍️ Tùy biến System Prompt riêng"
+  "ai.preset_custom": "✍️ Tùy biến System Prompt riêng",
+  "nav.github": "GitHub",
+  "nav.github_repo": "Mã nguồn GitHub"
 }

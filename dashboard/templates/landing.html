@@ -668,7 +668,7 @@
       <nav class="landing-nav-links">
         <a href="#features">{{ t('nav.features') }}</a>
         <a href="#all-in-one">{{ t('landing.all_in_one') }}</a>
-        <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer"><i class="bi bi-github"></i> GitHub</a>
+        <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer"><i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}</a>
         <a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a>
         <a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a>
       </nav>
@@ -728,7 +728,7 @@
           <i class="bi bi-compass"></i> {{ t('landing.btn_explore') }}
         </a>
         <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" class="btn-outline-pill" style="padding:14px 24px; font-size:1rem;">
-          <i class="bi bi-github"></i> GitHub
+          <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
         </a>
       </div>
     </div>
@@ -1080,7 +1080,7 @@
           <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
         </a>
         <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" class="btn-outline-pill" style="padding:8px 18px; font-size:0.85rem;">
-          <i class="bi bi-github"></i> GitHub
+          <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
         </a>
       </div>
     </div>
@@ -1099,7 +1099,7 @@
     <div class="footer-column">
       <h4>{{ t('nav.resources') }}</h4>
       <ul>
-        <li><a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer"><i class="bi bi-github" style="margin-right:4px;"></i> GitHub</a></li>
+        <li><a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer"><i class="bi bi-github" style="margin-right:4px;"></i> {{ t('nav.github_repo') | default('GitHub Repository') }}</a></li>
         <li><a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a></li>
         <li><a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a></li>
       </ul>

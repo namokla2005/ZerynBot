@@ -1263,5 +1263,7 @@
   "ai.preset_friendly": "🌟 亲切可爱、温柔且乐于助人（默认）",
   "ai.preset_expert": "🎓 学术与技术专家顾问",
   "ai.preset_gamer": "🎮 幽默风趣、活力满满的硬核高玩",
-  "ai.preset_custom": "✍️ 自定义专属 System Prompt 人设"
+  "ai.preset_custom": "✍️ 自定义专属 System Prompt 人设",
+  "nav.github": "GitHub",
+  "nav.github_repo": "GitHub 仓库源码"
 }

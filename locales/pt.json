@@ -1263,5 +1263,7 @@
   "ai.preset_friendly": "🌟 Amigável, Fofa e Prestativa (Padrão)",
   "ai.preset_expert": "🎓 Consultora Acadêmica e Técnica",
   "ai.preset_gamer": "🎮 Gamer Divertido, Enérgico e Bem-humorado",
-  "ai.preset_custom": "✍️ System Prompt Personalizado"
+  "ai.preset_custom": "✍️ System Prompt Personalizado",
+  "nav.github": "GitHub",
+  "nav.github_repo": "Repositório GitHub"
 }

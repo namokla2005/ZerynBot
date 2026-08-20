@@ -1263,5 +1263,7 @@
   "ai.preset_friendly": "🌟 Friendly, Cute & Helpful (Default)",
   "ai.preset_expert": "🎓 Academic & Technical Consultant",
   "ai.preset_gamer": "🎮 Energetic & Humorous Gamer",
-  "ai.preset_custom": "✍️ Custom System Prompt"
+  "ai.preset_custom": "✍️ Custom System Prompt",
+  "nav.github": "GitHub",
+  "nav.github_repo": "GitHub Repository"
 }
