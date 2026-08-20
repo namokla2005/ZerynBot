@@ -1108,6 +1108,12 @@ def server_commands(guild_id: str):
     cat_map = {
         "Tổng quan": t("commands.cat_overview", lang=ui_lang),
         "Tổng quát": t("commands.cat_overview", lang=ui_lang),
+        "Reaction Roles": t("nav.reactionroles", lang=ui_lang),
+        "Auto Roles": t("nav.autoroles", lang=ui_lang),
+        "Automods": t("nav.automods", lang=ui_lang),
+        "Leveling": t("nav.leveling", lang=ui_lang),
+        "Giveaways": t("nav.giveaways", lang=ui_lang),
+        "Tickets": t("nav.tickets", lang=ui_lang),
         "Thông tin": t("commands.cat_info", lang=ui_lang),
         "Music 🎵": t("commands.cat_music", lang=ui_lang),
         "Kinh tế & Shop": t("nav.economy", lang=ui_lang),

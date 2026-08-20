@@ -23,16 +23,16 @@
     </div>
     <div>
       <div style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin-bottom:2px;">
-        Hệ Thống Trí Tuệ Nhân Tạo Toàn Cục Đang Sẵn Sàng
+        {{ t('ai.banner_title') | default('Hệ Thống Trí Tuệ Nhân Tạo Toàn Cục Đang Sẵn Sàng') }}
       </div>
       <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-        Mô hình AI đám mây (Groq / Gemini) được bảo mật và cấu hình tập trung từ Chủ Bot (Admin Panel). Mọi máy chủ đều có thể sử dụng mượt mà và an toàn tuyệt đối.
+        {{ t('ai.banner_desc') | default('Mô hình AI đám mây (Groq / Gemini) được bảo mật và cấu hình tập trung từ Chủ Bot (Admin Panel). Mọi máy chủ đều có thể sử dụng mượt mà và an toàn tuyệt đối.') }}
       </div>
     </div>
   </div>
   <div style="display:flex; align-items:center; gap:6px; background:rgba(67,181,129,0.15); border:1px solid rgba(67,181,129,0.3); padding:6px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:#43b581;">
     <span style="width:8px; height:8px; border-radius:50%; background:#43b581; box-shadow:0 0 8px #43b581;"></span>
-    AI Active
+    {{ t('ai.badge_active') | default('AI Active') }}
   </div>
 </div>
 
@@ -45,13 +45,13 @@
         <i class="bi bi-sliders" style="color:var(--accent);"></i> {{ t('ai.sec_general') | default('Cài Đặt Chung') }}
       </div>
       <div class="card-desc" style="margin-bottom:18px;">
-        Thiết lập kênh trò chuyện tự động và phân quyền lệnh AI trên máy chủ của bạn.
+        {{ t('ai.sec_general_desc') | default('Thiết lập kênh trò chuyện tự động và phân quyền lệnh AI trên máy chủ của bạn.') }}
       </div>
       
       <div class="toggle-row" style="margin-bottom:18px;">
         <div class="toggle-info">
           <div class="toggle-label">{{ t('ai.enable_label') | default('Kích hoạt Kênh Chat AI') }}</div>
-          <div class="toggle-sublabel">Bot sẽ tự động trả lời khi thành viên nhắn tin trong kênh chỉ định</div>
+          <div class="toggle-sublabel">{{ t('ai.enable_sublabel') | default('Bot sẽ tự động trả lời khi thành viên nhắn tin trong kênh chỉ định') }}</div>
         </div>
         <label class="switch">
           <input type="checkbox" name="enabled" value="1" {% if ai_settings.enabled %}checked{% endif %}>
@@ -62,7 +62,7 @@
       <div class="form-group">
         <label class="form-label">{{ t('ai.channel_label') | default('Kênh Trò Chuyện AI (#ai-chat)') }}</label>
         <select name="ai_channel_id" class="form-control">
-          <option value="" {% if not ai_settings.ai_channel_id %}selected{% endif %}>— Chọn kênh chat tự động —</option>
+          <option value="" {% if not ai_settings.ai_channel_id %}selected{% endif %}>{{ t('ai.select_channel_placeholder') | default('— Chọn kênh chat tự động —') }}</option>
           {% for c in text_channels %}
           <option value="{{ c.channel_id }}" {% if ai_settings.ai_channel_id == c.channel_id|string %}selected{% endif %}># {{ c.channel_name }}</option>
           {% endfor %}
@@ -73,7 +73,7 @@
       <div class="form-group">
         <label class="form-label">{{ t('ai.rate_limit_label') | default('Giới hạn tin nhắn (Tin/phút/thành viên)') }}</label>
         <input type="number" name="rate_limit" class="form-control" value="{{ ai_settings.rate_limit or 5 }}" min="1" max="30">
-        <div class="form-hint">Chống spam tin nhắn liên tục trong kênh chat AI.</div>
+        <div class="form-hint">{{ t('ai.rate_limit_hint') | default('Chống spam tin nhắn liên tục trong kênh chat AI.') }}</div>
       </div>
 
       <div style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em; margin-top:20px; margin-bottom:10px;">
@@ -82,8 +82,8 @@
 
       <div class="toggle-row" style="margin-bottom:10px;">
         <div class="toggle-info">
-          <div class="toggle-label" style="font-size:0.82rem;">Lệnh <code>/ask &lt;câu hỏi&gt;</code></div>
-          <div class="toggle-sublabel">Cho phép thành viên đặt câu hỏi thông minh</div>
+          <div class="toggle-label" style="font-size:0.82rem;">{{ t('ai.cmd_ask_label') | default('Lệnh /ask <câu hỏi>') }}</div>
+          <div class="toggle-sublabel">{{ t('ai.cmd_ask_desc') | default('Cho phép thành viên đặt câu hỏi thông minh') }}</div>
         </div>
         <label class="switch">
           <input type="checkbox" name="allow_ask" value="1" {% if ai_settings.allow_ask %}checked{% endif %}>
@@ -93,8 +93,8 @@
 
       <div class="toggle-row" style="margin-bottom:0;">
         <div class="toggle-info">
-          <div class="toggle-label" style="font-size:0.82rem;">Lệnh <code>/summarize [limit]</code></div>
-          <div class="toggle-sublabel">Cho phép đọc & tóm tắt các tin nhắn gần nhất trong kênh</div>
+          <div class="toggle-label" style="font-size:0.82rem;">{{ t('ai.cmd_summarize_label') | default('Lệnh /summarize [limit]') }}</div>
+          <div class="toggle-sublabel">{{ t('ai.cmd_summarize_desc') | default('Cho phép đọc & tóm tắt các tin nhắn gần nhất trong kênh') }}</div>
         </div>
         <label class="switch">
           <input type="checkbox" name="allow_summarize" value="1" {% if ai_settings.allow_summarize %}checked{% endif %}>
@@ -109,22 +109,22 @@
         <i class="bi bi-person-gear" style="color:var(--accent);"></i> {{ t('ai.sec_personality') | default('Tính Cách AI & System Prompt') }}
       </div>
       <div class="card-desc" style="margin-bottom:18px;">
-        Định hình phong cách trả lời và giọng điệu của AI khi tương tác với thành viên trong server.
+        {{ t('ai.sec_personality_desc') | default('Định hình phong cách trả lời và giọng điệu của AI khi tương tác với thành viên trong server.') }}
       </div>
       
       <div class="form-group">
         <label class="form-label">{{ t('ai.preset_label') | default('Chọn phong cách tính cách mẫu') }}</label>
         <select name="personality_preset" class="form-control">
-          <option value="friendly" {% if ai_settings.personality_preset == 'friendly' %}selected{% endif %}>🌟 Thân thiện, dễ thương & hữu ích (Mặc định)</option>
-          <option value="expert" {% if ai_settings.personality_preset == 'expert' %}selected{% endif %}>🎓 Chuyên gia cố vấn học tập & kỹ thuật</option>
-          <option value="gamer" {% if ai_settings.personality_preset == 'gamer' %}selected{% endif %}>🎮 Gamer vui tính, hài hước & năng động</option>
-          <option value="custom" {% if ai_settings.personality_preset == 'custom' %}selected{% endif %}>✍️ Tùy biến System Prompt riêng</option>
+          <option value="friendly" {% if ai_settings.personality_preset == 'friendly' %}selected{% endif %}>{{ t('ai.preset_friendly') | default('🌟 Thân thiện, dễ thương & hữu ích (Mặc định)') }}</option>
+          <option value="expert" {% if ai_settings.personality_preset == 'expert' %}selected{% endif %}>{{ t('ai.preset_expert') | default('🎓 Chuyên gia cố vấn học tập & kỹ thuật') }}</option>
+          <option value="gamer" {% if ai_settings.personality_preset == 'gamer' %}selected{% endif %}>{{ t('ai.preset_gamer') | default('🎮 Gamer vui tính, hài hước & năng động') }}</option>
+          <option value="custom" {% if ai_settings.personality_preset == 'custom' %}selected{% endif %}>{{ t('ai.preset_custom') | default('✍️ Tùy biến System Prompt riêng') }}</option>
         </select>
       </div>
 
       <div class="form-group">
         <label class="form-label">{{ t('ai.custom_prompt_label') | default('Mô tả tính cách tùy biến (Custom System Prompt)') }}</label>
-        <textarea name="custom_prompt" class="form-control" rows="5" placeholder="VD: Bạn là quản gia quý tộc của gia tộc Zeryn, luôn trả lời lịch thiệp và xưng hô 'Kính thưa quý khách'...">{{ ai_settings.custom_prompt or '' }}</textarea>
+        <textarea name="custom_prompt" class="form-control" rows="5" placeholder="... ">{{ ai_settings.custom_prompt or '' }}</textarea>
         <div class="form-hint">{{ t('ai.custom_prompt_hint') | default('Chỉ áp dụng nếu bạn chọn "Tùy biến System Prompt riêng" hoặc muốn bổ sung chỉ dẫn đặc thù cho máy chủ.') }}</div>
       </div>
 

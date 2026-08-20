@@ -147,7 +147,7 @@
   <!-- Leveling & XP -->
   <div class="module-card {% if modules.get('leveling', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🌟</span> Leveling & XP</div>
+      <div class="mod-name"><span class="mod-icon">🌟</span> {{ t('nav.leveling') | default('Leveling & XP') }}</div>
       <div class="mod-desc">{{ t('dashboard.leveling_desc') }}</div>
       <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -164,7 +164,7 @@
   <!-- Utility -->
   <div class="module-card {% if modules.get('utility', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">⚙️</span> Utility</div>
+      <div class="mod-name"><span class="mod-icon">⚙️</span> {{ t('nav.utility') | default('Utility') }}</div>
       <div class="mod-desc">{{ t('dashboard.utility_desc') }}</div>
     </div>
     <label class="switch">
@@ -178,7 +178,7 @@
   <!-- Info -->
   <div class="module-card {% if modules.get('info', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">ℹ️</span> Info Commands</div>
+      <div class="mod-name"><span class="mod-icon">ℹ️</span> {{ t('nav.info') | default('Info Commands') }}</div>
       <div class="mod-desc">{{ t('dashboard.info_desc') }}</div>
     </div>
     <label class="switch">
@@ -192,7 +192,7 @@
   <!-- Music -->
   <div class="module-card {% if modules.get('music', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🎵</span> Music</div>
+      <div class="mod-name"><span class="mod-icon">🎵</span> {{ t('nav.music') | default('Music') }}</div>
       <div class="mod-desc">{{ t('dashboard.music_desc') }}</div>
       <a href="{{ url_for('server_music', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -209,7 +209,7 @@
   <!-- Tickets -->
   <div class="module-card {% if modules.get('tickets', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🎫</span> Ticket System</div>
+      <div class="mod-name"><span class="mod-icon">🎫</span> {{ t('nav.tickets') | default('Ticket System') }}</div>
       <div class="mod-desc">{{ t('dashboard.tickets_desc') }}</div>
       <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -226,7 +226,7 @@
   <!-- Reaction Roles -->
   <div class="module-card {% if modules.get('reactionroles', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">✨</span> Reaction Roles</div>
+      <div class="mod-name"><span class="mod-icon">✨</span> {{ t('nav.reactionroles') | default('Reaction Roles') }}</div>
       <div class="mod-desc">{{ t('dashboard.reactionroles_desc') }}</div>
       <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -243,7 +243,7 @@
   <!-- Automods -->
   <div class="module-card {% if modules.get('automods', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🛡️</span> Automods</div>
+      <div class="mod-name"><span class="mod-icon">🛡️</span> {{ t('nav.automods') | default('Automods') }}</div>
       <div class="mod-desc">{{ t('dashboard.automod_desc') }}</div>
       <a href="{{ url_for('server_automod', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -260,7 +260,7 @@
   <!-- Logger -->
   <div class="module-card {% if modules.get('logger', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">📝</span> Logging & Audit Log</div>
+      <div class="mod-name"><span class="mod-icon">📝</span> {{ t('nav.logger') | default('Logging & Audit Log') }}</div>
       <div class="mod-desc">{{ t('dashboard.logger_desc') }}</div>
       <a href="{{ url_for('server_logger', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -278,7 +278,7 @@
   <!-- Giveaways -->
   <div class="module-card {% if modules.get('giveaways', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🎁</span> Giveaways</div>
+      <div class="mod-name"><span class="mod-icon">🎁</span> {{ t('nav.giveaways') | default('Giveaways') }}</div>
       <div class="mod-desc">{{ t('dashboard.giveaway_desc') }}</div>
       <a href="#" style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; display:inline-flex; align-items:center; gap:4px; pointer-events: none;">
         {{ t('modules.configure_via_slash') }}
@@ -295,7 +295,7 @@
   <!-- Economy & Shop -->
   <div class="module-card {% if modules.get('economy', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🪙</span> Economy &amp; Shop</div>
+      <div class="mod-name"><span class="mod-icon">🪙</span> {{ t('nav.economy') | default('Economy & Shop') }}</div>
       <div class="mod-desc">{{ t('economy.page_subtitle') | default('Tiền tệ server, điểm danh hàng ngày, trò chơi và cửa hàng Role.') }}</div>
       <a href="{{ url_for('server_economy', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -312,7 +312,7 @@
   <!-- Temp Voice Hub -->
   <div class="module-card {% if modules.get('tempvoice', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🎙️</span> Temp Voice Hub</div>
+      <div class="mod-name"><span class="mod-icon">🎙️</span> {{ t('nav.tempvoice') | default('Temp Voice Hub') }}</div>
       <div class="mod-desc">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub.') }}</div>
       <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -329,7 +329,7 @@
   <!-- Custom Commands -->
   <div class="module-card {% if modules.get('customcommands', True) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">⚡</span> Custom Commands</div>
+      <div class="mod-name"><span class="mod-icon">⚡</span> {{ t('nav.customcommands') | default('Custom Commands') }}</div>
       <div class="mod-desc">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed theo từ khóa.') }}</div>
       <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
@@ -346,7 +346,7 @@
   <!-- AI Assistant -->
   <div class="module-card {% if modules.get('ai', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">
-      <div class="mod-name"><span class="mod-icon">🤖</span> AI Assistant</div>
+      <div class="mod-name"><span class="mod-icon">🤖</span> {{ t('nav.ai') | default('AI Assistant') }}</div>
       <div class="mod-desc">{{ t('ai.page_subtitle') | default('Trí tuệ nhân tạo Gemini: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện.') }}</div>
       <a href="{{ url_for('server_ai', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>

@@ -23,7 +23,7 @@
       <i class="bi bi-gear-wide-connected" style="color:var(--accent);"></i> {{ t('tempvoice.sec_config') | default('Cấu Hình Kênh Hub') }}
     </div>
     <div class="card-desc" style="margin-bottom:18px;">
-      Chọn kênh kích hoạt (Hub) và quy tắc tạo phòng tự động cho thành viên.
+      {{ t('tempvoice.sec_config_desc') | default('Chọn kênh kích hoạt (Hub) và quy tắc tạo phòng tự động cho thành viên.') }}
     </div>
 
     <form id="tempvoice-settings-form" method="POST" action="{{ url_for('server_tempvoice', guild_id=guild_id) }}">
@@ -31,7 +31,7 @@
       <div class="toggle-row" style="margin-bottom:18px;">
         <div class="toggle-info">
           <div class="toggle-label">{{ t('tempvoice.enable_label') | default('Kích hoạt Voice Hub') }}</div>
-          <div class="toggle-sublabel">Bật/tắt tính năng tự động tạo kênh voice trên server</div>
+          <div class="toggle-sublabel">{{ t('tempvoice.enable_sublabel') | default('Bật/tắt tính năng tự động tạo kênh voice trên server') }}</div>
         </div>
         <label class="switch">
           <input type="checkbox" name="enabled" value="1" {% if tv_settings.enabled %}checked{% endif %}>
@@ -42,7 +42,7 @@
       <div class="form-group">
         <label class="form-label">{{ t('tempvoice.hub_channel') | default('Kênh Voice Hub (Kênh kích hoạt)') }}</label>
         <select name="hub_channel_id" class="form-control">
-          <option value="" {% if not tv_settings.hub_channel_id %}selected{% endif %}>— Chọn kênh Voice Hub —</option>
+          <option value="" {% if not tv_settings.hub_channel_id %}selected{% endif %}>{{ t('tempvoice.select_hub_placeholder') | default('— Chọn kênh Voice Hub —') }}</option>
           {% for c in voice_channels %}
           <option value="{{ c.channel_id }}" {% if tv_settings.hub_channel_id == c.channel_id|string %}selected{% endif %}>🔊 {{ c.channel_name }}</option>
           {% endfor %}
@@ -53,7 +53,7 @@
       <div class="form-group">
         <label class="form-label">{{ t('tempvoice.category_label') | default('Danh mục (Category) chứa phòng mới') }}</label>
         <select name="category_id" class="form-control">
-          <option value="" {% if not tv_settings.category_id %}selected{% endif %}>— Cùng danh mục với kênh Hub (Mặc định) —</option>
+          <option value="" {% if not tv_settings.category_id %}selected{% endif %}>{{ t('tempvoice.select_category_placeholder') | default('— Cùng danh mục với kênh Hub (Mặc định) —') }}</option>
           {% for cat in categories %}
           <option value="{{ cat.channel_id }}" {% if tv_settings.category_id == cat.channel_id|string %}selected{% endif %}>📁 {{ cat.channel_name }}</option>
           {% endfor %}
@@ -79,16 +79,16 @@
       <i class="bi bi-activity" style="color:var(--success);"></i> {{ t('tempvoice.sec_active') | default('Phòng Voice Đang Hoạt Động') }}
     </div>
     <div class="card-desc" style="margin-bottom:18px;">
-      Giám sát các phòng voice tạm thời do thành viên tạo trong thời gian thực.
+      {{ t('tempvoice.sec_active_desc') | default('Giám sát các phòng voice tạm thời do thành viên tạo trong thời gian thực.') }}
     </div>
 
     <div style="overflow-x:auto;">
       <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
         <thead>
           <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em;">
-            <th style="padding:10px 8px;">ID Kênh</th>
-            <th style="padding:10px 8px;">Chủ phòng (Owner ID)</th>
-            <th style="padding:10px 8px;">Trạng thái</th>
+            <th style="padding:10px 8px;">{{ t('tempvoice.th_channel_id') | default('ID Kênh') }}</th>
+            <th style="padding:10px 8px;">{{ t('tempvoice.th_owner') | default('Chủ phòng (Owner ID)') }}</th>
+            <th style="padding:10px 8px;">{{ t('tempvoice.th_status') | default('Trạng thái') }}</th>
             <th style="padding:10px 8px; text-align:right;">{{ t('common.actions') | default('Hành động') }}</th>
           </tr>
         </thead>
@@ -100,17 +100,17 @@
             <td style="padding:12px 8px;">
               {% if ch.is_locked %}
               <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--danger-bg); color:var(--danger); font-weight:600;">
-                <i class="bi bi-lock-fill"></i> Đã khóa
+                <i class="bi bi-lock-fill"></i> {{ t('tempvoice.status_locked') | default('Đã khóa') }}
               </span>
               {% else %}
               <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--success-bg); color:var(--success); font-weight:600;">
-                <i class="bi bi-unlock-fill"></i> Công khai
+                <i class="bi bi-unlock-fill"></i> {{ t('tempvoice.status_public') | default('Công khai') }}
               </span>
               {% endif %}
             </td>
             <td style="padding:12px 8px; text-align:right;">
               <form method="POST" action="{{ url_for('server_tempvoice_delete_channel', guild_id=guild_id, channel_id=ch.channel_id) }}" style="display:inline;">
-                <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="Xóa phòng">
+                <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="{{ t('common.delete') | default('Xóa phòng') }}">
                   <i class="bi bi-trash"></i>
                 </button>
               </form>

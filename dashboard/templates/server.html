@@ -158,7 +158,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">⚙️</div>
     <div class="fast-card-title">
-      Utility
+      {{ t('nav.utility') | default('Utility') }}
       <span class="server-chip {% if modules.get('utility', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('utility', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -172,7 +172,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🎵</div>
     <div class="fast-card-title">
-      Music
+      {{ t('nav.music') | default('Music') }}
       <span class="server-chip {% if modules.get('music', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('music', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -186,7 +186,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🎫</div>
     <div class="fast-card-title">
-      Ticket System
+      {{ t('nav.tickets') | default('Ticket System') }}
       <span class="server-chip {% if modules.get('tickets', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('tickets', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -200,7 +200,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🪪</div>
     <div class="fast-card-title">
-      Auto Roles
+      {{ t('nav.autoroles') | default('Auto Roles') }}
       <span class="server-chip {% if modules.get('autoroles', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('autoroles', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -214,7 +214,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">✨</div>
     <div class="fast-card-title">
-      Reaction Roles
+      {{ t('nav.reactionroles') | default('Reaction Roles') }}
       <span class="server-chip {% if modules.get('reactionroles', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('reactionroles', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -228,7 +228,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🛡️</div>
     <div class="fast-card-title">
-      Automods
+      {{ t('nav.automods') | default('Automods') }}
       <span class="server-chip {% if modules.get('automods', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('automods', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -243,7 +243,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">⭐</div>
     <div class="fast-card-title">
-      Leveling &amp; XP
+      {{ t('nav.leveling') | default('Leveling & XP') }}
       <span class="server-chip {% if modules.get('leveling', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('leveling', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -257,7 +257,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">📖</div>
     <div class="fast-card-title">
-      Logging &amp; Audit Log
+      {{ t('nav.logger') | default('Logging & Audit Log') }}
       <span class="server-chip {% if modules.get('logger', False) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('logger', False) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -271,7 +271,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🎁</div>
     <div class="fast-card-title">
-      Giveaways
+      {{ t('nav.giveaways') | default('Giveaways') }}
       <span class="server-chip {% if modules.get('giveaways', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('giveaways', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -286,7 +286,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🪙</div>
     <div class="fast-card-title">
-      Economy &amp; Shop
+      {{ t('nav.economy') | default('Economy & Shop') }}
       <span class="server-chip {% if modules.get('economy', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('economy', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -301,7 +301,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🎙️</div>
     <div class="fast-card-title">
-      Temp Voice Hub
+      {{ t('nav.tempvoice') | default('Temp Voice Hub') }}
       <span class="server-chip {% if modules.get('tempvoice', False) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('tempvoice', False) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -316,7 +316,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">⚡</div>
     <div class="fast-card-title">
-      Custom Commands
+      {{ t('nav.customcommands') | default('Custom Commands') }}
       <span class="server-chip {% if modules.get('customcommands', True) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('customcommands', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
@@ -331,7 +331,7 @@
   <div class="fast-card">
     <div class="fast-card-icon">🤖</div>
     <div class="fast-card-title">
-      AI Assistant
+      {{ t('nav.ai') | default('AI Assistant') }}
       <span class="server-chip {% if modules.get('ai', False) %}chip-bot{% else %}chip-invite{% endif %}"
             style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
         {% if modules.get('ai', False) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}

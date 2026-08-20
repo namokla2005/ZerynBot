@@ -42,20 +42,20 @@
       <i class="bi bi-sliders" style="color:var(--accent);"></i> {{ t('economy.sec_settings') | default('Cấu Hình Phần Thưởng') }}
     </div>
     <div class="card-desc" style="margin-bottom:18px;">
-      Thiết lập giá trị tiền thưởng điểm danh và đơn vị tiền tệ cho server.
+      {{ t('economy.sec_settings_desc') | default('Thiết lập giá trị tiền thưởng điểm danh và đơn vị tiền tệ cho server.') }}
     </div>
 
     <form id="economy-settings-form" method="POST" action="{{ url_for('server_economy', guild_id=guild_id) }}">
       <div class="form-group">
         <label class="form-label">{{ t('economy.label_daily') | default('Tiền thưởng Daily cơ bản') }}</label>
         <input type="number" name="daily_amount" class="form-control" value="{{ eco_settings.daily_amount }}" min="1" required>
-        <div class="form-hint">Số tiền thưởng thành viên nhận được khi gõ lệnh <code>/daily</code>.</div>
+        <div class="form-hint">{{ t('economy.label_daily_hint') | default('Số tiền thưởng thành viên nhận được khi gõ lệnh /daily.') }}</div>
       </div>
 
       <div class="form-group">
         <label class="form-label">{{ t('economy.label_streak') | default('Thưởng chuỗi ngày (Streak bonus mỗi ngày)') }}</label>
         <input type="number" name="streak_bonus" class="form-control" value="{{ eco_settings.streak_bonus }}" min="0" required>
-        <div class="form-hint">Cộng thêm mỗi ngày liên tiếp (Ví dụ: ngày 2 +20, ngày 3 +40...).</div>
+        <div class="form-hint">{{ t('economy.label_streak_hint') | default('Cộng thêm mỗi ngày liên tiếp (Ví dụ: ngày 2 +20, ngày 3 +40...).') }}</div>
       </div>
 
       <div class="form-group">
@@ -83,7 +83,7 @@
         <div class="card-title" style="margin-bottom:2px;">
           <i class="bi bi-shop" style="color:var(--accent);"></i> {{ t('economy.sec_shop') | default('Cửa Hàng Role Server') }}
         </div>
-        <div class="card-desc">Thành viên dùng tiền ảo mua Role qua lệnh <code>/shop</code> & <code>/buy</code>.</div>
+        <div class="card-desc">{{ t('economy.sec_shop_desc') | default('Thành viên dùng tiền ảo mua Role qua lệnh /shop & /buy.') }}</div>
       </div>
       <button type="button" class="btn btn-primary btn-sm" onclick="openModal('addItemModal')">
         <i class="bi bi-plus-lg"></i> {{ t('economy.btn_add_item') | default('Thêm Role Bán') }}
@@ -96,7 +96,7 @@
           <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em;">
             <th style="padding:10px 8px;">ID</th>
             <th style="padding:10px 8px;">{{ t('economy.th_item_name') | default('Tên hiển thị') }}</th>
-            <th style="padding:10px 8px;">Role Discord</th>
+            <th style="padding:10px 8px;">{{ t('economy.th_role') | default('Role Discord') }}</th>
             <th style="padding:10px 8px;">{{ t('economy.th_price') | default('Giá') }}</th>
             <th style="padding:10px 8px;">{{ t('economy.th_stock') | default('Tồn kho') }}</th>
             <th style="padding:10px 8px; text-align:right;">{{ t('common.actions') | default('Hành động') }}</th>
@@ -127,8 +127,8 @@
               {% endif %}
             </td>
             <td style="padding:12px 8px; text-align:right;">
-              <form method="POST" action="{{ url_for('server_economy_delete_item', guild_id=guild_id, item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('Bạn có chắc muốn xóa vật phẩm này?');">
-                <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="Xóa">
+              <form method="POST" action="{{ url_for('server_economy_delete_item', guild_id=guild_id, item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('economy.confirm_delete_item') | default('Bạn có chắc muốn xóa vật phẩm Role này?') }}');">
+                <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="{{ t('common.delete') | default('Xóa') }}">
                   <i class="bi bi-trash"></i>
                 </button>
               </form>
@@ -163,9 +163,9 @@
           <input type="text" name="name" class="form-control" placeholder="VD: VIP Member Role" required>
         </div>
         <div class="form-group">
-          <label class="form-label">Chọn Role Discord Cần Bán</label>
+          <label class="form-label">{{ t('economy.modal_select_role') | default('Chọn Role Discord Cần Bán') }}</label>
           <select name="role_id" class="form-control" required>
-            <option value="" disabled selected>— Chọn role cần bán —</option>
+            <option value="" disabled selected>{{ t('economy.modal_select_role_placeholder') | default('— Chọn role cần bán —') }}</option>
             {% for r in roles %}
             <option value="{{ r.role_id }}">@{{ r.role_name }}</option>
             {% endfor %}
