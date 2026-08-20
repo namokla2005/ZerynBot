@@ -147,9 +147,6 @@ YDL_OPTS = {
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS["cookiefile"] = _COOKIE_FILE
 
-# ─── URL Cache (TTL 10 phút) ───────────────────────────────────────────────────
-_url_cache: dict[str, tuple] = {}
-_cache_lock = asyncio.Lock()
 _extract_semaphore = asyncio.Semaphore(3)
 
 
@@ -216,31 +213,14 @@ async def extract_info(query: str) -> dict | None:
     if cached is not None:
         return cached
 
-    # 2. Kiểm tra bộ nhớ RAM cục bộ
-    async with _cache_lock:
-        if key in _url_cache:
-            info, expire = _url_cache[key]
-            if time.time() < expire:
-                return info
-            else:
-                _url_cache.pop(key, None)
-
-    # 3. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
+    # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
     async with _extract_semaphore:
         loop = asyncio.get_running_loop()
         info = await loop.run_in_executor(None, _extract_sync, query)
 
     if info:
-        # Lưu vào In-Memory Cache
+        # Lưu vào In-Memory Cache (TTL 10 phút)
         await cache.aset(cache_key, info, ttl=600)
-
-        # Giới hạn RAM cục bộ (max 100 entries)
-        async with _cache_lock:
-            if len(_url_cache) > 100:
-                old_keys = list(_url_cache.keys())[:20]
-                for k in old_keys:
-                    _url_cache.pop(k, None)
-            _url_cache[key] = (info, time.time() + 600)
 
     return info
 

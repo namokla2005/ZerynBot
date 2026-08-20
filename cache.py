@@ -22,7 +22,28 @@ class MemoryCache:
         self._lock = threading.RLock()
         self._max_size = max_size
         self.enabled = True
+        self._cleanup_task = None
+        self._schedule_periodic_cleanup()
         logger.info("✅  In-Memory RAM Cache initialized (Zero Redis dependency)")
+
+    def _schedule_periodic_cleanup(self):
+        """Lên lịch dọn dẹp key hết hạn sau 5 phút."""
+        self._cleanup_task = threading.Timer(300, self._periodic_cleanup)
+        self._cleanup_task.daemon = True
+        self._cleanup_task.start()
+
+    def _periodic_cleanup(self):
+        """Dọn key expired định kỳ mỗi 5 phút để tránh tích lũy RAM."""
+        try:
+            now = time.time()
+            with self._lock:
+                expired = [k for k, (_, exp) in self._store.items() if exp < now]
+                for k in expired:
+                    self._store.pop(k, None)
+        except Exception:
+            pass
+        finally:
+            self._schedule_periodic_cleanup()
 
     def _cleanup_expired(self):
         """Internal cleanup of expired keys if cache exceeds capacity."""
