@@ -193,11 +193,21 @@ async def _resolve_external_url(query: str) -> str:
     return query
 
 
+def clean_youtube_query(query: str) -> str:
+    """Chuẩn hóa URL YouTube, loại bỏ các tham số rác (&list=, ?si=, &ab_channel=) để tránh bị nhận diện nhầm thành playlist tab."""
+    q = query.strip()
+    match = re.search(r"(?:v=|\/|vi=)([0-9A-Za-z_-]{11})(?:[&?]|$|\/)", q)
+    if match and any(domain in q.lower() for domain in ["youtube.com", "youtu.be"]):
+        video_id = match.group(1)
+        return f"https://www.youtube.com/watch?v={video_id}"
+    return q
+
+
 def _extract_sync(query: str) -> dict | None:
     """Đồng bộ yt-dlp (chạy trong thread pool)."""
     try:
         with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            clean_q = query.strip()
+            clean_q = clean_youtube_query(query)
             if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
                 clean_q = f"ytsearch1:{clean_q}"
             elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
@@ -221,13 +231,13 @@ def _extract_sync(query: str) -> dict | None:
 def _extract_metadata_sync(query: str) -> dict | None:
     """Trích xuất nhanh metadata bài hát qua Flat Extraction (< 1s)."""
     try:
-        with yt_dlp.YoutubeDL(YDL_OPTS_FLAT) as ydl:
-            clean_q = query.strip()
-            if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
-                clean_q = f"ytsearch1:{clean_q}"
-            elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
-                clean_q = clean_q.replace("ytsearch:", "ytsearch1:", 1)
+        clean_q = clean_youtube_query(query)
+        if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
+            clean_q = f"ytsearch1:{clean_q}"
+        elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
+            clean_q = clean_q.replace("ytsearch:", "ytsearch1:", 1)
 
+        with yt_dlp.YoutubeDL(YDL_OPTS_FLAT) as ydl:
             info = ydl.extract_info(clean_q, download=False)
             if not info:
                 return None
@@ -237,6 +247,14 @@ def _extract_metadata_sync(query: str) -> dict | None:
                     info = entries[0]
                 else:
                     return None
+
+            # Fallback nếu flat extraction trả về entry thiếu title
+            if isinstance(info, dict) and not info.get("title") and info.get("id"):
+                v_id = info["id"]
+                direct_url = f"https://www.youtube.com/watch?v={v_id}"
+                fallback_info = ydl.extract_info(direct_url, download=False)
+                if fallback_info and fallback_info.get("title"):
+                    info = fallback_info
             return info
     except Exception as e:
         log.warning(f"[Music] yt-dlp flat metadata error for query '{query}': {e}")
@@ -1132,9 +1150,10 @@ class Music(commands.Cog, name="Music"):
         thumbnail = _get_best_thumbnail(info)
         video_id = info.get("id", "")
         webpage_url = info.get("webpage_url") or (f"https://www.youtube.com/watch?v={video_id}" if video_id else info.get("url", ""))
+        song_title = info.get("title") or info.get("fulltitle") or query.strip()
 
         await db.async_add_track_to_playlist(pl["id"], {
-            "title": info.get("title", "Unknown"),
+            "title": song_title,
             "id":    video_id,
             "webpage_url": webpage_url,
             "duration": info.get("duration") or -1,
@@ -1142,7 +1161,7 @@ class Music(commands.Cog, name="Music"):
             "thumbnail": thumbnail,
             "url": "",
         })
-        await ctx.send(tr(s, "music.pl_added_song", title=info.get('title'), name=name))
+        await ctx.send(tr(s, "music.pl_added_song", title=song_title, name=name))
 
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
         """Nạp ngầm các bài còn lại từ playlist vào hàng chờ (giới hạn MAX_BG_LOAD bài)."""
