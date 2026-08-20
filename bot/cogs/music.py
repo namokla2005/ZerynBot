@@ -761,6 +761,12 @@ class Music(commands.Cog, name="Music"):
                 await ctx.send(tr(s, "music.bot_in_other_voice"))
                 return None
             player.text_channel = ctx.channel
+            # Đảm bảo bot luôn tự động tắt nghe (self_deaf)
+            if ctx.guild.me.voice and not ctx.guild.me.voice.self_deaf:
+                try:
+                    await ctx.guild.change_voice_state(channel=player.vc.channel, self_deaf=True)
+                except Exception:
+                    pass
             return player
 
         # Kiểm tra giới hạn số player đồng thời
@@ -772,7 +778,7 @@ class Music(commands.Cog, name="Music"):
             return None
 
         try:
-            vc = await ctx.author.voice.channel.connect()
+            vc = await ctx.author.voice.channel.connect(self_deaf=True)
         except Exception as e:
             await ctx.send(tr(s, "music.cannot_connect", err=e))
             return None
