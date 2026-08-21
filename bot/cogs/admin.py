@@ -1,4 +1,4 @@
-import sys, os, zipfile, io, shutil, logging
+import sys, os, time, zipfile, io, shutil, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import discord
@@ -58,8 +58,9 @@ class Admin(commands.Cog):
                         except Exception:
                             pass
 
-            # 3. Gửi file backup về Discord Webhook nếu có cấu hình
-            if config.WEBHOOK_LOG_URL:
+            # 3. Gửi file backup về Discord Webhook chuyên dụng (BACKUP_DB)
+            backup_webhook = config.BACKUP_DB_URL or config.WEBHOOK_LOG_URL
+            if backup_webhook:
                 import aiohttp
                 size_kb = round(os.path.getsize(zip_path) / 1024, 2)
                 async with aiohttp.ClientSession() as session:
@@ -67,10 +68,10 @@ class Admin(commands.Cog):
                         form = aiohttp.FormData()
                         form.add_field(
                             "payload_json",
-                            f'{{"embeds": [{{"title": "📦 Bản Sao Lưu Tự Động 24h", "description": "✅ Đã tạo và lưu trữ thành công bản sao lưu `bot.db` định kỳ.\\n📁 Dung lượng: **{size_kb} KB**", "color": 5763719, "timestamp": "{datetime.now(timezone.utc).isoformat()}"}}]}}'
+                            f'{{"embeds": [{{"title": "📦 Bản Sao Lưu Tự Động 24h (Database Backup)", "description": "✅ Đã tạo và lưu trữ thành công bản sao lưu `bot.db` định kỳ.\\n📁 **Dung lượng:** `{size_kb} KB`\\n⏱️ **Thời gian:** <t:{int(time.time())}:F>", "color": 5763719, "timestamp": "{datetime.now(timezone.utc).isoformat()}"}}]}}'
                         )
                         form.add_field("file", f, filename=zip_filename, content_type="application/zip")
-                        await session.post(config.WEBHOOK_LOG_URL, data=form)
+                        await session.post(backup_webhook, data=form)
         except Exception as e:
             logger.warning(f"[Auto-Backup] Error during auto backup: {e}")
 
@@ -234,6 +235,23 @@ class Admin(commands.Cog):
             )
             embed.set_footer(text="Bản sao lưu chứa toàn bộ cấu hình, level, kinh tế và playlist")
             await ctx.send(embed=embed, file=file, ephemeral=True)
+
+            # Gửi thêm 1 bản lưu trữ lên Webhook BACKUP_DB
+            backup_webhook = config.BACKUP_DB_URL
+            if backup_webhook:
+                try:
+                    import aiohttp
+                    zip_buffer.seek(0)
+                    async with aiohttp.ClientSession() as session:
+                        form = aiohttp.FormData()
+                        form.add_field(
+                            "payload_json",
+                            f'{{"embeds": [{{"title": "📦 Bản Sao Lưu Thủ Công (/backup)", "description": "👑 **Người thực hiện:** <@{ctx.author.id}>\\n📁 **Dung lượng:** `{size_kb} KB`\\n⏱️ **Thời gian:** <t:{int(time.time())}:F>", "color": 5763719, "timestamp": "{datetime.now(timezone.utc).isoformat()}"}}]}}'
+                        )
+                        form.add_field("file", zip_buffer.getvalue(), filename=filename, content_type="application/zip")
+                        await session.post(backup_webhook, data=form)
+                except Exception as ex:
+                    logger.warning(f"Failed to forward backup to BACKUP_DB webhook: {ex}")
         except Exception as e:
             await ctx.send(f"❌ Lỗi khi tạo bản sao lưu: `{e}`", ephemeral=True)
 

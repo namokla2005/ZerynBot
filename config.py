@@ -21,6 +21,7 @@ BOT_OWNER_ID: int   = int(_owner) if _owner.isdigit() else 0
 GLOBAL_COOLDOWN: int = 3 # Giới hạn 3 giây/lệnh
 WEBHOOK_LOG_URL: str = os.getenv("WEBHOOK_LOG_URL", "")
 STATUS_WEBHOOK_URL: str = os.getenv("STATUS_WEBHOOK_URL", "")
+BACKUP_DB_URL: str = os.getenv("BACKUP_DB", "") or os.getenv("BACKUP_WEBHOOK_URL", "")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
 # ─── Dashboard ─────────────────────────────────────────────────────────────────
