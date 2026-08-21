@@ -4,19 +4,20 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1265%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1289%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/Modules-16%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="16 Modules">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện, bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (16 Modules & 55 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
 ## 📚 Tài Liệu Kiến Trúc (Cho Developers & AI)
 
 Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho các lập trình viên và trợ lý AI:
-- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1265 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
+- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1289 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
 
 ---
 
@@ -24,29 +25,38 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1265 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1289 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
-### 🧠 2. Trí Tuệ Nhân Tạo (AI Assistant & Chatbot)
+### ⏰ 2. Nhắc Nhở & Hẹn Giờ Thông Minh (Smart Reminders)
+- Hẹn giờ linh hoạt bằng lệnh `/remindme`: hỗ trợ mốc thời gian đa dạng (`10m`, `1h30m`, `2d`, hoặc mốc giờ cụ thể trong ngày như `20:30`).
+- Tự động gửi thông báo ping trực tiếp tại kênh chat hoặc qua tin nhắn riêng (DM).
+- Quản lý danh sách lịch hẹn với `/reminders` và hủy hẹn giờ với `/delreminder <id>`.
+
+### 📦 3. Sao Lưu Tự Động & Bảo Trì Dữ Liệu (24h Auto Backup & WAL Checkpoint)
+- **Tác vụ ngầm 24h (`auto_backup_task`)**: Tự động dọn dẹp WAL (`PRAGMA wal_checkpoint(TRUNCATE);`), nén cơ sở dữ liệu `data/bot.db` thành file `.zip`, lưu trữ có giới hạn 7 ngày và gửi backup về Discord qua `WEBHOOK_LOG_URL`.
+- **Lệnh Chủ Bot `/backup`**: Cho phép Bot Owner tải về bản sao lưu database toàn vẹn ngay lập tức.
+
+### 🧠 4. Trí Tuệ Nhân Tạo (AI Assistant & Chatbot)
 - **Tích hợp mô hình AI hiện đại**: Gemini, OpenAI, Claude với khả năng hội thoại thông minh, tóm tắt tin nhắn kênh chat (`/ai summarize`) và trả lời câu hỏi (`/ai ask`).
-- **Tùy biến nhân cách AI**: Lựa chọn các preset phong cách (thân thiện, hài hước, chuyên nghiệp, Tsundere) hoặc nhập system prompt riêng biệt theo từng Server.
+- **Tùy biến nhân cách AI (Custom System Prompt)**: Lựa chọn các preset phong cách (thân thiện, hài hước, chuyên nghiệp, Tsundere) hoặc nhập prompt riêng biệt theo từng Server ngay trên Dashboard.
 - **Hỗ trợ Multi-Key & Channel Lock**: Khóa kênh chat AI riêng biệt và quản lý API Key linh hoạt.
 
-### 🔊 3. Kênh Voice Tạm Thời (TempVoice Hub)
+### 🔊 5. Kênh Voice Tạm Thời (TempVoice Hub)
 - **Cơ chế Join-to-Create**: Tự động tạo phòng Voice riêng biệt khi thành viên tham gia vào kênh Hub.
 - **Bảng điều khiển tương tác (Interactive Control Panel)**: Đổi tên phòng, đặt giới hạn số người (User Limit), Khóa/Mở phòng Voice (`/voice lock`, `/voice unlock`, `/voice limit`, `/voice rename`).
 - **Tự động dọn dẹp (Auto Cleanup)**: Tự động xóa phòng Voice rác ngay khi không còn ai trong phòng.
 
-### 💰 4. Hệ Thống Kinh Tế Ảo (Virtual Economy & Shop)
+### 💰 6. Hệ Thống Kinh Tế Ảo (Virtual Economy & Shop)
 - **Hệ thống tiền tệ ảo**: Lệnh `/balance`, `/daily` (hỗ trợ tính chuỗi streak nhận thưởng thêm), `/transfer` chuyển tiền giữa các thành viên.
 - **Cửa hàng máy chủ (Server Shop)**: Lệnh `/shop` và `/buy` cho phép mua các Role phần thưởng độc quyền với số lượng giới hạn (Stock limit).
 
-### 💬 5. Lệnh Tùy Biến (Custom Commands & Auto-Responders)
+### 💬 7. Lệnh Tùy Biến (Custom Commands & Auto-Responders)
 - **Tạo phản hồi tự động**: Lệnh `/customcmd add`, `/customcmd list`, `/customcmd delete` hỗ trợ đối sánh từ khóa linh hoạt (`exact`, `contains`, `startswith`).
 - **Thống kê lượt sử dụng**: Theo dõi chi tiết số lần kích hoạt của từng lệnh trên Dashboard.
 
-### 🎵 6. Module Nhạc Siêu Tốc & Lofi 24/7 (Music Pipeline)
+### 🎵 8. Module Nhạc Siêu Tốc & Lofi 24/7 (Music Pipeline)
 - **Tối ưu hóa âm thanh ARM**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ đệm tối ưu hóa giúp **khởi động bài hát < 0.8 giây**.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.
 - **Khóa đồng bộ chống xung đột (Atomic Play Lock)**: Loại bỏ triệt để lỗi `Already playing audio` khi người dùng spam lệnh.
@@ -54,28 +64,28 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
 - **Điều khiển phong phú**: Bổ sung lệnh `/volume <1-150>` (chỉnh âm lượng sống động), `/shuffle` (trộn ngẫu nhiên hàng chờ), `/replay`, `/lofi` (SomaFM & YouTube Radio), quản lý Playlist cá nhân & máy chủ.
 - **Giao diện Compact Interactive View**: Embed hiển thị nhỏ gọn kèm thanh trạng thái và nút bấm tương tác trực quan.
 
-### 🛡️ 7. Kiểm Duyệt Tự Động (AutoMod)
+### 🛡️ 9. Kiểm Duyệt Tự Động (AutoMod)
 - **Bộ lọc đa lớp**: Anti-Spam (cửa sổ trượt 5s), Banned Words Filter, Fake Link / Phishing Filter, Anti-Invite Links, Anti-Caps Lock (>70%), Anti-Mass Ping.
 - **Phạt tự động**: Cảnh cáo công khai + DM chi tiết, Tạm khóa chat (Timeout) linh hoạt từ 1 phút đến 24 giờ.
 - **Whitelist**: Hỗ trợ Role Whitelist & Channel Whitelist linh hoạt.
 
-### 🎫 8. Hệ Thống Support Ticket (Ticket System)
+### 🎫 10. Hệ Thống Support Ticket (Ticket System)
 - Tạo nhiều bảng Ticket tương tác với nút bấm tuỳ chỉnh màu sắc & biểu tượng.
 - Tạo kênh chat riêng tư kèm phân quyền bảo mật chặt chẽ cho đội ngũ Support.
 - Quy trình Đóng / Xóa ticket có đếm ngược trực quan và ghi log chi tiết.
 
-### ⭐ 9. Hệ Thống Cấp Độ (Leveling & Rank Cards)
+### ⭐ 11. Hệ Thống Cấp Độ (Leveling & Rank Cards)
 - Tính điểm XP linh hoạt từ Chat text (cooldown 60s) và Voice channel (quét định kỳ 90s).
 - Tạo ảnh thẻ Rank Card trực quan bằng thư viện Pillow (`PIL`).
 - Tự động trao Role phần thưởng khi đạt mốc Level (hỗ trợ tích lũy Role hoặc thay thế).
 - Quản trị viên dễ dàng quản lý XP với các lệnh `/xp add`, `/xp set`, `/xp reset`.
 
-### 🎉 10. Giveaway Tự Động
+### 🎉 12. Giveaway Tự Động
 - Khởi tạo & quản lý sự kiện nhận quà bằng lệnh `/giveaway start/end/reroll`.
 - Nút bấm tham gia thời gian thực, tự động cập nhật số lượng người tham gia.
 - Cơ chế bảo vệ chống race-condition (tránh trao giải lặp lại 2 lần).
 
-### 🌐 11. Web Dashboard Quản Trị Server (Flask + Discord OAuth2)
+### 🌐 13. Web Dashboard Quản Trị Server (Flask + Discord OAuth2)
 - **Giao diện Midnight Violet Slate (`#120e24`) & CSS v9.2**: Thiết kế kính mờ Glassmorphism sang trọng, ấm áp, chống mỏi mắt.
 - **Bảo Mật & Điều Khoản Chuyên Nghiệp**: Trang Điều khoản dịch vụ (`/tos`) và Chính sách bảo mật (`/privacy`) chuẩn pháp lý với thanh mục lục cố định (Sticky TOC) và hỗ trợ in/xuất PDF.
 - **Trang Admin dành cho Bot Owner (`/admin`)**:
@@ -83,7 +93,7 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
   - **Web Terminal**: Nhập lệnh shell trực tiếp trên trình duyệt (tương thích 100% Android Termux/Linux).
   - **Git Pull & Restart 1-Click**: Cập nhật mã nguồn từ GitHub và khởi động lại bot ngay trên Web.
 
-### 📜 12. Các Module Khác
+### 📜 14. Các Module Khác
 - 🎭 **Reaction Roles**: Tự động cấp Role qua Reaction hoặc Button.
 - 📊 **Audit Logger**: Ghi log chi tiết tin nhắn sửa/xóa, thành viên ra/vào, kick/ban, thay đổi Role, kênh, ticket.
 - 🤖 **Auto Roles**: Tự động cấp Role ban đầu cho User và Bot khi tham gia server.
@@ -181,21 +191,21 @@ ZerynBot/
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
-├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1187 keys/file)
+├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1289 keys/file)
 ├── requirements.txt     # Danh sách thư viện Python
 ├── .agents/             # Skill & Cấu hình dành cho Trợ lý AI
 ├── bot/                 # 🤖 Discord Bot Source Code
 │   ├── bot.py           # Entry point của Discord Bot & Webhook Logger
 │   ├── card_generator.py# Render ảnh Rank Card, Welcome/Goodbye Banner bằng Pillow
 │   ├── checks.py        # Kiểm tra quyền hạn & Bot Admin
-│   └── cogs/            # 18 Cogs chức năng (ai, tempvoice, economy, customcommands, music, automod, ...)
+│   └── cogs/            # 19 Cogs chức năng (remind, ai, tempvoice, economy, customcommands, music, automod, ...)
 ├── dashboard/           # 🌐 Flask Web Dashboard
 │   ├── app.py           # Routes chính của Dashboard
 │   ├── api.py           # AJAX API Endpoints
 │   ├── auth.py          # Discord OAuth2 Session Manager
 │   ├── static/          # CSS (v9.2), JS, Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Violet Slate theme)
-├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1187 keys/file
+├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1289 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh)
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```
