@@ -38,9 +38,9 @@ class Info(commands.Cog):
         text_ch  = len(guild.text_channels)
         voice_ch = len(guild.voice_channels)
         cats     = len(guild.categories)
-        total    = guild.member_count
+        total    = guild.member_count or len(guild.members) or 1
         bots     = sum(1 for m in guild.members if m.bot)
-        humans   = total - bots
+        humans   = max(0, total - bots)
 
         verif_map = {
             discord.VerificationLevel.none:    tr(s, "info.verify_none"),
@@ -49,6 +49,8 @@ class Info(commands.Cog):
             discord.VerificationLevel.high:    tr(s, "info.verify_high"),
             discord.VerificationLevel.highest: tr(s, "info.verify_highest"),
         }
+
+        owner_val = guild.owner.mention if guild.owner else f"<@{guild.owner_id}>"
 
         embed = discord.Embed(
             title=tr(s, "info.serverinfo_title", server=guild.name),
@@ -61,8 +63,8 @@ class Info(commands.Cog):
         if guild.banner:
             embed.set_image(url=guild.banner.url)
 
-        embed.add_field(name=tr(s, "info.server_id_field"), value=f"`{guild.id}`",        inline=True)
-        embed.add_field(name=tr(s, "info.owner_field"),      value=guild.owner.mention,    inline=True)
+        embed.add_field(name=tr(s, "info.server_id_field"), value=f"`{guild.id}`", inline=True)
+        embed.add_field(name=tr(s, "info.owner_field"),      value=owner_val,       inline=True)
         embed.add_field(
             name=tr(s, "info.created_field"),
             value=f"<t:{int(guild.created_at.timestamp())}:D> (<t:{int(guild.created_at.timestamp())}:R>)",
@@ -96,23 +98,29 @@ class Info(commands.Cog):
         member = member or ctx.author
         s = await async_get_guild_settings(str(ctx.guild.id))
 
-        flags = member.public_flags
+        flags = getattr(member, "public_flags", None)
         badges = []
-        if flags.staff:                    badges.append("👮 Discord Staff")
-        if flags.partner:                  badges.append("🤝 Partner")
-        if flags.hypesquad:                badges.append("🏠 HypeSquad")
-        if flags.bug_hunter:               badges.append("🐛 Bug Hunter")
-        if flags.verified_bot_developer:   badges.append("🛠️ Verified Bot Dev")
-        if flags.early_supporter:          badges.append("🌟 Early Supporter")
+        if flags:
+            if getattr(flags, "staff", False):                  badges.append("👮 Discord Staff")
+            if getattr(flags, "partner", False):                badges.append("🤝 Partner")
+            if getattr(flags, "hypesquad", False):              badges.append("🏠 HypeSquad Events")
+            if getattr(flags, "hypesquad_bravery", False):      badges.append("🟣 Bravery")
+            if getattr(flags, "hypesquad_brilliance", False):   badges.append("🔴 Brilliance")
+            if getattr(flags, "hypesquad_balance", False):      badges.append("🟢 Balance")
+            if getattr(flags, "bug_hunter", False):             badges.append("🐛 Bug Hunter")
+            if getattr(flags, "bug_hunter_level_2", False):     badges.append("🐛 Bug Hunter Gold")
+            if getattr(flags, "verified_bot_developer", False) or getattr(flags, "early_verified_bot_developer", False): badges.append("🛠️ Early Bot Dev")
+            if getattr(flags, "active_developer", False):       badges.append("⚡ Active Developer")
+            if getattr(flags, "early_supporter", False):        badges.append("🌟 Early Supporter")
 
-        roles = [r for r in reversed(member.roles) if r.name != "@everyone"]
+        roles = [r for r in reversed(member.roles) if r.name != "@everyone"] if hasattr(member, "roles") else []
         no_roles_txt = tr(s, "info.no_roles")
         if len(roles) > 10:
             roles_str = " ".join(r.mention for r in roles[:10]) + f" +{len(roles)-10}"
         else:
             roles_str = " ".join(r.mention for r in roles) if roles else no_roles_txt
 
-        color = member.color if member.color != discord.Color.default() else config.COLOR_INFO
+        color = member.color if hasattr(member, "color") and member.color != discord.Color.default() else config.COLOR_INFO
         status_map = {
             discord.Status.online:  tr(s, "info.status_online"),
             discord.Status.idle:    tr(s, "info.status_idle"),
@@ -134,12 +142,14 @@ class Info(commands.Cog):
             value=f"<t:{int(member.created_at.timestamp())}:D> (<t:{int(member.created_at.timestamp())}:R>)",
             inline=False,
         )
+        joined_val = f"<t:{int(member.joined_at.timestamp())}:D> (<t:{int(member.joined_at.timestamp())}:R>)" if getattr(member, "joined_at", None) else "N/A"
         embed.add_field(
             name=tr(s, "info.joined_server"),
-            value=f"<t:{int(member.joined_at.timestamp())}:D> (<t:{int(member.joined_at.timestamp())}:R>)" if member.joined_at else "N/A",
+            value=joined_val,
             inline=False,
         )
-        embed.add_field(name=tr(s, "info.status_field"),  value=status_map.get(member.status, "⚫"), inline=True)
+        member_status = getattr(member, "status", discord.Status.offline)
+        embed.add_field(name=tr(s, "info.status_field"),  value=status_map.get(member_status, tr(s, "info.status_offline")), inline=True)
         embed.add_field(name=tr(s, "info.badges_field"),  value=" • ".join(badges) if badges else tr(s, "info.no_badges"), inline=False)
         embed.add_field(name=f"{tr(s, 'info.roles_field')} ({len(roles)})", value=roles_str, inline=False)
         embed.set_footer(
@@ -172,10 +182,12 @@ class Info(commands.Cog):
         embed.set_image(url=member.display_avatar.with_size(1024).url)
         embed.add_field(name=f"📥 {tr(settings, 'info.download')}", value=" • ".join(formats), inline=False)
 
-        if member.guild_avatar and member.guild_avatar != member.avatar:
+        # Hiển thị avatar global nếu đang dùng server avatar riêng biệt
+        if hasattr(member, "guild_avatar") and member.guild_avatar:
+            global_avatar = member.avatar or member.default_avatar
             embed.add_field(
-                name="🌐 Avatar",
-                value=f"[Link]({member.avatar.with_size(1024).url})",
+                name="🌐 Global Avatar",
+                value=f"[Link]({global_avatar.with_size(1024).url})",
                 inline=True,
             )
         embed.set_footer(
@@ -196,13 +208,14 @@ class Info(commands.Cog):
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )
-        if self.bot.user.display_avatar:
+        if self.bot.user and self.bot.user.display_avatar:
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
             
+        total_users = sum(g.member_count or 0 for g in self.bot.guilds)
         embed.add_field(name=tr(s, "info.python_field"),  value=f"`{platform.python_version()}`", inline=True)
         embed.add_field(name=tr(s, "info.os_field"),      value=f"`{platform.system()} {platform.release()}`", inline=True)
         embed.add_field(name=tr(s, "info.servers_field"), value=f"`{len(self.bot.guilds)}`", inline=True)
-        embed.add_field(name=tr(s, "info.users_field"),   value=f"`{sum(g.member_count for g in self.bot.guilds)}`", inline=True)
+        embed.add_field(name=tr(s, "info.users_field"),   value=f"`{total_users}`", inline=True)
         embed.add_field(name=tr(s, "info.ping_field"),    value=f"`{round(self.bot.latency * 1000)} ms`", inline=True)
         
         await ctx.send(embed=embed)
@@ -249,6 +262,11 @@ class Info(commands.Cog):
             slow_txt = f"`{channel.slowmode_delay}s`" if channel.slowmode_delay else tr(s, "info.channel_no_slowmode")
             embed.add_field(name=tr(s, "info.channel_nsfw_field"),     value="✅" if channel.nsfw else "❌", inline=True)
             embed.add_field(name=tr(s, "info.channel_slowmode_field"), value=slow_txt, inline=True)
+        elif isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
+            bitrate_kbps = getattr(channel, "bitrate", 64000) // 1000
+            user_limit = getattr(channel, "user_limit", 0)
+            embed.add_field(name="Bitrate", value=f"`{bitrate_kbps} kbps`", inline=True)
+            embed.add_field(name="User Limit", value=f"`{user_limit if user_limit > 0 else '∞'}`", inline=True)
             
         await ctx.send(embed=embed)
 
