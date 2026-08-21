@@ -327,6 +327,16 @@ def init_db():
                 key   TEXT PRIMARY KEY,
                 value TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS reminders (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     TEXT NOT NULL,
+                guild_id    TEXT,
+                channel_id  TEXT,
+                reason      TEXT NOT NULL,
+                remind_at   INTEGER NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -2009,4 +2019,67 @@ async def async_get_global_setting(key: str, default: str = "") -> str:
             val = str(row[0]) if row and row[0] is not None else default
             await cache.aset(cache_key, val, ttl=300)
             return val
+
+
+# ─── Database Maintenance & WAL Checkpoint ─────────────────────────────────────
+
+def wal_checkpoint() -> str:
+    """Sync — Checkpoint and truncate WAL file to keep database file size minimal."""
+    with sqlite3.connect(DB_PATH, timeout=20.0) as conn:
+        res = conn.execute("PRAGMA wal_checkpoint(TRUNCATE);").fetchone()
+        conn.commit()
+        return f"WAL Checkpoint TRUNCATE: {res}"
+
+
+async def async_wal_checkpoint() -> str:
+    """Async — Checkpoint and truncate WAL file."""
+    async with aiosqlite.connect(DB_PATH, timeout=20.0) as db:
+        async with db.execute("PRAGMA wal_checkpoint(TRUNCATE);") as cur:
+            res = await cur.fetchone()
+            return f"WAL Checkpoint TRUNCATE: {res}"
+
+
+# ─── Reminders System DB Functions ─────────────────────────────────────────────
+
+async def async_add_reminder(user_id: str, guild_id: str, channel_id: str, reason: str, remind_at: int) -> int:
+    """Add a new reminder for user."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        cur = await db.execute("""
+            INSERT INTO reminders (user_id, guild_id, channel_id, reason, remind_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, guild_id, channel_id, reason, remind_at))
+        await db.commit()
+        return cur.lastrowid
+
+
+async def async_get_due_reminders(now_ts: int) -> list:
+    """Fetch all reminders that are due to be triggered (remind_at <= now_ts)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM reminders WHERE remind_at <= ? ORDER BY remind_at ASC LIMIT 50", (now_ts,)) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def async_delete_reminder(reminder_id: int):
+    """Delete a reminder by ID after triggering or user cancellation."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+        await db.commit()
+
+
+async def async_get_user_reminders(user_id: str, guild_id: str = None) -> list:
+    """Fetch active upcoming reminders for a user."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        if guild_id:
+            query = "SELECT * FROM reminders WHERE user_id = ? AND guild_id = ? ORDER BY remind_at ASC LIMIT 20"
+            params = (user_id, guild_id)
+        else:
+            query = "SELECT * FROM reminders WHERE user_id = ? ORDER BY remind_at ASC LIMIT 20"
+            params = (user_id,)
+        async with db.execute(query, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
 
