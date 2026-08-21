@@ -139,17 +139,27 @@ class Leveling(commands.Cog):
 
     @tasks.loop(seconds=90)
     async def voice_xp_task(self):
-        # Lặp qua từng guild, nhưng skip nhanh nếu không có voice channel nào đủ người.
-        # Mỗi user hợp lệ được thu thập rồi đọc level 1 lần (batch), ghi 1 lần update riêng.
+        """
+        Quét và cấp Voice XP định kỳ mỗi 90s.
+        Yêu cầu nghiêm ngặt:
+        - Phòng thoại phải có ít nhất 2 THÀNH VIÊN NGƯỜI THẬT (không tính bot).
+        - Cả 2 người phải đang active (không self_mute, không self_deaf, không server mute/deaf, không afk).
+        - Bỏ qua kênh AFK của server (guild.afk_channel).
+        - Quét cả guild.voice_channels và guild.stage_channels.
+        """
         for guild in self.bot.guilds:
             try:
                 guild_id = str(guild.id)
 
-                # Skip nhanh: không có voice channel nào có >=2 thành viên → bỏ qua cả guild
-                if not any(len(vc.members) >= 2 for vc in guild.voice_channels):
+                if not await async_is_module_enabled(guild_id, "leveling"):
                     continue
 
-                if not await async_is_module_enabled(guild_id, "leveling"):
+                # Lấy danh sách tất cả các kênh thoại (voice + stage), bỏ qua AFK channel
+                all_vcs = list(guild.voice_channels) + list(getattr(guild, "stage_channels", []))
+                if guild.afk_channel:
+                    all_vcs = [vc for vc in all_vcs if vc.id != guild.afk_channel.id]
+
+                if not all_vcs:
                     continue
 
                 settings = await async_get_leveling_settings(guild_id)
@@ -158,19 +168,28 @@ class Leveling(commands.Cog):
                     continue
 
                 now = time.time()
-
-                # Thu thập tất cả member hợp lệ trong guild (không phải bot, không mute/deaf/afk)
                 eligible: list[discord.Member] = []
-                for vc in guild.voice_channels:
-                    if len(vc.members) < 2:
-                        continue
-                    for member in vc.members:
-                        if member.bot:
-                            continue
-                        v = member.voice
-                        if v is None or v.self_mute or v.self_deaf or v.mute or v.deaf or v.afk:
-                            continue
-                        eligible.append(member)
+
+                for vc in all_vcs:
+                    # Lọc danh sách các thành viên người thật đang active trong kênh
+                    active_humans = [
+                        m for m in vc.members
+                        if not m.bot
+                        and m.voice is not None
+                        and m.voice.channel == vc
+                        and not m.voice.self_mute
+                        and not m.voice.self_deaf
+                        and not m.voice.mute
+                        and not m.voice.deaf
+                        and not m.voice.afk
+                    ]
+
+                    # Bắt buộc phải có từ 2 người thật active trở lên mới cấp XP
+                    if len(active_humans) >= 2:
+                        eligible.extend(active_humans)
+
+                if not eligible:
+                    continue
 
                 for member in eligible:
                     user_data = await async_get_user_level(guild_id, str(member.id))
@@ -186,11 +205,12 @@ class Leveling(commands.Cog):
                     await async_update_user_xp(guild_id, str(member.id), new_xp, new_level, last_voice_xp_at=now)
 
                     if new_level > old_level:
-                        await self._handle_level_up(member, old_level, new_level, settings, current_channel=member.voice.channel)
+                        target_ch = member.voice.channel if (member.voice and member.voice.channel) else None
+                        await self._handle_level_up(member, old_level, new_level, settings, current_channel=target_ch)
             except Exception as e:
                 log.warning(f"[Leveling] voice_xp_task lỗi ở guild {getattr(guild, 'id', '?')}: {e}")
                 continue
-                        
+
     @voice_xp_task.before_loop
     async def before_voice_xp_task(self):
         await self.bot.wait_until_ready()
@@ -251,6 +271,7 @@ class Leveling(commands.Cog):
         bar = f"[{'█' * filled}{'░' * (bar_len - filled)}]"
         
         embed.add_field(name="XP", value=f"{xp} / {next_level_xp}\n`{bar}` {pct}%", inline=False)
+        embed.set_footer(text="💬 Nhắn tin chat (+15-25 XP) • 🎙️ Đàm thoại Voice ≥2 người (+10 XP)")
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="leaderboard", aliases=["lb"], description="Bảng xếp hạng cấp độ của server")
