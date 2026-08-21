@@ -554,6 +554,40 @@ _COMMANDS_DATA = [
                     "type": "embed", "color": "#5865f2", "title": "🤔 Lựa chọn ngẫu nhiên",
                     "desc": "Giữa các phương án: `Ăn cơm, Ăn phở`<br><br>🎯 Mình chọn: **Ăn phở**"
                 }
+            },
+            {
+                "name": "remindme", "emoji": "⏰",
+                "desc": "Đặt lịch nhắc nhở bạn sau một khoảng thời gian (hỗ trợ 10m, 1h30m, 2d, 20:30)",
+                "usage": "/remindme [thời gian] [nội dung]", "example": "/remindme time:10m reason:Uống nước",
+                "args": [
+                    {"name": "time", "type": "Text", "required": True, "desc": "Thời gian nhắc (VD: 10m, 1h, 20:30)"},
+                    {"name": "reason", "type": "Text", "required": True, "desc": "Nội dung cần nhắc"},
+                    {"name": "dm", "type": "Boolean", "required": False, "desc": "Gửi tin nhắn riêng qua DM"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "⏰ Đã Đặt Lịch Nhắc Nhở Thành Công!",
+                    "desc": "📝 **Nội dung:** Uống nước<br>⏳ **Thời gian:** 10 phút nữa<br>📍 **Nơi nhận:** 💬 #general"
+                }
+            },
+            {
+                "name": "reminders", "emoji": "📋",
+                "desc": "Xem danh sách các lời nhắc hẹn giờ đang chờ của bạn",
+                "usage": "/reminders", "example": "/reminders",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "📋 Danh Sách Nhắc Nhở",
+                    "desc": "**`#1`** • trong 10 phút nữa<br>└ 📝 *Uống nước*"
+                }
+            },
+            {
+                "name": "delreminder", "emoji": "🗑️",
+                "desc": "Hủy một lời nhắc hẹn giờ theo ID",
+                "usage": "/delreminder [id]", "example": "/delreminder reminder_id:1",
+                "args": [{"name": "reminder_id", "type": "Number", "required": True, "desc": "ID của lời nhắc (xem qua /reminders)"}],
+                "preview": {
+                    "type": "text",
+                    "desc": "✅ Đã hủy lời nhắc `#1` thành công!"
+                }
             }
         ]
     },

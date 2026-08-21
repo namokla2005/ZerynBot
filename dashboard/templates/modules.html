@@ -360,6 +360,23 @@
     </label>
   </div>
 
+  <!-- Smart Reminders -->
+  <div class="module-card {% if modules.get('remind', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">⏰</span> {{ t('nav.remind') | default('Smart Reminders') }}</div>
+      <div class="mod-desc">{{ t('dashboard.remind_desc') | default('Hẹn giờ và gửi thông báo nhắc nhở công việc, lịch trình thông minh.') }}</div>
+      <a href="#" style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; display:inline-flex; align-items:center; gap:4px; pointer-events: none;">
+        {{ t('modules.configure_via_slash') | default('Cấu hình qua lệnh Slash') }}
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="remind"
+             {% if modules.get('remind', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
 </div>
 
 <div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">

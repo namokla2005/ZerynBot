@@ -342,6 +342,21 @@
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">⏰</div>
+    <div class="fast-card-title">
+      {{ t('nav.remind') | default('Smart Reminders') }}
+      <span class="server-chip {% if modules.get('remind', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('remind', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('dashboard.remind_desc') | default('Hẹn giờ và gửi thông báo nhắc nhở công việc, lịch trình thông minh.') }}</div>
+    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
 </div>
 
 <script>

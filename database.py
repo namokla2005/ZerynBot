@@ -394,9 +394,9 @@ def init_db():
         conn.commit()
 
 DEFAULT_MODULES = [
-    "utility", "welcome_goodbye", "info", "music", "tickets",
-    "autoroles", "reactionroles", "automods", "leveling",
-    "economy", "tempvoice", "customcommands", "ai"
+    "welcome_goodbye", "autoroles", "leveling", "utility", "info",
+    "music", "tickets", "reactionroles", "automods", "logger",
+    "giveaways", "economy", "tempvoice", "customcommands", "ai", "remind"
 ]
 
 # ─── Blacklist (sync — Flask) ──────────────────────────────────────────────────

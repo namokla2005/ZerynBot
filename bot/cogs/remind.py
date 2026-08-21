@@ -73,6 +73,14 @@ class Remind(commands.Cog):
     def cog_unload(self):
         self.reminder_task.cancel()
 
+    async def cog_before_invoke(self, ctx: commands.Context):
+        if not ctx.guild:
+            return
+        if not await async_is_module_enabled(str(ctx.guild.id), "remind"):
+            s = await async_get_guild_settings(str(ctx.guild.id))
+            await ctx.send(tr(s, "remind.module_disabled"), ephemeral=True)
+            raise commands.CommandError("Remind module is disabled")
+
     @tasks.loop(seconds=15)
     async def reminder_task(self):
         """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 15 giây."""
@@ -82,9 +90,11 @@ class Remind(commands.Cog):
             for r in due_reminders:
                 remind_id = r["id"]
                 user_id = int(r["user_id"])
-                guild_id = int(r["guild_id"]) if r.get("guild_id") else None
+                guild_id_str = r.get("guild_id") or ""
                 channel_id = int(r["channel_id"]) if r.get("channel_id") else None
                 reason = r["reason"]
+
+                s = await async_get_guild_settings(guild_id_str) if guild_id_str else {}
 
                 # 1. Tìm user
                 user = self.bot.get_user(user_id)
@@ -95,12 +105,15 @@ class Remind(commands.Cog):
                         user = None
 
                 embed = discord.Embed(
-                    title="⏰ Nhắc Nhở Đã Đến Giờ!",
-                    description=f"**Nội dung:**\n>>> {reason}",
+                    title=tr(s, "remind.due_title"),
+                    description=tr(s, "remind.due_content", reason=reason),
                     color=config.COLOR_PING,
                     timestamp=datetime.now(timezone.utc)
                 )
-                embed.set_footer(text="Zeryn Reminder • Hẹn giờ thông minh", icon_url=self.bot.user.display_avatar.url if self.bot.user else None)
+                embed.set_footer(
+                    text=tr(s, "remind.footer_bot"),
+                    icon_url=self.bot.user.display_avatar.url if self.bot.user else None
+                )
 
                 sent = False
                 # 2. Thử gửi vào kênh chat ban đầu
@@ -109,7 +122,10 @@ class Remind(commands.Cog):
                     if channel and hasattr(channel, "send"):
                         try:
                             mention_str = user.mention if user else f"<@{user_id}>"
-                            await channel.send(content=f"🔔 {mention_str}, bạn có một nhắc nhở!", embed=embed)
+                            await channel.send(
+                                content=tr(s, "remind.due_ping", mention=mention_str),
+                                embed=embed
+                            )
                             sent = True
                         except Exception:
                             pass
@@ -117,14 +133,17 @@ class Remind(commands.Cog):
                 # 3. Nếu chưa gửi được (hoặc kênh bị xóa / không có quyền), gửi qua DM
                 if not sent and user:
                     try:
-                        await user.send(content="🔔 Bạn có một lời nhắc hẹn giờ!", embed=embed)
+                        await user.send(
+                            content=tr(s, "remind.due_dm"),
+                            embed=embed
+                        )
                         sent = True
                     except Exception:
                         pass
 
                 # 4. Xóa nhắc nhở khỏi database
                 await async_delete_reminder(remind_id)
-        except Exception as e:
+        except Exception:
             pass
 
     @reminder_task.before_loop
@@ -140,18 +159,15 @@ class Remind(commands.Cog):
         dm="Gửi tin nhắn riêng qua DM thay vì kênh chat? (Mặc định: Không)"
     )
     async def remindme(self, ctx: commands.Context, time: str, reason: str, dm: bool = False):
+        s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         seconds = parse_time_duration(time)
         if not seconds:
-            return await ctx.send(
-                "⚠️ **Định dạng thời gian không hợp lệ!**\n"
-                "💡 *Ví dụ hợp lệ: `10m` (10 phút), `1h30m` (1 giờ 30 phút), `2d` (2 ngày), hoặc `20:00` (8 giờ tối).*",
-                ephemeral=True
-            )
+            return await ctx.send(tr(s, "remind.invalid_time"), ephemeral=True)
 
         if seconds < 10:
-            return await ctx.send("⚠️ Thời gian hẹn tối thiểu là **10 giây**!", ephemeral=True)
-        if seconds > 30 * 86400: # 30 days max
-            return await ctx.send("⚠️ Thời gian hẹn tối đa là **30 ngày**!", ephemeral=True)
+            return await ctx.send(tr(s, "remind.min_time"), ephemeral=True)
+        if seconds > 30 * 86400:  # 30 days max
+            return await ctx.send(tr(s, "remind.max_time"), ephemeral=True)
 
         now_ts = int(time.time())
         target_ts = now_ts + seconds
@@ -166,28 +182,33 @@ class Remind(commands.Cog):
             remind_at=target_ts
         )
 
+        target_text = tr(s, "remind.target_dm") if (dm or not ctx.guild) else f"💬 {ctx.channel.mention}"
+
+        desc_lines = [
+            tr(s, "remind.field_reason", reason=reason.strip()),
+            tr(s, "remind.field_time", target_ts=target_ts),
+            tr(s, "remind.field_target", target=target_text),
+            tr(s, "remind.field_id", reminder_id=reminder_id)
+        ]
+
         embed = discord.Embed(
-            title="⏰ Đã Đặt Lịch Nhắc Nhở Thành Công!",
-            description=(
-                f"📝 **Nội dung:** {reason.strip()}\n"
-                f"⏳ **Thời gian:** <t:{target_ts}:F> (<t:{target_ts}:R>)\n"
-                f"📍 **Nơi nhận:** {'📥 Tin nhắn riêng (DM)' if dm or not ctx.guild else f'💬 {ctx.channel.mention}'}\n"
-                f"🆔 **Mã nhắc nhở:** `#{reminder_id}`"
-            ),
+            title=tr(s, "remind.success_title"),
+            description="\n".join(desc_lines),
             color=config.COLOR_SUCCESS,
             timestamp=datetime.now(timezone.utc)
         )
-        embed.set_footer(text="Dùng /reminders để xem danh sách hoặc /delreminder để hủy", icon_url=ctx.author.display_avatar.url)
+        embed.set_footer(text=tr(s, "remind.footer_hint"), icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="reminders", description="Xem danh sách các lời nhắc hẹn giờ đang hoạt động của bạn")
     async def reminders_list(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         reminders = await async_get_user_reminders(str(ctx.author.id))
         if not reminders:
-            return await ctx.send("📭 Bạn hiện không có lời nhắc nào đang chờ.", ephemeral=True)
+            return await ctx.send(tr(s, "remind.no_reminders"), ephemeral=True)
 
         embed = discord.Embed(
-            title=f"📋 Danh Sách Nhắc Nhở Của {ctx.author.display_name}",
+            title=tr(s, "remind.list_title", user=ctx.author.display_name),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )
@@ -200,19 +221,20 @@ class Remind(commands.Cog):
             )
 
         embed.description = "\n".join(desc_lines)
-        embed.set_footer(text="Hủy nhắc nhở bằng lệnh: /delreminder <id>", icon_url=ctx.author.display_avatar.url)
+        embed.set_footer(text=tr(s, "remind.footer_hint"), icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed, ephemeral=True)
 
     @commands.hybrid_command(name="delreminder", aliases=["unremind"], description="Hủy một lời nhắc hẹn giờ")
     @app_commands.describe(reminder_id="ID của lời nhắc (xem qua /reminders)")
     async def delreminder(self, ctx: commands.Context, reminder_id: int):
+        s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         reminders = await async_get_user_reminders(str(ctx.author.id))
         target = next((r for r in reminders if r["id"] == reminder_id), None)
         if not target:
-            return await ctx.send(f"❌ Không tìm thấy lời nhắc có ID `#{reminder_id}` thuộc về bạn!", ephemeral=True)
+            return await ctx.send(tr(s, "remind.not_found", id=reminder_id), ephemeral=True)
 
         await async_delete_reminder(reminder_id)
-        await ctx.send(f"✅ Đã hủy lời nhắc `#{reminder_id}` thành công!", ephemeral=True)
+        await ctx.send(tr(s, "remind.deleted", id=reminder_id), ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
