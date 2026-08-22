@@ -4,20 +4,21 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1289%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1303%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-16%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="16 Modules">
+  <img src="https://img.shields.io/badge/Commands-57%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="57 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (16 Modules & 55 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (16 Modules & 57 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
 ## 📚 Tài Liệu Kiến Trúc (Cho Developers & AI)
 
 Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho các lập trình viên và trợ lý AI:
-- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1289 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
+- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1303 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
 
 ---
 
@@ -25,7 +26,7 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1289 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1303 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -48,9 +49,14 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
 - **Bảng điều khiển tương tác (Interactive Control Panel)**: Đổi tên phòng, đặt giới hạn số người (User Limit), Khóa/Mở phòng Voice (`/voice lock`, `/voice unlock`, `/voice limit`, `/voice rename`).
 - **Tự động dọn dẹp (Auto Cleanup)**: Tự động xóa phòng Voice rác ngay khi không còn ai trong phòng.
 
-### 💰 6. Hệ Thống Kinh Tế Ảo (Virtual Economy & Shop)
-- **Hệ thống tiền tệ ảo**: Lệnh `/balance`, `/daily` (hỗ trợ tính chuỗi streak nhận thưởng thêm), `/transfer` chuyển tiền giữa các thành viên.
-- **Cửa hàng máy chủ (Server Shop)**: Lệnh `/shop` và `/buy` cho phép mua các Role phần thưởng độc quyền với số lượng giới hạn (Stock limit).
+### 💰 6. Hệ Thống Kinh Tế Ảo & Ngân Hàng An Toàn (Virtual Economy & Bank System)
+- **Tách biệt Ví (Wallet) & Ngân hàng (Bank)**:
+  - 💵 **Tiền mặt Ví (Wallet)**: Dùng để chuyển tiền (`/pay`), tham gia mini-games giải trí (`/coinflip`, `/slots`, `/blackjack`). Mini-games **chỉ trừ tiền trong Ví**; tài sản trong Ngân hàng luôn an toàn 100%.
+  - 🏦 **Tài khoản Ngân hàng (Bank)**: Nơi giữ tiền an toàn và dùng để thanh toán mua sắm Role trong Cửa hàng Server (`/shop`, `/buy`).
+- **Lệnh Nạp & Rút Tiền Linh Hoạt**:
+  - `/deposit <amount>` (hoặc `/dep all`): Nạp tiền mặt từ Ví vào tài khoản Ngân hàng.
+  - `/withdraw <amount>` (hoặc `/with all`): Rút tiền từ Ngân hàng về Ví khi cần cá cược hoặc chuyển khoản.
+- **Tiện ích kinh tế**: Lệnh `/balance` (hiển thị chi tiết Ví, Ngân hàng, Tổng tài sản), `/daily` (nhận thưởng và chuỗi streak), `/rich` (Bảng xếp hạng đại gia).
 
 ### 💬 7. Lệnh Tùy Biến (Custom Commands & Auto-Responders)
 - **Tạo phản hồi tự động**: Lệnh `/customcmd add`, `/customcmd list`, `/customcmd delete` hỗ trợ đối sánh từ khóa linh hoạt (`exact`, `contains`, `startswith`).
@@ -191,7 +197,7 @@ ZerynBot/
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
-├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1289 keys/file)
+├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1303 keys/file)
 ├── requirements.txt     # Danh sách thư viện Python
 ├── .agents/             # Skill & Cấu hình dành cho Trợ lý AI
 ├── bot/                 # 🤖 Discord Bot Source Code
@@ -205,7 +211,7 @@ ZerynBot/
 │   ├── auth.py          # Discord OAuth2 Session Manager
 │   ├── static/          # CSS (v9.2), JS, Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Violet Slate theme)
-├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1289 keys/file
+├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1303 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh)
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```

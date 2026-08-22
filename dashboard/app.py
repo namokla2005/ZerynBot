@@ -969,6 +969,26 @@ _COMMANDS_DATA = [
                 }
             },
             {
+                "name": "deposit", "emoji": "🏦",
+                "desc": "Nạp tiền từ Ví vào tài khoản Ngân hàng (Bank) để bảo vệ tài sản và mua sắm Shop",
+                "usage": "/deposit <amount>", "example": "/deposit 500",
+                "args": [{"name": "amount", "type": "Text", "required": True, "desc": "Số tiền cần nạp (hoặc gõ 'all' / 'max')"}],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "🏦 Nạp Tiền Vào Ngân Hàng",
+                    "desc": "✅ Đã nạp thành công **500** 🪙 vào Ngân hàng!<br><br>💵 **Ví (Wallet):** `0 🪙`<br>🏦 **Ngân hàng (Bank):** `3,000 🪙`"
+                }
+            },
+            {
+                "name": "withdraw", "emoji": "🏧",
+                "desc": "Rút tiền từ Ngân hàng (Bank) về Ví để cá cược mini-games hoặc chuyển khoản",
+                "usage": "/withdraw <amount>", "example": "/withdraw 500",
+                "args": [{"name": "amount", "type": "Text", "required": True, "desc": "Số tiền cần rút (hoặc gõ 'all' / 'max')"}],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "🏧 Rút Tiền Từ Ngân Hàng",
+                    "desc": "✅ Đã rút thành công **500** 🪙 về Ví!<br><br>💵 **Ví (Wallet):** `500 🪙`<br>🏦 **Ngân hàng (Bank):** `2,500 🪙`"
+                }
+            },
+            {
                 "name": "pay", "emoji": "💸",
                 "desc": "Chuyển tiền mặt cho thành viên khác trong server",
                 "usage": "/pay <@member> <amount>", "example": "/pay @Nam 200",

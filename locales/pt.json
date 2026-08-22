@@ -1287,5 +1287,19 @@
   "remind.due_ping": "🔔 {mention}, aqui está seu lembrete!",
   "remind.due_dm": "🔔 Você tem um alerta de lembrete agendado!",
   "remind.footer_bot": "Zeryn Reminder • Agendamento inteligente",
-  "remind.module_disabled": "❌ O módulo de **Lembretes** está desativado neste servidor."
+  "remind.module_disabled": "❌ O módulo de **Lembretes** está desativado neste servidor.",
+  "economy.deposit_desc": "Deposite dinheiro da sua Carteira na sua conta Bancária",
+  "economy.deposit_success_title": "🏦 Depósito Bancário Concluído",
+  "economy.deposit_success_desc": "✅ Depositou com sucesso **{amount:,}** {sym} no seu Banco!\\n\\n💵 **Carteira:** {wallet:,} {sym}\\n🏦 **Banco:** {bank:,} {sym}",
+  "economy.deposit_invalid_amount": "⚠️ Insira um valor válido maior que 0 ou digite \u0007ll para depositar tudo!",
+  "economy.deposit_not_enough_wallet": "⚠️ Não tem dinheiro suficiente na sua Carteira! (Carteira atual: {wallet:,} {sym})",
+  "economy.deposit_wallet_empty": "⚠️ A sua carteira está vazia (0 {sym}), nada a depositar!",
+  "economy.withdraw_desc": "Levante dinheiro da sua conta Bancária para a sua Carteira",
+  "economy.withdraw_success_title": "🏧 Levantamento Bancário Concluído",
+  "economy.withdraw_success_desc": "✅ Levantou com sucesso **{amount:,}** {sym} do seu Banco!\\n\\n💵 **Carteira:** {wallet:,} {sym}\\n🏦 **Banco:** {bank:,} {sym}",
+  "economy.withdraw_invalid_amount": "⚠️ Insira um valor válido maior que 0 ou digite \u0007ll para levantar tudo!",
+  "economy.withdraw_not_enough_bank": "⚠️ Não tem dinheiro suficiente no seu Banco! (Banco atual: {bank:,} {sym})",
+  "economy.withdraw_bank_empty": "⚠️ A sua conta bancária está vazia (0 {sym}), nada a levantar!",
+  "economy.buy_need_bank": "⚠️ Precisa de **{price:,}** {sym} na sua **conta Bancária** para comprar este item! (Banco atual: {bank:,} {sym})\\n💡 *Deposite dinheiro no Banco usando /deposit {price} antes de comprar.*",
+  "economy.shop_bank_hint": "💡 *Nota: As compras na loja são pagas com o saldo do Banco. Use /deposit para depositar fundos.*"
 }

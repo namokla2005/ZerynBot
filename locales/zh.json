@@ -1287,5 +1287,19 @@
   "remind.due_ping": "🔔 {mention}，您的提醒到了！",
   "remind.due_dm": "🔔 您有一条定时提醒！",
   "remind.footer_bot": "Zeryn 提醒 • 智能日程管理",
-  "remind.module_disabled": "❌ 此服务器当前已禁用 **智能提醒** 模块。"
+  "remind.module_disabled": "❌ 此服务器当前已禁用 **智能提醒** 模块。",
+  "economy.deposit_desc": "将现金从钱包存入银行账户",
+  "economy.deposit_success_title": "🏦 存款成功",
+  "economy.deposit_success_desc": "✅ 已成功将 **{amount:,}** {sym} 存入银行账户！\\n\\n💵 **钱包 (Wallet):** {wallet:,} {sym}\\n🏦 **银行 (Bank):** {bank:,} {sym}",
+  "economy.deposit_invalid_amount": "⚠️ 请输入大于 0 的有效金额或输入 \u0007ll 存入全部钱包余额！",
+  "economy.deposit_not_enough_wallet": "⚠️ 您的钱包中没有足够的 **{amount:,}** {sym}！（当前钱包余额：{wallet:,} {sym}）",
+  "economy.deposit_wallet_empty": "⚠️ 您的钱包为空（0 {sym}），无可存资金！",
+  "economy.withdraw_desc": "从银行账户取款至钱包",
+  "economy.withdraw_success_title": "🏧 取款成功",
+  "economy.withdraw_success_desc": "✅ 已成功从银行取出 **{amount:,}** {sym} 至钱包！\\n\\n💵 **钱包 (Wallet):** {wallet:,} {sym}\\n🏦 **银行 (Bank):** {bank:,} {sym}",
+  "economy.withdraw_invalid_amount": "⚠️ 请输入大于 0 的有效金额或输入 \u0007ll 取出全部银行余额！",
+  "economy.withdraw_not_enough_bank": "⚠️ 您的银行账户中没有足够的 **{amount:,}** {sym}！（当前银行余额：{bank:,} {sym}）",
+  "economy.withdraw_bank_empty": "⚠️ 您的银行账户为空（0 {sym}），无可取资金！",
+  "economy.buy_need_bank": "⚠️ 购买此商品需要您的 **银行账户** 中拥有 **{price:,}** {sym}！（当前银行余额：{bank:,} {sym}）\\n💡 *购买前请先使用 /deposit {price} 将资金存入银行。*",
+  "economy.shop_bank_hint": "💡 *提示：商店商品直接通过银行账户余额支付。请使用 /deposit 存入资金。*"
 }

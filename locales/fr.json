@@ -1287,5 +1287,19 @@
   "remind.due_ping": "🔔 {mention}, voici votre rappel !",
   "remind.due_dm": "🔔 Vous avez une alerte de rappel planifiée !",
   "remind.footer_bot": "Zeryn Reminder • Planification intelligente",
-  "remind.module_disabled": "❌ Le module **Rappels** est actuellement désactivé sur ce serveur."
+  "remind.module_disabled": "❌ Le module **Rappels** est actuellement désactivé sur ce serveur.",
+  "economy.deposit_desc": "Déposez de l'argent de votre Portefeuille vers votre compte Bancaire",
+  "economy.deposit_success_title": "🏦 Dépôt Bancaire Réussi",
+  "economy.deposit_success_desc": "✅ Vous avez déposé avec succès **{amount:,}** {sym} à la Banque !\\n\\n💵 **Portefeuille :** {wallet:,} {sym}\\n🏦 **Banque :** {bank:,} {sym}",
+  "economy.deposit_invalid_amount": "⚠️ Veuillez entrer un montant valide supérieur à 0 ou tapez \u0007ll pour tout déposer !",
+  "economy.deposit_not_enough_wallet": "⚠️ Vous n'avez pas assez d'argent dans votre Portefeuille ! (Portefeuille actuel : {wallet:,} {sym})",
+  "economy.deposit_wallet_empty": "⚠️ Votre portefeuille est vide (0 {sym}), rien à déposer !",
+  "economy.withdraw_desc": "Retirez de l'argent de votre compte Bancaire vers votre Portefeuille",
+  "economy.withdraw_success_title": "🏧 Retrait Bancaire Réussi",
+  "economy.withdraw_success_desc": "✅ Vous avez retiré avec succès **{amount:,}** {sym} de votre Banque !\\n\\n💵 **Portefeuille :** {wallet:,} {sym}\\n🏦 **Banque :** {bank:,} {sym}",
+  "economy.withdraw_invalid_amount": "⚠️ Veuillez entrer un montant valide supérieur à 0 ou tapez \u0007ll pour tout retirer !",
+  "economy.withdraw_not_enough_bank": "⚠️ Vous n'avez pas assez d'argent dans votre Banque ! (Banque actuelle : {bank:,} {sym})",
+  "economy.withdraw_bank_empty": "⚠️ Votre compte bancaire est vide (0 {sym}), rien à retirer !",
+  "economy.buy_need_bank": "⚠️ Vous devez avoir **{price:,}** {sym} sur votre **compte Bancaire** pour acheter cet article ! (Banque actuelle : {bank:,} {sym})\\n💡 *Veuillez déposer des fonds avec /deposit {price} avant d'acheter.*",
+  "economy.shop_bank_hint": "💡 *Remarque : Les achats en boutique sont payés directement avec votre solde Bancaire. Utilisez /deposit pour alimenter votre Banque.*"
 }

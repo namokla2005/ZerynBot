@@ -1287,5 +1287,19 @@
   "remind.due_ping": "🔔 {mention}, bạn có một nhắc nhở!",
   "remind.due_dm": "🔔 Bạn có một lời nhắc hẹn giờ!",
   "remind.footer_bot": "Zeryn Reminder • Hẹn giờ thông minh",
-  "remind.module_disabled": "❌ Module **Nhắc nhở** (Reminders) hiện đang bị tắt trên máy chủ này."
+  "remind.module_disabled": "❌ Module **Nhắc nhở** (Reminders) hiện đang bị tắt trên máy chủ này.",
+  "economy.deposit_desc": "Nạp tiền từ Ví vào tài khoản Ngân hàng (Bank)",
+  "economy.deposit_success_title": "🏦 Nạp Tiền Vào Ngân Hàng Thành Công",
+  "economy.deposit_success_desc": "✅ Đã nạp thành công **{amount:,}** {sym} từ Ví vào Ngân hàng!\\n\\n💵 **Ví (Wallet):** {wallet:,} {sym}\\n🏦 **Ngân hàng (Bank):** {bank:,} {sym}",
+  "economy.deposit_invalid_amount": "⚠️ Vui lòng nhập số tiền hợp lệ lớn hơn 0 hoặc gõ \u0007ll để nạp toàn bộ ví!",
+  "economy.deposit_not_enough_wallet": "⚠️ Bạn không có đủ **{amount:,}** {sym} trong Ví để nạp! (Ví hiện có: {wallet:,} {sym})",
+  "economy.deposit_wallet_empty": "⚠️ Ví của bạn hiện đang trống (0 {sym}), không có tiền để nạp!",
+  "economy.withdraw_desc": "Rút tiền từ Ngân hàng (Bank) về Ví tiền mặt",
+  "economy.withdraw_success_title": "🏧 Rút Tiền Từ Ngân Hàng Thành Công",
+  "economy.withdraw_success_desc": "✅ Đã rút thành công **{amount:,}** {sym} từ Ngân hàng về Ví!\\n\\n💵 **Ví (Wallet):** {wallet:,} {sym}\\n🏦 **Ngân hàng (Bank):** {bank:,} {sym}",
+  "economy.withdraw_invalid_amount": "⚠️ Vui lòng nhập số tiền hợp lệ lớn hơn 0 hoặc gõ \u0007ll để rút toàn bộ ngân hàng!",
+  "economy.withdraw_not_enough_bank": "⚠️ Bạn không có đủ **{amount:,}** {sym} trong Ngân hàng để rút! (Bank hiện có: {bank:,} {sym})",
+  "economy.withdraw_bank_empty": "⚠️ Ngân hàng của bạn hiện đang trống (0 {sym}), không có tiền để rút!",
+  "economy.buy_need_bank": "⚠️ Bạn cần có đủ **{price:,}** {sym} trong **Ngân hàng (Bank)** để thanh toán mua Role này! (Hiện có trong Bank: {bank:,} {sym})\\n💡 *Vui lòng nạp tiền vào Bank bằng lệnh /deposit {price} trước khi mua.*",
+  "economy.shop_bank_hint": "💡 *Ghi chú: Mua vật phẩm trong Shop được thanh toán trực tiếp qua tài khoản Ngân hàng (Bank). Hãy dùng /deposit để nạp tiền vào Bank.*"
 }

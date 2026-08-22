@@ -1287,5 +1287,19 @@
   "remind.due_ping": "🔔 {mention}, here is your reminder!",
   "remind.due_dm": "🔔 You have a scheduled reminder alert!",
   "remind.footer_bot": "Zeryn Reminder • Smart Scheduling",
-  "remind.module_disabled": "❌ The **Reminders** module is currently disabled in this server."
+  "remind.module_disabled": "❌ The **Reminders** module is currently disabled in this server.",
+  "economy.deposit_desc": "Deposit money from your Wallet into your Bank account",
+  "economy.deposit_success_title": "🏦 Bank Deposit Successful",
+  "economy.deposit_success_desc": "✅ Successfully deposited **{amount:,}** {sym} into your Bank!\\n\\n💵 **Wallet:** {wallet:,} {sym}\\n🏦 **Bank:** {bank:,} {sym}",
+  "economy.deposit_invalid_amount": "⚠️ Please specify a valid amount greater than 0 or type \u0007ll to deposit your entire wallet!",
+  "economy.deposit_not_enough_wallet": "⚠️ You do not have **{amount:,}** {sym} in your Wallet! (Current Wallet: {wallet:,} {sym})",
+  "economy.deposit_wallet_empty": "⚠️ Your wallet is empty (0 {sym}), nothing to deposit!",
+  "economy.withdraw_desc": "Withdraw money from your Bank account to your Wallet",
+  "economy.withdraw_success_title": "🏧 Bank Withdrawal Successful",
+  "economy.withdraw_success_desc": "✅ Successfully withdrew **{amount:,}** {sym} from your Bank!\\n\\n💵 **Wallet:** {wallet:,} {sym}\\n🏦 **Bank:** {bank:,} {sym}",
+  "economy.withdraw_invalid_amount": "⚠️ Please specify a valid amount greater than 0 or type \u0007ll to withdraw everything!",
+  "economy.withdraw_not_enough_bank": "⚠️ You do not have **{amount:,}** {sym} in your Bank! (Current Bank: {bank:,} {sym})",
+  "economy.withdraw_bank_empty": "⚠️ Your bank account is empty (0 {sym}), nothing to withdraw!",
+  "economy.buy_need_bank": "⚠️ You need **{price:,}** {sym} in your **Bank account** to purchase this item! (Current Bank: {bank:,} {sym})\\n💡 *Please deposit money into your Bank using /deposit {price} before buying.*",
+  "economy.shop_bank_hint": "💡 *Note: Shop items are paid directly with your Bank balance. Use /deposit to fund your Bank account.*"
 }

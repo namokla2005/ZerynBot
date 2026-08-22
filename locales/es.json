@@ -1287,5 +1287,19 @@
   "remind.due_ping": "🔔 {mention}, ¡aquí tienes tu recordatorio!",
   "remind.due_dm": "🔔 ¡Tienes una alerta de recordatorio programada!",
   "remind.footer_bot": "Zeryn Reminder • Programación inteligente",
-  "remind.module_disabled": "❌ El módulo de **Recordatorios** está desactivado en este servidor."
+  "remind.module_disabled": "❌ El módulo de **Recordatorios** está desactivado en este servidor.",
+  "economy.deposit_desc": "Deposita dinero de tu Cartera en tu cuenta Bancaria",
+  "economy.deposit_success_title": "🏦 Depósito Bancario Exitoso",
+  "economy.deposit_success_desc": "✅ ¡Has depositado con éxito **{amount:,}** {sym} en tu Banco!\\n\\n💵 **Cartera:** {wallet:,} {sym}\\n🏦 **Banco:** {bank:,} {sym}",
+  "economy.deposit_invalid_amount": "⚠️ ¡Por favor ingresa una cantidad válida mayor a 0 o escribe \u0007ll para depositar todo!",
+  "economy.deposit_not_enough_wallet": "⚠️ ¡No tienes suficiente dinero en tu Cartera! (Cartera actual: {wallet:,} {sym})",
+  "economy.deposit_wallet_empty": "⚠️ ¡Tu cartera está vacía (0 {sym}), no hay nada que depositar!",
+  "economy.withdraw_desc": "Retira dinero de tu cuenta Bancaria a tu Cartera",
+  "economy.withdraw_success_title": "🏧 Retiro Bancario Exitoso",
+  "economy.withdraw_success_desc": "✅ ¡Has retirado con éxito **{amount:,}** {sym} de tu Banco!\\n\\n💵 **Cartera:** {wallet:,} {sym}\\n🏦 **Banco:** {bank:,} {sym}",
+  "economy.withdraw_invalid_amount": "⚠️ ¡Por favor ingresa una cantidad válida mayor a 0 o escribe \u0007ll para retirar todo!",
+  "economy.withdraw_not_enough_bank": "⚠️ ¡No tienes suficiente dinero en tu Banco! (Banco actual: {bank:,} {sym})",
+  "economy.withdraw_bank_empty": "⚠️ ¡Tu cuenta bancaria está vacía (0 {sym}), no hay nada que retirar!",
+  "economy.buy_need_bank": "⚠️ ¡Necesitas **{price:,}** {sym} en tu **cuenta Bancaria** para comprar este artículo! (Banco actual: {bank:,} {sym})\\n💡 *Por favor deposita fondos usando /deposit {price} antes de comprar.*",
+  "economy.shop_bank_hint": "💡 *Nota: Las compras en la tienda se pagan directamente con el saldo del Banco. Usa /deposit para ingresar dinero.*"
 }

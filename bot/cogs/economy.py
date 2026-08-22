@@ -15,6 +15,7 @@ from database import (
     async_get_guild_settings, async_is_module_enabled,
     async_get_economy_settings, async_get_economy_user,
     async_claim_daily, async_modify_wallet, async_transfer_money,
+    async_deposit_money, async_withdraw_money,
     async_get_economy_shop, async_buy_shop_item, async_get_top_economy
 )
 from i18n import tr
@@ -247,6 +248,68 @@ class Economy(commands.Cog):
         embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
 
+    # ─── deposit ───────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="deposit", aliases=["dep"], description="Nạp tiền từ Ví vào tài khoản Ngân hàng (Bank)")
+    @app_commands.describe(amount="Số tiền cần nạp (hoặc gõ 'all' / 'max' để nạp toàn bộ ví)")
+    async def deposit(self, ctx: commands.Context, amount: str):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
+        sym = eco_s.get("currency_symbol", "🪙")
+
+        success, dep_amount, user_data, err = await async_deposit_money(str(ctx.guild.id), str(ctx.author.id), amount)
+        if not success:
+            if err == "invalid_amount":
+                await ctx.send(tr(s, "economy.deposit_invalid_amount"), ephemeral=True)
+            elif err == "wallet_empty":
+                await ctx.send(tr(s, "economy.deposit_wallet_empty", sym=sym), ephemeral=True)
+            elif err == "not_enough_wallet":
+                try:
+                    req_amt = int(amount)
+                except Exception:
+                    req_amt = 0
+                await ctx.send(tr(s, "economy.deposit_not_enough_wallet", amount=req_amt, wallet=user_data.get("wallet", 0), sym=sym), ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=tr(s, "economy.deposit_success_title"),
+            description=tr(s, "economy.deposit_success_desc", amount=dep_amount, sym=sym, wallet=user_data.get("wallet", 0), bank=user_data.get("bank", 0)),
+            color=0x57F287,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
+
+    # ─── withdraw ──────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="withdraw", aliases=["with", "wd"], description="Rút tiền từ Ngân hàng (Bank) về Ví tiền mặt")
+    @app_commands.describe(amount="Số tiền cần rút (hoặc gõ 'all' / 'max' để rút toàn bộ ngân hàng)")
+    async def withdraw(self, ctx: commands.Context, amount: str):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
+        sym = eco_s.get("currency_symbol", "🪙")
+
+        success, with_amount, user_data, err = await async_withdraw_money(str(ctx.guild.id), str(ctx.author.id), amount)
+        if not success:
+            if err == "invalid_amount":
+                await ctx.send(tr(s, "economy.withdraw_invalid_amount"), ephemeral=True)
+            elif err == "bank_empty":
+                await ctx.send(tr(s, "economy.withdraw_bank_empty", sym=sym), ephemeral=True)
+            elif err == "not_enough_bank":
+                try:
+                    req_amt = int(amount)
+                except Exception:
+                    req_amt = 0
+                await ctx.send(tr(s, "economy.withdraw_not_enough_bank", amount=req_amt, bank=user_data.get("bank", 0), sym=sym), ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=tr(s, "economy.withdraw_success_title"),
+            description=tr(s, "economy.withdraw_success_desc", amount=with_amount, sym=sym, wallet=user_data.get("wallet", 0), bank=user_data.get("bank", 0)),
+            color=0x57F287,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
+
     # ─── pay ───────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="pay", description="Chuyển tiền từ ví của bạn cho thành viên khác")
     @app_commands.describe(member="Thành viên nhận tiền", amount="Số tiền cần chuyển")
@@ -472,6 +535,8 @@ class Economy(commands.Cog):
             stock_str = f"({tr(s, 'economy.stock')}: {it['stock']})" if it["stock"] >= 0 else ""
             desc += f"`ID: {it['id']}` • **{it['name']}** ({role_mention}) — **{it['price']:,}** {sym} {stock_str}\n"
 
+        desc += f"\n{tr(s, 'economy.shop_bank_hint')}"
+
         embed = discord.Embed(
             title=tr(s, "economy.shop_title", server=ctx.guild.name),
             description=desc,
@@ -482,21 +547,22 @@ class Economy(commands.Cog):
         await ctx.send(embed=embed)
 
     # ─── buy ───────────────────────────────────────────────────────────────────
-    @commands.hybrid_command(name="buy", description="Mua Role từ cửa hàng server bằng ID")
+    @commands.hybrid_command(name="buy", description="Mua Role từ cửa hàng server bằng ID (Thanh toán qua Ngân hàng)")
     @app_commands.describe(item_id="ID của vật phẩm trong cửa hàng")
     async def buy(self, ctx: commands.Context, item_id: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
         sym = eco_s.get("currency_symbol", "🪙")
 
-        success, role_id, info = await async_buy_shop_item(str(ctx.guild.id), str(ctx.author.id), item_id)
+        success, role_id, info, price = await async_buy_shop_item(str(ctx.guild.id), str(ctx.author.id), item_id)
         if not success:
             if info == "item_not_found":
                 await ctx.send(tr(s, "economy.item_not_found"), ephemeral=True)
             elif info == "out_of_stock":
                 await ctx.send(tr(s, "economy.out_of_stock"), ephemeral=True)
-            elif info == "not_enough_money":
-                await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
+            elif info in ("not_enough_bank", "not_enough_money"):
+                user_data = await async_get_economy_user(str(ctx.guild.id), str(ctx.author.id))
+                await ctx.send(tr(s, "economy.buy_need_bank", price=price, bank=user_data.get("bank", 0), sym=sym), ephemeral=True)
             return
 
         # Cấp role cho user
