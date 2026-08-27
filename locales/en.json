@@ -1470,5 +1470,10 @@
   "landing.mod_and_more_sub": "85+ commands & features",
   "mod.escalation_rules_desc": "The system automatically triggers penalties when members accumulate enough warnings (/warn).",
   "birthday.rewards_desc": "Configure automatic rewards deposited into member bank accounts and level XP.",
-  "birthday.default_template": "🎉🎂 Happy Birthday {user}! Wishing you an amazing day in {server}! 🎉🎂"
+  "birthday.default_template": "🎉🎂 Happy Birthday {user}! Wishing you an amazing day in {server}! 🎉🎂",
+  "cmd.remindme.desc": "Set a reminder after a duration or at a specific time",
+  "cmd.reminders.desc": "View your list of active scheduled reminders",
+  "cmd.delreminder.desc": "Delete a scheduled reminder by its ID",
+  "cmd.deposit.desc": "Deposit wallet cash into your bank account",
+  "cmd.withdraw.desc": "Withdraw money from bank into wallet cash"
 }

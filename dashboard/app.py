@@ -1497,42 +1497,10 @@ _COMMANDS_DATA = [
 @app.route("/dashboard/<guild_id>/commands")
 @guild_access_required
 def server_commands(guild_id: str):
+    from dashboard.commands_catalog import get_localized_commands_data
     ui_lang = session.get("ui_lang", "vi")
-    cat_map = {
-        "Tổng quan": t("commands.cat_overview", lang=ui_lang),
-        "Tổng quát": t("commands.cat_overview", lang=ui_lang),
-        "Reaction Roles": t("nav.reactionroles", lang=ui_lang),
-        "Auto Roles": t("nav.autoroles", lang=ui_lang),
-        "Automods": t("nav.automods", lang=ui_lang),
-        "Leveling": t("nav.leveling", lang=ui_lang),
-        "Giveaways": t("nav.giveaways", lang=ui_lang),
-        "Tickets": t("nav.tickets", lang=ui_lang),
-        "Thông tin": t("commands.cat_info", lang=ui_lang),
-        "Music 🎵": t("commands.cat_music", lang=ui_lang),
-        "Kinh tế & Shop": t("nav.economy", lang=ui_lang),
-        "Voice Tạm thời": t("nav.tempvoice", lang=ui_lang),
-        "Lệnh Tùy biến": t("nav.customcommands", lang=ui_lang),
-        "Trợ lý AI": t("nav.ai", lang=ui_lang),
-        "Điều hành": t("commands.cat_moderation", lang=ui_lang),
-        "Vui vẻ & Tình cảm": t("commands.cat_fun", lang=ui_lang),
-        "Sinh nhật": t("commands.cat_birthday", lang=ui_lang),
-    }
-    localized_data = []
-    for c in _COMMANDS_DATA:
-        c_copy = dict(c)
-        c_copy["category"] = cat_map.get(c["category"], c["category"])
-        cmd_list = []
-        for cmd in c["commands"]:
-            cmd_copy = dict(cmd)
-            desc_key = f"cmd.{cmd['name'].replace(' ', '_')}.desc"
-            trans_desc = t(desc_key, lang=ui_lang)
-            if trans_desc != desc_key:
-                cmd_copy["desc"] = trans_desc
-            cmd_list.append(cmd_copy)
-        c_copy["commands"] = cmd_list
-        localized_data.append(c_copy)
-
-    total = sum(len(c["commands"]) for c in _COMMANDS_DATA)
+    localized_data = get_localized_commands_data(ui_lang)
+    total = sum(len(c["commands"]) for c in localized_data)
     return render_template("commands.html", **_server_ctx(
         guild_id, "commands",
         commands_data=localized_data,
