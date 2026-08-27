@@ -935,6 +935,106 @@
     </div>
   </div>
 
+  <!-- 7. Moderation Suite & Escalation Penalties -->
+  <div class="showcase-row">
+    <div class="showcase-copy">
+      <div class="showcase-badge" style="color:#ed4245; border-color:rgba(237,66,69,0.3); background:rgba(237,66,69,0.1);"><i class="bi bi-shield-fill-check"></i> {{ t('landing.f10_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f10_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f10_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#ed4245;">
+        {{ t('landing.f10_btn') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-left" style="border-color:#ed4245; color:#ed4245;">🛡️</div>
+      <div class="corner-badge cb-bottom-right" style="border-color:#ed4245; color:#ed4245;">🔨</div>
+      <div class="mockup-card">
+        <div class="dc-chat-item">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
+          <div style="flex:1;">
+            <div class="dc-header">
+              <span class="dc-bot-name">Zeryn</span>
+              <span class="dc-bot-tag">BOT</span>
+              <span class="dc-time">Today at 19:15</span>
+            </div>
+            <div class="dc-embed" style="border-left-color:#FEE75C;">
+              <div class="dc-embed-title" style="color:#FEE75C;">{{ t('landing.mock_mod_title') }}</div>
+              <div class="dc-embed-desc" style="white-space:pre-line;">{{ t('landing.mock_mod_desc') }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Anime Fun & Marriage System -->
+  <div class="showcase-row reverse">
+    <div class="showcase-copy">
+      <div class="showcase-badge" style="color:#ff69b4; border-color:rgba(255,105,180,0.3); background:rgba(255,105,180,0.1);"><i class="bi bi-heart-fill"></i> {{ t('landing.f11_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f11_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f11_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#ff69b4;">
+        {{ t('landing.f11_btn') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-right" style="border-color:#ff69b4; color:#ff69b4;">💍</div>
+      <div class="corner-badge cb-bottom-left" style="border-color:#ff69b4; color:#ff69b4;">💖</div>
+      <div class="mockup-card">
+        <div class="dc-chat-item">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
+          <div style="flex:1;">
+            <div class="dc-header">
+              <span class="dc-bot-name">Zeryn</span>
+              <span class="dc-bot-tag">BOT</span>
+              <span class="dc-time">Today at 20:00</span>
+            </div>
+            <div class="dc-embed" style="border-left-color:#ff69b4;">
+              <div class="dc-embed-title" style="color:#ff69b4;">{{ t('landing.mock_fun_title') }}</div>
+              <div class="dc-embed-desc" style="white-space:pre-line; margin-bottom:12px;">{{ t('landing.mock_fun_desc') }}</div>
+              <div style="display:flex; gap:8px;">
+                <span style="background:#5865f2; color:#fff; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px;">💖 Đồng ý (Yes)</span>
+                <span style="background:#4e5058; color:#fff; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px;">💔 Từ chối (No)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Birthday Celebrations & Rewards -->
+  <div class="showcase-row">
+    <div class="showcase-copy">
+      <div class="showcase-badge" style="color:#f4a7bb; border-color:rgba(244,167,187,0.3); background:rgba(244,167,187,0.1);"><i class="bi bi-cake2-fill"></i> {{ t('landing.f12_badge') }}</div>
+      <h2 class="showcase-heading">{{ t('landing.f12_title') }}</h2>
+      <p class="showcase-description">{{ t('landing.f12_desc') }}</p>
+      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#f4a7bb;">
+        {{ t('landing.f12_btn') }} <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="showcase-visual">
+      <div class="corner-badge cb-top-left" style="border-color:#f4a7bb; color:#f4a7bb;">🎂</div>
+      <div class="corner-badge cb-bottom-right" style="border-color:#f4a7bb; color:#f4a7bb;">🎁</div>
+      <div class="mockup-card">
+        <div class="dc-chat-item">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
+          <div style="flex:1;">
+            <div class="dc-header">
+              <span class="dc-bot-name">Zeryn</span>
+              <span class="dc-bot-tag">BOT</span>
+              <span class="dc-time">00:00 UTC</span>
+            </div>
+            <div class="dc-embed" style="border-left-color:#f4a7bb;">
+              <div class="dc-embed-title" style="color:#f4a7bb;">{{ t('landing.mock_bday_title') }}</div>
+              <div class="dc-embed-desc" style="white-space:pre-line;">{{ t('landing.mock_bday_desc') }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </section>
 
 <!-- "The All in One Bot" Interactive Pill Grid Section -->
@@ -943,6 +1043,20 @@
   <p class="aio-subtitle">{{ t('landing.all_in_one_sub') }}</p>
 
   <div class="aio-grid">
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#ed4245; background:rgba(237,66,69,0.1);"><i class="bi bi-shield-fill-check"></i></div>
+      <div>
+        <div class="aio-card-title">{{ t('landing.mod_moderation') }}</div>
+        <div class="aio-card-tag">Kick / Ban / Warn</div>
+      </div>
+    </div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#ed4245; background:rgba(237,66,69,0.1);"><i class="bi bi-shield-lock-fill"></i></div>
+      <div>
+        <div class="aio-card-title">{{ t('landing.mod_automod') }}</div>
+        <div class="aio-card-tag">Spam / Bad words</div>
+      </div>
+    </div>
     <div class="aio-pill-card">
       <div class="aio-icon-box"><i class="bi bi-cpu-fill"></i></div>
       <div>
@@ -958,17 +1072,24 @@
       </div>
     </div>
     <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#f4a7bb; background:rgba(244,167,187,0.1);"><i class="bi bi-cake2-fill"></i></div>
+      <div>
+        <div class="aio-card-title">{{ t('landing.mod_birthday') }}</div>
+        <div class="aio-card-tag">Auto Celebrations</div>
+      </div>
+    </div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#ff69b4; background:rgba(255,105,180,0.1);"><i class="bi bi-heart-fill"></i></div>
+      <div>
+        <div class="aio-card-title">{{ t('landing.mod_fun') }}</div>
+        <div class="aio-card-tag">Anime GIFs & /marry</div>
+      </div>
+    </div>
+    <div class="aio-pill-card">
       <div class="aio-icon-box" style="color:#57f287; background:rgba(87,242,135,0.1);"><i class="bi bi-mic-fill"></i></div>
       <div>
         <div class="aio-card-title">{{ t('landing.mod_tempvoice') }}</div>
         <div class="aio-card-tag">Join to Create Hub</div>
-      </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#5865f2; background:rgba(88,101,242,0.1);"><i class="bi bi-terminal-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_customcmd') }}</div>
-        <div class="aio-card-tag">Dynamic Variables</div>
       </div>
     </div>
     <div class="aio-pill-card">
@@ -979,10 +1100,10 @@
       </div>
     </div>
     <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#ed4245; background:rgba(237,66,69,0.1);"><i class="bi bi-shield-fill-check"></i></div>
+      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-trophy-fill"></i></div>
       <div>
-        <div class="aio-card-title">{{ t('landing.mod_automod') }}</div>
-        <div class="aio-card-tag">Spam / Bad words</div>
+        <div class="aio-card-title">{{ t('landing.mod_leveling') }}</div>
+        <div class="aio-card-tag">Chat & Voice XP</div>
       </div>
     </div>
     <div class="aio-pill-card">
@@ -993,17 +1114,17 @@
       </div>
     </div>
     <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-trophy-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_leveling') }}</div>
-        <div class="aio-card-tag">Chat & Voice XP</div>
-      </div>
-    </div>
-    <div class="aio-pill-card">
       <div class="aio-icon-box" style="color:#57f287; background:rgba(87,242,135,0.1);"><i class="bi bi-ticket-perforated-fill"></i></div>
       <div>
         <div class="aio-card-title">{{ t('landing.mod_tickets') }}</div>
         <div class="aio-card-tag">Support Transcript</div>
+      </div>
+    </div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#f4a7bb; background:rgba(244,167,187,0.1);"><i class="bi bi-alarm-fill"></i></div>
+      <div>
+        <div class="aio-card-title">{{ t('landing.mod_remind') }}</div>
+        <div class="aio-card-tag">Smart Reminders</div>
       </div>
     </div>
     <div class="aio-pill-card">
@@ -1025,6 +1146,13 @@
       <div>
         <div class="aio-card-title">{{ t('landing.mod_logging') }}</div>
         <div class="aio-card-tag">Comprehensive Logs</div>
+      </div>
+    </div>
+    <div class="aio-pill-card">
+      <div class="aio-icon-box" style="color:#5865f2; background:rgba(88,101,242,0.1);"><i class="bi bi-terminal-fill"></i></div>
+      <div>
+        <div class="aio-card-title">{{ t('landing.mod_customcmd') }}</div>
+        <div class="aio-card-tag">Dynamic Variables</div>
       </div>
     </div>
   </div>

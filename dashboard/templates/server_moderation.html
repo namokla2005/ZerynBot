@@ -14,7 +14,7 @@
     <div class="stat-icon">⚠️</div>
     <div class="stat-info">
       <div class="stat-value">{{ warn_count }}</div>
-      <div class="stat-label">{{ t('mod.warnings_title', user='', total='') | default('Tổng cảnh cáo đã ghi') }}</div>
+      <div class="stat-label">{{ t('mod.warnings_total_label') | default('Tổng cảnh cáo đã ghi') }}</div>
     </div>
   </div>
   <div class="stat-card">
@@ -29,13 +29,13 @@
 <form method="POST" action="{{ url_for('server_moderation', guild_id=guild_id) }}">
   <div class="card" style="margin-bottom: 24px;">
     <div class="card-header">
-      <h2 class="card-title">📝 {{ t('logger.channel_title') | default('Kênh Ghi Nhật Ký Điều Hành') }}</h2>
+      <h2 class="card-title">📝 {{ t('mod.modlog_channel_title') | default('Kênh Ghi Nhật Ký Điều Hành') }}</h2>
     </div>
     <div class="card-body">
       <div class="form-group">
-        <label class="form-label">{{ t('logger.channel_label') | default('Kênh gửi Mod Log:') }}</label>
+        <label class="form-label">{{ t('mod.modlog_channel_label') | default('Kênh gửi Mod Log:') }}</label>
         <select name="log_channel_id" class="form-select">
-          <option value="">-- {{ t('common.select_channel') | default('Chọn kênh...') }} --</option>
+          <option value="">{{ t('common.select_channel') | default('— Chọn kênh —') }}</option>
           {% for c in channels %}
             {% if c.get('channel_type') == 0 or c.get('type') == 'text' %}
             <option value="{{ c.channel_id }}" {% if logger_settings.get('log_channel_id') == c.channel_id %}selected{% endif %}>
@@ -44,7 +44,7 @@
             {% endif %}
           {% endfor %}
         </select>
-        <p class="form-help">{{ t('logger.channel_help') | default('Bot sẽ ghi lại các hành động kick, ban, timeout, warn vào kênh này.') }}</p>
+        <p class="form-help">{{ t('mod.modlog_channel_help') | default('Bot sẽ ghi lại các hành động kick, ban, timeout, warn vào kênh này.') }}</p>
       </div>
     </div>
   </div>
@@ -56,11 +56,11 @@
     <div class="card-body">
       <div style="display: flex; flex-direction: column; gap: 12px;">
         <div style="background: rgba(254, 231, 92, 0.08); border-left: 3px solid #FEE75C; padding: 12px 16px; border-radius: 6px;">
-          <div style="font-weight: 600; color: #FEE75C;">⚠️ 3 Cảnh cáo (Warns)</div>
+          <div style="font-weight: 600; color: #FEE75C;">⚠️ {{ t('mod.escalation_3_warns') | default('3 Cảnh cáo (Warns)') }}</div>
           <div style="color: var(--text-muted); font-size: 0.875rem; margin-top: 4px;">{{ t('mod.auto_timeout', total=3) }}</div>
         </div>
         <div style="background: rgba(237, 66, 69, 0.08); border-left: 3px solid #ED4245; padding: 12px 16px; border-radius: 6px;">
-          <div style="font-weight: 600; color: #ED4245;">🔨 5 Cảnh cáo (Warns)</div>
+          <div style="font-weight: 600; color: #ED4245;">🔨 {{ t('mod.escalation_5_warns') | default('5 Cảnh cáo (Warns)') }}</div>
           <div style="color: var(--text-muted); font-size: 0.875rem; margin-top: 4px;">{{ t('mod.auto_kick', total=5) }}</div>
         </div>
       </div>
@@ -69,7 +69,7 @@
 
   <div style="display: flex; gap: 12px; justify-content: flex-end;">
     <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check2"></i> {{ t('common.save') | default('Lưu Cấu Hình') }}
+      <i class="bi bi-check2"></i> {{ t('common.save') | default('Lưu thay đổi') }}
     </button>
   </div>
 </form>

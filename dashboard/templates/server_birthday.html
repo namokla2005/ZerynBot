@@ -35,7 +35,7 @@
       <div class="form-group" style="margin-bottom: 20px;">
         <label class="form-label">{{ t('birthday.channel_label') | default('Kênh gửi thông báo tự động (00:00 UTC):') }}</label>
         <select name="channel_id" class="form-select">
-          <option value="">-- {{ t('common.select_channel') | default('Chọn kênh...') }} --</option>
+          <option value="">{{ t('common.select_channel') | default('— Chọn kênh —') }}</option>
           {% for c in channels %}
             {% if c.get('channel_type') == 0 or c.get('type') == 'text' %}
             <option value="{{ c.channel_id }}" {% if birthday_settings.get('channel_id') == c.channel_id %}selected{% endif %}>
@@ -93,7 +93,7 @@
 
   <div style="display: flex; gap: 12px; justify-content: flex-end;">
     <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check2"></i> {{ t('common.save') | default('Lưu Cấu Hình') }}
+      <i class="bi bi-check2"></i> {{ t('common.save') | default('Lưu thay đổi') }}
     </button>
   </div>
 </form>
