@@ -779,7 +779,7 @@
   }
 
   function executeGitPull() {
-    sendTerminalCommand('git pull');
+    sendTerminalCommand('git fetch origin main && git reset --hard origin/main');
   }
 
   function executeSystemStatus() {

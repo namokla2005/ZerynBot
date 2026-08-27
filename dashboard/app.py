@@ -2523,7 +2523,7 @@ def admin_system_git_pull():
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         exec_shell = None if os.name == "nt" else (shutil.which("bash") or shutil.which("sh"))
         res = subprocess.run(
-            "git pull",
+            "git fetch origin main && git reset --hard origin/main",
             shell=True,
             executable=exec_shell,
             capture_output=True,
