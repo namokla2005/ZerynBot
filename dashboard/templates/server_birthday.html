@@ -77,7 +77,7 @@
       <i class="bi bi-gift-fill" style="color:#fee75c;"></i> {{ t('birthday.rewards_title') | default('Quà Tặng Sinh Nhật (Coins & XP)') }}
     </div>
     <div class="card-desc" style="margin-bottom:18px;">
-      Thiết lập phần thưởng tự động được chuyển vào tài khoản ngân hàng và cấp độ của thành viên.
+      {{ t('birthday.rewards_desc') | default('Thiết lập phần thưởng tự động được chuyển vào tài khoản ngân hàng và cấp độ của thành viên.') }}
     </div>
     <div class="card-body">
       <div class="form-row" style="margin-bottom: 20px;">
@@ -96,7 +96,7 @@
       <div class="form-group">
         <label class="form-label">💬 {{ t('birthday.message_template_label') | default('Mẫu lời chúc mừng tùy chỉnh:') }}</label>
         <textarea name="message_template" class="form-control" rows="3"
-                  placeholder="🎉🎂 Chúc mừng sinh nhật {user}! Chúc bạn một ngày thật tuyệt vời trong {server}! 🎉🎂">{{ birthday_settings.get('message_template') or '' }}</textarea>
+                  placeholder="{{ t('birthday.default_template') | default('🎉🎂 Chúc mừng sinh nhật {user}! Chúc bạn một ngày thật tuyệt vời trong {server}! 🎉🎂') }}">{{ birthday_settings.get('message_template') or '' }}</textarea>
         <div class="form-hint">{{ t('birthday.template_help') | default('Sử dụng biến {user} để tag thành viên, {server} để chèn tên máy chủ. Để trống để dùng mặc định.') }}</div>
       </div>
     </div>

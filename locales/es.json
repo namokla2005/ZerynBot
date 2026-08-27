@@ -1467,5 +1467,8 @@
   "landing.mock_bday_title": "🎂 ¡Feliz Cumpleaños!",
   "landing.mock_bday_desc": "🎉 ¡Hoy es el cumpleaños de @Member!\\n🎁 Recompensa: +500 Monedas, +200 XP y Rol 👑 Birthday VIP (24h)!",
   "landing.mod_and_more": "+ Y Mucho Más",
-  "landing.mod_and_more_sub": "85+ comandos y funciones"
+  "landing.mod_and_more_sub": "85+ comandos y funciones",
+  "mod.escalation_rules_desc": "El sistema aplica sanciones automáticas cuando los miembros acumulan suficientes advertencias (/warn).",
+  "birthday.rewards_desc": "Configura recompensas automáticas depositadas en la cuenta bancaria y XP del miembro.",
+  "birthday.default_template": "🎉🎂 ¡Feliz cumpleaños {user}! ¡Te deseamos un gran día en {server}! 🎉🎂"
 }

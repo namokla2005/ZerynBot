@@ -1467,5 +1467,8 @@
   "landing.mock_bday_title": "🎂 Chúc Mừng Sinh Nhật!",
   "landing.mock_bday_desc": "🎉 Hôm nay là sinh nhật của @Member!\\n🎁 Nhận được: +500 Coins Bank, +200 XP & Role 👑 Birthday VIP (24h)!",
   "landing.mod_and_more": "+ Còn Nhiều Hơn Nữa",
-  "landing.mod_and_more_sub": "85+ lệnh & tính năng"
+  "landing.mod_and_more_sub": "85+ lệnh & tính năng",
+  "mod.escalation_rules_desc": "Hệ thống tự động kích hoạt hình phạt khi thành viên tích lũy đủ số lần cảnh cáo (/warn).",
+  "birthday.rewards_desc": "Thiết lập phần thưởng tự động được chuyển vào tài khoản ngân hàng và cấp độ của thành viên.",
+  "birthday.default_template": "🎉🎂 Chúc mừng sinh nhật {user}! Chúc bạn một ngày thật tuyệt vời trong {server}! 🎉🎂"
 }

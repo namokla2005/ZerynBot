@@ -1467,5 +1467,8 @@
   "landing.mock_bday_title": "🎂 生日快乐！",
   "landing.mock_bday_desc": "🎉 今天是 @Member 的生日！\\n🎁 获得奖励：+500 银行金币, +200 XP 与 👑 生日专属 VIP 身份组 (24h)!",
   "landing.mod_and_more": "+ 更多精彩功能",
-  "landing.mod_and_more_sub": "85+ 强大命令与特性"
+  "landing.mod_and_more_sub": "85+ 强大命令与特性",
+  "mod.escalation_rules_desc": "当成员累计达到指定警告次数 (/warn) 时，系统将自动触发惩罚。",
+  "birthday.rewards_desc": "设置自动存入成员银行账户的金币与等级经验值奖励。",
+  "birthday.default_template": "🎉🎂 祝 {user} 生日快乐！祝你在 {server} 度过美好的一天！🎉🎂"
 }

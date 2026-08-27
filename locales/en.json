@@ -1467,5 +1467,8 @@
   "landing.mock_bday_title": "🎂 Happy Birthday!",
   "landing.mock_bday_desc": "🎉 Today is @Member's birthday!\\n🎁 Rewarded: +500 Bank Coins, +200 XP & 👑 Birthday VIP Role (24h)!",
   "landing.mod_and_more": "+ And More",
-  "landing.mod_and_more_sub": "85+ commands & features"
+  "landing.mod_and_more_sub": "85+ commands & features",
+  "mod.escalation_rules_desc": "The system automatically triggers penalties when members accumulate enough warnings (/warn).",
+  "birthday.rewards_desc": "Configure automatic rewards deposited into member bank accounts and level XP.",
+  "birthday.default_template": "🎉🎂 Happy Birthday {user}! Wishing you an amazing day in {server}! 🎉🎂"
 }
