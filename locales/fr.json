@@ -1465,5 +1465,7 @@
   "landing.f12_desc": "Envoie des vœux personnalisés chaque jour à 00:00, accorde un rôle VIP 24h et offre des pièces en banque ainsi que de l'XP.",
   "landing.f12_btn": "Configurer Anniversaire",
   "landing.mock_bday_title": "🎂 Joyeux Anniversaire !",
-  "landing.mock_bday_desc": "🎉 C'est aujourd'hui l'anniversaire de @Member !\\n🎁 Récompense : +500 Pièces, +200 XP et Rôle 👑 Birthday VIP (24h) !"
+  "landing.mock_bday_desc": "🎉 C'est aujourd'hui l'anniversaire de @Member !\\n🎁 Récompense : +500 Pièces, +200 XP et Rôle 👑 Birthday VIP (24h) !",
+  "landing.mod_and_more": "+ Et Bien Plus",
+  "landing.mod_and_more_sub": "85+ commandes et fonctions"
 }

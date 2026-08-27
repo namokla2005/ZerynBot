@@ -1465,5 +1465,7 @@
   "landing.f12_desc": "每天 00:00 准时发送精美祝福卡片，授予 24 小时生日专属 VIP 身份组并奖励银行金币与升级经验值。",
   "landing.f12_btn": "配置生日系统",
   "landing.mock_bday_title": "🎂 生日快乐！",
-  "landing.mock_bday_desc": "🎉 今天是 @Member 的生日！\\n🎁 获得奖励：+500 银行金币, +200 XP 与 👑 生日专属 VIP 身份组 (24h)!"
+  "landing.mock_bday_desc": "🎉 今天是 @Member 的生日！\\n🎁 获得奖励：+500 银行金币, +200 XP 与 👑 生日专属 VIP 身份组 (24h)!",
+  "landing.mod_and_more": "+ 更多精彩功能",
+  "landing.mod_and_more_sub": "85+ 强大命令与特性"
 }

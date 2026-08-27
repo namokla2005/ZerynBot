@@ -1465,5 +1465,7 @@
   "landing.f12_desc": "Tự động gửi thông báo chúc mừng rực rỡ vào lúc 00:00 hàng ngày, trao role VIP 24h và tặng thưởng Coins Ngân hàng cùng XP.",
   "landing.f12_btn": "Cài Đặt Sinh Nhật",
   "landing.mock_bday_title": "🎂 Chúc Mừng Sinh Nhật!",
-  "landing.mock_bday_desc": "🎉 Hôm nay là sinh nhật của @Member!\\n🎁 Nhận được: +500 Coins Bank, +200 XP & Role 👑 Birthday VIP (24h)!"
+  "landing.mock_bday_desc": "🎉 Hôm nay là sinh nhật của @Member!\\n🎁 Nhận được: +500 Coins Bank, +200 XP & Role 👑 Birthday VIP (24h)!",
+  "landing.mod_and_more": "+ Còn Nhiều Hơn Nữa",
+  "landing.mod_and_more_sub": "85+ lệnh & tính năng"
 }

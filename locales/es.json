@@ -1465,5 +1465,7 @@
   "landing.f12_desc": "Envía felicitaciones automáticamente a las 00:00, otorga un rol VIP de 24h y recompensa con monedas bancarias y XP.",
   "landing.f12_btn": "Configurar Cumpleaños",
   "landing.mock_bday_title": "🎂 ¡Feliz Cumpleaños!",
-  "landing.mock_bday_desc": "🎉 ¡Hoy es el cumpleaños de @Member!\\n🎁 Recompensa: +500 Monedas, +200 XP y Rol 👑 Birthday VIP (24h)!"
+  "landing.mock_bday_desc": "🎉 ¡Hoy es el cumpleaños de @Member!\\n🎁 Recompensa: +500 Monedas, +200 XP y Rol 👑 Birthday VIP (24h)!",
+  "landing.mod_and_more": "+ Y Mucho Más",
+  "landing.mod_and_more_sub": "85+ comandos y funciones"
 }

@@ -1465,5 +1465,7 @@
   "landing.f12_desc": "Envie felicitações automaticamente às 00:00, conceda um cargo VIP de 24h e recompense com moedas no banco e XP.",
   "landing.f12_btn": "Configurar Aniversários",
   "landing.mock_bday_title": "🎂 Feliz Aniversário!",
-  "landing.mock_bday_desc": "🎉 Hoje é o aniversário de @Member!\\n🎁 Recompensa: +500 Moedas, +200 XP e Cargo 👑 Birthday VIP (24h)!"
+  "landing.mock_bday_desc": "🎉 Hoje é o aniversário de @Member!\\n🎁 Recompensa: +500 Moedas, +200 XP e Cargo 👑 Birthday VIP (24h)!",
+  "landing.mod_and_more": "+ E Muito Mais",
+  "landing.mod_and_more_sub": "85+ comandos e recursos"
 }
