@@ -357,6 +357,51 @@
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">🛡️</div>
+    <div class="fast-card-title">
+      {{ t('nav.moderation') | default('Điều hành') }}
+      <span class="server-chip {% if modules.get('moderation', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('moderation', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('dashboard.moderation_desc') | default('Kick, ban, timeout, cảnh cáo và quản lý kênh.') }}</div>
+    <a href="{{ url_for('server_moderation', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">🎭</div>
+    <div class="fast-card-title">
+      {{ t('nav.fun') | default('Vui vẻ & Tình cảm') }}
+      <span class="server-chip {% if modules.get('fun', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('fun', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('dashboard.fun_desc') | default('Tương tác anime GIF, ghép đôi, kết hôn và hồ sơ tình cảm.') }}</div>
+    <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
+
+  <div class="fast-card">
+    <div class="fast-card-icon">🎂</div>
+    <div class="fast-card-title">
+      {{ t('nav.birthday') | default('Sinh nhật') }}
+      <span class="server-chip {% if modules.get('birthday', True) %}chip-bot{% else %}chip-invite{% endif %}"
+            style="font-size:0.65rem; padding:2px 7px; margin-left:6px;">
+        {% if modules.get('birthday', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}
+      </span>
+    </div>
+    <div class="fast-card-desc">{{ t('dashboard.birthday_desc') | default('Quản lý và tự động chúc mừng sinh nhật thành viên.') }}</div>
+    <a href="{{ url_for('server_birthday', guild_id=guild_id) }}" class="fast-card-link">
+      {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+    </a>
+  </div>
 </div>
 
 <script>

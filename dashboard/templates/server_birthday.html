@@ -1,0 +1,100 @@
+{% extends "base_server.html" %}
+{% block title %}{{ t('dashboard.birthday_title') | default('Cấu hình Sinh nhật') }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🎂 {{ t('dashboard.birthday_title') | default('Cấu hình Sinh nhật') }}</h1>
+    <p class="page-subtitle">{{ t('dashboard.birthday_desc') | default('Quản lý và tự động chúc mừng sinh nhật thành viên.') }}</p>
+  </div>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 24px;">
+  <div class="stat-card">
+    <div class="stat-icon">🎈</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ bday_count }}</div>
+      <div class="stat-label">{{ t('birthday.month_count') | default('Sinh nhật trong tháng này') }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🎁</div>
+    <div class="stat-info">
+      <div class="stat-value">{% if modules.get('birthday', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
+      <div class="stat-label">{{ t('nav.birthday') | default('Trạng thái Module') }}</div>
+    </div>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('server_birthday', guild_id=guild_id) }}">
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <h2 class="card-title">📢 {{ t('birthday.announce_channel') | default('Kênh Chúc Mừng & Role Quà Tặng') }}</h2>
+    </div>
+    <div class="card-body">
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label class="form-label">{{ t('birthday.channel_label') | default('Kênh gửi thông báo tự động (00:00 UTC):') }}</label>
+        <select name="channel_id" class="form-select">
+          <option value="">-- {{ t('common.select_channel') | default('Chọn kênh...') }} --</option>
+          {% for c in channels %}
+            {% if c.get('channel_type') == 0 or c.get('type') == 'text' %}
+            <option value="{{ c.channel_id }}" {% if birthday_settings.get('channel_id') == c.channel_id %}selected{% endif %}>
+              # {{ c.channel_name }}
+            </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <p class="form-help">{{ t('birthday.channel_help') | default('Bot sẽ tự động gửi Embed chúc mừng sinh nhật vào kênh này lúc 00:00 hàng ngày.') }}</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ t('birthday.role_label') | default('Role quà tặng VIP (tự gỡ sau 24h):') }}</label>
+        <select name="role_id" class="form-select">
+          <option value="">-- {{ t('common.none') | default('Không gán Role') }} --</option>
+          {% for r in roles %}
+            {% if r.get('name') != '@everyone' %}
+            <option value="{{ r.id }}" {% if birthday_settings.get('role_id') == r.id %}selected{% endif %}>
+              @{{ r.name }}
+            </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <p class="form-help">{{ t('birthday.role_help') | default('Thành viên có sinh nhật sẽ được trao role này trong 24 giờ.') }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <h2 class="card-title">🎁 {{ t('birthday.rewards_title') | default('Quà Tặng Sinh Nhật (Coins & XP)') }}</h2>
+    </div>
+    <div class="card-body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div class="form-group">
+          <label class="form-label">💰 {{ t('birthday.gift_coins') | default('Coins tặng vào Bank:') }}</label>
+          <input type="number" name="gift_coins" class="form-input" min="0" max="100000"
+                 value="{{ birthday_settings.get('gift_coins', 500) }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">⭐ {{ t('birthday.gift_xp') | default('XP thưởng cấp độ:') }}</label>
+          <input type="number" name="gift_xp" class="form-input" min="0" max="100000"
+                 value="{{ birthday_settings.get('gift_xp', 200) }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">💬 {{ t('birthday.message_template_label') | default('Mẫu lời chúc mừng tùy chỉnh:') }}</label>
+        <textarea name="message_template" class="form-textarea" rows="3"
+                  placeholder="🎉🎂 Chúc mừng sinh nhật {user}! Chúc bạn một ngày thật tuyệt vời trong {server}! 🎉🎂">{{ birthday_settings.get('message_template') or '' }}</textarea>
+        <p class="form-help">{{ t('birthday.template_help') | default('Sử dụng biến {user} để tag thành viên, {server} để chèn tên máy chủ. Để trống để dùng mặc định.') }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 12px; justify-content: flex-end;">
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check2"></i> {{ t('common.save') | default('Lưu Cấu Hình') }}
+    </button>
+  </div>
+</form>
+{% endblock %}

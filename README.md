@@ -4,21 +4,21 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1303%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
-  <img src="https://img.shields.io/badge/Modules-16%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="16 Modules">
-  <img src="https://img.shields.io/badge/Commands-57%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="57 Commands">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1425%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/Modules-19%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="19 Modules">
+  <img src="https://img.shields.io/badge/Commands-87%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="87 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (16 Modules & 57 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (19 Modules & 87 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
 ## 📚 Tài Liệu Kiến Trúc (Cho Developers & AI)
 
 Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho các lập trình viên và trợ lý AI:
-- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1303 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
+- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1425 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
 
 ---
 
@@ -26,30 +26,43 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1303 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1425 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
-### ⏰ 2. Nhắc Nhở & Hẹn Giờ Thông Minh (Smart Reminders)
+### 🛡️ 2. Bộ Lệnh Điều Hành & Xử Phạt Thủ Công (Moderation Suite)
+- **Xử lý thành viên**: `/kick`, `/ban`, `/unban`, `/timeout` (khóa chat `10m`, `2h`, `1d`), `/untimeout`.
+- **Hệ thống Cảnh Cáo Leo Thang**: `/warn` (3 cảnh cáo = Mute 1h, 5 cảnh cáo = Kick), `/warnings`, `/delwarn`.
+- **Quản lý kênh chat**: `/clear` (xóa tin nhắn hàng loạt theo số lượng hoặc người dùng), `/slowmode`, `/lock`, `/unlock`.
+
+### 🎭 3. Tương Tác Anime & Tình Cảm / Hôn Nhân (Anime Fun & Social)
+- **10 Hành động Anime GIF (`nekos.best` API)**: `/hug`, `/pat`, `/kiss`, `/slap`, `/feed`, `/cuddle`, `/poke`, `/highfive`, `/cry`, `/dance`.
+- **Hôn Nhân & Ghép Đôi**: `/ship` (đoán % hợp đôi), `/marry` (cầu hôn qua nút bấm tương tác Button Đồng ý/Từ chối), `/divorce`, `/profile` (thẻ hồ sơ tình cảm).
+
+### 🎂 4. Quản Lý & Chúc Mừng Sinh Nhật (Birthday Engine)
+- **Lệnh cá nhân**: `/birthday set <ngày> <tháng> [năm]`, `/birthday check`, `/birthday list`, `/birthday remove`.
+- **Tác vụ chúc mừng tự động 00:00 hàng ngày**: Gửi Embed chúc mừng rực rỡ, trao role **Birthday VIP** (tự gỡ sau 24h), tặng Coins ngân hàng & XP.
+
+### ⏰ 5. Nhắc Nhở & Hẹn Giờ Thông Minh (Smart Reminders)
 - Hẹn giờ linh hoạt bằng lệnh `/remindme`: hỗ trợ mốc thời gian đa dạng (`10m`, `1h30m`, `2d`, hoặc mốc giờ cụ thể trong ngày như `20:30`).
 - Tự động gửi thông báo ping trực tiếp tại kênh chat hoặc qua tin nhắn riêng (DM).
 - Quản lý danh sách lịch hẹn với `/reminders` và hủy hẹn giờ với `/delreminder <id>`.
 
-### 📦 3. Sao Lưu Tự Động & Bảo Trì Dữ Liệu (24h Auto Backup & WAL Checkpoint)
+### 📦 6. Sao Lưu Tự Động & Bảo Trì Dữ Liệu (24h Auto Backup & WAL Checkpoint)
 - **Tác vụ ngầm 24h (`auto_backup_task`)**: Tự động dọn dẹp WAL (`PRAGMA wal_checkpoint(TRUNCATE);`), nén cơ sở dữ liệu `data/bot.db` thành file `.zip`, lưu trữ có giới hạn 7 ngày và gửi backup về Discord qua `WEBHOOK_LOG_URL`.
 - **Lệnh Chủ Bot `/backup`**: Cho phép Bot Owner tải về bản sao lưu database toàn vẹn ngay lập tức.
 
-### 🧠 4. Trí Tuệ Nhân Tạo (AI Assistant & Chatbot)
+### 🧠 7. Trí Tuệ Nhân Tạo (AI Assistant & Chatbot)
 - **Tích hợp mô hình AI hiện đại**: Gemini, OpenAI, Claude với khả năng hội thoại thông minh, tóm tắt tin nhắn kênh chat (`/ai summarize`) và trả lời câu hỏi (`/ai ask`).
 - **Tùy biến nhân cách AI (Custom System Prompt)**: Lựa chọn các preset phong cách (thân thiện, hài hước, chuyên nghiệp, Tsundere) hoặc nhập prompt riêng biệt theo từng Server ngay trên Dashboard.
 - **Hỗ trợ Multi-Key & Channel Lock**: Khóa kênh chat AI riêng biệt và quản lý API Key linh hoạt.
 
-### 🔊 5. Kênh Voice Tạm Thời (TempVoice Hub)
+### 🔊 8. Kênh Voice Tạm Thời (TempVoice Hub)
 - **Cơ chế Join-to-Create**: Tự động tạo phòng Voice riêng biệt khi thành viên tham gia vào kênh Hub.
 - **Bảng điều khiển tương tác (Interactive Control Panel)**: Đổi tên phòng, đặt giới hạn số người (User Limit), Khóa/Mở phòng Voice (`/voice lock`, `/voice unlock`, `/voice limit`, `/voice rename`).
 - **Tự động dọn dẹp (Auto Cleanup)**: Tự động xóa phòng Voice rác ngay khi không còn ai trong phòng.
 
-### 💰 6. Hệ Thống Kinh Tế Ảo & Ngân Hàng An Toàn (Virtual Economy & Bank System)
+### 💰 9. Hệ Thống Kinh Tế Ảo & Ngân Hàng An Toàn (Virtual Economy & Bank System)
 - **Tách biệt Ví (Wallet) & Ngân hàng (Bank)**:
   - 💵 **Tiền mặt Ví (Wallet)**: Dùng để chuyển tiền (`/pay`), tham gia mini-games giải trí (`/coinflip`, `/slots`, `/blackjack`). Mini-games **chỉ trừ tiền trong Ví**; tài sản trong Ngân hàng luôn an toàn 100%.
   - 🏦 **Tài khoản Ngân hàng (Bank)**: Nơi giữ tiền an toàn và dùng để thanh toán mua sắm Role trong Cửa hàng Server (`/shop`, `/buy`).

@@ -140,6 +140,23 @@
             <span class="status-dot nav-dot-ai
             {% if modules.get('ai', False) %}on{% else %}off{% endif %}"></span>
           </a>
+          <a href="{{ url_for('server_moderation', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'moderation' %}active{% endif %}">
+            <i class="nav-icon bi bi-shield-fill-check"></i> {{ t('nav.moderation') | default('Moderation') }}
+            <span class="status-dot nav-dot-moderation
+            {% if modules.get('moderation', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_birthday', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'birthday' %}active{% endif %}">
+            <i class="nav-icon bi bi-cake2-fill"></i> {{ t('nav.birthday') | default('Birthday') }}
+            <span class="status-dot nav-dot-birthday
+            {% if modules.get('birthday', True) %}on{% else %}off{% endif %}"></span>
+          </a>
+          <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="nav-item">
+            <i class="nav-icon bi bi-emoji-heart-eyes-fill"></i> {{ t('nav.fun') | default('Fun & Social') }}
+            <span class="status-dot nav-dot-fun
+            {% if modules.get('fun', True) %}on{% else %}off{% endif %}"></span>
+          </a>
         </div>
       </nav>
 

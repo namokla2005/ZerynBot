@@ -337,6 +337,44 @@ def init_db():
                 remind_at   INTEGER NOT NULL,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS mod_warnings (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                user_id     TEXT NOT NULL,
+                mod_id      TEXT NOT NULL,
+                reason      TEXT NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS user_marriages (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                user1_id    TEXT NOT NULL,
+                user2_id    TEXT NOT NULL,
+                married_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                love_points INTEGER DEFAULT 0,
+                UNIQUE(guild_id, user1_id),
+                UNIQUE(guild_id, user2_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_birthdays (
+                user_id     TEXT PRIMARY KEY,
+                day         INTEGER NOT NULL,
+                month       INTEGER NOT NULL,
+                year        INTEGER,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS birthday_settings (
+                guild_id            TEXT PRIMARY KEY,
+                enabled             INTEGER DEFAULT 1,
+                channel_id          TEXT,
+                role_id             TEXT,
+                message_template    TEXT,
+                gift_coins          INTEGER DEFAULT 500,
+                gift_xp             INTEGER DEFAULT 200
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -396,7 +434,8 @@ def init_db():
 DEFAULT_MODULES = [
     "welcome_goodbye", "autoroles", "leveling", "utility", "info",
     "music", "tickets", "reactionroles", "automods", "logger",
-    "giveaways", "economy", "tempvoice", "customcommands", "ai", "remind"
+    "giveaways", "economy", "tempvoice", "customcommands", "ai", "remind",
+    "moderation", "fun", "birthday"
 ]
 
 # ─── Blacklist (sync — Flask) ──────────────────────────────────────────────────
@@ -2153,3 +2192,236 @@ async def async_get_user_reminders(user_id: str, guild_id: str = None) -> list:
             return [dict(r) for r in rows]
 
 
+
+# ─── Moderation Warnings DB Functions ──────────────────────────────────────────
+
+async def async_add_mod_warning(guild_id: str, user_id: str, mod_id: str, reason: str) -> int:
+    """Add a moderation warning. Returns the new warning ID."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        cur = await db.execute("""
+            INSERT INTO mod_warnings (guild_id, user_id, mod_id, reason)
+            VALUES (?, ?, ?, ?)
+        """, (guild_id, user_id, mod_id, reason))
+        await db.commit()
+        return cur.lastrowid
+
+
+async def async_get_mod_warnings(guild_id: str, user_id: str) -> list:
+    """Get all active warnings for a user in a guild."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM mod_warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC",
+            (guild_id, user_id),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+
+async def async_count_mod_warnings(guild_id: str, user_id: str) -> int:
+    """Count total warnings for a user."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM mod_warnings WHERE guild_id = ? AND user_id = ?",
+            (guild_id, user_id),
+        ) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+
+async def async_delete_mod_warning(warning_id: int, guild_id: str) -> bool:
+    """Delete a warning by ID. Returns True if deleted."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        cur = await db.execute(
+            "DELETE FROM mod_warnings WHERE id = ? AND guild_id = ?",
+            (warning_id, guild_id),
+        )
+        await db.commit()
+        return cur.rowcount > 0
+
+
+def get_mod_warnings_count_sync(guild_id: str) -> int:
+    """Sync — count total warnings in guild (for dashboard)."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM mod_warnings WHERE guild_id = ?", (guild_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+
+# ─── Marriage / Fun DB Functions ───────────────────────────────────────────────
+
+async def async_get_marriage(guild_id: str, user_id: str) -> dict | None:
+    """Get the marriage record for a user (either as user1 or user2)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM user_marriages WHERE guild_id = ? AND (user1_id = ? OR user2_id = ?)",
+            (guild_id, user_id, user_id),
+        ) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+
+async def async_create_marriage(guild_id: str, user1_id: str, user2_id: str) -> int:
+    """Create a marriage between two users. Returns the new ID."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        cur = await db.execute("""
+            INSERT INTO user_marriages (guild_id, user1_id, user2_id)
+            VALUES (?, ?, ?)
+        """, (guild_id, user1_id, user2_id))
+        await db.commit()
+        return cur.lastrowid
+
+
+async def async_delete_marriage(guild_id: str, user_id: str) -> bool:
+    """Delete a marriage involving user_id."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        cur = await db.execute(
+            "DELETE FROM user_marriages WHERE guild_id = ? AND (user1_id = ? OR user2_id = ?)",
+            (guild_id, user_id, user_id),
+        )
+        await db.commit()
+        return cur.rowcount > 0
+
+
+async def async_add_love_points(guild_id: str, user_id: str, points: int = 1):
+    """Increment love_points for a marriage."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute(
+            "UPDATE user_marriages SET love_points = love_points + ? WHERE guild_id = ? AND (user1_id = ? OR user2_id = ?)",
+            (points, guild_id, user_id, user_id),
+        )
+        await db.commit()
+
+
+def get_marriages_count_sync(guild_id: str) -> int:
+    """Sync — count marriages in guild (for dashboard)."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM user_marriages WHERE guild_id = ?", (guild_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+
+# ─── Birthday DB Functions ─────────────────────────────────────────────────────
+
+async def async_set_birthday(user_id: str, day: int, month: int, year: int | None = None):
+    """Set or update a user's birthday."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("""
+            INSERT INTO user_birthdays (user_id, day, month, year, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET day=excluded.day, month=excluded.month, year=excluded.year, updated_at=CURRENT_TIMESTAMP
+        """, (user_id, day, month, year))
+        await db.commit()
+
+
+async def async_get_birthday(user_id: str) -> dict | None:
+    """Get a user's birthday."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM user_birthdays WHERE user_id = ?", (user_id,)) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+
+async def async_remove_birthday(user_id: str) -> bool:
+    """Remove a user's birthday."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        cur = await db.execute("DELETE FROM user_birthdays WHERE user_id = ?", (user_id,))
+        await db.commit()
+        return cur.rowcount > 0
+
+
+async def async_get_birthdays_today(day: int, month: int) -> list:
+    """Get all users whose birthday is today."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM user_birthdays WHERE day = ? AND month = ?", (day, month)
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+
+async def async_get_upcoming_birthdays(current_month: int, current_day: int, limit: int = 10) -> list:
+    """Get upcoming birthdays sorted by nearest date."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        # Sort by how far the birthday is from today (wrapping around year)
+        async with db.execute("""
+            SELECT *, 
+                CASE 
+                    WHEN (month > ? OR (month = ? AND day >= ?)) THEN (month - ?) * 31 + (day - ?)
+                    ELSE (month + 12 - ?) * 31 + (day - ?)
+                END AS distance
+            FROM user_birthdays
+            ORDER BY distance ASC
+            LIMIT ?
+        """, (current_month, current_month, current_day, current_month, current_day, current_month, current_day, limit)) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+
+async def async_get_birthday_settings(guild_id: str) -> dict:
+    """Get birthday settings for a guild."""
+    defaults = {
+        "guild_id": guild_id, "enabled": 1, "channel_id": None,
+        "role_id": None, "message_template": None,
+        "gift_coins": 500, "gift_xp": 200,
+    }
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM birthday_settings WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+            if row:
+                return dict(row)
+    return defaults
+
+
+async def async_upsert_birthday_settings(guild_id: str, **fields):
+    """Insert or update birthday settings."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("INSERT OR IGNORE INTO birthday_settings (guild_id) VALUES (?)", (guild_id,))
+        if fields:
+            set_clause = ", ".join(f"{k} = ?" for k in fields)
+            await db.execute(
+                f"UPDATE birthday_settings SET {set_clause} WHERE guild_id = ?",
+                [*fields.values(), guild_id],
+            )
+        await db.commit()
+
+
+def get_birthday_settings_sync(guild_id: str) -> dict:
+    """Sync — get birthday settings (for dashboard)."""
+    defaults = {
+        "guild_id": guild_id, "enabled": 1, "channel_id": None,
+        "role_id": None, "message_template": None,
+        "gift_coins": 500, "gift_xp": 200,
+    }
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM birthday_settings WHERE guild_id = ?", (guild_id,)).fetchone()
+        if row:
+            return _row_to_dict(row)
+    return defaults
+
+
+def upsert_birthday_settings_sync(guild_id: str, **fields):
+    """Sync — upsert birthday settings (for dashboard)."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.execute("INSERT OR IGNORE INTO birthday_settings (guild_id) VALUES (?)", (guild_id,))
+        if fields:
+            set_clause = ", ".join(f"{k} = ?" for k in fields)
+            conn.execute(
+                f"UPDATE birthday_settings SET {set_clause} WHERE guild_id = ?",
+                [*fields.values(), guild_id],
+            )
+        conn.commit()
+
+
+def get_birthdays_this_month_count(guild_id: str, month: int) -> int:
+    """Sync — count members with birthdays this month who are in the guild (approximation)."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM user_birthdays WHERE month = ?", (month,)
+        ).fetchone()
+        return row[0] if row else 0

@@ -446,6 +446,68 @@ def server_automod(guild_id: str):
     )
 
 
+@app.route("/dashboard/<guild_id>/moderation", methods=["GET", "POST"])
+@guild_access_required
+def server_moderation(guild_id: str):
+    if request.method == "POST":
+        form = request.form
+        log_channel_id = form.get("log_channel_id") or None
+        # We can update logger settings or bot settings
+        logger_s = db.get_logger_settings(guild_id)
+        logger_s["log_channel_id"] = log_channel_id
+        db.set_logger_settings(guild_id, logger_s)
+        flash("✅ Đã lưu cấu hình Điều hành!", "success")
+        return redirect(url_for("server_moderation", guild_id=guild_id))
+
+    channels = db.get_guild_channels(guild_id)
+    roles = db.get_guild_roles(guild_id)
+    logger_s = db.get_logger_settings(guild_id)
+    warn_count = db.get_mod_warnings_count_sync(guild_id)
+
+    return render_template(
+        "server_moderation.html",
+        **_server_ctx(guild_id, active_page="moderation"),
+        channels=channels,
+        roles=roles,
+        logger_settings=logger_s,
+        warn_count=warn_count,
+        meta=db.get_guild_meta(guild_id) or {},
+    )
+
+
+@app.route("/dashboard/<guild_id>/birthday", methods=["GET", "POST"])
+@guild_access_required
+def server_birthday(guild_id: str):
+    if request.method == "POST":
+        form = request.form
+        fields = {
+            "channel_id": form.get("channel_id") or None,
+            "role_id": form.get("role_id") or None,
+            "message_template": form.get("message_template", "").strip() or None,
+            "gift_coins": int(form.get("gift_coins", 500)),
+            "gift_xp": int(form.get("gift_xp", 200)),
+        }
+        db.upsert_birthday_settings_sync(guild_id, **fields)
+        flash("✅ Đã lưu cấu hình Sinh nhật!", "success")
+        return redirect(url_for("server_birthday", guild_id=guild_id))
+
+    channels = db.get_guild_channels(guild_id)
+    roles = db.get_guild_roles(guild_id)
+    bday_settings = db.get_birthday_settings_sync(guild_id)
+    now_month = datetime.now().month
+    bday_count = db.get_birthdays_this_month_count(guild_id, now_month)
+
+    return render_template(
+        "server_birthday.html",
+        **_server_ctx(guild_id, active_page="birthday"),
+        channels=channels,
+        roles=roles,
+        birthday_settings=bday_settings,
+        bday_count=bday_count,
+        meta=db.get_guild_meta(guild_id) or {},
+    )
+
+
 @app.route("/dashboard/<guild_id>/embeds")
 @guild_access_required
 def server_embeds(guild_id: str):
@@ -469,11 +531,11 @@ def server_modules(guild_id: str):
         flash("✅ Đã cập nhật Modules & Quyền quản trị!", "success")
         return redirect(url_for("server_modules", guild_id=guild_id))
 
-    settings = db.get_guild_settings(guild_id)
+    guild_settings = db.get_guild_settings(guild_id)
     import json
     try:
-        saved_admin_roles = json.loads(settings.get("bot_admin_roles", "[]"))
-    except:
+        saved_admin_roles = json.loads(guild_settings.get("bot_admin_roles", "[]") or "[]")
+    except Exception:
         saved_admin_roles = []
         
     roles = db.get_guild_roles(guild_id)
@@ -1152,6 +1214,283 @@ _COMMANDS_DATA = [
                 }
             }
         ]
+    },
+    {
+        "category": "Điều hành",
+        "icon": "🛡️",
+        "commands": [
+            {
+                "name": "kick", "emoji": "🔨",
+                "desc": "Đuổi thành viên khỏi server",
+                "usage": "/kick [member] [reason]", "example": "/kick @User Vi phạm nội quy",
+                "args": [
+                    {"name": "member", "type": "User", "required": True, "desc": "Thành viên cần kick"},
+                    {"name": "reason", "type": "Text", "required": False, "desc": "Lý do đuổi"}
+                ],
+                "preview": {"type": "text", "text": "🔨 @User đã bị đuổi khỏi server."}
+            },
+            {
+                "name": "ban", "emoji": "⛔",
+                "desc": "Cấm thành viên khỏi server",
+                "usage": "/ban [member] [reason] [delete_days]", "example": "/ban @User Spam phá hoại 1",
+                "args": [
+                    {"name": "member", "type": "User", "required": True, "desc": "Thành viên cần cấm"},
+                    {"name": "reason", "type": "Text", "required": False, "desc": "Lý do cấm"},
+                    {"name": "delete_days", "type": "Number", "required": False, "desc": "Số ngày tin nhắn cần xóa (0-7)"}
+                ],
+                "preview": {"type": "text", "text": "⛔ @User đã bị cấm khỏi server."}
+            },
+            {
+                "name": "unban", "emoji": "✅",
+                "desc": "Hủy cấm người dùng theo ID",
+                "usage": "/unban [user_id] [reason]", "example": "/unban 123456789 Hết hạn phạt",
+                "args": [
+                    {"name": "user_id", "type": "Text", "required": True, "desc": "ID người dùng"},
+                    {"name": "reason", "type": "Text", "required": False, "desc": "Lý do hủy cấm"}
+                ],
+                "preview": {"type": "text", "text": "✅ Đã hủy cấm thành công cho ID 123456789."}
+            },
+            {
+                "name": "timeout", "emoji": "🔇",
+                "desc": "Khóa chat tạm thời (Mute)",
+                "usage": "/timeout [member] [duration] [reason]", "example": "/timeout @User 10m Spam chat",
+                "args": [
+                    {"name": "member", "type": "User", "required": True, "desc": "Thành viên cần mute"},
+                    {"name": "duration", "type": "Text", "required": True, "desc": "Thời lượng (10m, 2h, 1d)"},
+                    {"name": "reason", "type": "Text", "required": False, "desc": "Lý do khóa chat"}
+                ],
+                "preview": {"type": "text", "text": "🔇 @User đã bị khóa chat 10m."}
+            },
+            {
+                "name": "untimeout", "emoji": "🔊",
+                "desc": "Gỡ khóa chat",
+                "usage": "/untimeout [member] [reason]", "example": "/untimeout @User Ân xá",
+                "args": [
+                    {"name": "member", "type": "User", "required": True, "desc": "Thành viên cần gỡ mute"},
+                    {"name": "reason", "type": "Text", "required": False, "desc": "Lý do"}
+                ],
+                "preview": {"type": "text", "text": "🔊 Đã gỡ khóa chat cho @User."}
+            },
+            {
+                "name": "warn", "emoji": "⚠️",
+                "desc": "Cảnh cáo thành viên (Tự động phạt: 3 lần = Mute 1h, 5 lần = Kick)",
+                "usage": "/warn [member] [reason]", "example": "/warn @User Dùng từ ngữ không phù hợp",
+                "args": [
+                    {"name": "member", "type": "User", "required": True, "desc": "Thành viên bị cảnh cáo"},
+                    {"name": "reason", "type": "Text", "required": True, "desc": "Lý do cảnh cáo"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#FEE75C", "title": "⚠️ Cảnh Cáo Thành Viên",
+                    "desc": "**Thành viên:** @User<br>**Lý do:** Dùng từ ngữ không phù hợp<br>**Tổng cảnh cáo:** 1"
+                }
+            },
+            {
+                "name": "warnings", "emoji": "📋",
+                "desc": "Xem lịch sử cảnh cáo",
+                "usage": "/warnings [member]", "example": "/warnings @User",
+                "args": [{"name": "member", "type": "User", "required": False, "desc": "Thành viên cần xem (mặc định: bản thân)"}],
+                "preview": {
+                    "type": "embed", "color": "#FEE75C", "title": "📋 Cảnh cáo của User",
+                    "desc": "`#1` — Dùng từ ngữ không phù hợp (10 phút trước)"
+                }
+            },
+            {
+                "name": "delwarn", "emoji": "🗑️",
+                "desc": "Xóa cảnh cáo theo ID",
+                "usage": "/delwarn [warn_id]", "example": "/delwarn 1",
+                "args": [{"name": "warn_id", "type": "Number", "required": True, "desc": "ID cảnh cáo cần xóa"}],
+                "preview": {"type": "text", "text": "✅ Đã xóa cảnh cáo #1."}
+            },
+            {
+                "name": "clear", "emoji": "🧹",
+                "desc": "Xóa tin nhắn hàng loạt",
+                "usage": "/clear [amount] [member]", "example": "/clear 20",
+                "args": [
+                    {"name": "amount", "type": "Number", "required": True, "desc": "Số tin nhắn cần xóa (1-100)"},
+                    {"name": "member", "type": "User", "required": False, "desc": "Chỉ xóa tin của người này"}
+                ],
+                "preview": {"type": "text", "text": "🗑️ Đã xóa 20 tin nhắn."}
+            },
+            {
+                "name": "slowmode", "emoji": "🐌",
+                "desc": "Đặt chế độ chat chậm",
+                "usage": "/slowmode [seconds] [channel]", "example": "/slowmode 5",
+                "args": [
+                    {"name": "seconds", "type": "Number", "required": True, "desc": "Thời gian chờ (0 = tắt)"},
+                    {"name": "channel", "type": "Channel", "required": False, "desc": "Kênh áp dụng"}
+                ],
+                "preview": {"type": "text", "text": "🐌 Đã bật slowmode 5s."}
+            },
+            {
+                "name": "lock", "emoji": "🔒",
+                "desc": "Khóa kênh chat",
+                "usage": "/lock [channel]", "example": "/lock",
+                "args": [{"name": "channel", "type": "Channel", "required": False, "desc": "Kênh cần khóa"}],
+                "preview": {"type": "text", "text": "🔒 Kênh đã bị khóa."}
+            },
+            {
+                "name": "unlock", "emoji": "🔓",
+                "desc": "Mở khóa kênh chat",
+                "usage": "/unlock [channel]", "example": "/unlock",
+                "args": [{"name": "channel", "type": "Channel", "required": False, "desc": "Kênh cần mở khóa"}],
+                "preview": {"type": "text", "text": "🔓 Kênh đã được mở khóa."}
+            }
+        ]
+    },
+    {
+        "category": "Vui vẻ & Tình cảm",
+        "icon": "🎭",
+        "commands": [
+            {
+                "name": "hug", "emoji": "🤗",
+                "desc": "Ôm ai đó thật ấm áp",
+                "usage": "/hug [member]", "example": "/hug @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bạn muốn ôm"}],
+                "preview": {"type": "text", "text": "🤗 @User ôm @Friend thật ấm áp!"}
+            },
+            {
+                "name": "pat", "emoji": "😊",
+                "desc": "Xoa đầu ai đó",
+                "usage": "/pat [member]", "example": "/pat @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bạn muốn xoa đầu"}],
+                "preview": {"type": "text", "text": "😊 @User xoa đầu @Friend thật dễ thương!"}
+            },
+            {
+                "name": "kiss", "emoji": "😘",
+                "desc": "Hôn ai đó",
+                "usage": "/kiss [member]", "example": "/kiss @Crush",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bạn muốn hôn"}],
+                "preview": {"type": "text", "text": "😘 @User hôn @Crush! 💋"}
+            },
+            {
+                "name": "slap", "emoji": "👋",
+                "desc": "Tát ai đó tinh nghịch",
+                "usage": "/slap [member]", "example": "/slap @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bị tát"}],
+                "preview": {"type": "text", "text": "👋 @User tát @Friend! Ouch!"}
+            },
+            {
+                "name": "feed", "emoji": "🍙",
+                "desc": "Đút cho ai đó ăn kèm GIF anime",
+                "usage": "/feed [member]", "example": "/feed @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người được đút ăn"}],
+                "preview": {"type": "text", "text": "🍙 @User đút cho @Friend ăn! Ngon không?"}
+            },
+            {
+                "name": "cuddle", "emoji": "🧸",
+                "desc": "Cưng nựng ôm ấp ai đó",
+                "usage": "/cuddle [member]", "example": "/cuddle @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bạn muốn cưng nựng"}],
+                "preview": {"type": "text", "text": "🧸 @User cưng nựng @Friend thật đáng yêu!"}
+            },
+            {
+                "name": "poke", "emoji": "👉",
+                "desc": "Chọc má ai đó",
+                "usage": "/poke [member]", "example": "/poke @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bị chọc"}],
+                "preview": {"type": "text", "text": "👉 @User chọc má @Friend!"}
+            },
+            {
+                "name": "highfive", "emoji": "✋",
+                "desc": "Đập tay chúc mừng",
+                "usage": "/highfive [member]", "example": "/highfive @Friend",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người đập tay cùng"}],
+                "preview": {"type": "text", "text": "✋ @User đập tay với @Friend! 🎉"}
+            },
+            {
+                "name": "cry", "emoji": "😢",
+                "desc": "Khóc biểu cảm",
+                "usage": "/cry", "example": "/cry", "args": [],
+                "preview": {"type": "text", "text": "😢 @User đang khóc... ai an ủi đi!"}
+            },
+            {
+                "name": "dance", "emoji": "💃",
+                "desc": "Nhảy múa vui vẻ",
+                "usage": "/dance", "example": "/dance", "args": [],
+                "preview": {"type": "text", "text": "💃 @User nhảy múa vui vẻ!"}
+            },
+            {
+                "name": "ship", "emoji": "💘",
+                "desc": "Đoán độ hợp đôi giữa hai người",
+                "usage": "/ship [user1] [user2]", "example": "/ship @User1 @User2",
+                "args": [
+                    {"name": "user1", "type": "User", "required": True, "desc": "Người thứ nhất"},
+                    {"name": "user2", "type": "User", "required": False, "desc": "Người thứ hai (mặc định: bạn)"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#FF69B4", "title": "💘 User1 × User2",
+                    "desc": "**95%** Trời sinh một cặp! 💞<br>❤️❤️❤️❤️❤️❤️❤️❤️❤️🖤"
+                }
+            },
+            {
+                "name": "marry", "emoji": "💍",
+                "desc": "Cầu hôn ai đó bằng nút bấm tương tác",
+                "usage": "/marry [member]", "example": "/marry @Crush",
+                "args": [{"name": "member", "type": "User", "required": True, "desc": "Người bạn muốn cầu hôn"}],
+                "preview": {
+                    "type": "embed", "color": "#FF69B4", "title": "💍 Lời cầu hôn",
+                    "desc": "💍 @User đã cầu hôn @Crush! Bạn có đồng ý không?"
+                }
+            },
+            {
+                "name": "divorce", "emoji": "💔",
+                "desc": "Ly hôn và chấm dứt mối quan hệ",
+                "usage": "/divorce", "example": "/divorce", "args": [],
+                "preview": {"type": "text", "text": "💔 @User đã ly hôn thành công."}
+            },
+            {
+                "name": "profile", "emoji": "💝",
+                "desc": "Xem thẻ hồ sơ tình cảm cá nhân",
+                "usage": "/profile [member]", "example": "/profile @User",
+                "args": [{"name": "member", "type": "User", "required": False, "desc": "Thành viên cần xem"}],
+                "preview": {
+                    "type": "embed", "color": "#FF69B4", "title": "💝 User",
+                    "desc": "💍 **Đối tượng:** @Partner<br>📅 **Ngày kết hôn:** 15 ngày<br>💖 **Điểm yêu thương:** 42"
+                }
+            }
+        ]
+    },
+    {
+        "category": "Sinh nhật",
+        "icon": "🎂",
+        "commands": [
+            {
+                "name": "birthday set", "emoji": "🎂",
+                "desc": "Đăng ký ngày sinh của bản thân",
+                "usage": "/birthday set [day] [month] [year]", "example": "/birthday set 15 8 2000",
+                "args": [
+                    {"name": "day", "type": "Number", "required": True, "desc": "Ngày (1-31)"},
+                    {"name": "month", "type": "Number", "required": True, "desc": "Tháng (1-12)"},
+                    {"name": "year", "type": "Number", "required": False, "desc": "Năm sinh (tùy chọn)"}
+                ],
+                "preview": {"type": "text", "text": "🎂 Đã lưu ngày sinh của bạn: **15/08/2000**"}
+            },
+            {
+                "name": "birthday check", "emoji": "📅",
+                "desc": "Xem ngày sinh và đếm ngược",
+                "usage": "/birthday check [member]", "example": "/birthday check @User",
+                "args": [{"name": "member", "type": "User", "required": False, "desc": "Thành viên cần xem"}],
+                "preview": {
+                    "type": "embed", "color": "#FF69B4", "title": "🎂 User",
+                    "desc": "📅 **Ngày sinh:** 15/08/2000<br>⏳ **Đếm ngược:** 45 ngày nữa<br>🎈 **Tuổi:** 26"
+                }
+            },
+            {
+                "name": "birthday list", "emoji": "📋",
+                "desc": "Xem 10 sinh nhật sắp tới trong server",
+                "usage": "/birthday list", "example": "/birthday list", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#FF69B4", "title": "🎂 Sinh nhật sắp tới",
+                    "desc": "**1.** @User1 — `01/09` (12d)<br>**2.** @User2 — `15/09` (26d)"
+                }
+            },
+            {
+                "name": "birthday remove", "emoji": "🗑️",
+                "desc": "Xóa ngày sinh đã đăng ký",
+                "usage": "/birthday remove", "example": "/birthday remove", "args": [],
+                "preview": {"type": "text", "text": "✅ Đã xóa ngày sinh của bạn."}
+            }
+        ]
     }
 ]
 
@@ -1174,6 +1513,9 @@ def server_commands(guild_id: str):
         "Voice Tạm thời": t("nav.tempvoice", lang=ui_lang),
         "Lệnh Tùy biến": t("nav.customcommands", lang=ui_lang),
         "Trợ lý AI": t("nav.ai", lang=ui_lang),
+        "Điều hành": t("commands.cat_moderation", lang=ui_lang),
+        "Vui vẻ & Tình cảm": t("commands.cat_fun", lang=ui_lang),
+        "Sinh nhật": t("commands.cat_birthday", lang=ui_lang),
     }
     localized_data = []
     for c in _COMMANDS_DATA:

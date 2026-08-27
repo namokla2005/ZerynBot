@@ -377,6 +377,57 @@
     </label>
   </div>
 
+  <!-- Moderation -->
+  <div class="module-card {% if modules.get('moderation', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🛡️</span> {{ t('nav.moderation') | default('Điều hành') }}</div>
+      <div class="mod-desc">{{ t('dashboard.moderation_desc') | default('Kick, ban, timeout, cảnh cáo và quản lý kênh.') }}</div>
+      <a href="{{ url_for('server_moderation', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="moderation"
+             {% if modules.get('moderation', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Fun & Social -->
+  <div class="module-card {% if modules.get('fun', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🎭</span> {{ t('nav.fun') | default('Vui vẻ & Tình cảm') }}</div>
+      <div class="mod-desc">{{ t('dashboard.fun_desc') | default('Tương tác anime GIF, ghép đôi, kết hôn và hồ sơ tình cảm.') }}</div>
+      <a href="{{ url_for('server_commands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="fun"
+             {% if modules.get('fun', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
+  <!-- Birthday -->
+  <div class="module-card {% if modules.get('birthday', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🎂</span> {{ t('nav.birthday') | default('Sinh nhật') }}</div>
+      <div class="mod-desc">{{ t('dashboard.birthday_desc') | default('Quản lý và tự động chúc mừng sinh nhật thành viên.') }}</div>
+      <a href="{{ url_for('server_birthday', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="birthday"
+             {% if modules.get('birthday', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
 </div>
 
 <div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">
