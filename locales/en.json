@@ -1475,5 +1475,22 @@
   "cmd.reminders.desc": "View your list of active scheduled reminders",
   "cmd.delreminder.desc": "Delete a scheduled reminder by its ID",
   "cmd.deposit.desc": "Deposit wallet cash into your bank account",
-  "cmd.withdraw.desc": "Withdraw money from bank into wallet cash"
+  "cmd.withdraw.desc": "Withdraw money from bank into wallet cash",
+  "fun.btn_slap_back": "👋 Slap back",
+  "fun.btn_hug_back": "🤗 Hug back",
+  "fun.btn_kiss_back": "😘 Kiss back",
+  "fun.btn_pat_back": "😊 Pat back",
+  "fun.btn_feed_back": "🍙 Feed back",
+  "fun.btn_cuddle_back": "🧸 Cuddle back",
+  "fun.btn_poke_back": "👉 Poke back",
+  "fun.btn_highfive_back": "✋ High-five back",
+  "fun.action_not_for_you": "❌ Only the tagged user can use this button!",
+  "fun.count_slap": "*{target} has received {count} slap(s).*",
+  "fun.count_hug": "*{target} has received {count} warm hug(s).*",
+  "fun.count_kiss": "*{target} has received {count} sweet kiss(es).*",
+  "fun.count_pat": "*{target} has been patted {count} time(s).*",
+  "fun.count_feed": "*{target} has been fed {count} time(s).*",
+  "fun.count_cuddle": "*{target} has been cuddled {count} time(s).*",
+  "fun.count_poke": "*{target} has been poked {count} time(s).*",
+  "fun.count_highfive": "*{target} has high-fived {count} time(s).*"
 }

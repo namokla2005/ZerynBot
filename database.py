@@ -375,6 +375,15 @@ def init_db():
                 gift_coins          INTEGER DEFAULT 500,
                 gift_xp             INTEGER DEFAULT 200
             );
+
+            CREATE TABLE IF NOT EXISTS fun_interactions (
+                guild_id    TEXT NOT NULL,
+                user_id     TEXT NOT NULL,
+                target_id   TEXT NOT NULL,
+                action      TEXT NOT NULL,
+                count       INTEGER DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id, target_id, action)
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -2301,6 +2310,35 @@ def get_marriages_count_sync(guild_id: str) -> int:
             "SELECT COUNT(*) FROM user_marriages WHERE guild_id = ?", (guild_id,)
         ).fetchone()
         return row[0] if row else 0
+
+
+async def async_increment_fun_interaction(guild_id: str, user_id: str, target_id: str, action: str) -> int:
+    """Increment interaction count between user and target for a given action. Returns new count."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("""
+            INSERT INTO fun_interactions (guild_id, user_id, target_id, action, count)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(guild_id, user_id, target_id, action)
+            DO UPDATE SET count = count + 1
+        """, (guild_id, user_id, target_id, action))
+        await db.commit()
+        async with db.execute("""
+            SELECT count FROM fun_interactions
+            WHERE guild_id = ? AND user_id = ? AND target_id = ? AND action = ?
+        """, (guild_id, user_id, target_id, action)) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 1
+
+
+async def async_get_fun_interaction_count(guild_id: str, user_id: str, target_id: str, action: str) -> int:
+    """Get interaction count between user and target for a given action."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute("""
+            SELECT count FROM fun_interactions
+            WHERE guild_id = ? AND user_id = ? AND target_id = ? AND action = ?
+        """, (guild_id, user_id, target_id, action)) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
 
 
 # ─── Birthday DB Functions ─────────────────────────────────────────────────────

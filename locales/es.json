@@ -1475,5 +1475,22 @@
   "cmd.reminders.desc": "Ver la lista de tus recordatorios activos",
   "cmd.delreminder.desc": "Eliminar un recordatorio programado por su ID",
   "cmd.deposit.desc": "Depositar dinero de la billetera en el banco",
-  "cmd.withdraw.desc": "Retirar dinero del banco a la billetera"
+  "cmd.withdraw.desc": "Retirar dinero del banco a la billetera",
+  "fun.btn_slap_back": "👋 Devolver bofetada",
+  "fun.btn_hug_back": "🤗 Devolver abrazo",
+  "fun.btn_kiss_back": "😘 Devolver beso",
+  "fun.btn_pat_back": "😊 Devolver caricia",
+  "fun.btn_feed_back": "🍙 Alimentar de vuelta",
+  "fun.btn_cuddle_back": "🧸 Acurrucarse de vuelta",
+  "fun.btn_poke_back": "👉 Devolver toque",
+  "fun.btn_highfive_back": "✋ Chocar los cinco de vuelta",
+  "fun.action_not_for_you": "❌ ¡Solo el usuario etiquetado puede usar este botón!",
+  "fun.count_slap": "*{target} ha recibido {count} bofetada(s).*",
+  "fun.count_hug": "*{target} ha recibido {count} abrazo(s) cálido(s).*",
+  "fun.count_kiss": "*{target} ha recibido {count} beso(s) dulce(s).*",
+  "fun.count_pat": "*{target} ha recibido {count} caricia(s) en la cabeza.*",
+  "fun.count_feed": "*{target} ha sido alimentado(a) {count} vez/veces.*",
+  "fun.count_cuddle": "*{target} ha recibido {count} mimo(s).*",
+  "fun.count_poke": "*{target} ha sido tocado(a) {count} vez/veces.*",
+  "fun.count_highfive": "*{target} ha chocado los cinco {count} vez/veces.*"
 }

@@ -1475,5 +1475,22 @@
   "cmd.reminders.desc": "Xem danh sách các lời nhắc hẹn giờ đang chờ của bạn",
   "cmd.delreminder.desc": "Hủy một lời nhắc hẹn giờ theo ID",
   "cmd.deposit.desc": "Nạp tiền mặt từ Ví vào tài khoản Ngân hàng",
-  "cmd.withdraw.desc": "Rút tiền từ Ngân hàng về Ví tiền mặt"
+  "cmd.withdraw.desc": "Rút tiền từ Ngân hàng về Ví tiền mặt",
+  "fun.btn_slap_back": "👋 Tát lại",
+  "fun.btn_hug_back": "🤗 Ôm lại",
+  "fun.btn_kiss_back": "😘 Hôn lại",
+  "fun.btn_pat_back": "😊 Xoa đầu lại",
+  "fun.btn_feed_back": "🍙 Đút lại",
+  "fun.btn_cuddle_back": "🧸 Cưng nựng lại",
+  "fun.btn_poke_back": "👉 Chọc lại",
+  "fun.btn_highfive_back": "✋ Đập tay lại",
+  "fun.action_not_for_you": "❌ Chỉ người được tag mới có thể bấm nút này!",
+  "fun.count_slap": "*{target} đã nhận {count} cái tát.*",
+  "fun.count_hug": "*{target} đã nhận {count} cái ôm ấm áp.*",
+  "fun.count_kiss": "*{target} đã nhận {count} nụ hôn ngọt ngào.*",
+  "fun.count_pat": "*{target} đã được xoa đầu {count} lần.*",
+  "fun.count_feed": "*{target} đã được đút ăn {count} lần.*",
+  "fun.count_cuddle": "*{target} đã được cưng nựng {count} lần.*",
+  "fun.count_poke": "*{target} đã bị chọc má {count} lần.*",
+  "fun.count_highfive": "*{target} đã đập tay chúc mừng {count} lần.*"
 }

@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1477%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1494%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-19%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="19 Modules">
   <img src="https://img.shields.io/badge/Commands-87%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="87 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
@@ -18,7 +18,7 @@
 ## 📚 Tài Liệu Kiến Trúc (Cho Developers & AI)
 
 Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho các lập trình viên và trợ lý AI:
-- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1477 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
+- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1494 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
 
 ---
 
@@ -26,7 +26,7 @@ Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho c�
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1477 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1494 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 

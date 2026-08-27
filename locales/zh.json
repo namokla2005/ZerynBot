@@ -1475,5 +1475,22 @@
   "cmd.reminders.desc": "查看您正在等待的所有定时提醒列表",
   "cmd.delreminder.desc": "按 ID 删除某个定时提醒",
   "cmd.deposit.desc": "将现金从钱包存入银行账户",
-  "cmd.withdraw.desc": "从银行账户取款至钱包"
+  "cmd.withdraw.desc": "从银行账户取款至钱包",
+  "fun.btn_slap_back": "👋 扇回去",
+  "fun.btn_hug_back": "🤗 抱回去",
+  "fun.btn_kiss_back": "😘 亲回去",
+  "fun.btn_pat_back": "😊 摸头回去",
+  "fun.btn_feed_back": "🍙 投喂回去",
+  "fun.btn_cuddle_back": "🧸 依偎回去",
+  "fun.btn_poke_back": "👉 戳回去",
+  "fun.btn_highfive_back": "✋ 击掌回去",
+  "fun.action_not_for_you": "❌ 只有被艾特的目标成员才能点击此按钮！",
+  "fun.count_slap": "*{target} 已经收到了 {count} 次拍打/耳光。*",
+  "fun.count_hug": "*{target} 已经收到了 {count} 次温暖的拥抱。*",
+  "fun.count_kiss": "*{target} 已经收到了 {count} 次甜蜜的亲吻。*",
+  "fun.count_pat": "*{target} 已经获得了 {count} 次摸头。*",
+  "fun.count_feed": "*{target} 已经被投喂了 {count} 次。*",
+  "fun.count_cuddle": "*{target} 已经被依偎宠溺了 {count} 次。*",
+  "fun.count_poke": "*{target} 已经被戳了 {count} 次。*",
+  "fun.count_highfive": "*{target} 已经击掌了 {count} 次。*"
 }

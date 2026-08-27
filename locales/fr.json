@@ -1475,5 +1475,22 @@
   "cmd.reminders.desc": "Afficher la liste de vos rappels actifs",
   "cmd.delreminder.desc": "Supprimer un rappel programmé par son ID",
   "cmd.deposit.desc": "Déposer de l'argent du portefeuille vers la banque",
-  "cmd.withdraw.desc": "Retirer de l'argent de la banque vers le portefeuille"
+  "cmd.withdraw.desc": "Retirer de l'argent de la banque vers le portefeuille",
+  "fun.btn_slap_back": "👋 Rendre la gifle",
+  "fun.btn_hug_back": "🤗 Rendre le câlin",
+  "fun.btn_kiss_back": "😘 Rendre le baiser",
+  "fun.btn_pat_back": "😊 Tapoter en retour",
+  "fun.btn_feed_back": "🍙 Nourrir en retour",
+  "fun.btn_cuddle_back": "🧸 Câliner en retour",
+  "fun.btn_poke_back": "👉 Taquiner en retour",
+  "fun.btn_highfive_back": "✋ Taper dans la main en retour",
+  "fun.action_not_for_you": "❌ Seul l'utilisateur mentionné peut utiliser ce bouton !",
+  "fun.count_slap": "*{target} a reçu {count} gifle(s).*",
+  "fun.count_hug": "*{target} a reçu {count} câlin(s) chaleureux.*",
+  "fun.count_kiss": "*{target} a reçu {count} doux baiser(s).*",
+  "fun.count_pat": "*{target} a été tapoté(e) {count} fois.*",
+  "fun.count_feed": "*{target} a été nourri(e) {count} fois.*",
+  "fun.count_cuddle": "*{target} a été câliné(e) {count} fois.*",
+  "fun.count_poke": "*{target} a été taquiné(e) {count} fois.*",
+  "fun.count_highfive": "*{target} a tapé dans la main {count} fois.*"
 }

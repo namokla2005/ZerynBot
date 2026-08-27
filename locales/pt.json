@@ -1475,5 +1475,22 @@
   "cmd.reminders.desc": "Ver sua lista de lembretes agendados",
   "cmd.delreminder.desc": "Excluir um lembrete agendado pelo ID",
   "cmd.deposit.desc": "Depositar dinheiro da carteira no banco",
-  "cmd.withdraw.desc": "Sacar dinheiro do banco para a carteira"
+  "cmd.withdraw.desc": "Sacar dinheiro do banco para a carteira",
+  "fun.btn_slap_back": "👋 Dar um tapa de volta",
+  "fun.btn_hug_back": "🤗 Abraçar de volta",
+  "fun.btn_kiss_back": "😘 Beijar de volta",
+  "fun.btn_pat_back": "😊 Fazer cafuné de volta",
+  "fun.btn_feed_back": "🍙 Alimentar de volta",
+  "fun.btn_cuddle_back": "🧸 Mimar de volta",
+  "fun.btn_poke_back": "👉 Cutucar de volta",
+  "fun.btn_highfive_back": "✋ Tocar aqui de volta",
+  "fun.action_not_for_you": "❌ Apenas o usuário mencionado pode usar este botão!",
+  "fun.count_slap": "*{target} recebeu {count} tapa(s).*",
+  "fun.count_hug": "*{target} recebeu {count} abraço(s) caloroso(s).*",
+  "fun.count_kiss": "*{target} recebeu {count} beijo(s) doce(s).*",
+  "fun.count_pat": "*{target} recebeu {count} cafuné(s).*",
+  "fun.count_feed": "*{target} foi alimentado(a) {count} vez(es).*",
+  "fun.count_cuddle": "*{target} foi mimado(a) {count} vez(es).*",
+  "fun.count_poke": "*{target} foi cutucado(a) {count} vez(es).*",
+  "fun.count_highfive": "*{target} tocou aqui {count} vez(es).*"
 }
