@@ -15,13 +15,6 @@
 
 ---
 
-## 📚 Tài Liệu Kiến Trúc (Cho Developers & AI)
-
-Dự án có sẵn tài liệu kiến trúc kỹ thuật chi tiết dành cho các lập trình viên và trợ lý AI:
-- 📖 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — Sơ đồ kiến trúc, cơ sở dữ liệu SQLite (WAL mode, busy timeout 15s, auto checkpoint), In-Memory RAM Cache với cơ chế dọn dẹp định kỳ 5 phút, luồng dữ liệu, quy tắc đa ngôn ngữ (**1494 keys/ngôn ngữ**) và danh sách anti-patterns cần tránh.
-
----
-
 ## ✨ Tính Năng Nổi Bật
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
