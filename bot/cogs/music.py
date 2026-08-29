@@ -652,17 +652,23 @@ class MusicPlayer:
 
 
 # ─── Embeds & Helpers ──────────────────────────────────────────────────────────
-def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 18) -> str:
-    """Tạo thanh tiến trình phát nhạc hiện đại."""
+def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 34) -> str:
+    """Tạo thanh tiến trình phát nhạc màu xanh Discord siêu đẹp giống hệt Music | 2."""
     if total_sec is None or not isinstance(total_sec, (int, float)) or total_sec <= 0:
-        return "🔴 `LIVE` ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+        return "[━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━](https://zerynbot.id.vn)"
 
     elapsed_sec = max(0, min(int(elapsed_sec or 0), int(total_sec)))
     ratio = elapsed_sec / total_sec if total_sec > 0 else 0.0
-    dot_idx = min(bar_length - 1, max(0, int(ratio * bar_length)))
+    played_len = max(1, min(bar_length, int(ratio * bar_length)))
+    remaining_len = bar_length - played_len
 
-    bar = "▬" * dot_idx + "🔘" + "▬" * (bar_length - 1 - dot_idx)
-    return bar
+    played_bar = "━" * played_len
+    remaining_bar = "━" * remaining_len
+
+    if remaining_len > 0:
+        return f"[{played_bar}](https://zerynbot.id.vn){remaining_bar}"
+    else:
+        return f"[{played_bar}](https://zerynbot.id.vn)"
 
 
 def _format_queue_duration(queue: list, current_track: Track = None) -> str:
@@ -679,7 +685,7 @@ def _format_queue_duration(queue: list, current_track: Track = None) -> str:
         else:
             has_live = True
     if total_sec <= 0:
-        return "🔴 LIVE" if has_live else "0s"
+        return "LIVE" if has_live else "0s"
     h = total_sec // 3600
     m = (total_sec % 3600) // 60
     s = total_sec % 60
@@ -696,19 +702,22 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
     vol_percent = int(volume * 100)
     queue_len = len(queue)
     total_dur_str = _format_queue_duration(queue, track)
-    badge = tr(s, "music.now_playing_badge") if tr(s, "music.now_playing_badge") != "music.now_playing_badge" else "NOW PLAYING"
+    np_title = tr(s, "music.now_playing_title") if tr(s, "music.now_playing_title") != "music.now_playing_title" else "Now Playing"
     vol_label = tr(s, "music.np_volume")
     queue_label = tr(s, "music.np_queue")
     dur_label = tr(s, "music.total_duration")
     songs_unit = tr(s, "music.songs_unit")
-    progress_bar = _make_progress_bar(elapsed_sec, track.duration)
+
+    dur_badge = track.duration_str if track.duration and track.duration > 0 else "LIVE"
+    progress_bar = _make_progress_bar(elapsed_sec, track.duration, bar_length=34)
 
     embed = discord.Embed(
         color=0x3B82F6,  # Neon Blue / Blurple Accent
         description=(
-            f"`{badge}`\n\n"
-            f"### [{track.title}]({track.url})\n"
-            f"**{track.uploader}** — `{track.duration_str}` — {track.requester_mention}\n\n"
+            f"**{np_title}**\n"
+            f"## [{track.title}]({track.url})\n"
+            f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n"
+            f"---\n"
             f"**{vol_label}:** `{vol_percent}%` — **{queue_label}:** `{queue_len} {songs_unit}` — **{dur_label}:** `{total_dur_str}`\n\n"
             f"{progress_bar}"
         )
@@ -731,13 +740,12 @@ class MusicControlView(discord.ui.View):
         # Cập nhật nhãn và style theo trạng thái thực tế
         if player.vc and player.vc.is_paused():
             self.btn_pause.label = tr(self.settings, "music.btn_resume")
-            self.btn_pause.style = discord.ButtonStyle.success
             self.btn_pause.emoji = "▶️"
         else:
             self.btn_pause.label = tr(self.settings, "music.btn_pause")
-            self.btn_pause.style = discord.ButtonStyle.primary
             self.btn_pause.emoji = "⏸️"
 
+        self.btn_pause.style = discord.ButtonStyle.secondary
         self.btn_shuffle.label = tr(self.settings, "music.btn_shuffle")
         self.btn_stop.label = tr(self.settings, "music.btn_stop")
         self.btn_skip.label = tr(self.settings, "music.btn_skip")
@@ -751,7 +759,7 @@ class MusicControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Xáo trộn", style=discord.ButtonStyle.secondary, emoji="🔀", row=0)
+    @discord.ui.button(label="Autoplay", style=discord.ButtonStyle.secondary, emoji="♾️", row=0)
     async def btn_shuffle(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -761,14 +769,14 @@ class MusicControlView(discord.ui.View):
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Dừng lại", style=discord.ButtonStyle.secondary, emoji="⏹️", row=0)
+    @discord.ui.button(label="Stop", style=discord.ButtonStyle.secondary, emoji="🟦", row=0)
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
         await self.player.stop()
 
-    @discord.ui.button(label="Tạm dừng", style=discord.ButtonStyle.primary, emoji="⏸️", row=0)
+    @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji="⏸️", row=0)
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -779,26 +787,25 @@ class MusicControlView(discord.ui.View):
                 self.player.total_paused_time += time.time() - self.player.pause_start
                 self.player.pause_start = 0.0
             button.label = tr(self.settings, "music.btn_pause")
-            button.style = discord.ButtonStyle.primary
             button.emoji = "⏸️"
         else:
             self.player.vc.pause()
             self.player.pause_start = time.time()
             button.label = tr(self.settings, "music.btn_resume")
-            button.style = discord.ButtonStyle.success
             button.emoji = "▶️"
+        button.style = discord.ButtonStyle.secondary
         elapsed = self.player.get_elapsed()
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Bỏ qua", style=discord.ButtonStyle.secondary, emoji="⏭️", row=0)
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji="⏭️", row=0)
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
         self.player.skip()
 
-    @discord.ui.button(label="Yêu thích", style=discord.ButtonStyle.secondary, emoji="❤️", row=0)
+    @discord.ui.button(label="Like", style=discord.ButtonStyle.secondary, emoji="❤️", row=0)
     async def btn_like(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.player.current:
             return await interaction.response.send_message(tr(self.settings, "music.no_song_playing"), ephemeral=True)
