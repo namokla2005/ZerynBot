@@ -74,8 +74,8 @@ def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
     )
 
 
-async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "") -> str:
-    """Gọi Groq Cloud API (Miễn phí 100%, siêu nhanh)."""
+async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "", image_url: str = None) -> str:
+    """Gọi Groq Cloud API (Miễn phí 100%, siêu nhanh, hỗ trợ Vision ảnh)."""
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -84,9 +84,29 @@ async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: s
     messages = []
     if system_instruction:
         messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
 
-    models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b"]
+    if image_url:
+        # Multimodal Vision message format cho Groq
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt or "Hãy mô tả và phân tích bức ảnh này."},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        })
+        models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+    else:
+        messages.append({"role": "user", "content": prompt})
+        # Ưu tiên các model nhẹ, hiểu tiếng Việt tốt và siêu tốc
+        models = [
+            "qwen/qwen3.6-27b",
+            "qwen/qwen3.8-27b",
+            "openai/gpt-oss-20b",
+            "groq/compound-mini",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant"
+        ]
+
     async with aiohttp.ClientSession() as session:
         for model in models:
             payload = {
@@ -96,7 +116,7 @@ async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: s
                 "max_tokens": 2048
             }
             try:
-                async with session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                async with session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=25)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         choices = data.get("choices", [])
@@ -107,7 +127,7 @@ async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: s
     return "❌ Không thể kết nối tới Groq Cloud API. Vui lòng kiểm tra lại Key."
 
 
-async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_key: str = "") -> str:
+async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_key: str = "", image_url: str = None) -> str:
     """Gọi OpenRouter Free API."""
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -118,14 +138,25 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
     messages = []
     if system_instruction:
         messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
 
-    free_models = ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1:free", "google/gemini-2.0-flash-exp:free"]
+    if image_url:
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt or "Hãy mô tả và phân tích bức ảnh này."},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        })
+        free_models = ["meta-llama/llama-3.2-11b-vision-instruct:free", "google/gemini-2.0-flash-exp:free"]
+    else:
+        messages.append({"role": "user", "content": prompt})
+        free_models = ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1:free", "google/gemini-2.0-flash-exp:free"]
+
     async with aiohttp.ClientSession() as session:
         for model in free_models:
             payload = {"model": model, "messages": messages}
             try:
-                async with session.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                async with session.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=25)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         choices = data.get("choices", [])
@@ -136,23 +167,42 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
     return "❌ Không thể kết nối tới OpenRouter Free API."
 
 
-async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False) -> str:
-    """Tự động phát hiện và gọi AI Provider tương ứng (Groq / OpenRouter / Google Gemini)."""
+async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False, image_url: str = None) -> str:
+    """Tự động phát hiện và gọi AI Provider tương ứng (Groq / OpenRouter / Google Gemini) có hỗ trợ Vision ảnh."""
     key = (api_key or config.GEMINI_API_KEY).strip()
     if not key:
         return _local_smart_reply(prompt, is_owner=is_owner)
 
     # 1. Groq Cloud (bắt đầu bằng gsk_)
     if key.startswith("gsk_"):
-        return await _call_groq_api(prompt, system_instruction, key)
+        return await _call_groq_api(prompt, system_instruction, key, image_url=image_url)
 
     # 2. OpenRouter (bắt đầu bằng sk-or-)
     if key.startswith("sk-or-"):
-        return await _call_openrouter_api(prompt, system_instruction, key)
+        return await _call_openrouter_api(prompt, system_instruction, key, image_url=image_url)
 
     # 3. Google Gemini (Mặc định hoặc bắt đầu bằng AIzaSy)
+    parts = [{"text": prompt}]
+    if image_url:
+        try:
+            import base64
+            async with aiohttp.ClientSession() as img_session:
+                async with img_session.get(image_url, timeout=aiohttp.ClientTimeout(total=10)) as img_resp:
+                    if img_resp.status == 200:
+                        img_bytes = await img_resp.read()
+                        mime = img_resp.headers.get("Content-Type", "image/jpeg")
+                        b64_data = base64.b64encode(img_bytes).decode("utf-8")
+                        parts.append({
+                            "inline_data": {
+                                "mime_type": mime,
+                                "data": b64_data
+                            }
+                        })
+        except Exception:
+            pass
+
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{"parts": parts}]
     }
     if system_instruction:
         payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
@@ -167,14 +217,14 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
         for model in GEMINI_MODELS:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
             try:
-                async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=25)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         candidates = data.get("candidates", [])
                         if candidates:
-                            parts = candidates[0].get("content", {}).get("parts", [])
-                            if parts:
-                                return parts[0].get("text", "").strip()
+                            cparts = candidates[0].get("content", {}).get("parts", [])
+                            if cparts:
+                                return cparts[0].get("text", "").strip()
                         return "❌ AI không tạo được câu trả lời phù hợp."
                     else:
                         err_text = await resp.text()
@@ -214,9 +264,12 @@ class AI(commands.Cog):
         return base_prompt
 
     # ─── ask ───────────────────────────────────────────────────────────────────
-    @commands.hybrid_command(name="ask", description="Đặt câu hỏi thông minh cho trợ lý AI Zeryn")
-    @app_commands.describe(prompt="Câu hỏi hoặc yêu cầu cần giải đáp")
-    async def ask(self, ctx: commands.Context, *, prompt: str):
+    @commands.hybrid_command(name="ask", description="Đặt câu hỏi thông minh cho trợ lý AI Zeryn (hỗ trợ kèm ảnh)")
+    @app_commands.describe(
+        prompt="Câu hỏi hoặc yêu cầu cần giải đáp",
+        image="Hình ảnh đính kèm để AI phân tích (tùy chọn)"
+    )
+    async def ask(self, ctx: commands.Context, prompt: str, image: discord.Attachment = None):
         await ctx.defer()
         s = await async_get_guild_settings(str(ctx.guild.id))
         ai_s = await async_get_ai_settings(str(ctx.guild.id))
@@ -229,8 +282,17 @@ class AI(commands.Cog):
         sys_prompt = self._build_system_prompt(ctx.author, ai_s)
         global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
         api_key = ai_s.get("api_key") or global_key
+
+        image_url = None
+        if image and image.content_type and image.content_type.startswith("image/"):
+            image_url = image.url
+        elif ctx.message and ctx.message.attachments:
+            for att in ctx.message.attachments:
+                if att.content_type and att.content_type.startswith("image/"):
+                    image_url = att.url
+                    break
         
-        response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
+        response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url)
 
         # Cắt gọt độ dài embed Discord (tối đa 4096 ký tự)
         if len(response_text) > 4000:
@@ -310,8 +372,19 @@ class AI(commands.Cog):
         if calls >= ai_s.get("rate_limit", 5):
             s = await async_get_guild_settings(str(message.guild.id))
             await message.reply(tr(s, "ai.rate_limited"), delete_after=5)
+        # Check for image attachments in the message
+        image_url = None
+        if message.attachments:
+            for att in message.attachments:
+                if att.content_type and att.content_type.startswith("image/"):
+                    image_url = att.url
+                    break
+
+        content = message.content.strip()
+        if not content and image_url:
+            content = "Hãy mô tả và phân tích chi tiết bức ảnh này."
+        elif not content and not image_url:
             return
-        await cache.aset(rate_key, calls + 1, ttl=60)
 
         async with message.channel.typing():
             is_owner = (config.BOT_OWNER_ID and message.author.id == config.BOT_OWNER_ID)
@@ -319,7 +392,7 @@ class AI(commands.Cog):
             global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
             api_key = ai_s.get("api_key") or global_key
             
-            response = await call_ai_api(message.content, sys_prompt, api_key=api_key, is_owner=is_owner)
+            response = await call_ai_api(content, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url)
             if len(response) > 2000:
                 response = response[:1990] + "..."
             await message.reply(response)
