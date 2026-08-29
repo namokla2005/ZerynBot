@@ -1494,5 +1494,18 @@
   "fun.count_poke": "*{target} has been poked {count} time(s).*",
   "fun.count_highfive": "*{target} has high-fived {count} time(s).*",
   "common.bot_missing_permission": "❌ The bot does not have sufficient permissions to perform this action.",
-  "common.error_occurred": "❌ An error occurred while executing the command. Please try again later!"
+  "common.error_occurred": "❌ An error occurred while executing the command. Please try again later!",
+  "giveaway.hosted_by": "Hosted by",
+  "giveaway.req_role": "Required role(s)",
+  "giveaway.entries": "Entries",
+  "giveaway.role_missing": "❌ You need the {role} role to enter this Giveaway!",
+  "giveaway.btn_enter": "🎉 Enter Giveaway",
+  "giveaway.total_entries": "Total Entries",
+  "music.btn_shuffle": "Shuffle",
+  "music.btn_like": "Like",
+  "music.liked_success": "❤️ Added **{title}** to your Favorites Playlist!",
+  "music.total_duration": "Total duration",
+  "music.now_playing_badge": "NOW PLAYING",
+  "music.live_stream": "Live",
+  "music.songs_unit": "songs"
 }

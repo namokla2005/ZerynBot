@@ -402,9 +402,19 @@ class MusicPlayer:
         self.loop_mode     = 0   # 0=off  1=loop-one  2=loop-all
         self.volume        = 1.0 # 100%
         self.now_playing_msg : discord.Message | None = None
+        self.start_time    : float = 0.0
+        self.pause_start   : float = 0.0
+        self.total_paused_time : float = 0.0
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
+
+    def get_elapsed(self) -> int:
+        if not self.current or self.start_time <= 0:
+            return 0
+        if self.vc and self.vc.is_paused() and self.pause_start > 0:
+            return max(0, int(self.pause_start - self.start_time - self.total_paused_time))
+        return max(0, int(time.time() - self.start_time - self.total_paused_time))
 
     # ── Inactivity Auto-Disconnect ─────────────────────────────────────────
     def _reset_inactivity_timer(self):
@@ -516,6 +526,9 @@ class MusicPlayer:
                 return
 
             self.current = track
+            self.start_time = time.time()
+            self.pause_start = 0.0
+            self.total_paused_time = 0.0
 
             # Tự động chọn Opus copy mode nếu stream gốc là Opus WebM (giảm 90% CPU)
             is_opus = (
@@ -589,7 +602,8 @@ class MusicPlayer:
                 pass
         s = await async_get_guild_settings(str(self.guild.id))
         view  = MusicControlView(self, s)
-        embed = _make_np_embed(self.current, len(self.queue), self.loop_mode, self.volume, s)
+        elapsed = self.get_elapsed()
+        embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s)
         try:
             self.now_playing_msg = await self.text_channel.send(embed=embed, view=view)
         except Exception as e:
@@ -637,25 +651,66 @@ class MusicPlayer:
         self.now_playing_msg = None
 
 
-# ─── Embeds ────────────────────────────────────────────────────────────────────
-def _make_np_embed(track: Track, queue_len: int, loop_mode: int, volume: float = 1.0, settings: dict = None) -> discord.Embed:
+# ─── Embeds & Helpers ──────────────────────────────────────────────────────────
+def _make_progress_bar(elapsed_sec: int, total_sec: int, bar_length: int = 18) -> str:
+    """Tạo thanh tiến trình phát nhạc hiện đại."""
+    if total_sec <= 0:
+        return "🔴 `LIVE` ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
+
+    elapsed_sec = max(0, min(elapsed_sec, total_sec))
+    ratio = elapsed_sec / total_sec if total_sec > 0 else 0.0
+    dot_idx = min(bar_length - 1, max(0, int(ratio * bar_length)))
+
+    bar = "▬" * dot_idx + "🔘" + "▬" * (bar_length - 1 - dot_idx)
+    return bar
+
+
+def _format_queue_duration(queue: list, current_track: Track = None) -> str:
+    total_sec = 0
+    if current_track and current_track.duration and current_track.duration > 0:
+        total_sec += current_track.duration
+    for t in queue:
+        if t.duration and t.duration > 0:
+            total_sec += t.duration
+    if total_sec <= 0:
+        return "0s"
+    h = total_sec // 3600
+    m = (total_sec % 3600) // 60
+    s = total_sec % 60
+    if h > 0:
+        return f"{h}h {m}m"
+    elif m > 0:
+        return f"{m}m {s}s" if s > 0 else f"{m}m"
+    return f"{s}s"
+
+
+def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.0, elapsed_sec: int = 0, settings: dict = None) -> discord.Embed:
+    """Tạo Embed Now Playing chuẩn phong cách Music | 2 (Compact card, right thumbnail, sleek bar)."""
     s = settings or {}
-    loop_str = {0: tr(s, "music.np_loop_off"), 1: tr(s, "music.np_loop_one"), 2: tr(s, "music.np_loop_all")}[loop_mode]
     vol_percent = int(volume * 100)
+    queue_len = len(queue)
+    total_dur_str = _format_queue_duration(queue, track)
+    badge = tr(s, "music.now_playing_badge") if tr(s, "music.now_playing_badge") != "music.now_playing_badge" else "NOW PLAYING"
+    vol_label = tr(s, "music.np_volume")
+    queue_label = tr(s, "music.np_queue")
+    dur_label = tr(s, "music.total_duration")
+    songs_unit = tr(s, "music.songs_unit")
+    progress_bar = _make_progress_bar(elapsed_sec, track.duration)
 
     embed = discord.Embed(
-        color=0x3498DB,
+        color=0x3B82F6,  # Neon Blue / Blurple Accent
         description=(
-            f"{tr(s, 'music.now_playing_title')}\n"
+            f"`{badge}`\n\n"
             f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{track.duration_str}` — {track.requester_mention}\n\n"
-            f"**{tr(s, 'music.np_volume')}:** `{vol_percent}%` — **{tr(s, 'music.np_queue')}:** `{queue_len} bài` — **{tr(s, 'music.np_loop')}:** `{loop_str}`\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            f"**{vol_label}:** `{vol_percent}%` — **{queue_label}:** `{queue_len} {songs_unit}` — **{dur_label}:** `{total_dur_str}`\n\n"
+            f"{progress_bar}"
         )
     )
 
+    # Đặt thumbnail ở góc phải trên cùng thay vì ảnh to choáng màn hình
     if track.thumbnail:
-        embed.set_image(url=track.thumbnail)
+        embed.set_thumbnail(url=track.thumbnail)
 
     return embed
 
@@ -667,21 +722,20 @@ class MusicControlView(discord.ui.View):
         self.player = player
         self.settings = settings or {}
 
-        # Cập nhật trạng thái các nút
-        if player.vc.is_paused():
+        # Cập nhật nhãn và style theo trạng thái thực tế
+        if player.vc and player.vc.is_paused():
             self.btn_pause.label = tr(self.settings, "music.btn_resume")
             self.btn_pause.style = discord.ButtonStyle.success
+            self.btn_pause.emoji = "▶️"
         else:
             self.btn_pause.label = tr(self.settings, "music.btn_pause")
-            self.btn_pause.style = discord.ButtonStyle.secondary
+            self.btn_pause.style = discord.ButtonStyle.primary
+            self.btn_pause.emoji = "⏸️"
 
-        loop_labels = [tr(self.settings, "music.btn_loop_off"), tr(self.settings, "music.btn_loop_one"), tr(self.settings, "music.btn_loop_all")]
-        loop_styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
-        self.btn_loop.label = loop_labels[player.loop_mode]
-        self.btn_loop.style = loop_styles[player.loop_mode]
-
-        self.btn_skip.label = tr(self.settings, "music.btn_skip")
+        self.btn_shuffle.label = tr(self.settings, "music.btn_shuffle")
         self.btn_stop.label = tr(self.settings, "music.btn_stop")
+        self.btn_skip.label = tr(self.settings, "music.btn_skip")
+        self.btn_like.label = tr(self.settings, "music.btn_like")
 
     async def _check(self, interaction: discord.Interaction) -> bool:
         if not interaction.user.voice or interaction.user.voice.channel != self.player.vc.channel:
@@ -691,47 +745,81 @@ class MusicControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="⏸️ Tạm dừng", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="Xáo trộn", style=discord.ButtonStyle.secondary, emoji="🔀", row=0)
+    async def btn_shuffle(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
-        if self.player.vc.is_paused():
-            self.player.vc.resume()
-            button.label = tr(self.settings, "music.btn_pause")
-            button.style = discord.ButtonStyle.secondary
-        else:
-            self.player.vc.pause()
-            button.label = tr(self.settings, "music.btn_resume")
-            button.style = discord.ButtonStyle.success
-        await interaction.message.edit(view=self)
+        self.player.shuffle()
+        elapsed = self.player.get_elapsed()
+        embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
+        await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="⏭️ Bỏ qua", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check(interaction):
-            return
-        await interaction.response.defer()
-        self.player.skip()
-
-    @discord.ui.button(label="⏹️ Dừng", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="Dừng lại", style=discord.ButtonStyle.secondary, emoji="⏹️", row=0)
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
         await self.player.stop()
 
-    @discord.ui.button(label="🔄 Lặp lại", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="Tạm dừng", style=discord.ButtonStyle.primary, emoji="⏸️", row=0)
+    async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
-        self.player.loop_mode = (self.player.loop_mode + 1) % 3
-        loop_labels = [tr(self.settings, "music.btn_loop_off"), tr(self.settings, "music.btn_loop_one"), tr(self.settings, "music.btn_loop_all")]
-        loop_styles = [discord.ButtonStyle.secondary, discord.ButtonStyle.success, discord.ButtonStyle.primary]
-        button.label = loop_labels[self.player.loop_mode]
-        button.style = loop_styles[self.player.loop_mode]
-        embed = _make_np_embed(self.player.current, len(self.player.queue), self.player.loop_mode, self.player.volume, self.settings)
+        if self.player.vc.is_paused():
+            self.player.vc.resume()
+            if self.player.pause_start > 0:
+                self.player.total_paused_time += time.time() - self.player.pause_start
+                self.player.pause_start = 0.0
+            button.label = tr(self.settings, "music.btn_pause")
+            button.style = discord.ButtonStyle.primary
+            button.emoji = "⏸️"
+        else:
+            self.player.vc.pause()
+            self.player.pause_start = time.time()
+            button.label = tr(self.settings, "music.btn_resume")
+            button.style = discord.ButtonStyle.success
+            button.emoji = "▶️"
+        elapsed = self.player.get_elapsed()
+        embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
+
+    @discord.ui.button(label="Bỏ qua", style=discord.ButtonStyle.secondary, emoji="⏭️", row=0)
+    async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._check(interaction):
+            return
+        await interaction.response.defer()
+        self.player.skip()
+
+    @discord.ui.button(label="Yêu thích", style=discord.ButtonStyle.secondary, emoji="❤️", row=0)
+    async def btn_like(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.player.current:
+            return await interaction.response.send_message(tr(self.settings, "music.no_song_playing"), ephemeral=True)
+        import database as db
+        guild_id = str(interaction.guild.id)
+        user_id = str(interaction.user.id)
+        user_name = interaction.user.display_name
+        pl_name = f"❤️ Yêu thích ({user_name})"
+        pl = await db.async_get_playlist_by_name(guild_id, pl_name)
+        if not pl:
+            pl_id = await db.async_create_playlist(guild_id, pl_name, user_id, user_name)
+        else:
+            pl_id = pl["id"]
+
+        cur = self.player.current
+        await db.async_add_track_to_playlist(pl_id, {
+            "title": cur.title,
+            "url": cur.url,
+            "duration": cur.duration,
+            "webpage_url": cur.url,
+            "thumbnail": cur.thumbnail,
+            "uploader": cur.uploader
+        })
+        await interaction.response.send_message(
+            tr(self.settings, "music.liked_success", title=cur.title),
+            ephemeral=True
+        )
 
 
 # ─── Remove Song UI ────────────────────────────────────────────────────────────
@@ -950,17 +1038,30 @@ class Music(commands.Cog, name="Music"):
             embed = discord.Embed(
                 title=tr(s, "music.added_to_queue"),
                 description=f"**[{track.title}]({track.url})**",
-                color=0x5865F2,
+                color=0x3B82F6,
             )
-            embed.add_field(name=tr(s, "music.duration_field"),   value=track.duration_str,         inline=True)
-            embed.add_field(name=tr(s, "music.position_field"),   value=str(len(player.queue)),     inline=True)
+            embed.add_field(name=tr(s, "music.duration_field"),   value=f"`{track.duration_str}`", inline=True)
+            embed.add_field(name=tr(s, "music.position_field"),   value=f"`#{len(player.queue)}`", inline=True)
             embed.add_field(name=tr(s, "music.requester_field"),  value=ctx.author.mention,         inline=True)
             if track.thumbnail:
-                embed.set_image(url=track.thumbnail)
+                embed.set_thumbnail(url=track.thumbnail)
             await msg.edit(content=None, embed=embed)
         else:
             await msg.delete()
             await player.add_and_play(track)
+
+    @commands.hybrid_command(name="nowplaying", aliases=["np"], description="Xem bài hát đang phát và thanh tiến trình")
+    async def nowplaying(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = self._get(ctx.guild.id)
+        if not player or not player.current or not (player.vc and player.vc.is_connected()):
+            await ctx.send(tr(s, "music.no_song_playing"), ephemeral=True)
+            return
+
+        elapsed = player.get_elapsed()
+        embed = _make_np_embed(player.current, player.queue, player.loop_mode, player.volume, elapsed, s)
+        view = MusicControlView(player, s)
+        await ctx.send(embed=embed, view=view)
 
     @commands.hybrid_command(name="volume", description="Điều chỉnh âm lượng phát nhạc (1-150%)")
     @app_commands.describe(level="Mức âm lượng (1 - 150)")

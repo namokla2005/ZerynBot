@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1494%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1509%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-19%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="19 Modules">
-  <img src="https://img.shields.io/badge/Commands-87%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="87 Commands">
+  <img src="https://img.shields.io/badge/Commands-88%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="88 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (19 Modules & 87 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (19 Modules & 88 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
@@ -19,7 +19,7 @@
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1494 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1509 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -62,12 +62,15 @@
   - `/withdraw <amount>` (hoặc `/with all`): Rút tiền từ Ngân hàng về Ví khi cần cá cược hoặc chuyển khoản.
 - **Tiện ích kinh tế**: Lệnh `/balance` (hiển thị chi tiết Ví, Ngân hàng, Tổng tài sản), `/daily` (nhận thưởng và chuỗi streak), `/rich` (Bảng xếp hạng đại gia).
 
-### 🎵 9. Module Nhạc Siêu Tốc & Lofi 24/7 (Music Pipeline)
+### 🎵 9. Module Nhạc Siêu Tốc & Giao Diện Thẻ Hiện Đại (Music Pipeline & Compact Player)
+- **Giao diện Compact Card đỉnh cao (Music \| 2 Style)**: Thẻ phát nhạc màu xanh Neon tinh tế, **Thumbnail góc phải**, thanh sóng nhạc **Progress Bar** `▬▬▬▬▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬▬` và thanh thông số Volume/Queue/Duration trực quan.
+- **Hàng 5 Nút Điều Khiển Tương Tác**: `🔀 Xáo trộn`, `⏹️ Dừng lại`, `⏸️ Tạm dừng / ▶️ Tiếp tục`, `⏭️ Bỏ qua`, `❤️ Yêu thích` (Lưu bài vào Playlist cá nhân tức thì).
+- **Lệnh `/nowplaying` (`/np`)**: Tra cứu thông tin bài hát và vị trí phát theo thời gian thực.
 - **Tối ưu hóa âm thanh ARM**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ đệm tối ưu hóa giúp **khởi động bài hát < 0.8 giây**.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.
 - **Khóa đồng bộ chống xung đột (Atomic Play Lock)**: Loại bỏ triệt để lỗi `Already playing audio` khi người dùng spam lệnh.
 - **Tự động ngắt kết nối (Inactivity Watchdog)**: Tự động rời kênh voice sau 3 phút nếu không có bài hát nào được phát để giải phóng tài nguyên.
-- **Điều khiển phong phú**: Bổ sung lệnh `/volume <1-150>` (chỉnh âm lượng sống động), `/shuffle` (trộn ngẫu nhiên hàng chờ), `/replay`, `/lofi` (SomaFM & YouTube Radio), quản lý Playlist cá nhân & máy chủ.
+- **Điều khiển phong phú**: Lệnh `/volume <1-150>`, `/shuffle`, `/replay`, `/lofi` (SomaFM & YouTube Radio), quản lý Playlist cá nhân & máy chủ.
 
 ### 🛡️ 10. Kiểm Duyệt Tự Động (AutoMod)
 - **Bộ lọc đa lớp**: Anti-Spam (cửa sổ trượt 5s), Banned Words Filter, Fake Link / Phishing Filter, Anti-Invite Links, Anti-Caps Lock (>70%), Anti-Mass Ping.
@@ -89,9 +92,12 @@
 - **Auto Roles**: Tự động gán role ban đầu cho User và Bot khi vừa vào máy chủ.
 - **Reaction Roles**: Tạo bảng chọn role trực quan qua nút bấm Button hoặc Reaction Emoji.
 
-### 🎉 14. Sự Kiện Giveaway Tự Động
-- Khởi tạo & quản lý sự kiện nhận quà bằng lệnh `/giveaway start/end/reroll`.
-- Nút bấm tham gia thời gian thực, tự động cập nhật số lượng người tham gia.
+### 🎉 14. Sự Kiện Giveaway Đỉnh Cao (Essential Bot Style)
+- **Banner đồ họa Dark Theme**: Tự động gắn ảnh bìa `🎉 GIVEAWAY` sang trọng ở đầu Embed.
+- **Bố cục Key-Value chuẩn mực**: `**Phần thưởng:**`, `**Số người thắng:**`, `**Tạo bởi:**`, `**Vai trò yêu cầu:**` (tùy chọn), `**Lượt tham gia:**`, `**Kết thúc:**`.
+- **Nút bấm Blurple `🎉 Tham gia Giveaway`**: Đếm số người tham gia realtime và cập nhật trực tiếp trên Embed.
+- **Giao diện kết thúc sang trọng**: Chuyển màu Dark Slate `0x2B2D31`, công bố người trúng giải rõ ràng và tự động gửi tin nhắn chúc mừng.
+- Khởi tạo & quản lý sự kiện bằng lệnh `/giveaway start` (kèm tham số `role` yêu cầu), `/giveaway end`, `/giveaway reroll`.
 - Cơ chế bảo vệ chống race-condition (tránh trao giải lặp lại 2 lần).
 
 ### 💬 15. Lệnh Tùy Biến (Custom Commands & Auto-Responders)

@@ -1494,5 +1494,18 @@
   "fun.count_poke": "*{target} foi cutucado(a) {count} vez(es).*",
   "fun.count_highfive": "*{target} tocou aqui {count} vez(es).*",
   "common.bot_missing_permission": "❌ O bot não tem permissões suficientes para executar esta ação.",
-  "common.error_occurred": "❌ Ocorreu um erro ao executar o comando. Tente novamente mais tarde!"
+  "common.error_occurred": "❌ Ocorreu um erro ao executar o comando. Tente novamente mais tarde!",
+  "giveaway.hosted_by": "Organizado por",
+  "giveaway.req_role": "Cargo(s) necessário(s)",
+  "giveaway.entries": "Entradas",
+  "giveaway.role_missing": "❌ Você precisa do cargo {role} para participar deste sorteio!",
+  "giveaway.btn_enter": "🎉 Entrar no Sorteio",
+  "giveaway.total_entries": "Total de entradas",
+  "music.btn_shuffle": "Aleatório",
+  "music.btn_like": "Curtir",
+  "music.liked_success": "❤️ **{title}** adicionado à sua lista de Favoritos!",
+  "music.total_duration": "Duração total",
+  "music.now_playing_badge": "TOCANDO AGORA",
+  "music.live_stream": "Ao vivo",
+  "music.songs_unit": "músicas"
 }

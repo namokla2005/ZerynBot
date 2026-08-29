@@ -1494,5 +1494,18 @@
   "fun.count_poke": "*{target} 已经被戳了 {count} 次。*",
   "fun.count_highfive": "*{target} 已经击掌了 {count} 次。*",
   "common.bot_missing_permission": "❌ 机器人没有足够的权限来执行此操作。",
-  "common.error_occurred": "❌ 执行命令时发生错误，请稍后再试！"
+  "common.error_occurred": "❌ 执行命令时发生错误，请稍后再试！",
+  "giveaway.hosted_by": "发起者",
+  "giveaway.req_role": "所需身份组",
+  "giveaway.entries": "参与人数",
+  "giveaway.role_missing": "❌ 您需要拥有身份组 {role} 才能参与此抽奖！",
+  "giveaway.btn_enter": "🎉 参与抽奖",
+  "giveaway.total_entries": "总参与人数",
+  "music.btn_shuffle": "随机播放",
+  "music.btn_like": "收藏",
+  "music.liked_success": "❤️ 已将 **{title}** 添加到您的收藏歌单！",
+  "music.total_duration": "总时长",
+  "music.now_playing_badge": "正在播放",
+  "music.live_stream": "直播",
+  "music.songs_unit": "首"
 }

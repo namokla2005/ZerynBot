@@ -1494,5 +1494,18 @@
   "fun.count_poke": "*{target} đã bị chọc má {count} lần.*",
   "fun.count_highfive": "*{target} đã đập tay chúc mừng {count} lần.*",
   "common.bot_missing_permission": "❌ Bot không có đủ quyền hạn để thực hiện thao tác này.",
-  "common.error_occurred": "❌ Đã xảy ra lỗi khi thực thi lệnh. Vui lòng thử lại sau!"
+  "common.error_occurred": "❌ Đã xảy ra lỗi khi thực thi lệnh. Vui lòng thử lại sau!",
+  "giveaway.hosted_by": "Tạo bởi",
+  "giveaway.req_role": "Vai trò yêu cầu",
+  "giveaway.entries": "Lượt tham gia",
+  "giveaway.role_missing": "❌ Bạn cần có vai trò {role} để tham gia Giveaway này!",
+  "giveaway.btn_enter": "🎉 Tham gia Giveaway",
+  "giveaway.total_entries": "Tổng lượt tham gia",
+  "music.btn_shuffle": "Xáo trộn",
+  "music.btn_like": "Yêu thích",
+  "music.liked_success": "❤️ Đã thêm **{title}** vào Playlist Yêu thích của bạn!",
+  "music.total_duration": "Thời lượng",
+  "music.now_playing_badge": "ĐANG PHÁT",
+  "music.live_stream": "Trực tiếp",
+  "music.songs_unit": "bài"
 }
