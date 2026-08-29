@@ -53,7 +53,7 @@ def _build_giveaway_embed(
     is_ended: bool = False,
     winners_mentions: str = None
 ) -> discord.Embed:
-    """Tạo Embed Giveaway chuẩn phong cách Essential Bot."""
+    """Tạo Embed Giveaway chuẩn phong cách Essential Bot với khoảng cách dòng thoáng đãng."""
     s = settings or {}
     host_mention = f"<@{host_id}>" if host_id else "—"
 
@@ -61,19 +61,22 @@ def _build_giveaway_embed(
         color = 0x5865F2  # Blurple
         title = f"🎉 Giveaway: {prize}"
 
-        lines = [
+        top_lines = [
             f"**{tr(s, 'giveaway.prize')}:** {prize}",
             f"**{tr(s, 'giveaway.winners_cnt')}:** {winners}",
             f"**{tr(s, 'giveaway.hosted_by')}:** {host_mention}",
         ]
         if req_role_id:
-            lines.append(f"**{tr(s, 'giveaway.req_role')}:** <@&{req_role_id}>")
-        lines.append(f"**{tr(s, 'giveaway.entries')}:** {participants_count}")
-        lines.append(f"**{tr(s, 'giveaway.ends_label')}:** <t:{end_time}:R> (<t:{end_time}:F>)")
+            top_lines.append(f"**{tr(s, 'giveaway.req_role')}:** <@&{req_role_id}>")
+
+        bottom_lines = [
+            f"**{tr(s, 'giveaway.entries')}:** {participants_count}",
+            f"**{tr(s, 'giveaway.ends_label')}:** <t:{end_time}:R> (<t:{end_time}:F>)",
+        ]
 
         embed = discord.Embed(
             title=title,
-            description="\n".join(lines),
+            description="\n".join(top_lines) + "\n\n" + "\n".join(bottom_lines),
             color=color
         )
     else:
@@ -81,17 +84,19 @@ def _build_giveaway_embed(
         title = tr(s, "giveaway.ended_title", prize=prize)
 
         w_text = winners_mentions if winners_mentions else tr(s, "giveaway.no_winners")
-        lines = [
+        top_lines = [
             f"**{tr(s, 'giveaway.prize')}:** {prize}",
-            f"**{tr(s, 'giveaway.winners_result')}:** {w_text}",
+            f"**{tr(s, 'giveaway.winners_label')}:** {w_text}",
             f"**{tr(s, 'giveaway.hosted_by')}:** {host_mention}",
+        ]
+        bottom_lines = [
             f"**{tr(s, 'giveaway.total_entries')}:** {participants_count}",
             f"**{tr(s, 'giveaway.ended_at_label')}:** <t:{end_time}:F>",
         ]
 
         embed = discord.Embed(
             title=title,
-            description="\n".join(lines),
+            description="\n".join(top_lines) + "\n\n" + "\n".join(bottom_lines),
             color=color
         )
 

@@ -540,11 +540,11 @@
   "giveaway.min_winners": "❌ ¡El número de ganadores debe ser al menos 1!",
   "giveaway.title": "🎉 SORTEO: {prize}",
   "giveaway.desc": "¡Haz clic en el botón **🎉 Participar** a continuación para tener la oportunidad de ganar!",
-  "giveaway.prize": "🎁 Premio",
-  "giveaway.winners_cnt": "🏆 Cantidad de Ganadores",
+  "giveaway.prize": "Premio",
+  "giveaway.winners_cnt": "Ganadores",
   "giveaway.part_cnt": "👥 Cantidad de Participantes",
   "giveaway.part_val": "**{cnt}** personas",
-  "giveaway.ends_label": "⏰ Finaliza",
+  "giveaway.ends_label": "Termina",
   "giveaway.footer": "Creado por {user}",
   "giveaway.btn_join": "🎉 Participar",
   "giveaway.btn_ended": "🎉 Finalizado",
@@ -559,7 +559,7 @@
   "giveaway.reroll_msg": "🎉 **REVENTA**: ¡Felicitaciones {user} ganó **{prize}**!",
   "giveaway.reroll_success": "✅ ¡Resorteo exitoso!",
   "giveaway.ended_title": "🎊 SORTEO FINALIZADO: {prize}",
-  "giveaway.ended_at_label": "⏰ Finalizado en",
+  "giveaway.ended_at_label": "Terminado en",
   "giveaway.winners_result": "**Ganadores:** {winners}",
   "giveaway.no_winners": "¡Sin participantes! 😢",
   "giveaway.congrats": "🎉 ¡Felicitaciones {winners} ganaron **{prize}**! 🎁\n{url}",
@@ -1507,5 +1507,6 @@
   "music.total_duration": "Total duration",
   "music.now_playing_badge": "REPRODUCIENDO",
   "music.live_stream": "En directo",
-  "music.songs_unit": "canciones"
+  "music.songs_unit": "canciones",
+  "giveaway.winners_label": "Ganadores"
 }

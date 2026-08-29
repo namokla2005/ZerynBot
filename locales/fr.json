@@ -540,11 +540,11 @@
   "giveaway.min_winners": "❌ Le nombre de gagnants doit être d'au moins 1 !",
   "giveaway.title": "🎉 CONCOURS : {prize}",
   "giveaway.desc": "Cliquez sur le bouton **🎉 Participer** ci-dessous pour tenter de gagner !",
-  "giveaway.prize": "🎁 Prix",
-  "giveaway.winners_cnt": "🏆 Nombre de Gagnants",
+  "giveaway.prize": "Prix",
+  "giveaway.winners_cnt": "Gagnants",
   "giveaway.part_cnt": "👥 Nombre de Participants",
   "giveaway.part_val": "**{cnt}** personnes",
-  "giveaway.ends_label": "⏰ Se termine",
+  "giveaway.ends_label": "Se termine",
   "giveaway.footer": "Créé par {user}",
   "giveaway.btn_join": "🎉 Participer",
   "giveaway.btn_ended": "🎉 Terminé",
@@ -559,7 +559,7 @@
   "giveaway.reroll_msg": "🎉 **NOUVEAU TIRAGE** : Félicitations à {user} qui gagne **{prize}** !",
   "giveaway.reroll_success": "✅ Nouveau tirage réussi !",
   "giveaway.ended_title": "🎊 CONCOURS TERMINÉ : {prize}",
-  "giveaway.ended_at_label": "⏰ Terminé le",
+  "giveaway.ended_at_label": "Terminé le",
   "giveaway.winners_result": "**Gagnants :** {winners}",
   "giveaway.no_winners": "Aucun participant ! 😢",
   "giveaway.congrats": "🎉 Félicitations à {winners} qui gagnent **{prize}** ! 🎁\n{url}",
@@ -1507,5 +1507,6 @@
   "music.total_duration": "Total duration",
   "music.now_playing_badge": "EN COURS DE LECTURE",
   "music.live_stream": "En direct",
-  "music.songs_unit": "titres"
+  "music.songs_unit": "titres",
+  "giveaway.winners_label": "Gagnants"
 }
