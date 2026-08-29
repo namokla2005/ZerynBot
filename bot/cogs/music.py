@@ -166,7 +166,7 @@ _extract_semaphore = asyncio.Semaphore(3)
 
 
 def _fmt_duration(seconds) -> str:
-    if seconds is None or seconds <= 0:
+    if seconds is None or not isinstance(seconds, (int, float)) or seconds <= 0:
         return "🔴 LIVE"
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
@@ -652,12 +652,12 @@ class MusicPlayer:
 
 
 # ─── Embeds & Helpers ──────────────────────────────────────────────────────────
-def _make_progress_bar(elapsed_sec: int, total_sec: int, bar_length: int = 18) -> str:
+def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 18) -> str:
     """Tạo thanh tiến trình phát nhạc hiện đại."""
-    if total_sec <= 0:
+    if total_sec is None or not isinstance(total_sec, (int, float)) or total_sec <= 0:
         return "🔴 `LIVE` ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
 
-    elapsed_sec = max(0, min(elapsed_sec, total_sec))
+    elapsed_sec = max(0, min(int(elapsed_sec or 0), int(total_sec)))
     ratio = elapsed_sec / total_sec if total_sec > 0 else 0.0
     dot_idx = min(bar_length - 1, max(0, int(ratio * bar_length)))
 
@@ -667,13 +667,19 @@ def _make_progress_bar(elapsed_sec: int, total_sec: int, bar_length: int = 18) -
 
 def _format_queue_duration(queue: list, current_track: Track = None) -> str:
     total_sec = 0
-    if current_track and current_track.duration and current_track.duration > 0:
-        total_sec += current_track.duration
+    has_live = False
+    if current_track:
+        if current_track.duration is not None and isinstance(current_track.duration, (int, float)) and current_track.duration > 0:
+            total_sec += int(current_track.duration)
+        else:
+            has_live = True
     for t in queue:
-        if t.duration and t.duration > 0:
-            total_sec += t.duration
+        if t.duration is not None and isinstance(t.duration, (int, float)) and t.duration > 0:
+            total_sec += int(t.duration)
+        else:
+            has_live = True
     if total_sec <= 0:
-        return "0s"
+        return "🔴 LIVE" if has_live else "0s"
     h = total_sec // 3600
     m = (total_sec % 3600) // 60
     s = total_sec % 60
