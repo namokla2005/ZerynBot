@@ -1492,5 +1492,7 @@
   "fun.count_feed": "*{target} has been fed {count} time(s).*",
   "fun.count_cuddle": "*{target} has been cuddled {count} time(s).*",
   "fun.count_poke": "*{target} has been poked {count} time(s).*",
-  "fun.count_highfive": "*{target} has high-fived {count} time(s).*"
+  "fun.count_highfive": "*{target} has high-fived {count} time(s).*",
+  "common.bot_missing_permission": "❌ The bot does not have sufficient permissions to perform this action.",
+  "common.error_occurred": "❌ An error occurred while executing the command. Please try again later!"
 }

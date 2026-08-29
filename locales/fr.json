@@ -1492,5 +1492,7 @@
   "fun.count_feed": "*{target} a été nourri(e) {count} fois.*",
   "fun.count_cuddle": "*{target} a été câliné(e) {count} fois.*",
   "fun.count_poke": "*{target} a été taquiné(e) {count} fois.*",
-  "fun.count_highfive": "*{target} a tapé dans la main {count} fois.*"
+  "fun.count_highfive": "*{target} a tapé dans la main {count} fois.*",
+  "common.bot_missing_permission": "❌ Le bot n'a pas les permissions suffisantes pour effectuer cette action.",
+  "common.error_occurred": "❌ Une erreur s'est produite lors de l'exécution de la commande. Veuillez réessayer plus tard !"
 }

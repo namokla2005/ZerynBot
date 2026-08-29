@@ -1492,5 +1492,7 @@
   "fun.count_feed": "*{target} 已经被投喂了 {count} 次。*",
   "fun.count_cuddle": "*{target} 已经被依偎宠溺了 {count} 次。*",
   "fun.count_poke": "*{target} 已经被戳了 {count} 次。*",
-  "fun.count_highfive": "*{target} 已经击掌了 {count} 次。*"
+  "fun.count_highfive": "*{target} 已经击掌了 {count} 次。*",
+  "common.bot_missing_permission": "❌ 机器人没有足够的权限来执行此操作。",
+  "common.error_occurred": "❌ 执行命令时发生错误，请稍后再试！"
 }

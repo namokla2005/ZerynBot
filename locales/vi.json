@@ -1492,5 +1492,7 @@
   "fun.count_feed": "*{target} đã được đút ăn {count} lần.*",
   "fun.count_cuddle": "*{target} đã được cưng nựng {count} lần.*",
   "fun.count_poke": "*{target} đã bị chọc má {count} lần.*",
-  "fun.count_highfive": "*{target} đã đập tay chúc mừng {count} lần.*"
+  "fun.count_highfive": "*{target} đã đập tay chúc mừng {count} lần.*",
+  "common.bot_missing_permission": "❌ Bot không có đủ quyền hạn để thực hiện thao tác này.",
+  "common.error_occurred": "❌ Đã xảy ra lỗi khi thực thi lệnh. Vui lòng thử lại sau!"
 }

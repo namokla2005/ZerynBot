@@ -233,20 +233,25 @@ class Birthday(commands.Cog):
                     # Gift coins
                     if gift_coins > 0:
                         try:
-                            from database import async_add_economy_balance
-                            await async_add_economy_balance(str(guild.id), str(member.id), bank=gift_coins)
+                            from database import async_modify_wallet
+                            await async_modify_wallet(str(guild.id), str(member.id), gift_coins)
                             gifts.append(f"💰 +{gift_coins} Coins")
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"[Birthday] Error gifting coins: {e}")
 
                     # Gift XP
                     if gift_xp > 0:
                         try:
-                            from database import async_add_xp
-                            await async_add_xp(str(guild.id), str(member.id), gift_xp)
+                            import math
+                            from database import async_get_user_level, async_update_user_xp
+                            lvl_data = await async_get_user_level(str(guild.id), str(member.id))
+                            cur_xp = lvl_data.get("xp", 0)
+                            new_xp = cur_xp + gift_xp
+                            new_lvl = math.floor(0.1 * math.sqrt(new_xp))
+                            await async_update_user_xp(str(guild.id), str(member.id), new_xp, new_lvl)
                             gifts.append(f"⭐ +{gift_xp} XP")
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"[Birthday] Error gifting XP: {e}")
 
                     if gifts:
                         embed.add_field(name="🎁 " + tr(s, "birthday.gifts"), value="\n".join(gifts), inline=False)

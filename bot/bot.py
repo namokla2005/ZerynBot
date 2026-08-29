@@ -20,6 +20,7 @@ import discord
 from discord.ext import commands
 import config
 from database import init_db
+from i18n import tr
 
 from logging.handlers import RotatingFileHandler
 
