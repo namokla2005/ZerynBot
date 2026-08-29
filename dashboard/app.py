@@ -1958,6 +1958,7 @@ def admin_panel():
     blacklist = db.get_blacklist()
     blacklist_ids = {b["guild_id"] for b in blacklist}
     global_ai_key = db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+    global_ai_model = db.get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
     return render_template(
         "admin.html",
         user=session["user"],
@@ -1968,6 +1969,7 @@ def admin_panel():
         total_servers=len(guilds),
         total_blacklist=len(blacklist),
         global_ai_key=global_ai_key,
+        global_ai_model=global_ai_model,
     )
 
 
@@ -1975,8 +1977,15 @@ def admin_panel():
 @owner_required
 def admin_save_ai_key():
     key = request.form.get("global_ai_key", "").strip()
+    model = request.form.get("global_ai_model", "").strip()
+    custom_model = request.form.get("custom_ai_model", "").strip()
+    if model == "custom" and custom_model:
+        model = custom_model
+
     db.set_global_setting("gemini_api_key", key)
-    flash("✅ Đã lưu cấu hình AI API Key toàn cục thành công!", "success")
+    if model:
+        db.set_global_setting("global_ai_model", model)
+    flash("✅ Đã lưu cấu hình AI API Key & Model toàn cục thành công!", "success")
     return redirect(url_for("admin_panel") + "#ai_settings")
 
 
@@ -1987,6 +1996,7 @@ def api_admin_test_ai_key():
     data = request.get_json(silent=True) or {}
     key = data.get("api_key") or db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
     key = key.strip()
+    target_model = data.get("model") or db.get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
     if not key:
         return jsonify({"ok": False, "status": "no_key", "message": "Chưa có API Key (Đang dùng Smart Local Responder)"})
 
@@ -1994,7 +2004,7 @@ def api_admin_test_ai_key():
     if key.startswith("gsk_"):
         groq_url = "https://api.groq.com/openai/v1/chat/completions"
         groq_payload = json.dumps({
-            "model": "openai/gpt-oss-120b",
+            "model": target_model,
             "messages": [{"role": "user", "content": "Hi"}],
             "max_tokens": 10
         }).encode("utf-8")
@@ -2016,9 +2026,9 @@ def api_admin_test_ai_key():
                     return jsonify({
                         "ok": True,
                         "status": "active",
-                        "model": "Groq Cloud (GPT-OSS 120B / Llama 3.3)",
+                        "model": f"Groq Cloud ({target_model})",
                         "latency_ms": latency,
-                        "message": f"Kết nối Groq Cloud siêu tốc thành công ({latency}ms)"
+                        "message": f"Kết nối Groq Cloud siêu tốc thành công ({latency}ms) với model {target_model}"
                     })
         except urllib.error.HTTPError as e:
             try:

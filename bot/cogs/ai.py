@@ -74,7 +74,7 @@ def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
     )
 
 
-async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "", image_url: str = None) -> str:
+async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "", image_url: str = None, preferred_model: str = None) -> str:
     """Gọi Groq Cloud API (Miễn phí 100%, siêu nhanh, hỗ trợ Vision ảnh)."""
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -97,15 +97,19 @@ async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: s
         models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
     else:
         messages.append({"role": "user", "content": prompt})
-        # Ưu tiên các model nhẹ, hiểu tiếng Việt tốt và siêu tốc
-        models = [
+        models = []
+        if preferred_model:
+            models.append(preferred_model)
+        for m in [
             "qwen/qwen3.6-27b",
             "qwen/qwen3.8-27b",
             "openai/gpt-oss-20b",
             "groq/compound-mini",
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant"
-        ]
+        ]:
+            if m not in models:
+                models.append(m)
 
     async with aiohttp.ClientSession() as session:
         for model in models:
@@ -167,15 +171,15 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
     return "❌ Không thể kết nối tới OpenRouter Free API."
 
 
-async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False, image_url: str = None) -> str:
-    """Tự động phát hiện và gọi AI Provider tương ứng (Groq / OpenRouter / Google Gemini) có hỗ trợ Vision ảnh."""
+async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False, image_url: str = None, preferred_model: str = None) -> str:
+    """Tự động phát hiện và gọi AI Provider tương ứng (Groq / OpenRouter / Google Gemini) có hỗ trợ Vision ảnh và model tùy chọn."""
     key = (api_key or config.GEMINI_API_KEY).strip()
     if not key:
         return _local_smart_reply(prompt, is_owner=is_owner)
 
     # 1. Groq Cloud (bắt đầu bằng gsk_)
     if key.startswith("gsk_"):
-        return await _call_groq_api(prompt, system_instruction, key, image_url=image_url)
+        return await _call_groq_api(prompt, system_instruction, key, image_url=image_url, preferred_model=preferred_model)
 
     # 2. OpenRouter (bắt đầu bằng sk-or-)
     if key.startswith("sk-or-"):
@@ -212,9 +216,16 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
         "x-goog-api-key": key
     }
 
+    gemini_models_to_try = []
+    if preferred_model and (preferred_model.startswith("gemini-") or "gemini" in preferred_model):
+        gemini_models_to_try.append(preferred_model)
+    for m in GEMINI_MODELS:
+        if m not in gemini_models_to_try:
+            gemini_models_to_try.append(m)
+
     last_error = ""
     async with aiohttp.ClientSession() as session:
-        for model in GEMINI_MODELS:
+        for model in gemini_models_to_try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
             try:
                 async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=25)) as resp:
@@ -281,6 +292,7 @@ class AI(commands.Cog):
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = self._build_system_prompt(ctx.author, ai_s)
         global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+        global_model = await async_get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
         api_key = ai_s.get("api_key") or global_key
 
         image_url = None
@@ -292,7 +304,7 @@ class AI(commands.Cog):
                     image_url = att.url
                     break
         
-        response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url)
+        response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url, preferred_model=global_model)
 
         # Cắt gọt độ dài embed Discord (tối đa 4096 ký tự)
         if len(response_text) > 4000:
@@ -336,9 +348,10 @@ class AI(commands.Cog):
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = "Bạn là trợ lý tóm tắt nội dung Discord thông minh. Hãy tóm tắt ngắn gọn, mạch lạc và nổi bật các chủ đề thảo luận chính."
         global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+        global_model = await async_get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
         api_key = ai_s.get("api_key") or global_key
         
-        summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner)
+        summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, preferred_model=global_model)
 
         embed = discord.Embed(
             title=f"📋 {tr(s, 'ai.summarize_title', channel=ctx.channel.name)}",
@@ -390,9 +403,10 @@ class AI(commands.Cog):
             is_owner = (config.BOT_OWNER_ID and message.author.id == config.BOT_OWNER_ID)
             sys_prompt = self._build_system_prompt(message.author, ai_s)
             global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+            global_model = await async_get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
             api_key = ai_s.get("api_key") or global_key
             
-            response = await call_ai_api(content, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url)
+            response = await call_ai_api(content, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url, preferred_model=global_model)
             if len(response) > 2000:
                 response = response[:1990] + "..."
             await message.reply(response)
