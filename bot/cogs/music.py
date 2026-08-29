@@ -652,18 +652,18 @@ class MusicPlayer:
 
 
 # ─── Embeds & Helpers ──────────────────────────────────────────────────────────
-def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 36) -> str:
+def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 24) -> str:
     """Tạo thanh tiến trình phát nhạc màu xanh Discord siêu đẹp giống hệt Wave Music."""
     if total_sec is None or not isinstance(total_sec, (int, float)) or total_sec <= 0:
-        return "[▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬](https://zerynbot.id.vn)"
+        return "[━━━━━━━━━━━━━━━━━━━━━━━━](https://zerynbot.id.vn)"
 
     elapsed_sec = max(0, min(int(elapsed_sec or 0), int(total_sec)))
     ratio = elapsed_sec / total_sec if total_sec > 0 else 0.0
     played_len = max(1, min(bar_length, int(ratio * bar_length)))
     remaining_len = bar_length - played_len
 
-    played_bar = "▬" * played_len
-    remaining_bar = "▬" * remaining_len
+    played_bar = "━" * played_len
+    remaining_bar = "━" * remaining_len
 
     if remaining_len > 0:
         return f"[{played_bar}](https://zerynbot.id.vn){remaining_bar}"
@@ -709,14 +709,15 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
     songs_unit = tr(s, "music.songs_unit")
 
     dur_badge = track.duration_str if track.duration and track.duration > 0 else "LIVE"
-    progress_bar = _make_progress_bar(elapsed_sec, track.duration, bar_length=36)
+    progress_bar = _make_progress_bar(elapsed_sec, track.duration, bar_length=24)
 
     embed = discord.Embed(
         color=0x5865F2,  # Discord Blurple (#5865F2) matching Wave Music
         description=(
             f"**{np_title}**\n"
-            f"[**{track.title}**]({track.url})\n"
+            f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n\n"
+            f"---\n\n"
             f"**{vol_label}:** `{vol_percent}%` — **{queue_label}:** `{queue_len} {songs_unit}` — **{dur_label}:** `{total_dur_str}`\n\n"
             f"{progress_bar}"
         )
