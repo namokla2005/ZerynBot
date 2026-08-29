@@ -94,19 +94,36 @@ async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: s
                 {"type": "image_url", "image_url": {"url": image_url}}
             ]
         })
-        models = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+        models = [
+            "groq/compound", "groq/groq/compound",
+            "qwen/qwen3.8-27b", "groq/qwen/qwen3.8-27b",
+            "openai/gpt-oss-120b", "groq/openai/gpt-oss-120b"
+        ]
     else:
         messages.append({"role": "user", "content": prompt})
         models = []
         if preferred_model:
             models.append(preferred_model)
+            if preferred_model.startswith("groq/"):
+                models.append(preferred_model.replace("groq/", "", 1))
+            else:
+                models.append(f"groq/{preferred_model}")
+
         for m in [
-            "qwen/qwen3.6-27b",
             "qwen/qwen3.8-27b",
+            "groq/qwen/qwen3.8-27b",
+            "qwen/qwen3.6-27b",
+            "groq/qwen/qwen3.6-27b",
             "openai/gpt-oss-20b",
+            "groq/openai/gpt-oss-20b",
             "groq/compound-mini",
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant"
+            "groq/groq/compound-mini",
+            "groq/compound",
+            "groq/groq/compound",
+            "openai/gpt-oss-120b",
+            "groq/openai/gpt-oss-120b",
+            "openai/gpt-oss-safeguard-20b",
+            "groq/openai/gpt-oss-safeguard-20b"
         ]:
             if m not in models:
                 models.append(m)

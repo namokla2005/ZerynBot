@@ -420,15 +420,14 @@
                 <i class="bi bi-robot" style="color:var(--accent);"></i> Mô Hình AI Mặc Định (Default AI Model)
               </label>
               <select name="global_ai_model" id="globalAiModelSelect" class="modal-input" style="width:100%; font-size:0.9rem; background:var(--bg-input); color:var(--text-primary);" onchange="toggleCustomModelInput(this.value)">
-                <optgroup label="⚡ Groq Cloud Models (Khuyên dùng)">
-                  <option value="qwen/qwen3.6-27b" {% if global_ai_model == 'qwen/qwen3.6-27b' %}selected{% endif %}>🌟 Qwen 3.6 27B — Tiếng Việt tự nhiên & Mượt mà (Khuyên dùng)</option>
-                  <option value="llama-3.2-11b-vision-preview" {% if global_ai_model == 'llama-3.2-11b-vision-preview' %}selected{% endif %}>👁️ Llama 3.2 11B Vision — Đọc ảnh & Đa phương tiện siêu nhẹ</option>
-                  <option value="openai/gpt-oss-20b" {% if global_ai_model == 'openai/gpt-oss-20b' %}selected{% endif %}>⚡ GPT-OSS 20B — Siêu nhẹ & Tốc độ cao</option>
-                  <option value="groq/compound-mini" {% if global_ai_model == 'groq/compound-mini' %}selected{% endif %}>🚀 Groq Compound Mini — Siêu tiết kiệm token</option>
-                  <option value="qwen/qwen3.8-27b" {% if global_ai_model == 'qwen/qwen3.8-27b' %}selected{% endif %}>🧠 Qwen 3.8 27B — Bản nâng cấp</option>
-                  <option value="llama-3.3-70b-versatile" {% if global_ai_model == 'llama-3.3-70b-versatile' %}selected{% endif %}>👑 Meta Llama 3.3 70B — Đầy đủ tính năng, thông minh</option>
-                  <option value="meta-llama/llama-4-maverick-17b-128e-instruct" {% if global_ai_model == 'meta-llama/llama-4-maverick-17b-128e-instruct' %}selected{% endif %}>🛸 Llama 4 Maverick 17B — Model thế hệ mới</option>
-                  <option value="openai/gpt-oss-120b" {% if global_ai_model == 'openai/gpt-oss-120b' %}selected{% endif %}>💎 GPT-OSS 120B — Suy luận nâng cao</option>
+                <optgroup label="⚡ Groq Cloud Models (Khả dụng & Khuyên dùng)">
+                  <option value="qwen/qwen3.8-27b" {% if global_ai_model in ['qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b'] %}selected{% endif %}>🌟 Qwen 3.8 27B — Bản mới nhất, Tiếng Việt tự nhiên & Mượt mà (Khuyên dùng số 1)</option>
+                  <option value="qwen/qwen3.6-27b" {% if global_ai_model in ['qwen/qwen3.6-27b', 'groq/qwen/qwen3.6-27b'] %}selected{% endif %}>💬 Qwen 3.6 27B — Bản 27B ổn định của Qwen</option>
+                  <option value="openai/gpt-oss-20b" {% if global_ai_model in ['openai/gpt-oss-20b', 'groq/openai/gpt-oss-20b'] %}selected{% endif %}>⚡ GPT-OSS 20B — Nhẹ và siêu nhanh (~1000 tps)</option>
+                  <option value="groq/compound-mini" {% if global_ai_model in ['groq/compound-mini', 'groq/groq/compound-mini'] %}selected{% endif %}>🚀 Groq Compound Mini — Siêu tiết kiệm token</option>
+                  <option value="groq/compound" {% if global_ai_model in ['groq/compound', 'groq/groq/compound'] %}selected{% endif %}>🌐 Groq Compound — Hỗ trợ tự động duyệt web & Chạy mã</option>
+                  <option value="openai/gpt-oss-120b" {% if global_ai_model in ['openai/gpt-oss-120b', 'groq/openai/gpt-oss-120b'] %}selected{% endif %}>💎 GPT-OSS 120B — Mạnh nhất (120B tham số, ~500 tps)</option>
+                  <option value="openai/gpt-oss-safeguard-20b" {% if global_ai_model in ['openai/gpt-oss-safeguard-20b', 'groq/openai/gpt-oss-safeguard-20b'] %}selected{% endif %}>🛡️ GPT-OSS Safeguard 20B — An toàn & Kiểm duyệt</option>
                 </optgroup>
                 <optgroup label="🌟 Google Gemini Models">
                   <option value="gemini-2.0-flash" {% if global_ai_model == 'gemini-2.0-flash' %}selected{% endif %}>⚡ Gemini 2.0 Flash — Tốc độ cao & Đa năng</option>
@@ -436,11 +435,11 @@
                   <option value="gemini-1.5-pro" {% if global_ai_model == 'gemini-1.5-pro' %}selected{% endif %}>🔬 Gemini 1.5 Pro — Suy luận sâu & Phức tạp</option>
                 </optgroup>
                 <optgroup label="✍️ Khác">
-                  <option value="custom" {% if global_ai_model not in ['qwen/qwen3.6-27b','llama-3.2-11b-vision-preview','openai/gpt-oss-20b','groq/compound-mini','qwen/qwen3.8-27b','llama-3.3-70b-versatile','meta-llama/llama-4-maverick-17b-128e-instruct','openai/gpt-oss-120b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
+                  <option value="custom" {% if global_ai_model not in ['qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','qwen/qwen3.6-27b','groq/qwen/qwen3.6-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound-mini','groq/groq/compound-mini','groq/compound','groq/groq/compound','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-safeguard-20b','groq/openai/gpt-oss-safeguard-20b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
                 </optgroup>
               </select>
-              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['qwen/qwen3.6-27b','llama-3.2-11b-vision-preview','openai/gpt-oss-20b','groq/compound-mini','qwen/qwen3.8-27b','llama-3.3-70b-versatile','meta-llama/llama-4-maverick-17b-128e-instruct','openai/gpt-oss-120b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] %}block{% else %}none{% endif %};">
-                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['qwen/qwen3.6-27b','llama-3.2-11b-vision-preview','openai/gpt-oss-20b','groq/compound-mini','qwen/qwen3.8-27b','llama-3.3-70b-versatile','meta-llama/llama-4-maverick-17b-128e-instruct','openai/gpt-oss-120b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: deepseek-r1, llama-3.1-8b-instant)" style="width:100%; font-size:0.85rem; font-family:monospace;">
+              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','qwen/qwen3.6-27b','groq/qwen/qwen3.6-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound-mini','groq/groq/compound-mini','groq/compound','groq/groq/compound','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-safeguard-20b','groq/openai/gpt-oss-safeguard-20b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] %}block{% else %}none{% endif %};">
+                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','qwen/qwen3.6-27b','groq/qwen/qwen3.6-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound-mini','groq/groq/compound-mini','groq/compound','groq/groq/compound','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-safeguard-20b','groq/openai/gpt-oss-safeguard-20b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: groq/qwen/qwen3.8-27b)" style="width:100%; font-size:0.85rem; font-family:monospace;">
               </div>
             </div>
           </div>
