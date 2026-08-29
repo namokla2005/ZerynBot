@@ -716,8 +716,8 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
         description=(
             f"**{np_title}**\n"
             f"### [{track.title}]({track.url})\n"
-            f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n\n"
-            f"---\n\n"
+            f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n"
+            f"────────────────────────────\n"
             f"**{vol_label}:** `{vol_percent}%` — **{queue_label}:** `{queue_len} {songs_unit}` — **{dur_label}:** `{total_dur_str}`\n\n"
             f"{progress_bar}"
         )
