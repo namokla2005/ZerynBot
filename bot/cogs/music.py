@@ -261,6 +261,59 @@ def _extract_metadata_sync(query: str) -> dict | None:
         return None
 
 
+def _find_related_track_sync(current_title: str, current_uploader: str, history: list[str] | None = None) -> dict | None:
+    """Tìm bài hát liên quan / cùng thể loại khi bật chế độ Autoplay."""
+    try:
+        hist = history or []
+        # Chuẩn hóa title: loại bỏ các tag rác như [Official MV], (Remix), etc.
+        clean_title = re.sub(
+            r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio",
+            "",
+            current_title,
+            flags=re.IGNORECASE
+        ).strip()
+        uploader_clean = re.sub(r"-\s*topic|vevo", "", current_uploader, flags=re.IGNORECASE).strip()
+
+        queries = [
+            f"ytsearch10:{clean_title} {uploader_clean}",
+            f"ytsearch10:{clean_title} related audio mix",
+            f"ytsearch10:{clean_title}"
+        ]
+
+        with yt_dlp.YoutubeDL(YDL_OPTS_FLAT) as ydl:
+            for search_q in queries:
+                try:
+                    info = ydl.extract_info(search_q, download=False)
+                    if not info or "entries" not in info:
+                        continue
+                    entries = [e for e in info.get("entries") if e]
+                    for entry in entries:
+                        title = entry.get("title", "")
+                        url = entry.get("webpage_url") or entry.get("url") or ""
+                        vid = entry.get("id") or ""
+
+                        if not title:
+                            continue
+
+                        # Không lặp lại bài hiện tại hoặc bài trong lịch sử
+                        if any(h and (h.lower() in title.lower() or h == vid or (url and h in url)) for h in hist):
+                            continue
+                        if title.lower().strip() == current_title.lower().strip():
+                            continue
+
+                        # Giới hạn thời lượng bài nhạc chuẩn (30s - 15 phút)
+                        dur = entry.get("duration") or 0
+                        if dur > 0 and (dur < 30 or dur > 900):
+                            continue
+
+                        return entry
+                except Exception:
+                    continue
+    except Exception as e:
+        log.warning(f"[Music] Autoplay search failed: {e}")
+    return None
+
+
 async def extract_info(query: str) -> dict | None:
     """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
     key = query.strip().lower()
@@ -400,6 +453,8 @@ class MusicPlayer:
         self.queue         : list[Track] = []
         self.current       : Track | None = None
         self.loop_mode     = 0   # 0=off  1=loop-one  2=loop-all
+        self.autoplay      = False # Autoplay: tự động tìm và phát bài tương tự khi hết hàng chờ
+        self._played_history : list[str] = [] # Lưu các bài đã phát để không bị lặp lại trong Autoplay
         self.volume        = 1.0 # 100%
         self.now_playing_msg : discord.Message | None = None
         self.start_time    : float = 0.0
@@ -459,6 +514,10 @@ class MusicPlayer:
     def _after_play(self, error=None):
         if error:
             log.warning(f"[Music] Player error: {error}")
+        if self.current:
+            self._played_history.append(self.current.title)
+            if len(self._played_history) > 30:
+                self._played_history.pop(0)
         if self.loop_mode == 1 and self.current:
             asyncio.run_coroutine_threadsafe(self._play(self.current), self.loop)
         elif self.loop_mode == 2 and self.current:
@@ -471,9 +530,47 @@ class MusicPlayer:
         if self.queue:
             self._reset_inactivity_timer()
             asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), self.loop)
+        elif self.autoplay and self.current:
+            self._reset_inactivity_timer()
+            asyncio.run_coroutine_threadsafe(self._handle_autoplay(), self.loop)
         else:
             self.current = None
             asyncio.run_coroutine_threadsafe(self._on_queue_empty(), self.loop)
+
+    async def _handle_autoplay(self):
+        """Tự động tìm kiếm và phát bài hát cùng thể loại khi bật Autoplay."""
+        if not self.current:
+            await self._on_queue_empty()
+            return
+        last_track = self.current
+        try:
+            related_info = await asyncio.to_thread(
+                _find_related_track_sync,
+                last_track.title,
+                last_track.uploader,
+                self._played_history
+            )
+            if related_info:
+                bot_user = getattr(self.vc, "client", None)
+                requester = bot_user.user if (bot_user and hasattr(bot_user, "user")) else None
+                new_track = Track(related_info, requester=requester)
+                if self.text_channel:
+                    try:
+                        s = await async_get_guild_settings(str(self.guild.id))
+                        await self.text_channel.send(
+                            f"♾️ **Autoplay:** Tự động phát bài tiếp theo **[{new_track.title}]({new_track.url})**",
+                            delete_after=10
+                        )
+                    except Exception:
+                        pass
+                await self._play(new_track)
+                return
+        except Exception as e:
+            log.warning(f"[Music] Autoplay error: {e}")
+
+        # Fallback nếu không tìm thấy bài liên quan
+        self.current = None
+        await self._on_queue_empty()
 
     async def _on_queue_empty(self):
         """Xử lý khi hàng chờ hết — xóa embed/disable nút NP cũ và bật timer tự rời voice."""
@@ -635,6 +732,8 @@ class MusicPlayer:
         self.queue.clear()
         self.current   = None
         self.loop_mode = 0
+        self.autoplay  = False
+        self._played_history.clear()
         if self._preload_task:
             self._preload_task.cancel()
         if self.vc.is_playing() or self.vc.is_paused():
@@ -653,9 +752,9 @@ class MusicPlayer:
 
 # ─── Embeds & Helpers ──────────────────────────────────────────────────────────
 def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 24) -> str:
-    """Tạo thanh tiến trình phát nhạc màu xanh Discord siêu đẹp giống hệt Wave Music."""
+    """Tạo thanh tiến trình phát nhạc nét đậm nổi bật theo phong cách Markdown Bold."""
     if total_sec is None or not isinstance(total_sec, (int, float)) or total_sec <= 0:
-        return "[━━━━━━━━━━━━━━━━━━━━━━━━](https://zerynbot.id.vn)"
+        return "[**━━━━━━━━━━━━━━━━━━━━━━━━**](https://zerynbot.id.vn)"
 
     elapsed_sec = max(0, min(int(elapsed_sec or 0), int(total_sec)))
     ratio = elapsed_sec / total_sec if total_sec > 0 else 0.0
@@ -666,9 +765,9 @@ def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int 
     remaining_bar = "━" * remaining_len
 
     if remaining_len > 0:
-        return f"[{played_bar}](https://zerynbot.id.vn){remaining_bar}"
+        return f"[**{played_bar}**](https://zerynbot.id.vn)**{remaining_bar}**"
     else:
-        return f"[{played_bar}](https://zerynbot.id.vn)"
+        return f"[**{played_bar}**](https://zerynbot.id.vn)"
 
 
 def _format_queue_duration(queue: list, current_track: Track = None) -> str:
@@ -697,7 +796,7 @@ def _format_queue_duration(queue: list, current_track: Track = None) -> str:
 
 
 def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.0, elapsed_sec: int = 0, settings: dict = None) -> discord.Embed:
-    """Tạo Embed Now Playing chuẩn phong cách Wave Music (Compact card, right thumbnail, sleek bar)."""
+    """Tạo Embed Now Playing chuẩn phong cách Wave Music (Compact card, right thumbnail, bold bar)."""
     s = settings or {}
     vol_percent = int(volume * 100)
     queue_len = len(queue)
@@ -717,7 +816,7 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
             f"**{np_title}**\n"
             f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n"
-            f"────────────────────────────\n"
+            f"──────────────────────────────────────────\n"
             f"**{vol_label}:** `{vol_percent}%` — **{queue_label}:** `{queue_len} {songs_unit}` — **{dur_label}:** `{total_dur_str}`\n\n"
             f"{progress_bar}"
         )
@@ -737,19 +836,46 @@ class MusicControlView(discord.ui.View):
         self.player = player
         self.settings = settings or {}
 
-        # Cập nhật nhãn và style theo trạng thái thực tế
+        # 1. Nút Autoplay
+        self.btn_autoplay.label = "Autoplay"
+        self.btn_autoplay.emoji = "♾️"
+        if player.autoplay:
+            self.btn_autoplay.style = discord.ButtonStyle.primary
+        else:
+            self.btn_autoplay.style = discord.ButtonStyle.secondary
+
+        # 2. Nút Stop
+        self.btn_stop.label = tr(self.settings, "music.btn_stop")
+        self.btn_stop.emoji = "⏹️"
+        self.btn_stop.style = discord.ButtonStyle.secondary
+
+        # 3. Nút Pause / Resume
         if player.vc and player.vc.is_paused():
             self.btn_pause.label = tr(self.settings, "music.btn_resume")
             self.btn_pause.emoji = "▶️"
         else:
             self.btn_pause.label = tr(self.settings, "music.btn_pause")
             self.btn_pause.emoji = "⏸️"
-
         self.btn_pause.style = discord.ButtonStyle.secondary
-        self.btn_shuffle.label = tr(self.settings, "music.btn_shuffle")
-        self.btn_stop.label = tr(self.settings, "music.btn_stop")
+
+        # 4. Nút Skip
         self.btn_skip.label = tr(self.settings, "music.btn_skip")
-        self.btn_like.label = tr(self.settings, "music.btn_like")
+        self.btn_skip.emoji = "⏭️"
+        self.btn_skip.style = discord.ButtonStyle.secondary
+
+        # 5. Nút Loop (Lặp lại - thay cho Yêu thích)
+        if player.loop_mode == 0:
+            self.btn_loop.label = tr(self.settings, "music.btn_loop_off")
+            self.btn_loop.emoji = "🔁"
+            self.btn_loop.style = discord.ButtonStyle.secondary
+        elif player.loop_mode == 1:
+            self.btn_loop.label = tr(self.settings, "music.btn_loop_one")
+            self.btn_loop.emoji = "🔂"
+            self.btn_loop.style = discord.ButtonStyle.primary
+        else:
+            self.btn_loop.label = tr(self.settings, "music.btn_loop_all")
+            self.btn_loop.emoji = "🔁"
+            self.btn_loop.style = discord.ButtonStyle.primary
 
     async def _check(self, interaction: discord.Interaction) -> bool:
         if not interaction.user.voice or interaction.user.voice.channel != self.player.vc.channel:
@@ -760,16 +886,21 @@ class MusicControlView(discord.ui.View):
         return True
 
     @discord.ui.button(label="Autoplay", style=discord.ButtonStyle.secondary, emoji="♾️", row=0)
-    async def btn_shuffle(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def btn_autoplay(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
-        self.player.shuffle()
+        self.player.autoplay = not self.player.autoplay
+        if self.player.autoplay:
+            button.style = discord.ButtonStyle.primary
+        else:
+            button.style = discord.ButtonStyle.secondary
+
         elapsed = self.player.get_elapsed()
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Stop", style=discord.ButtonStyle.secondary, emoji="🟦", row=0)
+    @discord.ui.button(label="Stop", style=discord.ButtonStyle.secondary, emoji="⏹️", row=0)
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -805,34 +936,28 @@ class MusicControlView(discord.ui.View):
         await interaction.response.defer()
         self.player.skip()
 
-    @discord.ui.button(label="Like", style=discord.ButtonStyle.secondary, emoji="❤️", row=0)
-    async def btn_like(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.player.current:
-            return await interaction.response.send_message(tr(self.settings, "music.no_song_playing"), ephemeral=True)
-        import database as db
-        guild_id = str(interaction.guild.id)
-        user_id = str(interaction.user.id)
-        user_name = interaction.user.display_name
-        pl_name = f"❤️ Yêu thích ({user_name})"
-        pl = await db.async_get_playlist_by_name(guild_id, pl_name)
-        if not pl:
-            pl_id = await db.async_create_playlist(guild_id, pl_name, user_id, user_name)
+    @discord.ui.button(label="Loop", style=discord.ButtonStyle.secondary, emoji="🔁", row=0)
+    async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._check(interaction):
+            return
+        await interaction.response.defer()
+        self.player.loop_mode = (self.player.loop_mode + 1) % 3
+        if self.player.loop_mode == 0:
+            button.label = tr(self.settings, "music.btn_loop_off")
+            button.emoji = "🔁"
+            button.style = discord.ButtonStyle.secondary
+        elif self.player.loop_mode == 1:
+            button.label = tr(self.settings, "music.btn_loop_one")
+            button.emoji = "🔂"
+            button.style = discord.ButtonStyle.primary
         else:
-            pl_id = pl["id"]
+            button.label = tr(self.settings, "music.btn_loop_all")
+            button.emoji = "🔁"
+            button.style = discord.ButtonStyle.primary
 
-        cur = self.player.current
-        await db.async_add_track_to_playlist(pl_id, {
-            "title": cur.title,
-            "url": cur.url,
-            "duration": cur.duration,
-            "webpage_url": cur.url,
-            "thumbnail": cur.thumbnail,
-            "uploader": cur.uploader
-        })
-        await interaction.response.send_message(
-            tr(self.settings, "music.liked_success", title=cur.title),
-            ephemeral=True
-        )
+        elapsed = self.player.get_elapsed()
+        embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
+        await interaction.message.edit(embed=embed, view=self)
 
 
 # ─── Remove Song UI ────────────────────────────────────────────────────────────
@@ -1159,6 +1284,17 @@ class Music(commands.Cog, name="Music"):
         player.loop_mode = (player.loop_mode + 1) % 3
         msg_list = [tr(s, "music.loop_off_msg"), tr(s, "music.loop_one_msg"), tr(s, "music.loop_all_msg")]
         await ctx.send(msg_list[player.loop_mode])
+
+    @commands.hybrid_command(name="autoplay", description="Bật/tắt chế độ tự động phát bài hát tương tự khi hết hàng chờ")
+    async def autoplay_cmd(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = self._get(ctx.guild.id)
+        if not player:
+            await ctx.send(tr(s, "music.no_song_playing"), ephemeral=True)
+            return
+        player.autoplay = not player.autoplay
+        status_text = "BẬT ♾️ (Sẽ tự động tìm bài tương tự khi hết hàng chờ)" if player.autoplay else "TẮT"
+        await ctx.send(f"♾️ Đã **{status_text}** chế độ Autoplay!", ephemeral=True)
 
     @commands.hybrid_command(name="queue", description="Xem hàng chờ nhạc")
     async def queue_cmd(self, ctx: commands.Context):
