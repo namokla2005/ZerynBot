@@ -751,10 +751,10 @@ class MusicPlayer:
 
 
 # ─── Embeds & Helpers ──────────────────────────────────────────────────────────
-def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 24) -> str:
-    """Tạo thanh tiến trình phát nhạc nét đậm nổi bật theo phong cách Markdown Bold."""
+def _make_progress_bar(elapsed_sec: int, total_sec: int | None, bar_length: int = 40) -> str:
+    """Tạo thanh tiến trình phát nhạc nét đậm nổi bật theo phong cách Markdown Bold (40 ký tự)."""
     if total_sec is None or not isinstance(total_sec, (int, float)) or total_sec <= 0:
-        return "[**━━━━━━━━━━━━━━━━━━━━━━━━**](https://zerynbot.id.vn)"
+        return f"[**{'━' * bar_length}**](https://zerynbot.id.vn)"
 
     elapsed_sec = max(0, min(int(elapsed_sec or 0), int(total_sec)))
     ratio = elapsed_sec / total_sec if total_sec > 0 else 0.0
@@ -808,7 +808,7 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
     songs_unit = tr(s, "music.songs_unit")
 
     dur_badge = track.duration_str if track.duration and track.duration > 0 else "LIVE"
-    progress_bar = _make_progress_bar(elapsed_sec, track.duration, bar_length=24)
+    progress_bar = _make_progress_bar(elapsed_sec, track.duration, bar_length=40)
 
     embed = discord.Embed(
         color=0x5865F2,  # Discord Blurple (#5865F2) matching Wave Music
@@ -816,7 +816,7 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
             f"**{np_title}**\n"
             f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n"
-            f"──────────────────────────────────────────\n"
+            f"────────────────────────────────────────────\n"
             f"**{vol_label}:** `{vol_percent}%` — **{queue_label}:** `{queue_len} {songs_unit}` — **{dur_label}:** `{total_dur_str}`\n\n"
             f"{progress_bar}"
         )
@@ -865,15 +865,15 @@ class MusicControlView(discord.ui.View):
 
         # 5. Nút Loop (Lặp lại - thay cho Yêu thích)
         if player.loop_mode == 0:
-            self.btn_loop.label = tr(self.settings, "music.btn_loop_off")
+            self.btn_loop.label = "Lặp lại"
             self.btn_loop.emoji = "🔁"
             self.btn_loop.style = discord.ButtonStyle.secondary
         elif player.loop_mode == 1:
-            self.btn_loop.label = tr(self.settings, "music.btn_loop_one")
+            self.btn_loop.label = "Lặp 1 bài"
             self.btn_loop.emoji = "🔂"
             self.btn_loop.style = discord.ButtonStyle.primary
         else:
-            self.btn_loop.label = tr(self.settings, "music.btn_loop_all")
+            self.btn_loop.label = "Lặp toàn bộ"
             self.btn_loop.emoji = "🔁"
             self.btn_loop.style = discord.ButtonStyle.primary
 
@@ -936,22 +936,22 @@ class MusicControlView(discord.ui.View):
         await interaction.response.defer()
         self.player.skip()
 
-    @discord.ui.button(label="Loop", style=discord.ButtonStyle.secondary, emoji="🔁", row=0)
+    @discord.ui.button(label="Lặp lại", style=discord.ButtonStyle.secondary, emoji="🔁", row=0)
     async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
         self.player.loop_mode = (self.player.loop_mode + 1) % 3
         if self.player.loop_mode == 0:
-            button.label = tr(self.settings, "music.btn_loop_off")
+            button.label = "Lặp lại"
             button.emoji = "🔁"
             button.style = discord.ButtonStyle.secondary
         elif self.player.loop_mode == 1:
-            button.label = tr(self.settings, "music.btn_loop_one")
+            button.label = "Lặp 1 bài"
             button.emoji = "🔂"
             button.style = discord.ButtonStyle.primary
         else:
-            button.label = tr(self.settings, "music.btn_loop_all")
+            button.label = "Lặp toàn bộ"
             button.emoji = "🔁"
             button.style = discord.ButtonStyle.primary
 
