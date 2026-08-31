@@ -1,7 +1,7 @@
 """
 Cog: Remind (v2) — Hệ thống nhắc nhở & hẹn giờ thông minh (/remindme, /reminders, /delreminder)
 """
-import sys, os, time, re
+import sys, os, time as _time, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import discord
@@ -85,7 +85,7 @@ class Remind(commands.Cog):
     async def reminder_task(self):
         """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 15 giây."""
         try:
-            now_ts = int(time.time())
+            now_ts = int(_time.time())
             due_reminders = await async_get_due_reminders(now_ts)
             for r in due_reminders:
                 remind_id = r["id"]
@@ -169,7 +169,7 @@ class Remind(commands.Cog):
         if seconds > 30 * 86400:  # 30 days max
             return await ctx.send(tr(s, "remind.max_time"), ephemeral=True)
 
-        now_ts = int(time.time())
+        now_ts = int(_time.time())
         target_ts = now_ts + seconds
         guild_id = str(ctx.guild.id) if (ctx.guild and not dm) else ""
         channel_id = str(ctx.channel.id) if (ctx.guild and not dm) else ""
