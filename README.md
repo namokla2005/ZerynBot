@@ -19,7 +19,7 @@
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1509 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1510 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -63,14 +63,19 @@
 - **Tiện ích kinh tế**: Lệnh `/balance` (hiển thị chi tiết Ví, Ngân hàng, Tổng tài sản), `/daily` (nhận thưởng và chuỗi streak), `/rich` (Bảng xếp hạng đại gia).
 
 ### 🎵 9. Module Nhạc Siêu Tốc & Giao Diện Thẻ Hiện Đại (Music Pipeline & Compact Player)
-- **Giao diện Compact Card đỉnh cao (Music \| 2 Style)**: Thẻ phát nhạc màu xanh Neon tinh tế, **Thumbnail góc phải**, thanh sóng nhạc **Progress Bar** `▬▬▬▬▬▬▬▬▬▬▬▬▬▬🔘▬▬▬▬▬` và thanh thông số Volume/Queue/Duration trực quan.
-- **Hàng 5 Nút Điều Khiển Tương Tác**: `🔀 Xáo trộn`, `⏹️ Dừng lại`, `⏸️ Tạm dừng / ▶️ Tiếp tục`, `⏭️ Bỏ qua`, `❤️ Yêu thích` (Lưu bài vào Playlist cá nhân tức thì).
+- **Giao diện Compact Card đỉnh cao (Music | 2 Style)**: Thẻ phát nhạc màu xanh Neon tinh tế, **Thumbnail góc phải**, thanh sóng nhạc nét đậm **Progress Bar 45 ký tự** `[**━━━━**](...)**━━━━**` và thanh thông số Volume/Queue/Duration trực quan.
+- **Hàng 5 Nút Điều Khiển Tương Tác**:
+  - `♾️ Autoplay`: Tự động tìm kiếm và phát tiếp bài hát cùng thể loại khi hết hàng chờ (lọc bỏ lịch sử bài đã phát).
+  - `⏹️ Dừng lại`: Dừng phát và rời kênh voice.
+  - `⏸️ Tạm dừng / ▶️ Tiếp tục`: Chuyển đổi trạng thái phát nhạc.
+  - `⏭️ Bỏ qua`: Chuyển ngay sang bài tiếp theo.
+  - `🔁 Lặp lại`: 3 chế độ thông minh (`Lặp lại: Tắt` ➔ `🔂 Lặp 1 bài` ➔ `🔁 Lặp toàn bộ`).
 - **Lệnh `/nowplaying` (`/np`)**: Tra cứu thông tin bài hát và vị trí phát theo thời gian thực.
 - **Tối ưu hóa âm thanh ARM**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ đệm tối ưu hóa giúp **khởi động bài hát < 0.8 giây**.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.
 - **Khóa đồng bộ chống xung đột (Atomic Play Lock)**: Loại bỏ triệt để lỗi `Already playing audio` khi người dùng spam lệnh.
 - **Tự động ngắt kết nối (Inactivity Watchdog)**: Tự động rời kênh voice sau 3 phút nếu không có bài hát nào được phát để giải phóng tài nguyên.
-- **Điều khiển phong phú**: Lệnh `/volume <1-150>`, `/shuffle`, `/replay`, `/lofi` (SomaFM & YouTube Radio), quản lý Playlist cá nhân & máy chủ.
+- **Điều khiển phong phú**: Lệnh `/volume <1-150>`, `/shuffle`, `/autoplay`, `/loop`, `/replay`, `/lofi` (SomaFM & YouTube Radio), quản lý Playlist cá nhân & máy chủ.
 
 ### 🛡️ 10. Kiểm Duyệt Tự Động (AutoMod)
 - **Bộ lọc đa lớp**: Anti-Spam (cửa sổ trượt 5s), Banned Words Filter, Fake Link / Phishing Filter, Anti-Invite Links, Anti-Caps Lock (>70%), Anti-Mass Ping.
@@ -126,17 +131,26 @@
   - **Web Terminal**: Nhập lệnh shell trực tiếp trên trình duyệt (tương thích 100% Android Termux/Linux).
   - **Git Pull & Restart 1-Click**: Tự động cập nhật mã nguồn qua `git fetch & reset hard` và khởi động lại bot ngay trên Web.
 
+### 🔒 19. Bảo Mật & Hạ Tầng Chuẩn Production (Security & Hardening)
+- **WSGI Production Server**: Tích hợp máy chủ **Waitress WSGI** cho Web Dashboard, ổn định và chịu tải tốt hơn.
+- **Bảo vệ CSRF Per-Session**: Tự động inject và kiểm tra CSRF token per-session qua `_csrf_bootstrap.html` cho toàn bộ form và request.
+- **Chống Login CSRF & IDOR**: Bắt buộc tham số `state` trong OAuth2 flow; kiểm duyệt chặt chẽ quyền sở hữu `channel_id` theo `guild_id`.
+- **Chống SSRF**: Hàm `is_safe_http_url` kiểm duyệt URL đầu vào (Card background, media).
+- **Giới hạn tần suất (Rate Limiter)**: Tích hợp `Flask-Limiter` bảo vệ các route nhạy cảm (`/login`, `/callback`, `/admin/system/*`).
+- **Bộ Test Suite Tự Động (55 Tests)**: Kiểm thử unit test và security test (`tests/`) bảo vệ toàn diện hệ thống.
+
 ---
 
 ## 🛠️ Công Nghệ Sử Dụng
 
 - **Ngôn ngữ**: Python 3.10+
 - **Bot Engine**: `discord.py` 2.3+ (App Commands / Slash Commands)
-- **Web Framework**: Flask (Jinja2 Templates)
+- **Web Framework & WSGI**: Flask + Waitress WSGI
 - **Cơ sở dữ liệu**: SQLite (`aiosqlite` async cho Bot, `sqlite3` sync cho Dashboard, WAL mode, timeout=15s)
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`MemoryCache` thread-safe & async-safe với TTL LRU eviction và daemon cleanup 5 phút, không cần Redis)
 - **Xử lý Âm thanh**: `yt-dlp` + `FFmpegOpusAudio`
 - **Đồ họa**: Pillow (`PIL`)
+- **Kiểm thử**: Pytest + Unittest Suite
 
 ---
 
@@ -229,14 +243,14 @@ python main.py --test
 
 ```text
 ZerynBot/
-├── ARCHITECTURE.md      # Tài liệu chi tiết kiến trúc dự án (dành cho Developer & AI)
 ├── main.py              # Điểm vào điều khiển trung tâm (start/stop/restart/status/test)
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
 ├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1510 keys/file)
-├── requirements.txt     # Danh sách thư viện Python
-├── .agents/             # Skill & Cấu hình dành cho Trợ lý AI
+├── requirements.txt     # Danh sách thư viện Python chạy production
+├── requirements-dev.txt # Danh sách thư viện dev & test (pytest, ruff)
+├── LICENSE              # Giấy phép nguồn mở MIT
 ├── bot/                 # 🤖 Discord Bot Source Code
 │   ├── bot.py           # Entry point của Discord Bot & Webhook Logger
 │   ├── card_generator.py# Render ảnh Rank Card, Welcome/Goodbye Banner bằng Pillow
@@ -245,23 +259,23 @@ ZerynBot/
 ├── dashboard/           # 🌐 Flask Web Dashboard
 │   ├── app.py           # Routes chính của Dashboard
 │   ├── api.py           # AJAX API Endpoints
-│   ├── auth.py          # Discord OAuth2 Session Manager
+│   ├── auth.py          # Discord OAuth2 Session Manager & SSRF filter
 │   ├── static/          # CSS (v9.2), JS, Branding Images
-│   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme)
+│   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme & CSRF bootstrap)
 ├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1510 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh)
-├── tests/               # 🧪 Pytest: unit test (cache, i18n, database) + bảo mật dashboard + smoke-load 22 cogs
-├── .github/             # CI pipeline (validate_all + ruff + pytest) & Dependabot
+├── tests/               # 🧪 55 Unit tests (cache, i18n, database, dashboard security, smoke-load 22 cogs)
+├── .github/             # CI pipeline & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```
 
-## 🧪 Chạy Kiểm Thử (Tests & Validators)
+## 🧪 Chạy Kiểm Thử (Tests)
 
 ```bash
-# Validator tổng hợp 1-click (i18n parity, py_compile, số liệu docs)
-python .agents/skills/zerynbot_architecture_context/assets/validate_all.py
+# Cài đặt thư viện dev/test (chỉ cần trên máy dev):
+pip install -r requirements-dev.txt
 
-# Unit tests (cần: pip install -r requirements-dev.txt)
+# Chạy toàn bộ 55 test cases:
 pytest -q
 ```
 
@@ -272,3 +286,4 @@ pytest -q
 Dự án được phát hành theo giấy phép **MIT License**. Mọi đóng góp (Pull Request / Issue) đều được hoan nghênh!
 
 > Made with ❤️ by **Nam** — Optimized for low-spec ARM devices & Termux 24/7.
+
