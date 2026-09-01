@@ -16,10 +16,12 @@ sleep 10
 # Bật wakelock để Termux luôn chạy nền
 termux-wake-lock
 
-# Chuyển đến thư mục bot (tự động nhận diện đường dẫn động hoặc fallback)
+# Chuyển đến thư mục bot (tự động nhận diện đường dẫn động hoặc dùng biến môi trường)
+# Fallback: đặt ZERYN_HOME trong ~/.bashrc / ~/.profile, vd:
+#   export ZERYN_HOME="/storage/emulated/0/Project/Discord Bots/v2"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-if [ ! -f "$DIR/main.py" ]; then
-    DIR="/storage/emulated/0/Project/Discord Bots/v2"
+if [ ! -f "$DIR/main.py" ] && [ -n "$ZERYN_HOME" ]; then
+    DIR="$ZERYN_HOME"
 fi
 
 if [ -d "$DIR" ]; then

@@ -49,7 +49,7 @@
 ## 2. Directory Structure & File Map
 
 ```
-d:/Project/Discord Bots/v2/
+ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ đường dẫn nào)
 ├── ARCHITECTURE.md             # This document (AI Context Map & System Reference)
 ├── main.py                     # Primary process orchestrator & CLI control (start/stop/restart/status)
 ├── config.py                   # Centralized environment variables, credentials, and constants
@@ -268,12 +268,15 @@ The web dashboard is hosted via Flask in `dashboard/app.py` and `dashboard/api.p
          │                         │                         │
          ▼                         ▼                         ▼
    OAuth2 Authentication     Server Management Views    AJAX API Endpoints
-   (/login, /callback)       (/server/<id>/<module>)    (api.py)
+   (/login, /callback)       (/dashboard/<id>/<module>)  (api.py)
 ```
 
-- **Authentication (`auth.py`):** Uses Discord OAuth2 code exchange (`/callback`). Stores user token, ID, username, avatar, and managed guild list in Flask session (`session['user']`).
-- **Authorization (`@login_required`, `@guild_admin_required`):** Checks if the authenticated user has `ADMINISTRATOR` or `MANAGE_GUILD` permission on the requested Discord server.
-- **Module Toggle API:** Endpoints like `/server/<guild_id>/module/<module_name>` toggle modules on/off in `guild_modules` table and clear Redis cache immediately.
+- **Authentication (`auth.py`):** Uses Discord OAuth2 code exchange (`/callback`) **with mandatory `state` parameter (anti Login-CSRF)**. Stores user token, ID, username, avatar, and managed guild list in Flask session (`session['user']`). Guild list auto-refreshes every 15 minutes to pick up revoked permissions.
+- **Authorization (`@login_required`, `@guild_access_required`):** Checks if the authenticated user has `ADMINISTRATOR` or `MANAGE_GUILD` permission on the requested Discord server.
+- **CSRF Protection:** Every state-changing request (POST/PUT/DELETE) from a logged-in session must carry the per-session CSRF token (header `X-CSRF-Token` or hidden form field `_csrf_token`), auto-injected by `_csrf_bootstrap.html`.
+- **Channel Ownership Guard:** Any endpoint that causes the bot to post to a channel (`/api/guild/<id>/send-embed`, ticket/reaction-role panel send, test welcome card) verifies the channel belongs to that guild via Discord REST (fail-closed).
+- **Rate Limiting:** Sensitive routes (`/login`, `/callback`, `/admin/system/*`, `/api/admin/test_ai_key`) are rate-limited via Flask-Limiter.
+- **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
 - **Central Command Catalog (`_COMMANDS_DATA`):** All **87 active commands** across **16 categories** are centrally registered in `dashboard/app.py` with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
@@ -316,7 +319,7 @@ sequenceDiagram
     autonumber
     actor User as User in Server
     participant Bot as Bot Cog (e.g., info.py)
-    participant Cache as Redis / Memory Cache
+    participant Cache as In-Memory RAM Cache
     participant DB as SQLite DB
     participant i18n as i18n Engine
 

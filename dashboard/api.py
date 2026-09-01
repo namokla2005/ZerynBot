@@ -12,6 +12,7 @@ import requests
 import database as db
 import config
 from i18n import i18n as i18n_manager
+from dashboard import auth as _auth
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -22,6 +23,16 @@ def _require_guild_access(guild_id: str):
     allowed = {g["id"] for g in guilds if g.get("bot_in_guild")}
     if guild_id not in allowed:
         return jsonify({"error": "Forbidden"}), 403
+    return None
+
+
+def _require_channel_in_guild(guild_id: str, channel_id):
+    """P0.4: chặn gửi tin/embed sang kênh KHÔNG thuộc guild (IDOR cross-server).
+    Trả về None nếu hợp lệ, ngược lại trả về response lỗi."""
+    if not channel_id:
+        return jsonify({"error": "Vui lòng chọn kênh"}), 400
+    if not _auth.channel_belongs_to_guild(guild_id, channel_id):
+        return jsonify({"error": "⛔ Kênh không thuộc server này hoặc không xác thực được."}), 403
     return None
 
 
@@ -122,8 +133,9 @@ def send_embed_to_channel(guild_id: str):
     embed_data  = data.get("embed") or {}
     content     = data.get("content", "")
 
-    if not channel_id:
-        return jsonify({"error": "Vui lòng chọn kênh"}), 400
+    ch_err = _require_channel_in_guild(guild_id, channel_id)
+    if ch_err:
+        return ch_err
 
     discord_embed = _build_discord_embed(embed_data)
 
@@ -239,7 +251,11 @@ def send_ticket_panel(guild_id: str, panel_id: int):
     panel = db.get_ticket_panel(panel_id)
     if not panel:
         return jsonify({"error": "Không tìm thấy panel"}), 404
-        
+
+    ch_err = _require_channel_in_guild(guild_id, panel.get("channel_id"))
+    if ch_err:
+        return ch_err
+
     # Build embed
     embed_data = {
         "title": panel.get("title"),
@@ -353,7 +369,11 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
     panel = db.get_reaction_roles_panel(panel_id)
     if not panel:
         return jsonify({"error": "Không tìm thấy panel"}), 404
-        
+
+    ch_err = _require_channel_in_guild(guild_id, panel.get("channel_id"))
+    if ch_err:
+        return ch_err
+
     embed_data = {
         "title": panel.get("title"),
         "description": panel.get("description"),
@@ -411,7 +431,7 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
                 emoji_encoded = urllib.parse.quote(emoji_parsed)
                 
                 try:
-                    _req.put(
+                    requests.put(
                         f"https://discord.com/api/v10/channels/{panel['channel_id']}/messages/{new_msg_id}/reactions/{emoji_encoded}/@me",
                         headers={"Authorization": f"Bot {config.TOKEN}"},
                         timeout=5
@@ -446,6 +466,10 @@ def send_test_card(guild_id: str):
     channel_id = settings.get(f"{card_type}_channel_id")
     if not channel_id:
         return jsonify({"error": f"Chưa chọn kênh {card_type}"}), 400
+
+    ch_err = _require_channel_in_guild(guild_id, channel_id)
+    if ch_err:
+        return ch_err
 
     # Retrieve current unsaved state from frontend, or fallback to saved settings
     use_embed = data.get("use_embed")
@@ -506,6 +530,9 @@ def send_test_card(guild_id: str):
             bg_url = settings.get(f"{card_type}_bg_url")
 
         if bg_url:
+            # P1.8: chống SSRF — chỉ tải URL http(s) trỏ ra Internet công cộng
+            if not _auth.is_safe_http_url(bg_url):
+                return jsonify({"error": "URL ảnh nền không hợp lệ (chỉ cho phép http/https công khai)."}), 400
             try:
                 r = requests.get(bg_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
                 if r.status_code == 200:

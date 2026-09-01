@@ -47,7 +47,7 @@ mock_user_session = {
    * Kiểm tra Hero Section (Tiêu đề, Avatar Mascot Chibi Zeryn tròn phát sáng, nút Add to Discord).
    * Kiểm tra lưới 16 tính năng nổi bật (Features Grid).
 2. **Mở URL `/commands`**:
-   * Kiểm tra hiển thị đầy đủ danh sách **57 Lệnh** được nạp từ `_COMMANDS_DATA`.
+   * Kiểm tra hiển thị đầy đủ danh sách **87 Lệnh** được nạp từ `_COMMANDS_DATA` (địa phương hóa qua `commands_catalog.py`).
    * Thử tìm kiếm lệnh trên ô Search (ví dụ: gõ `deposit` -> lọc đúng lệnh nạp tiền ngân hàng).
    * Thử chuyển đổi danh mục (Kinh tế & Shop, Nhạc 24/7, Kiểm duyệt, v.v.).
 3. **Mở URL `/tos` và `/privacy`**:
@@ -55,25 +55,26 @@ mock_user_session = {
 
 ---
 
-### Kịch Bản 2: Quản Lý Cài Đặt Server & Bật/Tắt Module (`/server/<id>/...`)
-1. **Mở URL `/server/999999999999999999/overview`**:
+### Kịch Bản 2: Quản Lý Cài Đặt Server & Bật/Tắt Module (`/dashboard/<id>/...`)
+1. **Mở URL `/dashboard/999999999999999999`**:
    * Kiểm tra hiển thị thông tin máy chủ (Tên, Số lượng thành viên, Ngôn ngữ).
    * Thử đổi ngôn ngữ máy chủ (Tiếng Việt ➔ English) ➔ Kiểm tra giao diện cập nhật ngay lập tức.
 2. **Kiểm tra công tắc Module Toggle**:
    * Bấm tắt/bật một module bất kỳ (ví dụ: `music` hoặc `economy`).
-   * Kiểm tra API `/server/<id>/module/<name>` trả về HTTP 200 `{success: true}`.
+   * Kiểm tra API `POST /api/guild/<id>/modules/<name>` trả về HTTP 200 `{ok: true}`.
    * Kiểm tra xuất hiện thông báo nổi (Toast Notification) màu xanh lá ở góc màn hình.
+   * **Kiểm tra bảo mật CSRF**: request POST **không kèm** header `X-CSRF-Token` phải bị chặn HTTP 403.
 
 ---
 
 ### Kịch Bản 3: Xem Trước Trực Tiếp (Live Previews)
-1. **Module Leveling (`/server/<id>/leveling`)**:
+1. **Module Leveling (`/dashboard/<id>/leveling`)**:
    * Thử chọn màu chủ đạo và ảnh nền thẻ Rank.
    * Bấm nút *"Xem trước Thẻ Rank"* ➔ Kiểm tra Canvas hoặc ảnh preview được render mượt mà trong modal.
-2. **Module Welcome & Goodbye (`/server/<id>/welcome`)**:
+2. **Module Welcome & Goodbye (`/dashboard/<id>/welcome`)**:
    * Nhập nội dung tin nhắn chào mừng kèm biến `{user}`, `{server}`, `{members}`.
    * Kiểm tra khung xem trước tin nhắn (Live Embed Preview) thay thế biến động thời gian thực.
-3. **Embed Builder (`/server/<id>/embeds`)**:
+3. **Embed Builder (`/dashboard/<id>/embeds`)**:
    * Thêm tiêu đề, mô tả, màu sắc hex, trường thông tin (Fields).
    * Kiểm tra bản xem trước khớp 100% với giao diện Discord Rich Embed chuẩn.
 

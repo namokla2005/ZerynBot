@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1509%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1510%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-19%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="19 Modules">
-  <img src="https://img.shields.io/badge/Commands-88%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="88 Commands">
+  <img src="https://img.shields.io/badge/Commands-87%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="87 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (19 Modules & 88 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (19 Modules & 87 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
@@ -172,7 +172,24 @@ DASHBOARD_URL=http://localhost:5000
 REDIRECT_URI=http://localhost:5000/callback
 WEBHOOK_LOG_URL=https://discord.com/api/webhooks/...
 STATUS_WEBHOOK_URL=https://discord.com/api/webhooks/...
+BACKUP_DB=https://discord.com/api/webhooks/...
+DEV_GUILD_ID=your_dev_server_id_optional
+GEMINI_API_KEY=optional_ai_key_here
 ```
+
+> 🔐 **Bảo mật**: `FLASK_SECRET_KEY` bắt buộc phải là chuỗi ngẫu nhiên riêng của bạn
+> (vd: `python -c "import secrets; print(secrets.token_hex(32))"`). Nếu để trống hoặc
+> giữ giá trị mẫu, hệ thống sẽ tự sinh key ngẫu nhiên mỗi lần khởi động — an toàn
+> nhưng mọi phiên đăng nhập sẽ bị reset sau mỗi lần restart dashboard.
+
+### 2.5. Bật Privileged Gateway Intents (Bắt buộc)
+
+Bot cần 3 intents đặc quyền, nếu thiếu sẽ **không đăng nhập được** (`PrivilegedIntentsRequired`).
+Vào [Discord Developer Portal](https://discord.com/developers/applications) → chọn App → **Bot** → bật:
+
+- ✅ **Presence Intent**
+- ✅ **Server Members Intent**
+- ✅ **Message Content Intent**
 
 ---
 
@@ -217,7 +234,7 @@ ZerynBot/
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
-├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1469 keys/file)
+├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1510 keys/file)
 ├── requirements.txt     # Danh sách thư viện Python
 ├── .agents/             # Skill & Cấu hình dành cho Trợ lý AI
 ├── bot/                 # 🤖 Discord Bot Source Code
@@ -231,9 +248,21 @@ ZerynBot/
 │   ├── auth.py          # Discord OAuth2 Session Manager
 │   ├── static/          # CSS (v9.2), JS, Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme)
-├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1469 keys/file
+├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1510 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh)
+├── tests/               # 🧪 Pytest: unit test (cache, i18n, database) + bảo mật dashboard + smoke-load 22 cogs
+├── .github/             # CI pipeline (validate_all + ruff + pytest) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
+```
+
+## 🧪 Chạy Kiểm Thử (Tests & Validators)
+
+```bash
+# Validator tổng hợp 1-click (i18n parity, py_compile, số liệu docs)
+python .agents/skills/zerynbot_architecture_context/assets/validate_all.py
+
+# Unit tests (cần: pip install -r requirements-dev.txt)
+pytest -q
 ```
 
 ---

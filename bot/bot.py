@@ -316,10 +316,11 @@ class BotV2(commands.Bot):
             logger.info(f"📊  Dashboard: {config.DASHBOARD_URL}")
             logger.info("─" * 55)
 
+        total_members = sum((g.member_count or 0) for g in self.guilds)
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
-                name=f"/help | {len(self.guilds)} server(s) | {sum(g.member_count for g in self.guilds)} member(s)",
+                name=f"/help | {len(self.guilds)} server(s) | {total_members} member(s)",
             )
         )
         logger.info(f"🔄  Ready/Reconnected: {self.user} | {len(self.guilds)} servers")
