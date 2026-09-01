@@ -207,7 +207,16 @@ def run_only_dashboard():
     init_db()
     try:
         from dashboard.app import app
-        app.run(host="0.0.0.0", port=5000, debug=False)
+        # Ưu tiên Waitress (production-grade WSGI, đa luồng, chạy được
+        # Windows/Linux/Termux). Fallback về Flask dev server nếu chưa cài.
+        try:
+            from waitress import serve
+            print("[Dashboard] Serving with Waitress WSGI (4 threads)...")
+            serve(app, host="0.0.0.0", port=5000, threads=4)
+        except ImportError:
+            print("[Dashboard] WARNING: 'waitress' chưa cài — chạy Flask dev server "
+                  "(không khuyến nghị cho production). pip install waitress")
+            app.run(host="0.0.0.0", port=5000, debug=False)
     finally:
         _remove_pid(PID_DASH)
 
@@ -299,7 +308,7 @@ def main():
         run_only_bot()
     elif "--sync" in args:
         # Chạy bot + đồng bộ slash commands (đăng ký lại lên Discord)
-        sys.argv.append("--sync")  # truyền tiếp cho bot.py setup_hook()
+        # "--sync" đã có sẵn trong sys.argv — bot.py setup_hook() tự nhận diện.
         run_only_bot()
     elif "--dashboard" in args:
         run_only_dashboard()

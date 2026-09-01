@@ -27,15 +27,15 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 
 ## 📚 3. Danh Mục Kỹ Năng & Nguồn Tri Thức (Skills & Single Source of Truth)
 
-- **Tài liệu kiến trúc chính**: [`ARCHITECTURE.md`](file:///d:/Project/Discord%20Bots/v2/ARCHITECTURE.md) tại thư mục gốc là nguồn chân lý duy nhất. AI phải luôn tham khảo trước khi sửa đổi cấu trúc.
+- **Tài liệu kiến trúc chính**: [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md) tại thư mục gốc là nguồn chân lý duy nhất. AI phải luôn tham khảo trước khi sửa đổi cấu trúc.
 - **Hệ thống Kỹ năng chuyên sâu trong `.agents/skills/`**:
-  1. 🏛️ **[`zerynbot_architecture_context`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/SKILL.md)**: SOP tác nghiệp, checklist 5 bước thêm lệnh, kiểm thử 1-click `validate_all.py`.
-  2. ⚡ **[`ai_provider_routing`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/ai_provider_routing/SKILL.md)**: Điều hướng Groq/Gemini/OpenRouter, active models reference (`qwen3.8-27b`, `gpt-oss-20b`), Multimodal Vision.
-  3. 💰 **[`economy_system`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/economy_system/SKILL.md)**: Quy tắc phân tách Ví tiền mặt (Mini-games cược) vs Ngân hàng két sắt (Role Shop).
-  4. 🌐 **[`dashboard_dev_guide`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/dashboard_dev_guide/SKILL.md)**: Thiết kế Midnight Obsidian Glassmorphism, CSS tokens, checklist 7 bước tạo trang module mới.
-  5. 🎵 **[`music_audio_pipeline`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/music_audio_pipeline/SKILL.md)**: Tối ưu hóa âm thanh ARM/Termux, cờ FFmpeg đơn luồng, nạp `libopus`, player 5 nút bấm.
-  6. 🖼️ **[`discord_ui_rendering`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/discord_ui_rendering/SKILL.md)**: Sinh ảnh Pillow trong thread pool (Rank Card, Welcome Banner), Discord Embeds & Persistent Views.
-  7. 🛠️ **[`ops_and_troubleshooting`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/ops_and_troubleshooting/SKILL.md)**: Vận hành 24/7 Termux, quản trị SQLite WAL, phục hồi backup từ Webhook `BACKUP_DB`.
+  1. 🏛️ **[`zerynbot_architecture_context`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/SKILL.md)**: SOP tác nghiệp, checklist 5 bước thêm lệnh, kiểm thử 1-click `validate_all.py`.
+  2. ⚡ **[`ai_provider_routing`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/ai_provider_routing/SKILL.md)**: Điều hướng Groq/Gemini/OpenRouter, active models reference (`qwen3.8-27b`, `gpt-oss-20b`), Multimodal Vision.
+  3. 💰 **[`economy_system`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/economy_system/SKILL.md)**: Quy tắc phân tách Ví tiền mặt (Mini-games cược) vs Ngân hàng két sắt (Role Shop).
+  4. 🌐 **[`dashboard_dev_guide`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/dashboard_dev_guide/SKILL.md)**: Thiết kế Midnight Obsidian Glassmorphism, CSS tokens, checklist 7 bước tạo trang module mới.
+  5. 🎵 **[`music_audio_pipeline`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/music_audio_pipeline/SKILL.md)**: Tối ưu hóa âm thanh ARM/Termux, cờ FFmpeg đơn luồng, nạp `libopus`, player 5 nút bấm.
+  6. 🖼️ **[`discord_ui_rendering`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/discord_ui_rendering/SKILL.md)**: Sinh ảnh Pillow trong thread pool (Rank Card, Welcome Banner), Discord Embeds & Persistent Views.
+  7. 🛠️ **[`ops_and_troubleshooting`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/ops_and_troubleshooting/SKILL.md)**: Vận hành 24/7 Termux, quản trị SQLite WAL, phục hồi backup từ Webhook `BACKUP_DB`.
 
 ---
 
@@ -45,7 +45,7 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 - **Bot Engine**: `discord.py` (Python 3.10+), truy cập CSDL bất đồng bộ qua `aiosqlite` (`database.py` `async_*`), dịch đa ngôn ngữ bằng `tr(settings, key, **kwargs)`.
 - **Web Dashboard**: Flask + Jinja2, truy cập CSDL đồng bộ qua `sqlite3` (`database.py` sync), dịch đa ngôn ngữ bằng `t(key)`.
 - **Hệ thống Modules**: Đúng chuẩn **19 Modules** trong `DEFAULT_MODULES` (`welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`).
-- **Hệ thống Lệnh Dashboard**: Danh sách tập trung `_COMMANDS_DATA` trong [`dashboard/app.py`](file:///d:/Project/Discord%20Bots/v2/dashboard/app.py) quản lý đúng **87 lệnh** thuộc **16 danh mục**.
+- **Hệ thống Lệnh Dashboard**: Danh sách tập trung `_COMMANDS_DATA` trong [`dashboard/app.py`](https://github.com/namokla2005/ZerynBot/blob/main/dashboard/app.py) quản lý đúng **87 lệnh** thuộc **16 danh mục**.
 - **Đa ngôn ngữ (i18n)**: 6 file từ điển (`vi`, `en`, `zh`, `es`, `pt`, `fr`) luôn luôn đồng bộ chính xác **1510 keys/file** (100% không lệch key).
 - **Cơ sở dữ liệu**: SQLite WAL mode tại `data/bot.db` (`PRAGMA busy_timeout = 15000`, tự động checkpoint dọn WAL).
 - **AI Engine**: Groq Cloud API (`gsk_*`) với model mặc định `qwen/qwen3.8-27b` (hỗ trợ chuyển đổi qua Admin Dashboard), fallback sang Google Gemini và OpenRouter. Hỗ trợ xử lý ảnh (Multimodal Vision).

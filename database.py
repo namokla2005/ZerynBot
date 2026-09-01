@@ -1127,6 +1127,18 @@ def delete_track_from_playlist(track_id: int):
         conn.execute("DELETE FROM music_playlist_tracks WHERE id = ?", (track_id,))
         conn.commit()
 
+def get_playlist_of_track(track_id: int) -> Optional[Dict]:
+    """Trả về playlist (gồm guild_id, creator_id) chứa track — dùng kiểm quyền trước khi xóa."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """SELECT p.* FROM music_playlists p
+               JOIN music_playlist_tracks t ON t.playlist_id = p.id
+               WHERE t.id = ?""",
+            (track_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
 def get_playlist_tracks(playlist_id: int) -> List[Dict]:
     with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
         conn.row_factory = sqlite3.Row

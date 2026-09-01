@@ -30,7 +30,7 @@ Tài liệu này quy định các tiêu chuẩn an ninh, bảo mật thông tin 
 
 ## 3. Quy Chuẩn Viết Hàm API (REST / JSON Endpoints)
 
-Mọi API endpoint trong [`dashboard/api.py`](file:///d:/Project/Discord%20Bots/v2/dashboard/api.py) phải tuân thủ chuẩn phản hồi JSON sau:
+Mọi API endpoint trong [`dashboard/api.py`](https://github.com/namokla2005/ZerynBot/blob/main/dashboard/api.py) phải tuân thủ chuẩn phản hồi JSON sau:
 
 ### 3.1 Cấu Trúc Phản Hồi Thành Công (HTTP 200)
 ```json

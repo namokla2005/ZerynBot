@@ -16,12 +16,12 @@ Kỹ năng này cung cấp bộ quy chuẩn tác nghiệp chuẩn (SOP), danh m�
 ## 📖 2. Quy Trình Tiếp Nhận & Đọc Tài Liệu
 
 Trước khi thực hiện bất kỳ thay đổi nào trong dự án, AI **BẮT BUỘC** đọc tệp kiến trúc chính:
-- 📖 [`ARCHITECTURE.md`](file:///d:/Project/Discord%20Bots/v2/ARCHITECTURE.md)
+- 📖 [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md)
 
 Khi xử lý các bài toán chuyên biệt, AI đọc thêm tài liệu tương ứng trong thư mục `references/`:
-1. 🔒 **Bảo mật & Quy tắc API**: [`.agents/skills/zerynbot_architecture_context/references/security_and_api_rules.md`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/references/security_and_api_rules.md)
-2. 🎨 **Thiết kế Web & Hướng dẫn Avatar Mascot**: [`.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md)
-3. 🧪 **Kiểm thử tự động Web Dashboard**: [`E2E_TESTING.md`](file:///d:/Project/Discord%20Bots/v2/E2E_TESTING.md)
+1. 🔒 **Bảo mật & Quy tắc API**: [`.agents/skills/zerynbot_architecture_context/references/security_and_api_rules.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/references/security_and_api_rules.md)
+2. 🎨 **Thiết kế Web & Hướng dẫn Avatar Mascot**: [`.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md)
+3. 🧪 **Kiểm thử tự động Web Dashboard**: [`E2E_TESTING.md`](https://github.com/namokla2005/ZerynBot/blob/main/E2E_TESTING.md)
 
 ---
 
@@ -67,18 +67,18 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
    - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `dashboard/app.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **87 lệnh** thuộc **16 danh mục**).
 
 5. **Bước 5: Cập nhật Tài Liệu & Đồng Bộ**:
-   - Cập nhật số lượng lệnh & key trong [`ARCHITECTURE.md`](file:///d:/Project/Discord%20Bots/v2/ARCHITECTURE.md), [`README.md`](file:///d:/Project/Discord%20Bots/v2/README.md), [`.agents/AGENTS.md`](file:///d:/Project/Discord%20Bots/v2/.agents/AGENTS.md), [`llms.txt`](file:///d:/Project/Discord%20Bots/v2/llms.txt).
+   - Cập nhật số lượng lệnh & key trong [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md), [`README.md`](https://github.com/namokla2005/ZerynBot/blob/main/README.md), [`.agents/AGENTS.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/AGENTS.md), [`llms.txt`](https://github.com/namokla2005/ZerynBot/blob/main/llms.txt).
 
 ---
 
 ## 📂 4. Danh Mục Mã Mẫu & Công Cụ (Assets Directory)
 
 Thư mục `assets/` chứa các tệp mẫu và công cụ kiểm thử tự động 1-click:
-- ⚡ **[`assets/validate_all.py`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/assets/validate_all.py)**: Bộ kiểm thử toàn diện 1-Click (i18n + Python compilation + commands count + doc sync).
-- 🌐 **[`assets/validate_i18n.py`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/assets/validate_i18n.py)**: Script kiểm thử tự động đồng bộ key i18n (1510 keys).
-- 🗄️ **[`assets/check_db_schema.py`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/assets/check_db_schema.py)**: Kiểm tra cấu trúc CSDL SQLite và tính an toàn của các câu lệnh Migration.
-- 🧩 **[`assets/cog_template.py`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/assets/cog_template.py)**: Code mẫu Cog chuẩn cho Discord Bot.
-- 🌐 **[`assets/endpoint_template.py`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/assets/endpoint_template.py)**: Code mẫu Route & AJAX API cho Flask Dashboard.
+- ⚡ **[`assets/validate_all.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/validate_all.py)**: Bộ kiểm thử toàn diện 1-Click (i18n + Python compilation + commands count + doc sync).
+- 🌐 **[`assets/validate_i18n.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/validate_i18n.py)**: Script kiểm thử tự động đồng bộ key i18n (1510 keys).
+- 🗄️ **[`assets/check_db_schema.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/check_db_schema.py)**: Kiểm tra cấu trúc CSDL SQLite và tính an toàn của các câu lệnh Migration.
+- 🧩 **[`assets/cog_template.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/cog_template.py)**: Code mẫu Cog chuẩn cho Discord Bot.
+- 🌐 **[`assets/endpoint_template.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/endpoint_template.py)**: Code mẫu Route & AJAX API cho Flask Dashboard.
 
 ---
 

@@ -7,9 +7,9 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
 ## 1. Khi Thêm / Xóa Lệnh Discord
 - Đăng ký lệnh vào `_COMMANDS_DATA` trong `dashboard/app.py`.
 - Cập nhật số lượng lệnh trong:
-  - [`ARCHITECTURE.md`](file:///d:/Project/Discord%20Bots/v2/ARCHITECTURE.md) (mục 6)
-  - [`.agents/AGENTS.md`](file:///d:/Project/Discord%20Bots/v2/.agents/AGENTS.md) (mục 4)
-  - [`llms.txt`](file:///d:/Project/Discord%20Bots/v2/llms.txt) (mục Key Project Files)
+  - [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md) (mục 6)
+  - [`.agents/AGENTS.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/AGENTS.md) (mục 4)
+  - [`llms.txt`](https://github.com/namokla2005/ZerynBot/blob/main/llms.txt) (mục Key Project Files)
 
 ---
 
@@ -20,10 +20,10 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
   python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py
   ```
 - Cập nhật con số key chính xác trong:
-  - [`ARCHITECTURE.md`](file:///d:/Project/Discord%20Bots/v2/ARCHITECTURE.md) (mục 1, 2, 9)
-  - [`.agents/AGENTS.md`](file:///d:/Project/Discord%20Bots/v2/.agents/AGENTS.md) (mục 4)
-  - [`llms.txt`](file:///d:/Project/Discord%20Bots/v2/llms.txt) (mục System Architecture, Key Files)
-  - [`.agents/skills/zerynbot_architecture_context/SKILL.md`](file:///d:/Project/Discord%20Bots/v2/.agents/skills/zerynbot_architecture_context/SKILL.md) (mục 3)
+  - [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md) (mục 1, 2, 9)
+  - [`.agents/AGENTS.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/AGENTS.md) (mục 4)
+  - [`llms.txt`](https://github.com/namokla2005/ZerynBot/blob/main/llms.txt) (mục System Architecture, Key Files)
+  - [`.agents/skills/zerynbot_architecture_context/SKILL.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/SKILL.md) (mục 3)
 
 ---
 

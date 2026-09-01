@@ -99,7 +99,7 @@ def _download_avatar_sync(url: str) -> bytes | None:
 
 
 # ─── Card renderer ─────────────────────────────────────────────────────────────
-def _make_circle_avatar(img_bytes: bytes, size: int) -> "Image":
+def _make_circle_avatar(img_bytes: bytes, size: int):
     """Crop image into a circle with the given diameter."""
     from PIL import Image, ImageDraw
     avatar = Image.open(io.BytesIO(img_bytes)).convert("RGBA")

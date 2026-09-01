@@ -1,7 +1,7 @@
 """
 app.py — Flask dashboard for Discord Bot v2.
 """
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, sqlite3
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Force UTF-8 encoding on stdout/stderr for Flask (prevents cp1252 UnicodeEncodeError on Windows)
@@ -11,6 +11,11 @@ try:
 except AttributeError:
     pass
 
+import secrets
+import time as _time
+from datetime import timedelta
+from functools import wraps
+
 from flask import Flask, render_template, redirect, url_for, session, request, flash, jsonify
 from datetime import datetime, timezone
 import json
@@ -19,13 +24,93 @@ import database as db
 import requests
 from i18n import t, tr, i18n as i18n_manager
 from dashboard.auth import (
-    get_oauth2_url, exchange_code, get_user, get_manageable_guilds, get_avatar_url
+    get_oauth2_url, exchange_code, get_user, get_manageable_guilds, get_avatar_url,
+    channel_belongs_to_guild, is_safe_http_url,
 )
 from dashboard.api import api
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = config.FLASK_SECRET_KEY
 app.register_blueprint(api)
+
+# ─── Session / Cookie hardening (P1.7) ─────────────────────────────────────────
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=config.SESSION_COOKIE_HTTPONLY,
+    SESSION_COOKIE_SAMESITE=config.SESSION_COOKIE_SAMESITE,
+    SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=config.SESSION_LIFETIME_DAYS),
+)
+
+# Đọc IP thật khi chạy sau reverse proxy (chỉ bật khi chắc chắn có proxy)
+if config.BEHIND_PROXY:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# ─── Rate limiting cho các endpoint nhạy cảm (P1.6) ────────────────────────────
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+
+    limiter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        storage_uri=config.RATELIMIT_STORAGE_URI,
+        default_limits=[],          # không giới hạn chung; chỉ limit route nhạy cảm
+        swallow_errors=True,        # lỗi storage không làm chết dashboard
+    )
+except ImportError:  # flask-limiter chưa cài → chạy không giới hạn (khuyến nghị cài đặt)
+    class _NoopLimiter:
+        def limit(self, *a, **k):
+            def _decorator(f):
+                return f
+            return _decorator
+    limiter = _NoopLimiter()
+
+# ─── CSRF protection tự quản (P0.5) ────────────────────────────────────────────
+# Token per-session, kiểm tra trên mọi request thay đổi dữ liệu khi đã đăng nhập.
+_CSRF_SESSION_KEY = "_csrf_token"
+_CSRF_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def csrf_token() -> str:
+    """Lấy (hoặc tạo) CSRF token của session hiện tại — dùng trong templates."""
+    tok = session.get(_CSRF_SESSION_KEY)
+    if not tok:
+        tok = secrets.token_urlsafe(32)
+        session[_CSRF_SESSION_KEY] = tok
+    return tok
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+@app.before_request
+def _csrf_protect():
+    if request.method not in _CSRF_METHODS:
+        return None
+    # Chỉ áp dụng cho request của người ĐÃ đăng nhập (mọi mutation route hiện hữu
+    # đều yêu cầu login; request anonymous sẽ bị login_required chặn như cũ).
+    if "user" not in session:
+        return None
+
+    sent = request.headers.get("X-CSRF-Token")
+    if not sent:
+        sent = request.form.get("_csrf_token")
+    if not sent and request.is_json:
+        body = request.get_json(silent=True) or {}
+        sent = body.get("_csrf_token")
+
+    if not sent or not secrets.compare_digest(str(sent), str(session.get(_CSRF_SESSION_KEY, ""))):
+        wants_json = (
+            request.path.startswith(("/api/", "/admin/"))
+            or request.is_json
+            or request.accept_mimetypes.best == "application/json"
+        )
+        if wants_json:
+            return jsonify({"ok": False, "error": "CSRF token không hợp lệ hoặc bị thiếu."}), 403
+        flash("⛔ Phiên làm việc đã hết hạn hoặc yêu cầu không hợp lệ (CSRF). Vui lòng thử lại.", "error")
+        return redirect(request.referrer or url_for("home"))
+    return None
 
 
 @app.context_processor
@@ -51,11 +136,39 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def _refresh_guilds_if_stale() -> None:
+    """P1.9: Tải lại danh sách guild + quyền từ Discord nếu session quá cũ.
+    Chặn trường hợp user bị thu hồi quyền MANAGE_GUILD nhưng session vẫn còn hiệu lực.
+    Lỗi mạng → giữ dữ liệu cũ (khả dụng); token hết hạn (401) → đăng xuất.
+    """
+    from dashboard import auth as _auth
+    now = _time.time()
+    fetched_at = session.get("guilds_fetched_at", 0) or 0
+    if now - fetched_at < _auth.SESSION_GUILD_TTL:
+        return
+    token = session.get("access_token")
+    if not token:
+        return
+    try:
+        guilds = get_manageable_guilds(token)
+        session["guilds"] = guilds
+        session["guilds_fetched_at"] = now
+    except requests.HTTPError as e:
+        status = getattr(e.response, "status_code", None)
+        if status == 401:
+            session.clear()  # token Discord đã thu hồi → bắt đăng nhập lại
+        # lỗi khác (mạng/5xx) → giữ nguyên session cũ
+    except Exception:
+        pass
+
+
 def guild_access_required(f):
-    from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user" not in session:
+            return redirect(url_for("login"))
+        _refresh_guilds_if_stale()
+        if "user" not in session:  # token Discord hết hạn trong lúc refresh
             return redirect(url_for("login"))
         guild_id = kwargs.get("guild_id", "")
         guild_info = _get_guild_from_session(guild_id)
@@ -91,6 +204,22 @@ def _get_guild_from_session(guild_id: str) -> dict:
     guilds = session.get("guilds", [])
     return next((g for g in guilds if g["id"] == guild_id), {})
 
+
+def _safe_channel(guild_id: str, channel_id):
+    """
+    P0.4: Trả về channel_id nếu nó THỰC SỰ thuộc guild, ngược lại trả về None
+    (chặn cài cắm kênh của server khác vào settings qua form craft tay).
+    Nếu không xác thực được (Discord API lỗi mạng) → giữ nguyên giá trị để không
+    vô tình xóa cấu hình hợp lệ; lớp gửi tin (api.py) vẫn kiểm tra fail-closed.
+    """
+    if not channel_id:
+        return None
+    from dashboard import auth as _auth
+    ids = _auth.get_guild_channel_ids(str(guild_id))
+    if ids is None:
+        return channel_id  # không kiểm chứng được → bỏ qua (send-time vẫn chặn)
+    return str(channel_id) if str(channel_id) in ids else None
+
 # ─── Routes: Auth ──────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -112,13 +241,27 @@ def privacy():
     return render_template("privacy.html")
 
 @app.route("/login")
+@limiter.limit("20/minute")
 def login():
     if "user" in session:
         return redirect(url_for("home"))
-    return render_template("login.html", oauth_url=get_oauth2_url())
+    # Sinh state chống Login CSRF — phải khớp khi Discord redirect về /callback
+    state = secrets.token_urlsafe(32)
+    session["oauth_state"] = state
+    return render_template("login.html", oauth_url=get_oauth2_url(state=state))
 
 @app.route("/callback")
+@limiter.limit("30/minute")
 def callback():
+    # P0.2: bắt buộc kiểm tra state chống CSRF cho OAuth flow
+    expected_state = session.pop("oauth_state", None)
+    returned_state = request.args.get("state")
+    if not expected_state or not returned_state or not secrets.compare_digest(
+        str(expected_state), str(returned_state)
+    ):
+        flash("⛔ Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.", "error")
+        return redirect(url_for("login"))
+
     code = request.args.get("code")
     if not code:
         flash("Đăng nhập thất bại — không nhận được code.", "error")
@@ -128,9 +271,11 @@ def callback():
         access_token = token_data["access_token"]
         user         = get_user(access_token)
         guilds       = get_manageable_guilds(access_token)
+        session.permanent = True  # áp dụng PERMANENT_SESSION_LIFETIME
         session["user"]         = user
         session["access_token"] = access_token
         session["guilds"]       = guilds
+        session["guilds_fetched_at"] = _time.time()
         session["avatar"]       = get_avatar_url(user)
     except Exception as e:
         flash(f"Đăng nhập thất bại: {e}", "error")
@@ -244,13 +389,13 @@ def server_welcome(guild_id: str):
     if request.method == "POST":
         form = request.form
         fields = {
-            "welcome_channel_id":  form.get("welcome_channel_id") or None,
+            "welcome_channel_id":  _safe_channel(guild_id, form.get("welcome_channel_id") or None),
             "welcome_message":     form.get("welcome_message", ""),
             "welcome_use_embed":   1 if form.get("welcome_use_embed") else 0,
             "welcome_embed_color": form.get("welcome_embed_color", "#57F287"),
             "welcome_embed_title": form.get("welcome_embed_title", ""),
             "welcome_bg_url":      form.get("welcome_bg_url", ""),
-            "goodbye_channel_id":  form.get("goodbye_channel_id") or None,
+            "goodbye_channel_id":  _safe_channel(guild_id, form.get("goodbye_channel_id") or None),
             "goodbye_message":     form.get("goodbye_message", ""),
             "goodbye_use_embed":   1 if form.get("goodbye_use_embed") else 0,
             "goodbye_embed_color": form.get("goodbye_embed_color", "#ED4245"),
@@ -320,7 +465,7 @@ def server_leveling(guild_id: str):
             "message_xp_min": int(form.get("message_xp_min", 15)),
             "message_xp_max": int(form.get("message_xp_max", 25)),
             "voice_xp": int(form.get("voice_xp", 10)),
-            "announce_channel_id": form.get("announce_channel_id", ""),
+            "announce_channel_id": _safe_channel(guild_id, form.get("announce_channel_id", "")),
             "announce_message": form.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!"),
             "stack_rewards": int(form.get("stack_rewards", 0))
         }
@@ -359,7 +504,7 @@ def server_logger(guild_id: str):
     if request.method == "POST":
         form = request.form
         settings = {
-            "log_channel_id": form.get("log_channel_id") or None,
+            "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None),
             "log_message_edit": 1 if "log_message_edit" in form else 0,
             "log_message_delete": 1 if "log_message_delete" in form else 0,
             "log_member_join_leave": 1 if "log_member_join_leave" in form else 0,
@@ -412,7 +557,7 @@ def server_automod(guild_id: str):
             "immune_roles": immune_roles,
             "spam_allowed_channels": spam_allowed_channels,
             "notify_role_id": form.get("notify_role_id") or None,
-            "log_channel_id": form.get("log_channel_id") or None
+            "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None)
         }
         db.upsert_automod_settings(guild_id, **fields)
         # Enable module if any feature is enabled
@@ -451,7 +596,7 @@ def server_automod(guild_id: str):
 def server_moderation(guild_id: str):
     if request.method == "POST":
         form = request.form
-        log_channel_id = form.get("log_channel_id") or None
+        log_channel_id = _safe_channel(guild_id, form.get("log_channel_id") or None)
         # We can update logger settings or bot settings
         logger_s = db.get_logger_settings(guild_id)
         logger_s["log_channel_id"] = log_channel_id
@@ -481,7 +626,7 @@ def server_birthday(guild_id: str):
     if request.method == "POST":
         form = request.form
         fields = {
-            "channel_id": form.get("channel_id") or None,
+            "channel_id": _safe_channel(guild_id, form.get("channel_id") or None),
             "role_id": form.get("role_id") or None,
             "message_template": form.get("message_template", "").strip() or None,
             "gift_coins": int(form.get("gift_coins", 500)),
@@ -1600,10 +1745,22 @@ def server_reactionroles(guild_id: str):
 
 def fetch_track_info_simple(query: str) -> dict:
     import re
-    
+
+    # P1.8: chống SSRF — URL do người dùng nhập phải là http(s) công khai hợp lệ.
+    # Query thường (không phải URL) sẽ đi qua youtube search bên dưới.
+    if query.startswith(("http://", "https://")) and not is_safe_http_url(query):
+        return {
+            "title": "URL không hợp lệ (bị chặn bảo mật)",
+            "url": "",
+            "duration": -1,
+            "webpage_url": "",
+            "thumbnail": "",
+            "uploader": "—",
+        }
+
     video_id = None
     webpage_url = None
-    
+
     try:
         if query.startswith(("http://", "https://")):
             webpage_url = query
@@ -1611,7 +1768,8 @@ def fetch_track_info_simple(query: str) -> dict:
             if match:
                 video_id = match.group(1)
         else:
-            resp = requests.get(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}", timeout=5)
+            import urllib.parse as _urlparse
+            resp = requests.get(f"https://www.youtube.com/results?search_query={_urlparse.quote_plus(query)}", timeout=5)
             match = re.search(r"\"videoId\":\"([0-9A-Za-z_-]{11})\"", resp.text)
             if match:
                 video_id = match.group(1)
@@ -1666,7 +1824,7 @@ def create_playlist_route(guild_id: str):
     return redirect(url_for("server_music", guild_id=guild_id))
 
 
-@app.route("/dashboard/<guild_id>/music/playlist/<int:playlist_id>/delete", methods=["POST", "GET"])
+@app.route("/dashboard/<guild_id>/music/playlist/<int:playlist_id>/delete", methods=["POST"])
 @guild_access_required
 def delete_playlist_route(guild_id: str, playlist_id: int):
     playlist = db.get_playlist(playlist_id)
@@ -1703,10 +1861,18 @@ def add_track_route(guild_id: str, playlist_id: int):
     return redirect(url_for("server_music", guild_id=guild_id))
 
 
-@app.route("/dashboard/<guild_id>/music/playlist/track/<int:track_id>/delete", methods=["POST", "GET"])
+@app.route("/dashboard/<guild_id>/music/playlist/track/<int:track_id>/delete", methods=["POST"])
 @guild_access_required
 def delete_track_route(guild_id: str, track_id: int):
-    # Just delete it
+    # Kiểm ownership: track phải thuộc playlist của ĐÚNG guild này (chống xóa chéo server)
+    playlist = db.get_playlist_of_track(track_id)
+    user = session.get("user", {})
+    if not playlist or str(playlist.get("guild_id")) != str(guild_id):
+        flash("❌ Không tìm thấy bài hát trong server này!", "error")
+        return redirect(url_for("server_music", guild_id=guild_id))
+    if playlist.get("creator_id") and str(playlist.get("creator_id")) != str(user.get("id")):
+        flash("❌ Bạn không có quyền xóa bài trong playlist của người khác!", "error")
+        return redirect(url_for("server_music", guild_id=guild_id))
     db.delete_track_from_playlist(track_id)
     flash("✅ Đã xóa bài hát khỏi playlist!", "success")
     return redirect(url_for("server_music", guild_id=guild_id))
@@ -1767,7 +1933,7 @@ def server_economy_add_item(guild_id: str):
     return redirect(url_for("server_economy", guild_id=guild_id))
 
 
-@app.route("/dashboard/<guild_id>/economy/delete_item/<int:item_id>", methods=["POST", "GET"])
+@app.route("/dashboard/<guild_id>/economy/delete_item/<int:item_id>", methods=["POST"])
 @guild_access_required
 def server_economy_delete_item(guild_id: str, item_id: int):
     db.delete_economy_shop_item(item_id, guild_id)
@@ -1782,8 +1948,8 @@ def server_economy_delete_item(guild_id: str, item_id: int):
 def server_tempvoice(guild_id: str):
     if request.method == "POST":
         enabled = 1 if request.form.get("enabled") == "1" else 0
-        hub_channel_id = request.form.get("hub_channel_id", "").strip()
-        category_id = request.form.get("category_id", "").strip()
+        hub_channel_id = _safe_channel(guild_id, request.form.get("hub_channel_id", "").strip())
+        category_id = _safe_channel(guild_id, request.form.get("category_id", "").strip())
         name_template = request.form.get("name_template", "🔊 Phòng của {user}").strip() or "🔊 Phòng của {user}"
         default_limit = int(request.form.get("default_limit", 0))
 
@@ -1809,12 +1975,16 @@ def server_tempvoice(guild_id: str):
     )
 
 
-@app.route("/dashboard/<guild_id>/tempvoice/delete_channel/<channel_id>", methods=["POST", "GET"])
+@app.route("/dashboard/<guild_id>/tempvoice/delete_channel/<channel_id>", methods=["POST"])
 @guild_access_required
 def server_tempvoice_delete_channel(guild_id: str, channel_id: str):
     import database as db_mod
     with sqlite3.connect(db_mod.DB_PATH) as conn:
-        conn.execute("DELETE FROM tempvoice_active WHERE channel_id = ?", (channel_id,))
+        # Scope theo guild_id — chặn xóa phòng voice tạm của server khác
+        conn.execute(
+            "DELETE FROM tempvoice_active WHERE channel_id = ? AND guild_id = ?",
+            (channel_id, guild_id),
+        )
         conn.commit()
     flash("✅ Đã xóa phòng voice tạm thời!", "success")
     return redirect(url_for("server_tempvoice", guild_id=guild_id))
@@ -1863,7 +2033,7 @@ def server_customcommands_add(guild_id: str):
     return redirect(url_for("server_customcommands", guild_id=guild_id))
 
 
-@app.route("/dashboard/<guild_id>/customcommands/delete/<int:cmd_id>", methods=["POST", "GET"])
+@app.route("/dashboard/<guild_id>/customcommands/delete/<int:cmd_id>", methods=["POST"])
 @guild_access_required
 def server_customcommands_delete(guild_id: str, cmd_id: int):
     db.delete_custom_command(cmd_id, guild_id)
@@ -1878,7 +2048,7 @@ def server_customcommands_delete(guild_id: str, cmd_id: int):
 def server_ai(guild_id: str):
     if request.method == "POST":
         enabled = 1 if request.form.get("enabled") == "1" else 0
-        ai_channel_id = request.form.get("ai_channel_id", "").strip()
+        ai_channel_id = _safe_channel(guild_id, request.form.get("ai_channel_id", "").strip())
         personality_preset = request.form.get("personality_preset", "friendly")
         custom_prompt = request.form.get("custom_prompt", "").strip()
         allow_ask = 1 if request.form.get("allow_ask") == "1" else 0
@@ -1990,6 +2160,7 @@ def admin_save_ai_key():
 
 
 @app.route("/api/admin/test_ai_key", methods=["POST"])
+@limiter.limit("20/minute")
 @owner_required
 def api_admin_test_ai_key():
     import urllib.request, time
@@ -2223,6 +2394,7 @@ def admin_invite_guild(guild_id: str):
 
 
 @app.route("/admin/broadcast", methods=["POST"])
+@limiter.limit("10/minute")
 @owner_required
 def admin_broadcast():
     """Gửi thông báo broadcast đến các server đã chọn."""
@@ -2336,6 +2508,7 @@ def admin_broadcast():
 # ─── System / Terminal Control Routes ──────────────────────────────────────────
 
 @app.route("/admin/system/terminal", methods=["POST"])
+@limiter.limit("30/minute")
 @owner_required
 def admin_system_terminal():
     """Chạy lệnh shell terminal trực tiếp trên máy chủ host (Termux / Linux / Windows)."""
@@ -2494,6 +2667,7 @@ def admin_system_terminal():
 
 
 @app.route("/admin/system/git-pull", methods=["POST"])
+@limiter.limit("5/minute")
 @owner_required
 def admin_system_git_pull():
     """Cập nhật code mới nhất từ Git (git pull)."""
@@ -2525,6 +2699,7 @@ def admin_system_git_pull():
 
 
 @app.route("/admin/system/restart", methods=["POST"])
+@limiter.limit("10/minute")
 @owner_required
 def admin_system_restart():
     """Khởi động lại toàn bộ hệ thống Bot & Dashboard."""

@@ -43,7 +43,7 @@ def update_example_settings_api(guild_id: str):
     field_value = data.get("field_value", "").strip()
     if len(field_value) > 200:
         return jsonify({
-            "success": false,
+            "success": False,
             "error": "Giá trị nhập vào quá dài (tối đa 200 ký tự).",
             "code": "INVALID_LENGTH"
         }), 400
@@ -56,7 +56,7 @@ def update_example_settings_api(guild_id: str):
         cache.delete(f"settings:{guild_id}")
         
         return jsonify({
-            "success": true,
+            "success": True,
             "message": "Cập nhật cài đặt thành công!",
             "data": {
                 "field_value": field_value
@@ -64,7 +64,7 @@ def update_example_settings_api(guild_id: str):
         })
     except Exception as e:
         return jsonify({
-            "success": false,
+            "success": False,
             "error": f"Lỗi hệ thống: {str(e)}",
             "code": "INTERNAL_ERROR"
         }), 500
