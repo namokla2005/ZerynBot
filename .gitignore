@@ -23,10 +23,14 @@ data/
 .aider*
 
 # Tài liệu nội bộ & Cấu hình AI nội bộ (Internal only)
-.agents/
-ARCHITECTURE.md
-E2E_TESTING.md
-llms.txt
-IMPROVEMENT_PLAN.md
-Kehoachsuachuabot.md
+# .agents/
+# ARCHITECTURE.md
+# E2E_TESTING.md
+# llms.txt
+# IMPROVEMENT_PLAN.md
+# Kehoachsuachuabot.md
 
+# .github/
+# tests/
+# pytest.ini
+# requirements-dev.txt
