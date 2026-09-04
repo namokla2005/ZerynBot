@@ -46,11 +46,12 @@ health_loop() {
             # Phân biệt: -s hiển thị body, ta check HTTP code thực.
             http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_URL" 2>/dev/null)
             if [ "$http_code" = "503" ] && [ "$fail_streak" -ge "$HEALTH_FAIL_THRESHOLD" ]; then
-                echo "[Watchdog] Bot offline liên tục $fail_streak × ${HEALTH_INTERVAL}s → KILL để restart"
-                # Kill mọi process 'main.py --bot' (watchdog sẽ pick up ở vòng while chính)
-                pkill -f 'main.py --bot' 2>/dev/null
-                sleep 2
-                pkill -9 -f 'main.py --bot' 2>/dev/null
+                echo "[Watchdog] Bot offline liên tục $fail_streak × ${HEALTH_INTERVAL}s → KILL để kích hoạt restart..."
+                # Tắt bot an toàn bằng PID thay vì pkill để tránh lỗi 'Bad system call' trên Android/Termux
+                if [ -f "data/bot.pid" ]; then
+                    b_pid=$(cat data/bot.pid 2>/dev/null)
+                    [ -n "$b_pid" ] && kill -9 "$b_pid" 2>/dev/null
+                fi
                 fail_streak=0  # reset sau khi kill
             fi
         fi
@@ -62,7 +63,9 @@ health_loop &
 HEALTH_PID=$!
 trap 'kill $HEALTH_PID 2>/dev/null; exit 0' INT TERM
 
-# ─── Vòng lặp chính: chạy bot + restart khi crash ──────────────────────────────
+# ─── Vòng lặp chính: chạy bot + restart sau 15 phút khi dừng/crash ──────────────
+RESTART_DELAY=900  # Đợi đúng 15 phút (900 giây) trước khi khởi động lại
+
 while true; do
     echo "[Watchdog] Đang chạy bot..."
     python main.py --bot
@@ -70,15 +73,30 @@ while true; do
     echo "[Watchdog] Bot đã dừng với mã thoát $EXIT_CODE."
 
     if [ $EXIT_CODE -eq 0 ]; then
-        echo "[Watchdog] Bot đã tắt bình thường. Dừng watchdog."
+        echo "[Watchdog] Bot đã tắt bình thường (Exit Code 0). Dừng watchdog."
         break
     fi
 
-    backoff=$(get_backoff $restart_count)
-    restart_count=$((restart_count + 1))
-    echo "[Watchdog] CẢNH BÁO: Bot bị crash/treo! Restart sau ${backoff}s (lần $restart_count)..."
-    sleep "$backoff"
+    echo "[Watchdog] ==========================================================="
+    echo "[Watchdog] CẢNH BÁO: Bot bị dừng/crash! Tạm dừng và đợi 15 phút (900s)..."
+    echo "[Watchdog] Thời gian chờ để hệ thống ổn định và tránh lỗi xung đột cổng."
+    echo "[Watchdog] ==========================================================="
+    sleep "$RESTART_DELAY"
+
+    echo "[Watchdog] Hết 15 phút! Đang khởi động lại sạch sẽ cả Bot và Dashboard..."
+    python main.py --stop >/dev/null 2>&1
+    sleep 3
+
+    # Đảm bảo Dashboard cũng được khởi động lại ngầm nếu bị tắt
+    dash_log="data/dashboard.log"
+    nohup python main.py --dashboard > "$dash_log" 2>&1 &
+    sleep 2
+    dash_res=$(pidof python python3 2>/dev/null | awk '{print $1}')
+    [ -n "$dash_res" ] && echo "$dash_res" > data/dashboard.pid 2>/dev/null
+
+    echo "[Watchdog] Tiếp tục chạy lại Bot Discord..."
 done
 
 # Dọn health-check khi thoát
 kill $HEALTH_PID 2>/dev/null
+

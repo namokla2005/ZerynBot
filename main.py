@@ -289,28 +289,28 @@ def run_system_test():
 def main():
     args = [a.lower() for a in sys.argv[1:]]
 
-    if "--stop" in args:
+    if "--stop" in args or "stop" in args:
         stop_all()
         sys.exit(0)
-    elif "--status" in args:
+    elif "--status" in args or "status" in args:
         print_status()
         sys.exit(0)
-    elif "--test" in args:
+    elif "--test" in args or "test" in args:
         run_system_test()
         sys.exit(0)
-    elif "--restart" in args:
+    elif "--restart" in args or "restart" in args:
         stop_all()
         time.sleep(2)
         print("\n[Main] Restarting system...")
         start_all()
         sys.exit(0)
-    elif "--bot" in args:
+    elif "--bot" in args or "bot" in args:
         run_only_bot()
-    elif "--sync" in args:
+    elif "--sync" in args or "sync" in args:
         # Chạy bot + đồng bộ slash commands (đăng ký lại lên Discord)
         # "--sync" đã có sẵn trong sys.argv — bot.py setup_hook() tự nhận diện.
         run_only_bot()
-    elif "--dashboard" in args:
+    elif "--dashboard" in args or "dashboard" in args:
         run_only_dashboard()
     else:
         # Default start all
