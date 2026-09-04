@@ -26,7 +26,10 @@ from database import (
 )
 from i18n import tr
 from cache import cache
-from bot.emojis import e
+try:
+    from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 GEMINI_MODELS = [
     "gemini-2.0-flash",

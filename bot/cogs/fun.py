@@ -20,7 +20,10 @@ from database import (
     async_increment_fun_interaction, async_get_fun_interaction_count,
 )
 from i18n import tr
-from bot.emojis import e
+try:
+    from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 NEKOS_API = "https://nekos.best/api/v2"
 USER_AGENT = "ZerynBot (https://zerynbot.id.vn, 2.0)"

@@ -1,5 +1,5 @@
 """
-bot/emojis.py — Quản lý tập trung toàn bộ 56 Custom Application Emojis cho ZerynBot V2.
+emojis.py — Quản lý tập trung toàn bộ 56 Custom Application Emojis cho ZerynBot V2.
 Cung cấp các hàm e() và partial() để tích hợp vào Embed, Message, Button, SelectMenu.
 """
 from typing import Optional

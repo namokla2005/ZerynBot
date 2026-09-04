@@ -18,7 +18,10 @@ from database import (
     async_get_user_reminders
 )
 from i18n import tr
-from bot.emojis import e
+try:
+    from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 
 def parse_time_duration(time_str: str) -> int | None:

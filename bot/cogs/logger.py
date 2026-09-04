@@ -7,9 +7,9 @@ import config
 from database import async_get_logger_settings, async_is_module_enabled, async_get_guild_settings
 from i18n import tr
 try:
-    from bot.emojis import e
-except (ImportError, ModuleNotFoundError):
     from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 COLOR_CREATE = 0x57F287
 COLOR_DELETE = 0xED4245

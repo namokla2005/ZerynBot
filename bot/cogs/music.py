@@ -28,7 +28,10 @@ import yt_dlp
 from cache import cache
 from database import async_get_guild_settings
 from i18n import tr
-from bot.emojis import e, partial
+try:
+    from emojis import e, partial
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, partial
 
 log = logging.getLogger("BotV2.Music")
 

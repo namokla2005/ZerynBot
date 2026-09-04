@@ -56,6 +56,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 ├── database.py                 # SQLite schema, sync (Flask) & async (Bot) database helper methods
 ├── cache.py                    # Thread-safe & async-safe In-Memory RAM Cache manager
 ├── i18n.py                     # Singleton O(1) multi-language translation engine
+├── emojis.py                   # Central 56 custom application emoji registry & helpers (e, partial)
 ├── requirements.txt            # Python package dependencies
 │
 ├── bot/                        # Discord Bot Application

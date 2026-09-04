@@ -11,7 +11,10 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings
 from i18n import tr
-from bot.emojis import e
+try:
+    from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 
 class Info(commands.Cog):

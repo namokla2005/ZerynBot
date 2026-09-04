@@ -16,7 +16,10 @@ from database import (
     async_count_mod_warnings, async_delete_mod_warning,
 )
 from i18n import tr
-from bot.emojis import e
+try:
+    from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 
 def _parse_duration(text: str) -> timedelta | None:

@@ -8,9 +8,9 @@ from database import DB_PATH, async_is_module_enabled, async_get_guild_settings
 import checks
 from i18n import tr
 try:
-    from bot.emojis import e
-except (ImportError, ModuleNotFoundError):
     from emojis import e
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e
 
 
 class AutoRole(commands.Cog, name="AutoRole"):

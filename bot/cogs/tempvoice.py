@@ -22,9 +22,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from bot.emojis import e, partial
-except (ImportError, ModuleNotFoundError):
     from emojis import e, partial
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, partial
 
 
 

@@ -10,7 +10,10 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings
 from i18n import tr
-from bot.emojis import e, partial
+try:
+    from emojis import e, partial
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, partial
 class DeleteHelpButton(discord.ui.Button):
     def __init__(self, settings: dict, author_id: int):
         super().__init__(
