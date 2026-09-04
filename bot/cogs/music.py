@@ -89,8 +89,8 @@ def load_opus_library() -> bool:
 
 load_opus_library()
 
-# ─── FFmpeg options tối ưu cho ARM (Khởi động siêu tốc < 0.2s) ─────────────────
-FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -probesize 128k -analyzeduration 100000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
+# ─── FFmpeg options tối ưu cho ARM (Đồng bộ PTS chống giật & lệch tốc độ) ─────
+FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
