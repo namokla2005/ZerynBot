@@ -25,9 +25,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 
 
@@ -188,7 +188,9 @@ class Events(commands.Cog):
             color = hex_to_int(s.get("welcome_embed_color", "#57F287"))
             w_title = s.get("welcome_embed_title")
             if not w_title:
-                w_title = f"{e('zb_welcome')} {tr(s, 'events.welcome_title')}"
+                w_title = embed_title("zb_welcome", tr(s, "events.welcome_title"))
+            else:
+                w_title = embed_title("zb_welcome", w_title)
             embed = discord.Embed(
                 title=w_title,
                 description=message,
@@ -264,7 +266,9 @@ class Events(commands.Cog):
             no_roles_txt = tr(s, "events.no_roles")
             g_title = s.get("goodbye_embed_title")
             if not g_title:
-                g_title = f"{e('zb_goodbye')} {tr(s, 'events.goodbye_title')}"
+                g_title = embed_title("zb_goodbye", tr(s, "events.goodbye_title"))
+            else:
+                g_title = embed_title("zb_goodbye", g_title)
             embed = discord.Embed(
                 title=g_title,
                 description=message,

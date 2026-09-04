@@ -8,9 +8,9 @@ from database import DB_PATH, async_is_module_enabled, async_get_guild_settings
 import checks
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 
 class AutoRole(commands.Cog, name="AutoRole"):
@@ -58,7 +58,7 @@ class AutoRole(commands.Cog, name="AutoRole"):
         bot_mentions = [f"<@&{r}>" for r in roles_bot] if roles_bot else [none_txt]
         
         embed = discord.Embed(
-            title=f"{e('zb_autorole')} {tr(settings, 'autorole.title')}",
+            title=embed_title("zb_autorole", tr(settings, "autorole.title")),
             color=0x5865F2 if enabled else 0xED4245
         )
         embed.add_field(name=tr(settings, "autorole.status"), value=tr(settings, "autorole.enabled") if enabled else tr(settings, "autorole.disabled"), inline=False)

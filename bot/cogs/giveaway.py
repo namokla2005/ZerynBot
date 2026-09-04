@@ -24,6 +24,10 @@ from database import (
     async_get_guild_settings
 )
 from i18n import tr
+try:
+    from emojis import e, embed_title, clean_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, embed_title, clean_title
 
 BANNER_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "giveaway_banner.png")
 
@@ -59,7 +63,7 @@ def _build_giveaway_embed(
 
     if not is_ended:
         color = 0x5865F2  # Blurple
-        title = f"🎉 Giveaway: {prize}"
+        title = f"{e('zb_cat_giveaway')} Giveaway: {prize}"
 
         top_lines = [
             f"**{tr(s, 'giveaway.prize')}:** {prize}",
@@ -81,7 +85,7 @@ def _build_giveaway_embed(
         )
     else:
         color = 0x2B2D31  # Dark Slate
-        title = tr(s, "giveaway.ended_title", prize=prize)
+        title = embed_title("zb_cat_giveaway", tr(s, "giveaway.ended_title", prize=prize))
 
         w_text = winners_mentions if winners_mentions else tr(s, "giveaway.no_winners")
         top_lines = [

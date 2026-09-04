@@ -12,9 +12,9 @@ import config
 from database import async_get_guild_settings
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 
 class Info(commands.Cog):
@@ -57,7 +57,7 @@ class Info(commands.Cog):
         owner_val = guild.owner.mention if guild.owner else f"<@{guild.owner_id}>"
 
         embed = discord.Embed(
-            title=tr(s, "info.serverinfo_title", server=guild.name),
+            title=embed_title("zb_cat_info", tr(s, "info.serverinfo_title", server=guild.name)),
             description=guild.description or "",
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc),
@@ -133,7 +133,7 @@ class Info(commands.Cog):
         }
 
         embed = discord.Embed(
-            title=tr(s, "info.userinfo_title", user=member.display_name),
+            title=embed_title("zb_cat_info", tr(s, "info.userinfo_title", user=member.display_name)),
             color=color,
             timestamp=datetime.now(timezone.utc),
         )
@@ -179,7 +179,7 @@ class Info(commands.Cog):
         settings = await async_get_guild_settings(guild_id) if guild_id else {}
 
         embed = discord.Embed(
-            title=tr(settings, "info.avatar_title", user=member.display_name),
+            title=embed_title("zb_cat_info", tr(settings, "info.avatar_title", user=member.display_name)),
             color=config.COLOR_AVATAR,
             timestamp=datetime.now(timezone.utc),
         )
@@ -208,7 +208,7 @@ class Info(commands.Cog):
         s = await async_get_guild_settings(guild_id) if guild_id else {}
 
         embed = discord.Embed(
-            title=tr(s, "info.botinfo_title"),
+            title=embed_title("zb_cat_ai", tr(s, "info.botinfo_title")),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )
@@ -230,7 +230,7 @@ class Info(commands.Cog):
     async def roleinfo(self, ctx: commands.Context, role: discord.Role):
         s = await async_get_guild_settings(str(ctx.guild.id))
         embed = discord.Embed(
-            title=tr(s, "info.roleinfo_title", role=role.name),
+            title=embed_title("zb_cat_roles", tr(s, "info.roleinfo_title", role=role.name)),
             color=role.color if role.color != discord.Color.default() else config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )
@@ -250,7 +250,7 @@ class Info(commands.Cog):
         channel = channel or ctx.channel
         s = await async_get_guild_settings(str(ctx.guild.id))
         embed = discord.Embed(
-            title=tr(s, "info.channelinfo_title", channel=channel.name),
+            title=embed_title("zb_cat_info", tr(s, "info.channelinfo_title", channel=channel.name)),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )

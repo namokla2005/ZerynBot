@@ -13,6 +13,10 @@ from discord.ext import commands
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import database as db
 from i18n import tr
+try:
+    from emojis import e, partial, embed_title, clean_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, partial, embed_title, clean_title
 
 log = logging.getLogger("BotV2.Ticket")
 
@@ -139,7 +143,7 @@ class Ticket(commands.Cog, name="Tickets"):
 
             # Send welcome embed inside the ticket channel
             embed = discord.Embed(
-                title=tr(settings, "ticket.welcome_title", label=btn_data['label']),
+                title=embed_title("zb_cat_tickets", tr(settings, "ticket.welcome_title", label=btn_data['label'])),
                 description=tr(settings, "ticket.welcome_desc", user=member.mention),
                 color=0x5865F2
             )
@@ -153,6 +157,7 @@ class Ticket(commands.Cog, name="Tickets"):
             close_btn = discord.ui.Button(
                 label=tr(settings, "ticket.close_btn"),
                 style=discord.ButtonStyle.danger,
+                emoji=partial("zb_lock", "🔒"),
                 custom_id="ticket:close"
             )
             close_view.add_item(close_btn)

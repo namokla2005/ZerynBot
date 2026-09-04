@@ -22,9 +22,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from emojis import e, partial
+    from emojis import e, partial, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, partial
+    from bot.emojis import e, partial, embed_title, clean_title
 
 
 
@@ -102,7 +102,7 @@ class TempVoiceControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Lock / Unlock", style=discord.ButtonStyle.primary, emoji="🔒", custom_id="tv_lock")
+    @discord.ui.button(label="Lock / Unlock", style=discord.ButtonStyle.primary, emoji=partial("zb_lock", "🔒"), custom_id="tv_lock")
     async def toggle_lock(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = self.channel.guild
         overwrites = self.channel.overwrites_for(guild.default_role)
@@ -120,7 +120,7 @@ class TempVoiceControlView(discord.ui.View):
         await async_update_temp_channel_lock(str(self.channel.id), 1 if new_lock else 0)
 
         msg = tr(self.settings, "tempvoice.locked") if new_lock else tr(self.settings, "tempvoice.unlocked")
-        button.emoji = "🔓" if new_lock else "🔒"
+        button.emoji = "🔓" if new_lock else partial("zb_lock", "🔒")
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(msg, ephemeral=True)
 
@@ -193,7 +193,7 @@ class TempVoice(commands.Cog):
                 # Gửi bảng điều khiển nút bấm
                 s = await async_get_guild_settings(str(guild.id))
                 embed = discord.Embed(
-                    title=f"{e('zb_tempvoice')} " + tr(s, "tempvoice.panel_title", name=new_voice.name),
+                    title=embed_title("zb_tempvoice", tr(s, "tempvoice.panel_title", name=new_voice.name)),
                     description=tr(s, "tempvoice.panel_desc", user=member.mention),
                     color=0x5865F2,
                     timestamp=datetime.now(timezone.utc)

@@ -34,4 +34,7 @@ data/
 
 # Tài nguyên thiết kế & công cụ chỉ dành cho lập trình viên (Dev-only emoji assets & generators)
 assets/emojis/
-scripts/generate_emojis.py
+scripts/generate_emojis.py
+scripts/generate_all_emojis_v2.py
+scripts/generate_preview_grid.py
+scratch/

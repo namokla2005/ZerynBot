@@ -7,9 +7,9 @@ import config
 from database import async_get_logger_settings, async_is_module_enabled, async_get_guild_settings
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 COLOR_CREATE = 0x57F287
 COLOR_DELETE = 0xED4245
@@ -52,7 +52,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(message.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.msg_del_title"),
+            title=embed_title("zb_logger", tr(s, "logger.msg_del_title")),
             description=tr(s, "logger.msg_del_desc", user=message.author.mention, channel=message.channel.mention),
             color=COLOR_DELETE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -77,7 +77,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(before.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.msg_edit_title"),
+            title=embed_title("zb_logger", tr(s, "logger.msg_edit_title")),
             description=tr(s, "logger.msg_edit_desc", user=before.author.mention, channel=before.channel.mention, url=after.jump_url),
             color=COLOR_UPDATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -99,7 +99,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(member.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.member_join_title"),
+            title=embed_title("zb_logger", tr(s, "logger.member_join_title")),
             description=tr(s, "logger.member_join_desc", user=member.mention),
             color=COLOR_JOIN,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -118,7 +118,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(member.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.member_leave_title"),
+            title=embed_title("zb_logger", tr(s, "logger.member_leave_title")),
             description=tr(s, "logger.member_leave_desc", user=member.mention),
             color=COLOR_LEAVE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -147,7 +147,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.ban_title"),
+            title=embed_title("zb_logger", tr(s, "logger.ban_title")),
             description=tr(s, "logger.ban_desc", user=user.mention),
             color=COLOR_MOD,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -174,7 +174,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.unban_title"),
+            title=embed_title("zb_logger", tr(s, "logger.unban_title")),
             description=tr(s, "logger.unban_desc", user=user.mention),
             color=COLOR_JOIN,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -200,7 +200,7 @@ class Logger(commands.Cog):
             
         s = await async_get_guild_settings(str(before.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.role_change_title"),
+            title=embed_title("zb_logger", tr(s, "logger.role_change_title")),
             description=tr(s, "logger.role_change_desc", user=before.mention),
             color=COLOR_UPDATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -223,7 +223,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(channel.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.ch_create_title"),
+            title=embed_title("zb_logger", tr(s, "logger.ch_create_title")),
             description=tr(s, "logger.ch_create_desc", ch=channel.mention, name=channel.name),
             color=COLOR_CREATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -238,7 +238,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(channel.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.ch_del_title"),
+            title=embed_title("zb_logger", tr(s, "logger.ch_del_title")),
             description=tr(s, "logger.ch_del_desc", name=channel.name),
             color=COLOR_DELETE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -254,7 +254,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(role.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.role_create_title"),
+            title=embed_title("zb_logger", tr(s, "logger.role_create_title")),
             description=tr(s, "logger.role_create_desc", role=role.mention, name=role.name),
             color=COLOR_CREATE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -269,7 +269,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(role.guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.role_del_title"),
+            title=embed_title("zb_logger", tr(s, "logger.role_del_title")),
             description=tr(s, "logger.role_del_desc", name=role.name),
             color=COLOR_DELETE,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -285,7 +285,7 @@ class Logger(commands.Cog):
         
         s = await async_get_guild_settings(str(guild.id))
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.automod_violation_title"),
+            title=embed_title("zb_logger", tr(s, "logger.automod_violation_title")),
             description=tr(s, "logger.automod_violation_desc", user=user.mention),
             color=COLOR_MOD,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
@@ -307,7 +307,7 @@ class Logger(commands.Cog):
         s = await async_get_guild_settings(str(guild.id))
         user_str = user.mention if user else tr(s, "logger.ticket_system")
         embed = discord.Embed(
-            title=f"{e('zb_logger')} " + tr(s, "logger.ticket_act_title"),
+            title=embed_title("zb_logger", tr(s, "logger.ticket_act_title")),
             description=tr(s, "logger.ticket_act_desc", user=user_str, action=action_type, name=ticket_name),
             color=COLOR_INFO,
             timestamp=datetime.datetime.now(datetime.timezone.utc)

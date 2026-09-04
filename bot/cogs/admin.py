@@ -9,6 +9,10 @@ import config
 from database import async_get_guild_settings, async_is_module_enabled, async_wal_checkpoint
 import checks
 from i18n import tr
+try:
+    from emojis import e, embed_title, clean_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, embed_title, clean_title
 
 logger = logging.getLogger("BotV2.Admin")
 
@@ -117,7 +121,7 @@ class Admin(commands.Cog):
         mod_col2 = "\n".join(f"{'✅' if modules[k] else '❌'} `{k}`" for k in mod_keys[half:])
 
         embed = discord.Embed(
-            title=tr(s, "admin.config_title", server=ctx.guild.name),
+            title=embed_title("zb_cat_utility", tr(s, "admin.config_title", server=ctx.guild.name)),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc),
         )
@@ -151,7 +155,7 @@ class Admin(commands.Cog):
         guild_id = str(ctx.guild.id)
         s = await async_get_guild_settings(guild_id)
         embed = discord.Embed(
-            title=tr(s, "admin.rr_title"),
+            title=embed_title("zb_cat_roles", tr(s, "admin.rr_title")),
             description=tr(s, "admin.rr_desc"),
             color=config.COLOR_INFO,
         )

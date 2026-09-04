@@ -11,15 +11,17 @@ import config
 from database import async_get_guild_settings
 from i18n import tr
 try:
-    from emojis import e, partial
+    from emojis import e, partial, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, partial
+    from bot.emojis import e, partial, embed_title, clean_title
+
+
 class DeleteHelpButton(discord.ui.Button):
     def __init__(self, settings: dict, author_id: int):
         super().__init__(
             label=tr(settings, "help.btn_delete") if tr(settings, "help.btn_delete") != "help.btn_delete" else "Đóng",
             style=discord.ButtonStyle.secondary,
-            emoji="🗑️",
+            emoji=partial("zb_clear", "🗑️"),
             row=1
         )
         self.author_id = author_id
@@ -183,21 +185,29 @@ class HelpSelect(discord.ui.Select):
                 url="https://zerynbot.id.vn"
             )
 
+        def get_modules_display():
+            return (
+                f"{e('zb_cat_ai')} `AI` • {e('zb_cat_economy')} `Kinh Tế` • {e('zb_cat_music')} `Âm Nhạc`\n"
+                f"{e('zb_cat_moderation')} `Quản Trị` • {e('zb_cat_automod')} `Bảo Vệ` • {e('zb_cat_leveling')} `Leveling`\n"
+                f"{e('zb_cat_voice')} `Phòng Thoại` • {e('zb_cat_utility')} `Tiện Ích` • {e('zb_cat_giveaway')} `Giveaway`"
+            )
+
         if val == "home":
-            embed.title = tr(self.settings, "help.home_title")
-            embed.description = tr(self.settings, "help.description")
+            embed.title = embed_title("zb_cat_home", tr(self.settings, "help.home_title"))
+            raw_desc = tr(self.settings, "help.description")
+            embed.description = raw_desc.replace("🪙", e("zb_coin")).replace("💰", e("zb_bank"))
             if self.bot.user.display_avatar:
                 embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
             ws_ping = round(self.bot.latency * 1000)
             embed.add_field(
-                name=tr(self.settings, "help.stats_title"),
+                name=embed_title("zb_ping", tr(self.settings, "help.stats_title")),
                 value=tr(self.settings, "help.stats_val", ping=ws_ping, uptime="99.9%"),
                 inline=True
             )
             embed.add_field(
                 name=tr(self.settings, "help.modules_title"),
-                value=tr(self.settings, "help.modules_val"),
+                value=get_modules_display(),
                 inline=True
             )
             embed.add_field(
@@ -223,8 +233,10 @@ class HelpSelect(discord.ui.Select):
                 "customcmd": "customcmd",
             }
             prefix = cat_key_map.get(val, val)
-            embed.title = tr(self.settings, f"help.cat_{prefix}_title")
-            embed.description = tr(self.settings, f"help.cat_{prefix}_cmds")
+            raw_title = tr(self.settings, f"help.cat_{prefix}_title")
+            embed.title = embed_title(f"zb_cat_{val}", raw_title)
+            raw_cmds = tr(self.settings, f"help.cat_{prefix}_cmds")
+            embed.description = raw_cmds.replace("🪙", e("zb_coin")).replace("💰", e("zb_bank"))
 
         await interaction.response.edit_message(embed=embed, view=self.view)
 
@@ -304,7 +316,7 @@ class Utility(commands.Cog):
             quality = tr(settings, "utility.quality_poor")
 
         embed = discord.Embed(
-            title=f"{e('zb_ping')} " + tr(settings, "utility.ping_title"),
+            title=embed_title("zb_ping", tr(settings, "utility.ping_title")),
             color=config.COLOR_PING,
             timestamp=datetime.now(timezone.utc)
         )
@@ -348,7 +360,7 @@ class Utility(commands.Cog):
         settings = await async_get_guild_settings(str(guild.id))
 
         embed = discord.Embed(
-            title=tr(settings, "utility.membercount_title", server=guild.name),
+            title=embed_title("zb_cat_info", tr(settings, "utility.membercount_title", server=guild.name)),
             color=config.COLOR_SUCCESS,
             timestamp=datetime.now(timezone.utc),
         )
@@ -357,7 +369,7 @@ class Utility(commands.Cog):
 
         embed.add_field(name=f"📊 {tr(settings, 'utility.membercount_total')}",  value=f"**{total}**", inline=True)
         embed.add_field(name=f"👤 {tr(settings, 'utility.membercount_humans')}", value=f"**{humans}** ({human_pct}%)", inline=True)
-        embed.add_field(name=f"🤖 {tr(settings, 'utility.membercount_bots')}",   value=f"**{bots}** ({bot_pct}%)", inline=True)
+        embed.add_field(name=f"{e('zb_cat_ai')} {tr(settings, 'utility.membercount_bots')}",   value=f"**{bots}** ({bot_pct}%)", inline=True)
         embed.add_field(name=f"{tr(settings, 'utility.membercount_ratio')}", value=progress, inline=False)
         embed.add_field(name=f"{tr(settings, 'utility.membercount_online')}", value=f"**{online}**",  inline=True)
         embed.add_field(name=f"{tr(settings, 'utility.membercount_idle')}",   value=f"**{idle}**",    inline=True)
@@ -375,9 +387,17 @@ class Utility(commands.Cog):
         settings = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         ws_ping = round(self.bot.latency * 1000)
 
+        def get_modules_display():
+            return (
+                f"{e('zb_cat_ai')} `AI` • {e('zb_cat_economy')} `Kinh Tế` • {e('zb_cat_music')} `Âm Nhạc`\n"
+                f"{e('zb_cat_moderation')} `Quản Trị` • {e('zb_cat_automod')} `Bảo Vệ` • {e('zb_cat_leveling')} `Leveling`\n"
+                f"{e('zb_cat_voice')} `Phòng Thoại` • {e('zb_cat_utility')} `Tiện Ích` • {e('zb_cat_giveaway')} `Giveaway`"
+            )
+
+        raw_desc = tr(settings, "help.description")
         embed = discord.Embed(
-            title=tr(settings, "help.title"),
-            description=tr(settings, "help.description"),
+            title=embed_title("zb_cat_home", tr(settings, "help.home_title")),
+            description=raw_desc.replace("🪙", e("zb_coin")).replace("💰", e("zb_bank")),
             color=0xF4A7BB,
             timestamp=datetime.now(timezone.utc),
         )
@@ -390,13 +410,13 @@ class Utility(commands.Cog):
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
         embed.add_field(
-            name=tr(settings, "help.stats_title"),
+            name=embed_title("zb_ping", tr(settings, "help.stats_title")),
             value=tr(settings, "help.stats_val", ping=ws_ping, uptime="99.9%"),
             inline=True
         )
         embed.add_field(
             name=tr(settings, "help.modules_title"),
-            value=tr(settings, "help.modules_val"),
+            value=get_modules_display(),
             inline=True
         )
         embed.add_field(
@@ -418,7 +438,7 @@ class Utility(commands.Cog):
     async def poll(self, ctx: commands.Context, *, question: str):
         s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         embed = discord.Embed(
-            title=f"{e('zb_poll')} " + tr(s, "utility.poll_title"),
+            title=embed_title("zb_poll", tr(s, "utility.poll_title")),
             description=tr(s, "utility.poll_desc", question=question),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)

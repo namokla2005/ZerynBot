@@ -21,9 +21,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 NEKOS_API = "https://nekos.best/api/v2"
 USER_AGENT = "ZerynBot (https://zerynbot.id.vn, 2.0)"
@@ -473,7 +473,7 @@ class Fun(commands.Cog):
 
         view = MarryView(interaction.user, member, s, self)
         embed = discord.Embed(
-            title=f"{e('zb_marry')} " + tr(s, "fun.marry_proposal_title"),
+            title=embed_title("zb_marry", tr(s, "fun.marry_proposal_title")),
             description=tr(s, "fun.marry_proposal", user1=interaction.user.mention, user2=member.mention),
             color=0xFF69B4,
         )
@@ -523,7 +523,7 @@ class Fun(commands.Cog):
         marriage = await async_get_marriage(str(interaction.guild.id), str(target.id))
 
         embed = discord.Embed(
-            title=f"💝 {target.display_name}",
+            title=f"{e('zb_marry')} {target.display_name}",
             color=0xFF69B4,
         )
         embed.set_thumbnail(url=target.display_avatar.url)

@@ -27,9 +27,9 @@ from database import (
 from i18n import tr
 from cache import cache
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 GEMINI_MODELS = [
     "gemini-2.0-flash",
@@ -435,9 +435,9 @@ class AI(commands.Cog):
         if len(response_text) > 4000:
             response_text = response_text[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
 
-        ask_icon = e("zb_vision") if image_url else e("zb_ask")
+        ask_icon = "zb_vision" if image_url else "zb_ask"
         embed = discord.Embed(
-            title=f"{ask_icon} {tr(s, 'ai.ask_title')}",
+            title=embed_title(ask_icon, tr(s, 'ai.ask_title')),
             description=response_text,
             color=0x5865F2,
             timestamp=datetime.now(timezone.utc)
@@ -493,7 +493,7 @@ class AI(commands.Cog):
                 summary_result = summary_result[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
 
             embed = discord.Embed(
-                title=f"{e('zb_summarize')} {tr(s, 'ai.summarize_url_title')}",
+                title=embed_title("zb_summarize", tr(s, 'ai.summarize_url_title')),
                 description=f"🔗 **Nguồn:** [Xem bài viết gốc]({cleaned_url})\n\n{summary_result}",
                 color=0xFEE75C,
                 timestamp=datetime.now(timezone.utc)
@@ -522,7 +522,7 @@ class AI(commands.Cog):
         summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, preferred_model=global_model)
 
         embed = discord.Embed(
-            title=f"{e('zb_summarize')} {tr(s, 'ai.summarize_title', channel=ctx.channel.name)}",
+            title=embed_title("zb_summarize", tr(s, 'ai.summarize_title', channel=ctx.channel.name)),
             description=summary_result,
             color=0xFEE75C,
             timestamp=datetime.now(timezone.utc)

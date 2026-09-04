@@ -21,6 +21,10 @@ from database import (
     delete_custom_command
 )
 from i18n import tr
+try:
+    from emojis import e, embed_title, clean_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, embed_title, clean_title
 
 
 def format_custom_response(template: str, message: discord.Message) -> str:
@@ -126,7 +130,7 @@ class CustomCommands(commands.Cog):
             desc += f"• **`{c['trigger']}`** {match_badge} — {c.get('uses_count', 0)} {tr(s, 'customcmd.uses')}\n"
 
         embed = discord.Embed(
-            title=tr(s, "customcmd.list_title", server=interaction.guild.name),
+            title=embed_title("zb_cat_customcmd", tr(s, "customcmd.list_title", server=interaction.guild.name)),
             description=desc,
             color=0x5865F2,
             timestamp=datetime.now(timezone.utc)

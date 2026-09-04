@@ -23,6 +23,10 @@ from database import (
 )
 import checks
 from i18n import tr
+try:
+    from emojis import e, embed_title, clean_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, embed_title, clean_title
 
 # Extract domains from URLs
 URL_PATTERN = re.compile(r'https?://(?:www\.)?([a-zA-Z0-9.-]+)\.[a-zA-Z]{2,}')
@@ -104,7 +108,7 @@ class Automod(commands.Cog):
                 
                 # Send DM with detailed reason
                 dm_embed = discord.Embed(
-                    title=tr(s, "automod.dm_warning_title"),
+                    title=embed_title("zb_warn", tr(s, "automod.dm_warning_title")),
                     description=tr(s, "automod.dm_warning_desc", guild=guild.name),
                     color=config.COLOR_ERROR
                 )
@@ -140,7 +144,7 @@ class Automod(commands.Cog):
                 
                 # Send DM
                 dm_embed = discord.Embed(
-                    title=tr(s, "automod.dm_timeout_title"),
+                    title=embed_title("zb_timeout", tr(s, "automod.dm_timeout_title")),
                     description=tr(s, "automod.dm_timeout_desc", guild=guild.name),
                     color=config.COLOR_ERROR
                 )
@@ -166,7 +170,7 @@ class Automod(commands.Cog):
                     ping_role = f"<@&{notify_role_id}> " if notify_role_id else ""
                     
                     log_embed = discord.Embed(
-                        title=tr(s, "automod.log_title"),
+                        title=embed_title("zb_cat_automod", tr(s, "automod.log_title")),
                         color=config.COLOR_ERROR,
                         timestamp=datetime.now(timezone.utc)
                     )
@@ -314,7 +318,7 @@ class Automod(commands.Cog):
         status_str = tr(s, "automod.active") if is_active else tr(s, "automod.inactive")
         
         embed = discord.Embed(
-            title=tr(s, "automod.show_title", guild=ctx.guild.name),
+            title=embed_title("zb_cat_automod", tr(s, "automod.show_title", guild=ctx.guild.name)),
             description=tr(s, "automod.show_desc", status=status_str),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)

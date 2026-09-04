@@ -18,6 +18,10 @@ from database import (
     async_get_birthday_settings,
 )
 from i18n import tr
+try:
+    from emojis import e, embed_title, clean_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, embed_title, clean_title
 
 logger = logging.getLogger("BotV2")
 
@@ -117,7 +121,7 @@ class Birthday(commands.Cog):
             age = None
 
         embed = discord.Embed(
-            title=f"🎂 {target.display_name}",
+            title=f"{e('zb_cat_birthday')} {target.display_name}",
             color=0xFF69B4,
         )
         embed.add_field(name=tr(s, "birthday.field_date"), value=f"📅 {date_str}", inline=True)
@@ -157,7 +161,7 @@ class Birthday(commands.Cog):
             lines.append(f"**{i}.** {m.mention} — `{b['day']:02d}/{b['month']:02d}` ({days}d)")
 
         embed = discord.Embed(
-            title="🎂 " + tr(s, "birthday.list_title"),
+            title=embed_title("zb_cat_birthday", tr(s, "birthday.list_title")),
             description="\n".join(lines),
             color=0xFF69B4,
         )
@@ -223,7 +227,7 @@ class Birthday(commands.Cog):
                         desc = tr(s, "birthday.auto_message", user=member.mention)
 
                     embed = discord.Embed(
-                        title="🎂🎉 " + tr(s, "birthday.auto_title"),
+                        title=embed_title("zb_cat_birthday", tr(s, "birthday.auto_title")),
                         description=desc,
                         color=0xFF69B4,
                     )
@@ -235,7 +239,7 @@ class Birthday(commands.Cog):
                         try:
                             from database import async_modify_wallet
                             await async_modify_wallet(str(guild.id), str(member.id), gift_coins)
-                            gifts.append(f"💰 +{gift_coins} Coins")
+                            gifts.append(f"{e('zb_coin')} +{gift_coins} Coins")
                         except Exception as e:
                             logger.warning(f"[Birthday] Error gifting coins: {e}")
 

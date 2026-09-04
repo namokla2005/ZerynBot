@@ -29,9 +29,9 @@ from cache import cache
 from database import async_get_guild_settings
 from i18n import tr
 try:
-    from emojis import e, partial
+    from emojis import e, partial, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, partial
+    from bot.emojis import e, partial, embed_title, clean_title
 
 log = logging.getLogger("BotV2.Music")
 
@@ -919,7 +919,7 @@ class MusicControlView(discord.ui.View):
         await interaction.response.defer()
         await self.player.stop()
 
-    @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji="⏸️", row=0)
+    @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji=partial("zb_pause", "⏸️"), row=0)
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -941,14 +941,14 @@ class MusicControlView(discord.ui.View):
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji="⏭️", row=0)
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji=partial("zb_skip", "⏭️"), row=0)
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
         self.player.skip()
 
-    @discord.ui.button(label="Lặp lại", style=discord.ButtonStyle.secondary, emoji="🔁", row=0)
+    @discord.ui.button(label="Lặp lại", style=discord.ButtonStyle.secondary, emoji=partial("zb_loop", "🔁"), row=0)
     async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -1186,7 +1186,7 @@ class Music(commands.Cog, name="Music"):
         if player.vc.is_playing() or player.vc.is_paused() or player.current:
             player.queue.append(track)
             embed = discord.Embed(
-                title=tr(s, "music.added_to_queue"),
+                title=embed_title("zb_play", tr(s, "music.added_to_queue")),
                 description=f"**[{track.title}]({track.url})**",
                 color=0x3B82F6,
             )
@@ -1324,7 +1324,7 @@ class Music(commands.Cog, name="Music"):
                 desc += f"`{i:2}.` [{t.title}]({t.url}) `[{t.duration_str}]`\n"
             if len(player.queue) > 10:
                 desc += tr(s, "music.queue_more", cnt=len(player.queue) - 10)
-        embed = discord.Embed(title=f"{e('zb_queue')} " + tr(s, "music.queue_title"), description=desc, color=0x5865F2)
+        embed = discord.Embed(title=embed_title("zb_queue", tr(s, "music.queue_title")), description=desc, color=0x5865F2)
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="replay", description="Phát lại bài hát từ đầu")

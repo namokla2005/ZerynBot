@@ -17,9 +17,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 
 def _parse_duration(text: str) -> timedelta | None:
@@ -130,7 +130,7 @@ class Moderation(commands.Cog):
         except discord.NotFound:
             return await interaction.response.send_message(tr(s, "mod.user_not_banned"), ephemeral=True)
         embed = discord.Embed(
-            description=tr(s, "mod.unban_success", user=str(user), reason=reason_text),
+            description=f"{e('zb_verified')} " + tr(s, "mod.unban_success", user=str(user), reason=reason_text),
             color=config.COLOR_SUCCESS,
         )
         await interaction.response.send_message(embed=embed)
@@ -172,7 +172,7 @@ class Moderation(commands.Cog):
         reason_text = reason or tr(s, "mod.no_reason")
         await member.timeout(None, reason=f"{interaction.user}: {reason_text}")
         embed = discord.Embed(
-            description=tr(s, "mod.untimeout_success", user=member.mention),
+            description=f"{e('zb_verified')} " + tr(s, "mod.untimeout_success", user=member.mention),
             color=config.COLOR_SUCCESS,
         )
         await interaction.response.send_message(embed=embed)
@@ -215,7 +215,7 @@ class Moderation(commands.Cog):
                 pass
 
         if escalation_msg:
-            embed.add_field(name="⚠️ Auto-Escalation", value=escalation_msg, inline=False)
+            embed.add_field(name=f"{e('zb_warn')} Auto-Escalation", value=escalation_msg, inline=False)
 
         try:
             await member.send(tr(s, "mod.warn_dm", server=interaction.guild.name, reason=reason, total=total))
@@ -242,7 +242,7 @@ class Moderation(commands.Cog):
         for w in warns[:15]:
             lines.append(f"`#{w['id']}` — {w['reason'][:60]} (<t:{int(datetime.fromisoformat(w['created_at']).timestamp())}:R>)")
         embed = discord.Embed(
-            title=f"{e('zb_warn')} " + tr(s, "mod.warnings_title", user=target.display_name, total=len(warns)),
+            title=embed_title("zb_warn", tr(s, "mod.warnings_title", user=target.display_name, total=len(warns))),
             description="\n".join(lines),
             color=config.COLOR_WARNING,
         )
@@ -332,7 +332,7 @@ class Moderation(commands.Cog):
         overwrite = target.overwrites_for(interaction.guild.default_role)
         overwrite.send_messages = None
         await target.set_permissions(interaction.guild.default_role, overwrite=overwrite)
-        await interaction.response.send_message(tr(s, "mod.unlock_success", channel=target.mention))
+        await interaction.response.send_message(f"{e('zb_verified')} " + tr(s, "mod.unlock_success", channel=target.mention))
 
 
 async def setup(bot: commands.Bot):

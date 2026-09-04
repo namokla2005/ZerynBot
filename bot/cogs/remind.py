@@ -19,9 +19,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 
 def parse_time_duration(time_str: str) -> int | None:
@@ -109,7 +109,7 @@ class Remind(commands.Cog):
                         user = None
 
                 embed = discord.Embed(
-                    title=f"{e('zb_reminder')} " + tr(s, "remind.due_title"),
+                    title=embed_title("zb_reminder", tr(s, "remind.due_title")),
                     description=tr(s, "remind.due_content", reason=reason),
                     color=config.COLOR_PING,
                     timestamp=datetime.now(timezone.utc)
@@ -196,7 +196,7 @@ class Remind(commands.Cog):
         ]
 
         embed = discord.Embed(
-            title=f"{e('zb_reminder')} " + tr(s, "remind.success_title"),
+            title=embed_title("zb_reminder", tr(s, "remind.success_title")),
             description="\n".join(desc_lines),
             color=config.COLOR_SUCCESS,
             timestamp=datetime.now(timezone.utc)
@@ -212,7 +212,7 @@ class Remind(commands.Cog):
             return await ctx.send(tr(s, "remind.no_reminders"), ephemeral=True)
 
         embed = discord.Embed(
-            title=f"{e('zb_reminder')} " + tr(s, "remind.list_title", user=ctx.author.display_name),
+            title=embed_title("zb_reminder", tr(s, "remind.list_title", user=ctx.author.display_name)),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)
         )

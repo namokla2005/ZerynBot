@@ -24,9 +24,9 @@ from database import (
 )
 from i18n import tr
 try:
-    from emojis import e
+    from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e
+    from bot.emojis import e, embed_title, clean_title
 
 
 
@@ -263,7 +263,7 @@ class Leveling(commands.Cog):
             logging.getLogger("BotV2").warning(f"[Leveling] Rank card error: {e}")
 
         # Fallback to embed
-        embed = discord.Embed(title=f"{e('zb_rank')} " + tr(settings, "leveling.rank_title", user=member.display_name), color=config.COLOR_INFO)
+        embed = discord.Embed(title=embed_title("zb_rank", tr(settings, "leveling.rank_title", user=member.display_name)), color=config.COLOR_INFO)
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.add_field(name="Rank", value=f"#{rank_pos}", inline=True)
         embed.add_field(name="Level", value=f"{level}", inline=True)
@@ -294,7 +294,7 @@ class Leveling(commands.Cog):
         if not top_users:
             return await ctx.send(tr(settings, "leveling.no_xp"))
             
-        embed = discord.Embed(title=f"{e('zb_leaderboard')} " + tr(settings, "leveling.leaderboard_title", server=ctx.guild.name), color=config.COLOR_INFO)
+        embed = discord.Embed(title=embed_title("zb_leaderboard", tr(settings, "leveling.leaderboard_title", server=ctx.guild.name)), color=config.COLOR_INFO)
         if ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
             
