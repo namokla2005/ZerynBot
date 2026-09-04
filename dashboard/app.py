@@ -1389,9 +1389,13 @@ _COMMANDS_DATA = [
         "commands": [
             {
                 "name": "ask", "emoji": "💡",
-                "desc": "Đặt câu hỏi thông minh cho trợ lý AI Google Gemini 2.0",
-                "usage": "/ask <prompt>", "example": "/ask Giải thích cách hoạt động của hố đen",
-                "args": [{"name": "prompt", "type": "Text", "required": True, "desc": "Câu hỏi cần giải đáp"}],
+                "desc": "Đặt câu hỏi thông minh cho trợ lý AI (hỗ trợ kèm ảnh & tra cứu web thời gian thực)",
+                "usage": "/ask <prompt> [image] [web]", "example": "/ask Tin tức công nghệ hôm nay web:True",
+                "args": [
+                    {"name": "prompt", "type": "Text", "required": True, "desc": "Câu hỏi cần giải đáp"},
+                    {"name": "image", "type": "Attachment", "required": False, "desc": "Hình ảnh đính kèm để phân tích"},
+                    {"name": "web", "type": "Boolean", "required": False, "desc": "Bật tra cứu Internet qua DuckDuckGo (True/False)"}
+                ],
                 "preview": {
                     "type": "embed", "color": "#5865F2", "title": "🤖 Trợ Lý AI Zeryn",
                     "desc": "Hố đen là một vùng không gian có trường hấp dẫn mạnh đến mức không vật chất hay bức xạ nào có thể thoát ra..."
@@ -1399,9 +1403,12 @@ _COMMANDS_DATA = [
             },
             {
                 "name": "summarize", "emoji": "📋",
-                "desc": "Đọc và tóm tắt ngắn gọn các tin nhắn gần nhất trong kênh chat",
-                "usage": "/summarize [limit]", "example": "/summarize 30",
-                "args": [{"name": "limit", "type": "Number", "required": False, "desc": "Số lượng tin nhắn cần tóm tắt (10-50)"}],
+                "desc": "Đọc và tóm tắt ngắn gọn tin nhắn trong kênh hoặc nội dung bài viết từ URL",
+                "usage": "/summarize [limit] [url]", "example": "/summarize url:https://vnexpress.net/...",
+                "args": [
+                    {"name": "limit", "type": "Number", "required": False, "desc": "Số lượng tin nhắn cần tóm tắt (10-50)"},
+                    {"name": "url", "type": "Text", "required": False, "desc": "Đường link URL bài viết cần tóm tắt"}
+                ],
                 "preview": {
                     "type": "embed", "color": "#FEE75C", "title": "📋 Tóm Tắt Cuộc Trò Chuyện",
                     "desc": "• **Chủ đề chính:** Mọi người đang bàn về kế hoạch chơi game cuối tuần.<br>• **Quyết định:** Thống nhất chơi Valorant lúc 20h tối thứ 7."

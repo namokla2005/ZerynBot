@@ -14,6 +14,30 @@ from dashboard.app import _COMMANDS_DATA
 
 # Dictionary of argument description translations across 6 languages
 ARG_TRANS = {
+    "Hình ảnh đính kèm để phân tích": {
+        "vi": "Hình ảnh đính kèm để phân tích",
+        "en": "Attached image for analysis",
+        "zh": "供分析的附带图片",
+        "es": "Imagen adjunta para análisis",
+        "pt": "Imagem anexada para análise",
+        "fr": "Image jointe pour analyse"
+    },
+    "Bật tra cứu Internet qua DuckDuckGo (True/False)": {
+        "vi": "Bật tra cứu Internet qua DuckDuckGo (True/False)",
+        "en": "Enable real-time DuckDuckGo web search (True/False)",
+        "zh": "开启 DuckDuckGo 实时联网搜索 (True/False)",
+        "es": "Activar búsqueda web DuckDuckGo en tiempo real (True/False)",
+        "pt": "Ativar pesquisa na web via DuckDuckGo em tempo real (True/False)",
+        "fr": "Activer la recherche web DuckDuckGo en temps réel (True/False)"
+    },
+    "Đường link URL bài viết cần tóm tắt": {
+        "vi": "Đường link URL bài viết cần tóm tắt",
+        "en": "Article URL to summarize",
+        "zh": "需要提炼摘要的文章网址 URL",
+        "es": "URL del artículo para resumir",
+        "pt": "URL do artigo para resumir",
+        "fr": "URL de l'article à résumer"
+    },
     "Thành viên cần xem (mặc định: bạn)": {
         "vi": "Thành viên cần xem (mặc định: bạn)",
         "en": "Member to view (default: you)",

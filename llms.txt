@@ -18,7 +18,7 @@
 - **Web Dashboard**: Flask 3.x with Jinja2 templates, Discord OAuth2 authentication (`https://zerynbot.id.vn/callback`).
 - **Database**: SQLite in WAL mode (`data/bot.db`) with `PRAGMA busy_timeout = 15000` and automated 24h `.zip` backups routed to private `BACKUP_DB` webhook.
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`cache.py`) with thread-safe/async-safe TTL eviction.
-- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1535 keys per file.
+- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1561 keys per file.
 - **Audio Pipeline**: `yt-dlp` + `FFmpegOpusAudio` with single-thread optimization (<0.8s playback start), Music | 2 compact player card UI, progress bar, 5 interactive buttons, and `/nowplaying`.
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
 - **AI Routing**: Groq Cloud (`qwen/qwen3.8-27b` default, `gpt-oss-20b`, `compound`), Google Gemini, and OpenRouter with Multimodal Vision and Admin Model Selector (`global_ai_model`).
@@ -56,4 +56,4 @@
 - `bot/cogs/`: 22 functional cogs containing 92 total commands across 16 categories.
 - `dashboard/app.py`: Web dashboard routes and `_COMMANDS_DATA` central registry.
 - `dashboard/api.py`: AJAX JSON endpoints for real-time dashboard updates.
-- `locales/`: 6 locale dictionary files (1535 keys each).
+- `locales/`: 6 locale dictionary files (1561 keys each).

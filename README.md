@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1535%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1561%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-19%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="19 Modules">
   <img src="https://img.shields.io/badge/Commands-92%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="92 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
@@ -19,7 +19,7 @@
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1535 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1561 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -247,7 +247,7 @@ ZerynBot/
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
-├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1535 keys/file)
+├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1561 keys/file)
 ├── requirements.txt     # Danh sách thư viện Python chạy production
 ├── requirements-dev.txt # Danh sách thư viện dev & test (pytest, ruff)
 ├── LICENSE              # Giấy phép nguồn mở MIT
@@ -262,7 +262,7 @@ ZerynBot/
 │   ├── auth.py          # Discord OAuth2 Session Manager & SSRF filter
 │   ├── static/          # CSS (v9.2), JS, Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme & CSRF bootstrap)
-├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1535 keys/file
+├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1561 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh)
 ├── tests/               # 🧪 55 Unit tests (cache, i18n, database, dashboard security, smoke-load 22 cogs)
 ├── .github/             # CI pipeline & Dependabot

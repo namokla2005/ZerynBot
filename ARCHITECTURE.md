@@ -42,7 +42,7 @@
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
 - **Image Generation:** Pillow (`PIL`) in `card_generator.py` for rendering dynamic rank cards and welcome/goodbye banner cards in thread pools.
 - **Audio Pipeline:** `yt-dlp` + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -b:a 96k`).
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1535 keys per file.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1561 keys per file.
 
 ---
 
@@ -114,12 +114,12 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1535 keys
-│   ├── en.json                 # English — 1535 keys
-│   ├── zh.json                 # Chinese — 1535 keys
-│   ├── es.json                 # Spanish — 1535 keys
-│   ├── pt.json                 # Portuguese — 1535 keys
-│   └── fr.json                 # French — 1535 keys
+│   ├── vi.json                 # Vietnamese (Default) — 1561 keys
+│   ├── en.json                 # English — 1561 keys
+│   ├── zh.json                 # Chinese — 1561 keys
+│   ├── es.json                 # Spanish — 1561 keys
+│   ├── pt.json                 # Portuguese — 1561 keys
+│   └── fr.json                 # French — 1561 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -379,7 +379,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1535 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **1561 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
 2. **Async vs. Sync Separation:**
    - **Bot code (`bot/cogs/`)** MUST use async database functions (`async_get_guild_settings`, `async_is_module_enabled`, etc.).
    - **Dashboard code (`dashboard/`)** MUST use sync database functions (`get_guild_settings`, `is_module_enabled`, etc.).
@@ -477,6 +477,9 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 ## 12. System Changelog & Evolution Highlights
 
+- **v2.8 (2026-09)**:
+  - **AI Phase 3 (AI Web 2.0)**: Real-time DuckDuckGo web search grounding (`/ask prompt:... web:True`) and full article/URL content extractor & summarizer (`/summarize url:...`).
+  - **Command Center & `/help` Overhaul**: Reorganized interactive dropdown into 15 distinct categories covering all 92 commands, updated 19 modules overview, and synchronized 1561 keys across 6 languages.
 - **v2.6 (2026-08)**: 
   - Dynamic AI Model selector dropdown in Admin Dashboard with live API connectivity tester.
   - Active Groq models alignment (Qwen 3.8 27B, GPT-OSS 20B/120B, Groq Compound) with dual-prefix fallback.

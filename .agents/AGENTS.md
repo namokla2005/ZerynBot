@@ -46,7 +46,7 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 - **Web Dashboard**: Flask + Jinja2, truy cập CSDL đồng bộ qua `sqlite3` (`database.py` sync), dịch đa ngôn ngữ bằng `t(key)`.
 - **Hệ thống Modules**: Đúng chuẩn **19 Modules** trong `DEFAULT_MODULES` (`welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`).
 - **Hệ thống Lệnh Dashboard**: Danh sách tập trung `_COMMANDS_DATA` trong [`dashboard/app.py`](https://github.com/namokla2005/ZerynBot/blob/main/dashboard/app.py) quản lý đúng **92 lệnh** thuộc **16 danh mục**.
-- **Đa ngôn ngữ (i18n)**: 6 file từ điển (`vi`, `en`, `zh`, `es`, `pt`, `fr`) luôn luôn đồng bộ chính xác **1535 keys/file** (100% không lệch key).
+- **Đa ngôn ngữ (i18n)**: 6 file từ điển (`vi`, `en`, `zh`, `es`, `pt`, `fr`) luôn luôn đồng bộ chính xác **1561 keys/file** (100% không lệch key).
 - **Cơ sở dữ liệu**: SQLite WAL mode tại `data/bot.db` (`PRAGMA busy_timeout = 15000`, tự động checkpoint dọn WAL).
 - **AI Engine**: Groq Cloud API (`gsk_*`) với model mặc định `qwen/qwen3.8-27b` (hỗ trợ chuyển đổi qua Admin Dashboard), fallback sang Google Gemini và OpenRouter. Hỗ trợ xử lý ảnh (Multimodal Vision).
 - **Hệ thống Kinh Tế & Ngân Hàng**:

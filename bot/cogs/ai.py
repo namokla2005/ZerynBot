@@ -11,7 +11,8 @@ Features:
 - 👑 Special Bot Owner Persona: Identifies BOT_OWNER_ID and addresses with deep respect as "Cha" / "Bố".
 - Customizable System Prompts & Personalities.
 """
-import sys, os, aiohttp, json
+import sys, os, aiohttp, json, re, urllib.parse
+from html.parser import HTMLParser
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import discord
@@ -268,6 +269,91 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
 call_gemini_api = call_ai_api
 
 
+class CleanTextParser(HTMLParser):
+    """Bộ bóc tách văn bản thuần từ tài liệu HTML, loại bỏ thẻ style/script/nav/ads."""
+    def __init__(self):
+        super().__init__()
+        self.text_parts = []
+        self.ignore_tags = {'script', 'style', 'header', 'footer', 'nav', 'aside', 'noscript', 'svg', 'iframe'}
+        self.current_ignore = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in self.ignore_tags:
+            self.current_ignore += 1
+
+    def handle_endtag(self, tag):
+        if tag.lower() in self.ignore_tags and self.current_ignore > 0:
+            self.current_ignore -= 1
+
+    def handle_data(self, data):
+        if self.current_ignore == 0:
+            text = data.strip()
+            if text:
+                self.text_parts.append(text)
+
+    def get_text(self) -> str:
+        return ' '.join(self.text_parts)
+
+
+async def _fetch_duckduckgo_search(query: str, max_results: int = 4) -> list[dict]:
+    """Tìm kiếm Internet thời gian thực qua DuckDuckGo HTML (Miễn phí 100%, không cần API Key ngoài)."""
+    search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote_plus(query)}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7"
+    }
+    timeout = aiohttp.ClientTimeout(total=7)
+    results = []
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(search_url, headers=headers) as resp:
+                if resp.status == 200:
+                    html = await resp.text()
+                    links = re.findall(r'<a class="result__url"[^>]*href="([^"]+)"', html)
+                    titles = re.findall(r'<a class="result__a"[^>]*>(.*?)</a>', html)
+                    snippets = re.findall(r'<a class="result__snippet[^>]*>(.*?)</a>', html)
+                    for t, s, l in zip(titles[:max_results], snippets[:max_results], links[:max_results]):
+                        t_clean = re.sub(r'<[^>]+>', '', t).strip()
+                        s_clean = re.sub(r'<[^>]+>', '', s).strip()
+                        raw_link = l.strip()
+                        if "uddg=" in raw_link:
+                            parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_link).query)
+                            actual_url = parsed.get("uddg", [raw_link])[0]
+                        else:
+                            actual_url = raw_link
+                        if t_clean and s_clean:
+                            results.append({"title": t_clean, "snippet": s_clean, "url": actual_url})
+    except Exception:
+        pass
+    return results
+
+
+async def _fetch_url_article_content(url: str, max_chars: int = 4000) -> str | None:
+    """Tải và trích xuất nội dung văn bản sạch của bài viết/báo chí từ liên kết URL."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    }
+    timeout = aiohttp.ClientTimeout(total=8)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    ctype = resp.headers.get("Content-Type", "").lower()
+                    if "text/html" in ctype or "application/xhtml" in ctype:
+                        html = await resp.text()
+                        parser = CleanTextParser()
+                        parser.feed(html)
+                        clean = parser.get_text()
+                        if len(clean) > max_chars:
+                            clean = clean[:max_chars]
+                        return clean
+    except Exception:
+        pass
+    return None
+
+
 class AI(commands.Cog):
     """Module Trợ lý AI Thông minh & Chatbot."""
 
@@ -292,12 +378,13 @@ class AI(commands.Cog):
         return base_prompt
 
     # ─── ask ───────────────────────────────────────────────────────────────────
-    @commands.hybrid_command(name="ask", description="Đặt câu hỏi thông minh cho trợ lý AI Zeryn (hỗ trợ kèm ảnh)")
+    @commands.hybrid_command(name="ask", description="Đặt câu hỏi thông minh cho trợ lý AI Zeryn (hỗ trợ kèm ảnh & tìm kiếm web)")
     @app_commands.describe(
         prompt="Câu hỏi hoặc yêu cầu cần giải đáp",
-        image="Hình ảnh đính kèm để AI phân tích (tùy chọn)"
+        image="Hình ảnh đính kèm để AI phân tích (tùy chọn)",
+        web="Bật tra cứu thông tin thời gian thực từ Internet qua DuckDuckGo (Mặc định: False)"
     )
-    async def ask(self, ctx: commands.Context, prompt: str, image: discord.Attachment = None):
+    async def ask(self, ctx: commands.Context, prompt: str, image: discord.Attachment = None, web: bool = False):
         await ctx.defer()
         s = await async_get_guild_settings(str(ctx.guild.id))
         ai_s = await async_get_ai_settings(str(ctx.guild.id))
@@ -321,7 +408,24 @@ class AI(commands.Cog):
                     image_url = att.url
                     break
         
-        response_text = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url, preferred_model=global_model)
+        # Xử lý tìm kiếm web thời gian thực nếu web=True
+        web_search_context = ""
+        web_sources = []
+        if web:
+            results = await _fetch_duckduckgo_search(prompt, max_results=4)
+            if results:
+                web_sources = results
+                ctx_parts = ["[THÔNG TIN TÌM KIẾM INTERNET THỜI GIAN THỰC (DUCKDUCKGO)]:"]
+                for i, r in enumerate(results, 1):
+                    ctx_parts.append(f"{i}. Tiêu đề: {r['title']}\n   Nguồn: {r['url']}\n   Tóm tắt: {r['snippet']}")
+                ctx_parts.append("\nHãy dựa vào các thông tin tìm kiếm trên để trả lời chính xác, cập nhật nhất và trích dẫn link nguồn liên quan.")
+                web_search_context = "\n".join(ctx_parts)
+
+        final_prompt = prompt
+        if web_search_context:
+            final_prompt = f"{web_search_context}\n\n[CÂU HỎI CỦA NGƯỜI DÙNG]:\n{prompt}"
+
+        response_text = await call_ai_api(final_prompt, sys_prompt, api_key=api_key, is_owner=is_owner, image_url=image_url, preferred_model=global_model)
 
         # Cắt gọt độ dài embed Discord (tối đa 4096 ký tự)
         if len(response_text) > 4000:
@@ -333,13 +437,19 @@ class AI(commands.Cog):
             color=0x5865F2,
             timestamp=datetime.now(timezone.utc)
         )
-        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        footer_text = tr(s, "common.requested_by", user=ctx.author.display_name)
+        if web_sources:
+            footer_text = f"🌐 DuckDuckGo • {footer_text}"
+        embed.set_footer(text=footer_text, icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
 
     # ─── summarize ─────────────────────────────────────────────────────────────
-    @commands.hybrid_command(name="summarize", description="Tóm tắt các tin nhắn gần nhất trong kênh chat")
-    @app_commands.describe(limit="Số lượng tin nhắn cần tóm tắt (mặc định: 30, tối đa: 50)")
-    async def summarize(self, ctx: commands.Context, limit: int = 30):
+    @commands.hybrid_command(name="summarize", description="Tóm tắt tin nhắn trong kênh hoặc nội dung bài viết từ URL")
+    @app_commands.describe(
+        limit="Số lượng tin nhắn cần tóm tắt nếu không dùng URL (mặc định: 30, tối đa: 50)",
+        url="Đường link URL bài viết / báo chí cần tóm tắt (tùy chọn)"
+    )
+    async def summarize(self, ctx: commands.Context, limit: int = 30, url: str = None):
         await ctx.defer()
         s = await async_get_guild_settings(str(ctx.guild.id))
         ai_s = await async_get_ai_settings(str(ctx.guild.id))
@@ -348,6 +458,46 @@ class AI(commands.Cog):
             await ctx.send(tr(s, "ai.summarize_disabled"), ephemeral=True)
             return
 
+        is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
+        global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+        global_model = await async_get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
+        api_key = ai_s.get("api_key") or global_key
+
+        # Nhánh 1: Tóm tắt bài viết từ URL
+        if url:
+            cleaned_url = url.strip()
+            if not (cleaned_url.startswith("http://") or cleaned_url.startswith("https://")):
+                await ctx.send(tr(s, "ai.summarize_invalid_url"), ephemeral=True)
+                return
+
+            article_text = await _fetch_url_article_content(cleaned_url)
+            if not article_text or len(article_text.strip()) < 50:
+                await ctx.send(tr(s, "ai.summarize_url_fetch_failed"), ephemeral=True)
+                return
+
+            prompt = (
+                f"Hãy đọc và tóm tắt bài viết sau thành các luận điểm chính súc tích, mạch lạc, dễ hiểu "
+                f"theo các gạch đầu dòng rõ ràng:\n\n"
+                f"Link gốc: {cleaned_url}\n\n"
+                f"Nội dung trích xuất:\n{article_text}"
+            )
+            sys_prompt = "Bạn là trợ lý AI tóm tắt tài liệu và báo chí thông minh. Hãy phân tích sâu và rút gọn các nội dung một cách cô đọng, khách quan và nêu bật ý chính."
+            
+            summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, preferred_model=global_model)
+            if len(summary_result) > 4000:
+                summary_result = summary_result[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
+
+            embed = discord.Embed(
+                title=f"📰 {tr(s, 'ai.summarize_url_title')}",
+                description=f"🔗 **Nguồn:** [Xem bài viết gốc]({cleaned_url})\n\n{summary_result}",
+                color=0xFEE75C,
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+            await ctx.send(embed=embed)
+            return
+
+        # Nhánh 2: Tóm tắt lịch sử tin nhắn trong kênh chat
         clamped_limit = max(10, min(limit, 50))
         messages = []
         async for msg in ctx.channel.history(limit=clamped_limit + 1):
@@ -362,11 +512,7 @@ class AI(commands.Cog):
         history_text = "\n".join(messages[:clamped_limit])
         prompt = f"Hãy tóm tắt ngắn gọn các ý chính của cuộc trò chuyện sau đây trong Discord thành các gạch đầu dòng rõ ràng, dễ hiểu:\n\n{history_text}"
 
-        is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
         sys_prompt = "Bạn là trợ lý tóm tắt nội dung Discord thông minh. Hãy tóm tắt ngắn gọn, mạch lạc và nổi bật các chủ đề thảo luận chính."
-        global_key = await async_get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
-        global_model = await async_get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
-        api_key = ai_s.get("api_key") or global_key
         
         summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, preferred_model=global_model)
 
@@ -378,6 +524,7 @@ class AI(commands.Cog):
         )
         embed.set_footer(text=tr(s, "ai.summarize_footer", count=len(messages)), icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
+
 
     # ─── Auto-chat in #ai-chat ─────────────────────────────────────────────────
     @commands.Cog.listener()

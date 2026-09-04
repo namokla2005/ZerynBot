@@ -57,16 +57,10 @@ class HelpSelect(discord.ui.Select):
                 value="economy"
             ),
             discord.SelectOption(
-                label=tr(settings, "help.cat_voice_label"),
-                description=tr(settings, "help.cat_voice_desc")[:100],
-                emoji="🔊",
-                value="voice"
-            ),
-            discord.SelectOption(
-                label=tr(settings, "help.cat_level_label"),
-                description=tr(settings, "help.cat_level_desc")[:100],
-                emoji="🪪",
-                value="leveling"
+                label=tr(settings, "help.cat_fun_label"),
+                description=tr(settings, "help.cat_fun_desc")[:100],
+                emoji="🎭",
+                value="fun"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_music_label"),
@@ -81,10 +75,34 @@ class HelpSelect(discord.ui.Select):
                 value="moderation"
             ),
             discord.SelectOption(
-                label=tr(settings, "help.cat_ticket_label"),
-                description=tr(settings, "help.cat_ticket_desc")[:100],
-                emoji="🎫",
-                value="tickets"
+                label=tr(settings, "help.cat_automod_label"),
+                description=tr(settings, "help.cat_automod_desc")[:100],
+                emoji="🔒",
+                value="automod"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_level_label"),
+                description=tr(settings, "help.cat_level_desc")[:100],
+                emoji="🌟",
+                value="leveling"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_voice_label"),
+                description=tr(settings, "help.cat_voice_desc")[:100],
+                emoji="🎙️",
+                value="voice"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_info_label"),
+                description=tr(settings, "help.cat_info_desc")[:100],
+                emoji="ℹ️",
+                value="info"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_util_label"),
+                description=tr(settings, "help.cat_util_desc")[:100],
+                emoji="⚙️",
+                value="utility"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_giveaway_label"),
@@ -93,11 +111,23 @@ class HelpSelect(discord.ui.Select):
                 value="giveaway"
             ),
             discord.SelectOption(
-                label=tr(settings, "help.cat_util_label"),
-                description=tr(settings, "help.cat_util_desc")[:100],
-                emoji="⚙️",
-                value="utility"
-            )
+                label=tr(settings, "help.cat_ticket_label"),
+                description=tr(settings, "help.cat_ticket_desc")[:100],
+                emoji="🎫",
+                value="tickets"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_birthday_label"),
+                description=tr(settings, "help.cat_birthday_desc")[:100],
+                emoji="🎂",
+                value="birthday"
+            ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_customcmd_label"),
+                description=tr(settings, "help.cat_customcmd_desc")[:100],
+                emoji="⚡",
+                value="customcmd"
+            ),
         ]
         super().__init__(
             placeholder=tr(settings, "help.placeholder"),
@@ -119,13 +149,18 @@ class HelpSelect(discord.ui.Select):
             "home": 0xF4A7BB,
             "ai": 0x9D8DF1,
             "economy": 0xFEE75C,
-            "voice": 0x57F287,
-            "leveling": 0xEB6F92,
+            "fun": 0xEB6F92,
             "music": 0x5865F2,
             "moderation": 0xED4245,
-            "tickets": 0x57F287,
-            "giveaway": 0xFEE75C,
-            "utility": 0x5865F2
+            "automod": 0x34495E,
+            "leveling": 0xF1C40F,
+            "voice": 0x57F287,
+            "info": 0x3498DB,
+            "utility": 0x95A5A6,
+            "giveaway": 0xE91E63,
+            "tickets": 0x2ECC71,
+            "birthday": 0xFF7675,
+            "customcmd": 0x9B59B6
         }
 
         embed = discord.Embed(
@@ -157,8 +192,8 @@ class HelpSelect(discord.ui.Select):
                 inline=True
             )
             embed.add_field(
-                name="🧩 Modules (10/10)",
-                value="🤖 `AI` • 💰 `Kinh Tế` • 🔊 `Voice`\n🪪 `Level` • 🎵 `Music` • 🛡️ `Automod`\n🎫 `Ticket` • 🎁 `Giveaway` • ⚙️ `Utility`",
+                name=tr(self.settings, "help.modules_title"),
+                value=tr(self.settings, "help.modules_val"),
                 inline=True
             )
             embed.add_field(
@@ -166,35 +201,29 @@ class HelpSelect(discord.ui.Select):
                 value=tr(self.settings, "help.guide_value"),
                 inline=False
             )
-        elif val == "ai":
-            embed.title = tr(self.settings, "help.cat_ai_title")
-            embed.description = tr(self.settings, "help.cat_ai_cmds")
-        elif val == "economy":
-            embed.title = tr(self.settings, "help.cat_eco_title")
-            embed.description = tr(self.settings, "help.cat_eco_cmds")
-        elif val == "voice":
-            embed.title = tr(self.settings, "help.cat_voice_title")
-            embed.description = tr(self.settings, "help.cat_voice_cmds")
-        elif val == "leveling":
-            embed.title = tr(self.settings, "help.cat_level_title")
-            embed.description = tr(self.settings, "help.cat_level_cmds")
-        elif val == "music":
-            embed.title = tr(self.settings, "help.cat_music_title")
-            embed.description = tr(self.settings, "help.cat_music_cmds")
-        elif val == "moderation":
-            embed.title = tr(self.settings, "help.cat_mod_title")
-            embed.description = tr(self.settings, "help.cat_mod_cmds")
-        elif val == "tickets":
-            embed.title = tr(self.settings, "help.cat_ticket_title")
-            embed.description = tr(self.settings, "help.cat_ticket_cmds")
-        elif val == "giveaway":
-            embed.title = tr(self.settings, "help.cat_giveaway_title")
-            embed.description = tr(self.settings, "help.cat_giveaway_cmds")
-        elif val == "utility":
-            embed.title = tr(self.settings, "help.cat_util_title")
-            embed.description = tr(self.settings, "help.cat_util_cmds")
+        else:
+            cat_key_map = {
+                "ai": "ai",
+                "economy": "eco",
+                "fun": "fun",
+                "music": "music",
+                "moderation": "mod",
+                "automod": "automod",
+                "leveling": "level",
+                "voice": "voice",
+                "info": "info",
+                "utility": "util",
+                "giveaway": "giveaway",
+                "tickets": "ticket",
+                "birthday": "birthday",
+                "customcmd": "customcmd",
+            }
+            prefix = cat_key_map.get(val, val)
+            embed.title = tr(self.settings, f"help.cat_{prefix}_title")
+            embed.description = tr(self.settings, f"help.cat_{prefix}_cmds")
 
         await interaction.response.edit_message(embed=embed, view=self.view)
+
 
 
 class HelpView(discord.ui.View):
@@ -362,8 +391,8 @@ class Utility(commands.Cog):
             inline=True
         )
         embed.add_field(
-            name="🧩 Modules (10/10)",
-            value="🤖 `AI` • 💰 `Kinh Tế` • 🔊 `Voice`\n🪪 `Level` • 🎵 `Music` • 🛡️ `Automod`\n🎫 `Ticket` • 🎁 `Giveaway` • ⚙️ `Utility`",
+            name=tr(settings, "help.modules_title"),
+            value=tr(settings, "help.modules_val"),
             inline=True
         )
         embed.add_field(
