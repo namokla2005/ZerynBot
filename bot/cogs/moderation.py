@@ -16,6 +16,7 @@ from database import (
     async_count_mod_warnings, async_delete_mod_warning,
 )
 from i18n import tr
+from bot.emojis import e
 
 
 def _parse_duration(text: str) -> timedelta | None:
@@ -75,7 +76,7 @@ class Moderation(commands.Cog):
             pass
         await member.kick(reason=f"{interaction.user}: {reason_text}")
         embed = discord.Embed(
-            description=tr(s, "mod.kick_success", user=member.mention, reason=reason_text),
+            description=f"{e('zb_kick')} " + tr(s, "mod.kick_success", user=member.mention, reason=reason_text),
             color=config.COLOR_WARNING,
         )
         await interaction.response.send_message(embed=embed)
@@ -102,7 +103,7 @@ class Moderation(commands.Cog):
             pass
         await member.ban(reason=f"{interaction.user}: {reason_text}", delete_message_days=delete_days)
         embed = discord.Embed(
-            description=tr(s, "mod.ban_success", user=member.mention, reason=reason_text),
+            description=f"{e('zb_ban')} " + tr(s, "mod.ban_success", user=member.mention, reason=reason_text),
             color=config.COLOR_ERROR,
         )
         await interaction.response.send_message(embed=embed)
@@ -151,7 +152,7 @@ class Moderation(commands.Cog):
         reason_text = reason or tr(s, "mod.no_reason")
         await member.timeout(delta, reason=f"{interaction.user}: {reason_text}")
         embed = discord.Embed(
-            description=tr(s, "mod.timeout_success", user=member.mention, duration=duration, reason=reason_text),
+            description=f"{e('zb_timeout')} " + tr(s, "mod.timeout_success", user=member.mention, duration=duration, reason=reason_text),
             color=config.COLOR_WARNING,
         )
         await interaction.response.send_message(embed=embed)
@@ -191,7 +192,7 @@ class Moderation(commands.Cog):
         total = await async_count_mod_warnings(str(interaction.guild.id), str(member.id))
 
         embed = discord.Embed(
-            description=tr(s, "mod.warn_success", user=member.mention, reason=reason, warn_id=warn_id, total=total),
+            description=f"{e('zb_warn')} " + tr(s, "mod.warn_success", user=member.mention, reason=reason, warn_id=warn_id, total=total),
             color=config.COLOR_WARNING,
         )
 
@@ -238,7 +239,7 @@ class Moderation(commands.Cog):
         for w in warns[:15]:
             lines.append(f"`#{w['id']}` — {w['reason'][:60]} (<t:{int(datetime.fromisoformat(w['created_at']).timestamp())}:R>)")
         embed = discord.Embed(
-            title=tr(s, "mod.warnings_title", user=target.display_name, total=len(warns)),
+            title=f"{e('zb_warn')} " + tr(s, "mod.warnings_title", user=target.display_name, total=len(warns)),
             description="\n".join(lines),
             color=config.COLOR_WARNING,
         )
@@ -278,7 +279,7 @@ class Moderation(commands.Cog):
 
         deleted = await interaction.channel.purge(limit=amount, check=check, oldest_first=False)
         await interaction.followup.send(
-            tr(s, "mod.clear_success", count=len(deleted)), ephemeral=True
+            f"{e('zb_clear')} " + tr(s, "mod.clear_success", count=len(deleted)), ephemeral=True
         )
 
     # ─── /slowmode ──────────────────────────────────────────────────────
@@ -313,7 +314,7 @@ class Moderation(commands.Cog):
         overwrite = target.overwrites_for(interaction.guild.default_role)
         overwrite.send_messages = False
         await target.set_permissions(interaction.guild.default_role, overwrite=overwrite)
-        await interaction.response.send_message(tr(s, "mod.lock_success", channel=target.mention))
+        await interaction.response.send_message(f"{e('zb_lock')} " + tr(s, "mod.lock_success", channel=target.mention))
 
     # ─── /unlock ────────────────────────────────────────────────────────
     @app_commands.command(name="unlock", description="Unlock a channel")

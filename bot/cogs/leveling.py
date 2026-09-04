@@ -23,6 +23,11 @@ from database import (
     async_get_guild_settings
 )
 from i18n import tr
+try:
+    from bot.emojis import e
+except (ImportError, ModuleNotFoundError):
+    from emojis import e
+
 
 
 def calc_level_from_xp(xp: int) -> int:
@@ -101,7 +106,8 @@ class Leveling(commands.Cog):
             channel = guild.get_channel(int(channel_id))
             
         if channel:
-            msg_template = settings.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!")
+            default_announce = f"{e('zb_levelup')} Chúc mừng {{user}} đã đạt cấp **{{level}}**!"
+            msg_template = settings.get("announce_message") or default_announce
             msg = msg_template.replace("{user}", member.mention).replace("{user_name}", member.name).replace("{level}", str(new_level)).replace("{server}", guild.name)
             try:
                 await channel.send(msg)
@@ -257,7 +263,7 @@ class Leveling(commands.Cog):
             logging.getLogger("BotV2").warning(f"[Leveling] Rank card error: {e}")
 
         # Fallback to embed
-        embed = discord.Embed(title=tr(settings, "leveling.rank_title", user=member.display_name), color=config.COLOR_INFO)
+        embed = discord.Embed(title=f"{e('zb_rank')} " + tr(settings, "leveling.rank_title", user=member.display_name), color=config.COLOR_INFO)
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.add_field(name="Rank", value=f"#{rank_pos}", inline=True)
         embed.add_field(name="Level", value=f"{level}", inline=True)
@@ -288,7 +294,7 @@ class Leveling(commands.Cog):
         if not top_users:
             return await ctx.send(tr(settings, "leveling.no_xp"))
             
-        embed = discord.Embed(title=tr(settings, "leveling.leaderboard_title", server=ctx.guild.name), color=config.COLOR_INFO)
+        embed = discord.Embed(title=f"{e('zb_leaderboard')} " + tr(settings, "leveling.leaderboard_title", server=ctx.guild.name), color=config.COLOR_INFO)
         if ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
             

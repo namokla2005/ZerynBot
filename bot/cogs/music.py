@@ -28,6 +28,7 @@ import yt_dlp
 from cache import cache
 from database import async_get_guild_settings
 from i18n import tr
+from bot.emojis import e, partial
 
 log = logging.getLogger("BotV2.Music")
 
@@ -821,7 +822,7 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
     embed = discord.Embed(
         color=0x5865F2,  # Discord Blurple (#5865F2) matching Wave Music
         description=(
-            f"**{np_title}**\n"
+            f"**{e('zb_play')} {np_title}**\n"
             f"### [{track.title}]({track.url})\n"
             f"**{track.uploader}** — `{dur_badge}` — {track.requester_mention}\n"
             f"─────────────────────────────────────────────\n"
@@ -860,21 +861,21 @@ class MusicControlView(discord.ui.View):
         # 3. Nút Pause / Resume
         if player.vc and player.vc.is_paused():
             self.btn_pause.label = tr(self.settings, "music.btn_resume")
-            self.btn_pause.emoji = "▶️"
+            self.btn_pause.emoji = partial("zb_play", "▶️")
         else:
             self.btn_pause.label = tr(self.settings, "music.btn_pause")
-            self.btn_pause.emoji = "⏸️"
+            self.btn_pause.emoji = partial("zb_pause", "⏸️")
         self.btn_pause.style = discord.ButtonStyle.secondary
 
         # 4. Nút Skip
         self.btn_skip.label = tr(self.settings, "music.btn_skip")
-        self.btn_skip.emoji = "⏭️"
+        self.btn_skip.emoji = partial("zb_skip", "⏭️")
         self.btn_skip.style = discord.ButtonStyle.secondary
 
         # 5. Nút Loop (Lặp lại - thay cho Yêu thích)
         if player.loop_mode == 0:
             self.btn_loop.label = "Lặp lại"
-            self.btn_loop.emoji = "🔁"
+            self.btn_loop.emoji = partial("zb_loop", "🔁")
             self.btn_loop.style = discord.ButtonStyle.secondary
         elif player.loop_mode == 1:
             self.btn_loop.label = "Lặp 1 bài"
@@ -882,7 +883,7 @@ class MusicControlView(discord.ui.View):
             self.btn_loop.style = discord.ButtonStyle.primary
         else:
             self.btn_loop.label = "Lặp toàn bộ"
-            self.btn_loop.emoji = "🔁"
+            self.btn_loop.emoji = partial("zb_loop", "🔁")
             self.btn_loop.style = discord.ButtonStyle.primary
 
     async def _check(self, interaction: discord.Interaction) -> bool:
@@ -926,12 +927,12 @@ class MusicControlView(discord.ui.View):
                 self.player.total_paused_time += time.time() - self.player.pause_start
                 self.player.pause_start = 0.0
             button.label = tr(self.settings, "music.btn_pause")
-            button.emoji = "⏸️"
+            button.emoji = partial("zb_pause", "⏸️")
         else:
             self.player.vc.pause()
             self.player.pause_start = time.time()
             button.label = tr(self.settings, "music.btn_resume")
-            button.emoji = "▶️"
+            button.emoji = partial("zb_play", "▶️")
         button.style = discord.ButtonStyle.secondary
         elapsed = self.player.get_elapsed()
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
@@ -952,7 +953,7 @@ class MusicControlView(discord.ui.View):
         self.player.loop_mode = (self.player.loop_mode + 1) % 3
         if self.player.loop_mode == 0:
             button.label = "Lặp lại"
-            button.emoji = "🔁"
+            button.emoji = partial("zb_loop", "🔁")
             button.style = discord.ButtonStyle.secondary
         elif self.player.loop_mode == 1:
             button.label = "Lặp 1 bài"
@@ -960,7 +961,7 @@ class MusicControlView(discord.ui.View):
             button.style = discord.ButtonStyle.primary
         else:
             button.label = "Lặp toàn bộ"
-            button.emoji = "🔁"
+            button.emoji = partial("zb_loop", "🔁")
             button.style = discord.ButtonStyle.primary
 
         elapsed = self.player.get_elapsed()
@@ -1320,7 +1321,7 @@ class Music(commands.Cog, name="Music"):
                 desc += f"`{i:2}.` [{t.title}]({t.url}) `[{t.duration_str}]`\n"
             if len(player.queue) > 10:
                 desc += tr(s, "music.queue_more", cnt=len(player.queue) - 10)
-        embed = discord.Embed(title=tr(s, "music.queue_title"), description=desc, color=0x5865F2)
+        embed = discord.Embed(title=f"{e('zb_queue')} " + tr(s, "music.queue_title"), description=desc, color=0x5865F2)
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="replay", description="Phát lại bài hát từ đầu")
@@ -1358,7 +1359,7 @@ class Music(commands.Cog, name="Music"):
             track.stream_url = stream["url"]
             track.stream_expire = float("inf")  # stream sống mãi, không expire
             await player.add_and_play(track)
-            await ctx.send(tr(s, "music.lofi_soma_success", name=stream['name']))
+            await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_soma_success", name=stream['name']))
         else:
             info = await extract_info(stream["url"])
             if not info:
@@ -1366,7 +1367,7 @@ class Music(commands.Cog, name="Music"):
                 return
             track = Track(info, requester=ctx.author)
             await player.add_and_play(track)
-            await ctx.send(tr(s, "music.lofi_yt_success", name=stream['name']))
+            await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_yt_success", name=stream['name']))
 
     # ── Playlist commands ──────────────────────────────────────────────────
     @commands.hybrid_group(name="playlist", description="Quản lý playlist nhạc")

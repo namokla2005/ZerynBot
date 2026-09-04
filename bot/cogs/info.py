@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings
 from i18n import tr
+from bot.emojis import e
 
 
 class Info(commands.Cog):
@@ -83,7 +84,7 @@ class Info(commands.Cog):
             value=f"Level **{guild.premium_tier}** — **{guild.premium_subscription_count or 0}** boosts",
             inline=True,
         )
-        embed.add_field(name=tr(s, "info.verify_field"), value=verif_map.get(guild.verification_level, tr(s, "info.verify_unknown")), inline=True)
+        embed.add_field(name=tr(s, "info.verify_field"), value=f"{e('zb_verified')} " + verif_map.get(guild.verification_level, tr(s, "info.verify_unknown")), inline=True)
         embed.set_footer(
             text=tr(s, "info.requested_by_footer", user=ctx.author.display_name),
             icon_url=ctx.author.display_avatar.url,
@@ -109,7 +110,7 @@ class Info(commands.Cog):
             if getattr(flags, "hypesquad_balance", False):      badges.append("🟢 Balance")
             if getattr(flags, "bug_hunter", False):             badges.append("🐛 Bug Hunter")
             if getattr(flags, "bug_hunter_level_2", False):     badges.append("🐛 Bug Hunter Gold")
-            if getattr(flags, "verified_bot_developer", False) or getattr(flags, "early_verified_bot_developer", False): badges.append("🛠️ Early Bot Dev")
+            if getattr(flags, "verified_bot_developer", False) or getattr(flags, "early_verified_bot_developer", False): badges.append(f"{e('zb_verified')} Early Bot Dev")
             if getattr(flags, "active_developer", False):       badges.append("⚡ Active Developer")
             if getattr(flags, "early_supporter", False):        badges.append("🌟 Early Supporter")
 

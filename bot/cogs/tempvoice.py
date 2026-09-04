@@ -21,6 +21,11 @@ from database import (
     async_update_temp_channel_lock
 )
 from i18n import tr
+try:
+    from bot.emojis import e, partial
+except (ImportError, ModuleNotFoundError):
+    from emojis import e, partial
+
 
 
 class RenameVoiceModal(discord.ui.Modal):
@@ -188,7 +193,7 @@ class TempVoice(commands.Cog):
                 # Gửi bảng điều khiển nút bấm
                 s = await async_get_guild_settings(str(guild.id))
                 embed = discord.Embed(
-                    title=tr(s, "tempvoice.panel_title", name=new_voice.name),
+                    title=f"{e('zb_tempvoice')} " + tr(s, "tempvoice.panel_title", name=new_voice.name),
                     description=tr(s, "tempvoice.panel_desc", user=member.mention),
                     color=0x5865F2,
                     timestamp=datetime.now(timezone.utc)

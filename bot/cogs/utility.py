@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import config
 from database import async_get_guild_settings
 from i18n import tr
+from bot.emojis import e, partial
 class DeleteHelpButton(discord.ui.Button):
     def __init__(self, settings: dict, author_id: int):
         super().__init__(
@@ -40,92 +41,92 @@ class HelpSelect(discord.ui.Select):
             discord.SelectOption(
                 label=tr(settings, "help.home_label"),
                 description=tr(settings, "help.home_desc")[:100],
-                emoji="🏠",
+                emoji=partial("zb_cat_home", "🏠"),
                 value="home",
                 default=True
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_ai_label"),
                 description=tr(settings, "help.cat_ai_desc")[:100],
-                emoji="🤖",
+                emoji=partial("zb_cat_ai", "🤖"),
                 value="ai"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_eco_label"),
                 description=tr(settings, "help.cat_eco_desc")[:100],
-                emoji="💰",
+                emoji=partial("zb_cat_economy", "💰"),
                 value="economy"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_fun_label"),
                 description=tr(settings, "help.cat_fun_desc")[:100],
-                emoji="🎭",
+                emoji=partial("zb_cat_fun", "🎭"),
                 value="fun"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_music_label"),
                 description=tr(settings, "help.cat_music_desc")[:100],
-                emoji="🎵",
+                emoji=partial("zb_cat_music", "🎵"),
                 value="music"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_mod_label"),
                 description=tr(settings, "help.cat_mod_desc")[:100],
-                emoji="🛡️",
+                emoji=partial("zb_cat_moderation", "🛡️"),
                 value="moderation"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_automod_label"),
                 description=tr(settings, "help.cat_automod_desc")[:100],
-                emoji="🔒",
+                emoji=partial("zb_cat_automod", "🔒"),
                 value="automod"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_level_label"),
                 description=tr(settings, "help.cat_level_desc")[:100],
-                emoji="🌟",
+                emoji=partial("zb_cat_leveling", "🌟"),
                 value="leveling"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_voice_label"),
                 description=tr(settings, "help.cat_voice_desc")[:100],
-                emoji="🎙️",
+                emoji=partial("zb_cat_voice", "🎙️"),
                 value="voice"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_info_label"),
                 description=tr(settings, "help.cat_info_desc")[:100],
-                emoji="ℹ️",
+                emoji=partial("zb_cat_info", "ℹ️"),
                 value="info"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_util_label"),
                 description=tr(settings, "help.cat_util_desc")[:100],
-                emoji="⚙️",
+                emoji=partial("zb_cat_utility", "⚙️"),
                 value="utility"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_giveaway_label"),
                 description=tr(settings, "help.cat_giveaway_desc")[:100],
-                emoji="🎁",
+                emoji=partial("zb_cat_giveaway", "🎁"),
                 value="giveaway"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_ticket_label"),
                 description=tr(settings, "help.cat_ticket_desc")[:100],
-                emoji="🎫",
+                emoji=partial("zb_cat_tickets", "🎫"),
                 value="tickets"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_birthday_label"),
                 description=tr(settings, "help.cat_birthday_desc")[:100],
-                emoji="🎂",
+                emoji=partial("zb_cat_birthday", "🎂"),
                 value="birthday"
             ),
             discord.SelectOption(
                 label=tr(settings, "help.cat_customcmd_label"),
                 description=tr(settings, "help.cat_customcmd_desc")[:100],
-                emoji="⚡",
+                emoji=partial("zb_cat_customcmd", "⚡"),
                 value="customcmd"
             ),
         ]
@@ -300,7 +301,7 @@ class Utility(commands.Cog):
             quality = tr(settings, "utility.quality_poor")
 
         embed = discord.Embed(
-            title=tr(settings, "utility.ping_title"),
+            title=f"{e('zb_ping')} " + tr(settings, "utility.ping_title"),
             color=config.COLOR_PING,
             timestamp=datetime.now(timezone.utc)
         )
@@ -414,7 +415,7 @@ class Utility(commands.Cog):
     async def poll(self, ctx: commands.Context, *, question: str):
         s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         embed = discord.Embed(
-            title=tr(s, "utility.poll_title"),
+            title=f"{e('zb_poll')} " + tr(s, "utility.poll_title"),
             description=tr(s, "utility.poll_desc", question=question),
             color=config.COLOR_INFO,
             timestamp=datetime.now(timezone.utc)

@@ -24,6 +24,11 @@ from database import (
     async_is_blacklisted,
 )
 from i18n import tr
+try:
+    from bot.emojis import e
+except (ImportError, ModuleNotFoundError):
+    from emojis import e
+
 
 
 def hex_to_int(hex_color: str) -> int:
@@ -181,8 +186,11 @@ class Events(commands.Cog):
 
             # Fallback: standard embed
             color = hex_to_int(s.get("welcome_embed_color", "#57F287"))
+            w_title = s.get("welcome_embed_title")
+            if not w_title:
+                w_title = f"{e('zb_welcome')} {tr(s, 'events.welcome_title')}"
             embed = discord.Embed(
-                title=s.get("welcome_embed_title", tr(s, "events.welcome_title")),
+                title=w_title,
                 description=message,
                 color=color,
                 timestamp=datetime.now(timezone.utc),
@@ -254,8 +262,11 @@ class Events(commands.Cog):
 
             roles = [r.mention for r in member.roles if r.name != "@everyone"]
             no_roles_txt = tr(s, "events.no_roles")
+            g_title = s.get("goodbye_embed_title")
+            if not g_title:
+                g_title = f"{e('zb_goodbye')} {tr(s, 'events.goodbye_title')}"
             embed = discord.Embed(
-                title=s.get("goodbye_embed_title", tr(s, "events.goodbye_title")),
+                title=g_title,
                 description=message,
                 color=color,
                 timestamp=datetime.now(timezone.utc),

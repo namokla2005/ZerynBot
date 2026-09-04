@@ -20,6 +20,7 @@ from database import (
     async_increment_fun_interaction, async_get_fun_interaction_count,
 )
 from i18n import tr
+from bot.emojis import e
 
 NEKOS_API = "https://nekos.best/api/v2"
 USER_AGENT = "ZerynBot (https://zerynbot.id.vn, 2.0)"
@@ -434,7 +435,7 @@ class Fun(commands.Cog):
         gif_url, anime_name = await self._get_gif(category)
 
         embed = discord.Embed(
-            title=f"💘 {user1.display_name} × {u2.display_name}",
+            title=f"{e('zb_ship')} {user1.display_name} × {u2.display_name}",
             description=f"**{pct}%** {comment}\n{bar}",
             color=discord.Color.from_str("#FF69B4"),
         )
@@ -469,7 +470,7 @@ class Fun(commands.Cog):
 
         view = MarryView(interaction.user, member, s, self)
         embed = discord.Embed(
-            title="💍 " + tr(s, "fun.marry_proposal_title"),
+            title=f"{e('zb_marry')} " + tr(s, "fun.marry_proposal_title"),
             description=tr(s, "fun.marry_proposal", user1=interaction.user.mention, user2=member.mention),
             color=0xFF69B4,
         )

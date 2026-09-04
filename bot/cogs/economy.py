@@ -22,6 +22,11 @@ from database import (
     async_get_economy_cooldown, async_set_economy_cooldown
 )
 from i18n import tr
+try:
+    from bot.emojis import e
+except (ImportError, ModuleNotFoundError):
+    from emojis import e
+
 
 
 # ─── Blackjack Game Engine & UI View ──────────────────────────────────────────
@@ -75,7 +80,7 @@ class BlackjackView(discord.ui.View):
         return True
 
     def build_embed(self, hide_dealer: bool = True, title_status: str = None, color: int = 0x5865F2) -> discord.Embed:
-        sym = self.settings.get("currency_symbol", "🪙")
+        sym = self.settings.get("currency_symbol") or e("zb_coin", "🪙")
         embed = discord.Embed(
             title=title_status or tr(self.settings, "economy.bj_title"),
             color=color,
@@ -96,7 +101,7 @@ class BlackjackView(discord.ui.View):
         """result: 'win', 'lose', 'bust', 'tie', 'blackjack'"""
         self.is_finished = True
         self.stop()
-        sym = self.settings.get("currency_symbol", "🪙")
+        sym = self.settings.get("currency_symbol") or e("zb_coin", "🪙")
         
         for child in self.children:
             child.disabled = True
@@ -251,7 +256,7 @@ class InventoryView(discord.ui.View):
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="💰", custom_id="inv_sell_common")
     async def sell_common(self, interaction: discord.Interaction, button: discord.ui.Button):
         count, earned = await async_sell_all_inventory(self.guild_id, self.user_id, rarity="common")
-        sym = self.settings.get("currency_symbol", "🪙")
+        sym = self.settings.get("currency_symbol") or e("zb_coin", "🪙")
         if count == 0:
             await interaction.response.send_message(tr(self.settings, "economy.sell_no_items"), ephemeral=True)
             return
@@ -266,7 +271,7 @@ class InventoryView(discord.ui.View):
     @discord.ui.button(style=discord.ButtonStyle.success, emoji="💎", custom_id="inv_sell_all")
     async def sell_all(self, interaction: discord.Interaction, button: discord.ui.Button):
         count, earned = await async_sell_all_inventory(self.guild_id, self.user_id)
-        sym = self.settings.get("currency_symbol", "🪙")
+        sym = self.settings.get("currency_symbol") or e("zb_coin", "🪙")
         if count == 0:
             await interaction.response.send_message(tr(self.settings, "economy.sell_no_items"), ephemeral=True)
             return
@@ -328,7 +333,7 @@ class Economy(commands.Cog):
         multiplier = 2 if (new_streak % 7 == 0) else 1
         total_reward = (base_reward + streak_bonus) * multiplier
         
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
         await async_claim_daily(str(ctx.guild.id), str(ctx.author.id), total_reward, new_streak)
         
         embed = discord.Embed(
@@ -349,7 +354,7 @@ class Economy(commands.Cog):
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
         user_data = await async_get_economy_user(str(ctx.guild.id), str(target.id))
         
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
         wallet = user_data.get("wallet", 0)
         bank = user_data.get("bank", 0)
         streak = user_data.get("daily_streak", 0)
@@ -360,8 +365,8 @@ class Economy(commands.Cog):
             timestamp=datetime.now(timezone.utc)
         )
         embed.set_thumbnail(url=target.display_avatar.url)
-        embed.add_field(name=f"💵 {tr(s, 'economy.wallet')}", value=f"**{wallet:,}** {sym}", inline=True)
-        embed.add_field(name=f"🏦 {tr(s, 'economy.bank')}", value=f"**{bank:,}** {sym}", inline=True)
+        embed.add_field(name=f"{e('zb_coin', '💵')} {tr(s, 'economy.wallet')}", value=f"**{wallet:,}** {sym}", inline=True)
+        embed.add_field(name=f"{e('zb_bank', '🏦')} {tr(s, 'economy.bank')}", value=f"**{bank:,}** {sym}", inline=True)
         embed.add_field(name=f"🔥 {tr(s, 'economy.streak')}", value=f"**{streak}** {tr(s, 'economy.days')}", inline=True)
         embed.add_field(name=f"💎 {tr(s, 'economy.total_net')}", value=f"**{(wallet + bank):,}** {sym}", inline=False)
         embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
@@ -373,7 +378,7 @@ class Economy(commands.Cog):
     async def deposit(self, ctx: commands.Context, amount: str):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         success, dep_amount, user_data, err = await async_deposit_money(str(ctx.guild.id), str(ctx.author.id), amount)
         if not success:
@@ -390,7 +395,7 @@ class Economy(commands.Cog):
             return
 
         embed = discord.Embed(
-            title=tr(s, "economy.deposit_success_title"),
+            title=f"{e('zb_bank')} " + tr(s, "economy.deposit_success_title"),
             description=tr(s, "economy.deposit_success_desc", amount=dep_amount, sym=sym, wallet=user_data.get("wallet", 0), bank=user_data.get("bank", 0)),
             color=0x57F287,
             timestamp=datetime.now(timezone.utc)
@@ -404,7 +409,7 @@ class Economy(commands.Cog):
     async def withdraw(self, ctx: commands.Context, amount: str):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         success, with_amount, user_data, err = await async_withdraw_money(str(ctx.guild.id), str(ctx.author.id), amount)
         if not success:
@@ -421,7 +426,7 @@ class Economy(commands.Cog):
             return
 
         embed = discord.Embed(
-            title=tr(s, "economy.withdraw_success_title"),
+            title=f"{e('zb_bank')} " + tr(s, "economy.withdraw_success_title"),
             description=tr(s, "economy.withdraw_success_desc", amount=with_amount, sym=sym, wallet=user_data.get("wallet", 0), bank=user_data.get("bank", 0)),
             color=0x57F287,
             timestamp=datetime.now(timezone.utc)
@@ -435,7 +440,7 @@ class Economy(commands.Cog):
     async def pay(self, ctx: commands.Context, member: discord.Member, amount: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         if member.id == ctx.author.id or member.bot:
             await ctx.send(tr(s, "economy.pay_invalid_target"), ephemeral=True)
@@ -462,7 +467,7 @@ class Economy(commands.Cog):
     async def rich(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         top_users = await async_get_top_economy(str(ctx.guild.id), limit=10)
         if not top_users:
@@ -498,7 +503,7 @@ class Economy(commands.Cog):
     async def coinflip(self, ctx: commands.Context, choice: str, bet: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         if bet <= 0:
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
@@ -520,14 +525,14 @@ class Economy(commands.Cog):
             win_amount = bet * 2
             await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), win_amount)
             embed = discord.Embed(
-                title=tr(s, "economy.cf_win_title"),
+                title=f"{e('zb_coinflip')} " + tr(s, "economy.cf_win_title"),
                 description=tr(s, "economy.cf_win_desc", res=res_name, amount=bet, sym=sym),
                 color=0x57F287,
                 timestamp=datetime.now(timezone.utc)
             )
         else:
             embed = discord.Embed(
-                title=tr(s, "economy.cf_lose_title"),
+                title=f"{e('zb_coinflip')} " + tr(s, "economy.cf_lose_title"),
                 description=tr(s, "economy.cf_lose_desc", res=res_name, amount=bet, sym=sym),
                 color=0xED4245,
                 timestamp=datetime.now(timezone.utc)
@@ -542,7 +547,7 @@ class Economy(commands.Cog):
     async def slots(self, ctx: commands.Context, bet: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         if bet <= 0:
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
@@ -579,14 +584,14 @@ class Economy(commands.Cog):
             profit = payout - bet
             await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), payout)
             embed = discord.Embed(
-                title=tr(s, "economy.slots_win_title"),
+                title=f"{e('zb_slots')} " + tr(s, "economy.slots_win_title"),
                 description=f"{slot_display}\n\n{tr(s, 'economy.slots_win_desc', mult=multiplier, amount=profit, sym=sym)}",
                 color=0x57F287,
                 timestamp=datetime.now(timezone.utc)
             )
         else:
             embed = discord.Embed(
-                title=tr(s, "economy.slots_lose_title"),
+                title=f"{e('zb_slots')} " + tr(s, "economy.slots_lose_title"),
                 description=f"{slot_display}\n\n{tr(s, 'economy.slots_lose_desc', amount=bet, sym=sym)}",
                 color=0xED4245,
                 timestamp=datetime.now(timezone.utc)
@@ -601,7 +606,7 @@ class Economy(commands.Cog):
     async def blackjack(self, ctx: commands.Context, bet: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         if bet <= 0:
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
@@ -640,7 +645,7 @@ class Economy(commands.Cog):
     async def shop(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         items = await async_get_economy_shop(str(ctx.guild.id))
         if not items:
@@ -671,7 +676,7 @@ class Economy(commands.Cog):
     async def buy(self, ctx: commands.Context, item_id: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         success, role_id, info, price = await async_buy_shop_item(str(ctx.guild.id), str(ctx.author.id), item_id)
         if not success:
@@ -699,10 +704,10 @@ class Economy(commands.Cog):
     # ─── build_inventory_embed ─────────────────────────────────────────────────
     async def build_inventory_embed(self, guild_id: str, user_id: str, settings: dict, user_name: str, avatar_url: str) -> discord.Embed:
         items = await async_get_inventory(guild_id, user_id)
-        sym = settings.get("currency_symbol", "🪙")
+        sym = settings.get("currency_symbol") or e("zb_coin", "🪙")
         if not items:
             embed = discord.Embed(
-                title=tr(settings, "economy.inv_title", user=user_name),
+                title=f"{e('zb_inventory')} " + tr(settings, "economy.inv_title", user=user_name),
                 description=tr(settings, "economy.inv_empty"),
                 color=0x95A5A6,
                 timestamp=datetime.now(timezone.utc)
@@ -719,7 +724,7 @@ class Economy(commands.Cog):
             grouped.get(rarity, grouped["common"]).append(it)
 
         embed = discord.Embed(
-            title=tr(settings, "economy.inv_title", user=user_name),
+            title=f"{e('zb_inventory')} " + tr(settings, "economy.inv_title", user=user_name),
             color=0x5865F2,
             timestamp=datetime.now(timezone.utc)
         )
@@ -751,7 +756,7 @@ class Economy(commands.Cog):
     async def work(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         now = time.time()
         last_used = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work")
@@ -791,7 +796,7 @@ class Economy(commands.Cog):
     async def fish(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         now = time.time()
         last_used = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "fish")
@@ -829,7 +834,7 @@ class Economy(commands.Cog):
     async def hunt(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         now = time.time()
         last_used = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "hunt")
@@ -882,7 +887,7 @@ class Economy(commands.Cog):
     async def sell(self, ctx: commands.Context, item_id: str, quantity: int = 1):
         s = await async_get_guild_settings(str(ctx.guild.id))
         eco_s = await async_get_economy_settings(str(ctx.guild.id))
-        sym = eco_s.get("currency_symbol", "🪙")
+        sym = eco_s.get("currency_symbol") or e("zb_coin", "🪙")
 
         if quantity <= 0:
             await ctx.send(tr(s, "economy.sell_invalid_qty"), ephemeral=True)
@@ -897,7 +902,7 @@ class Economy(commands.Cog):
             return
 
         embed = discord.Embed(
-            title=tr(s, "economy.sell_success_title"),
+            title=f"{e('zb_sell')} " + tr(s, "economy.sell_success_title"),
             description=tr(s, "economy.sell_success_desc", qty=quantity, item=item_name, earned=earned, sym=sym),
             color=0x57F287,
             timestamp=datetime.now(timezone.utc)

@@ -26,6 +26,7 @@ from database import (
 )
 from i18n import tr
 from cache import cache
+from bot.emojis import e
 
 GEMINI_MODELS = [
     "gemini-2.0-flash",
@@ -431,15 +432,16 @@ class AI(commands.Cog):
         if len(response_text) > 4000:
             response_text = response_text[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
 
+        ask_icon = e("zb_vision") if image_url else e("zb_ask")
         embed = discord.Embed(
-            title=f"🤖 {tr(s, 'ai.ask_title')}",
+            title=f"{ask_icon} {tr(s, 'ai.ask_title')}",
             description=response_text,
             color=0x5865F2,
             timestamp=datetime.now(timezone.utc)
         )
         footer_text = tr(s, "common.requested_by", user=ctx.author.display_name)
         if web_sources:
-            footer_text = f"🌐 DuckDuckGo • {footer_text}"
+            footer_text = f"{e('zb_web_search')} DuckDuckGo • {footer_text}"
         embed.set_footer(text=footer_text, icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
 
@@ -488,7 +490,7 @@ class AI(commands.Cog):
                 summary_result = summary_result[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
 
             embed = discord.Embed(
-                title=f"📰 {tr(s, 'ai.summarize_url_title')}",
+                title=f"{e('zb_summarize')} {tr(s, 'ai.summarize_url_title')}",
                 description=f"🔗 **Nguồn:** [Xem bài viết gốc]({cleaned_url})\n\n{summary_result}",
                 color=0xFEE75C,
                 timestamp=datetime.now(timezone.utc)
@@ -517,7 +519,7 @@ class AI(commands.Cog):
         summary_result = await call_ai_api(prompt, sys_prompt, api_key=api_key, is_owner=is_owner, preferred_model=global_model)
 
         embed = discord.Embed(
-            title=f"📋 {tr(s, 'ai.summarize_title', channel=ctx.channel.name)}",
+            title=f"{e('zb_summarize')} {tr(s, 'ai.summarize_title', channel=ctx.channel.name)}",
             description=summary_result,
             color=0xFEE75C,
             timestamp=datetime.now(timezone.utc)

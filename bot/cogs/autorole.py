@@ -7,6 +7,11 @@ import aiosqlite
 from database import DB_PATH, async_is_module_enabled, async_get_guild_settings
 import checks
 from i18n import tr
+try:
+    from bot.emojis import e
+except (ImportError, ModuleNotFoundError):
+    from emojis import e
+
 
 class AutoRole(commands.Cog, name="AutoRole"):
     """Cấu hình Auto Roles qua Discord"""
@@ -53,7 +58,7 @@ class AutoRole(commands.Cog, name="AutoRole"):
         bot_mentions = [f"<@&{r}>" for r in roles_bot] if roles_bot else [none_txt]
         
         embed = discord.Embed(
-            title=tr(settings, "autorole.title"),
+            title=f"{e('zb_autorole')} {tr(settings, 'autorole.title')}",
             color=0x5865F2 if enabled else 0xED4245
         )
         embed.add_field(name=tr(settings, "autorole.status"), value=tr(settings, "autorole.enabled") if enabled else tr(settings, "autorole.disabled"), inline=False)

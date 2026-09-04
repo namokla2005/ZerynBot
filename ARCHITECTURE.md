@@ -65,6 +65,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── giveaway_banner.png     # Pre-rendered dark giveaway header banner
 │   ├── tester.py               # Standalone test/debug helper script
 │   ├── fonts/                  # Custom TrueType fonts (.ttf) for card rendering
+│   ├── emojis.py               # Custom Discord Application Emojis registry & helpers (e, partial)
 │   └── cogs/                   # Modular Bot Feature Cogs (22 total)
 │       ├── admin.py            # Bot owner global administration, slash command sync, /backup & 24h auto-backup
 │       ├── ai.py               # Multi-provider AI assistant (Groq Qwen 3.8 27B / Gemini / OpenRouter), /ask, /summarize, #ai-chat, Owner Persona
