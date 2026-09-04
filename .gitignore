@@ -27,10 +27,11 @@ data/
 # ARCHITECTURE.md
 # E2E_TESTING.md
 # llms.txt
-# IMPROVEMENT_PLAN.md
-# Kehoachsuachuabot.md
-
 # .github/
 # tests/
 # pytest.ini
 # requirements-dev.txt
+
+# Tài nguyên thiết kế & công cụ chỉ dành cho lập trình viên (Dev-only emoji assets & generators)
+assets/emojis/
+scripts/generate_emojis.py
