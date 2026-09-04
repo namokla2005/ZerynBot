@@ -16,7 +16,10 @@ from database import (
     async_get_economy_settings, async_get_economy_user,
     async_claim_daily, async_modify_wallet, async_transfer_money,
     async_deposit_money, async_withdraw_money,
-    async_get_economy_shop, async_buy_shop_item, async_get_top_economy
+    async_get_economy_shop, async_buy_shop_item, async_get_top_economy,
+    async_get_inventory, async_get_inventory_item, async_add_inventory_item,
+    async_sell_inventory_item, async_sell_all_inventory,
+    async_get_economy_cooldown, async_set_economy_cooldown
 )
 from i18n import tr
 
@@ -166,6 +169,122 @@ class BlackjackView(discord.ui.View):
 
 
 # ─── Economy Cog ───────────────────────────────────────────────────────────────
+
+# ─── Fish & Hunt Items & Tables ────────────────────────────────────────────────
+FISH_ITEMS = [
+    # Common (60% weight)
+    {"id": "ca_chep", "name": "🐟 Cá Chép Đồng", "type": "fish", "rarity": "common", "price": 35, "weight": 20},
+    {"id": "ca_ro", "name": "🐟 Cá Rô Phi", "type": "fish", "rarity": "common", "price": 40, "weight": 18},
+    {"id": "muc_ong", "name": "🦑 Mực Ống Tươi", "type": "fish", "rarity": "common", "price": 50, "weight": 12},
+    {"id": "cua_dong", "name": "🦀 Cua Đồng", "type": "fish", "rarity": "common", "price": 45, "weight": 10},
+    # Rare (25% weight)
+    {"id": "ca_hoi", "name": "🍣 Cá Hồi Nauy", "type": "fish", "rarity": "rare", "price": 120, "weight": 10},
+    {"id": "cua_hoang_de", "name": "🦀 Cua Hoàng Đế King Crab", "type": "fish", "rarity": "rare", "price": 180, "weight": 5},
+    {"id": "tom_hum", "name": "🦞 Tôm Hùm Alaska", "type": "fish", "rarity": "rare", "price": 160, "weight": 5},
+    {"id": "ca_ngu", "name": "🐟 Cá Ngừ Vây Vàng", "type": "fish", "rarity": "rare", "price": 150, "weight": 5},
+    # Epic (12% weight)
+    {"id": "ca_map", "name": "🦈 Cá Mập Trắng Đại Dương", "type": "fish", "rarity": "epic", "price": 500, "weight": 5},
+    {"id": "ca_voi_sat_thu", "name": "🐋 Cá Voi Sát Thủ Orca", "type": "fish", "rarity": "epic", "price": 650, "weight": 4},
+    {"id": "ngoc_trai_den", "name": "🔮 Ngọc Trai Đen Huyền Bí", "type": "fish", "rarity": "epic", "price": 800, "weight": 3},
+    # Legendary (3% weight)
+    {"id": "rong_bien_leviathan", "name": "🐉 Rồng Biển Leviathan Cổ Đại", "type": "fish", "rarity": "legendary", "price": 3000, "weight": 1},
+    {"id": "rua_vang_than", "name": "🐢 Thần Kim Quy Vàng Ròng", "type": "fish", "rarity": "legendary", "price": 4500, "weight": 1},
+    {"id": "poseidon_trident", "name": "🔱 Mảnh Đinh Ba Hải Vương", "type": "fish", "rarity": "legendary", "price": 6000, "weight": 1},
+]
+
+HUNT_ITEMS = [
+    # Common (60% weight)
+    {"id": "tho_rung", "name": "🐇 Thỏ Rừng Nhanh Nhẹn", "type": "hunt", "rarity": "common", "price": 35, "weight": 20},
+    {"id": "soc_nau", "name": "🐿️ Sóc Nâu Hạt Dẻ", "type": "hunt", "rarity": "common", "price": 40, "weight": 18},
+    {"id": "chim_bo_cau", "name": "🕊️ Chim Bồ Câu Núi", "type": "hunt", "rarity": "common", "price": 30, "weight": 12},
+    {"id": "ga_rung", "name": "🦃 Gà Rừng Cựa Sắc", "type": "hunt", "rarity": "common", "price": 50, "weight": 10},
+    # Rare (25% weight)
+    {"id": "huou_sao", "name": "🦌 Hươu Sao Đốm Bạc", "type": "hunt", "rarity": "rare", "price": 130, "weight": 10},
+    {"id": "heo_rung", "name": "🐗 Heo Rừng Hung Dữ", "type": "hunt", "rarity": "rare", "price": 160, "weight": 8},
+    {"id": "cao_tuyet", "name": "🦊 Cáo Tuyết Bắc Cực", "type": "hunt", "rarity": "rare", "price": 190, "weight": 7},
+    # Epic (12% weight)
+    {"id": "soi_xam", "name": "🐺 Sói Xám Đầu Đàn", "type": "hunt", "rarity": "epic", "price": 520, "weight": 5},
+    {"id": "gau_nau", "name": "🐻 Gấu Nâu Khổng Lồ", "type": "hunt", "rarity": "epic", "price": 680, "weight": 4},
+    {"id": "ho_siberia", "name": "🐅 Hổ Chúa Siberia", "type": "hunt", "rarity": "epic", "price": 850, "weight": 3},
+    # Legendary (3% weight)
+    {"id": "phuong_hoang", "name": "🦅 Phượng Hoàng Lửa Tái Sinh", "type": "hunt", "rarity": "legendary", "price": 3500, "weight": 1},
+    {"id": "su_tu_vang", "name": "🦁 Sư Tử Hoàng Gia Bờm Vàng", "type": "hunt", "rarity": "legendary", "price": 4800, "weight": 1},
+    {"id": "ky_lan_huyen_thoai", "name": "🦄 Kỳ Lân Một Sừng Thần Thoại", "type": "hunt", "rarity": "legendary", "price": 6500, "weight": 1},
+]
+
+WORK_JOBS = [
+    {"name": "Lập trình viên Fullstack 💻", "min": 90, "max": 240},
+    {"name": "Bác sĩ trưởng khoa cấp cứu 🩺", "min": 100, "max": 250},
+    {"name": "Đầu bếp 5 sao Michelin 👨‍🍳", "min": 85, "max": 220},
+    {"name": "Thợ mỏ đào kim cương ⛏️", "min": 80, "max": 230},
+    {"name": "Shipper giao hàng thần tốc 🛵", "min": 75, "max": 210},
+    {"name": "Streamer Thách Đấu triệu view 🎮", "min": 90, "max": 250},
+    {"name": "Kỹ sư cơ khí chế tạo siêu xe 🏎️", "min": 95, "max": 240},
+    {"name": "Nhà thiết kế UI/UX đồ họa 🎨", "min": 80, "max": 220},
+    {"name": "Barista nghệ thuật cà phê ☕", "min": 70, "max": 200},
+    {"name": "Cơ trưởng phi đội Boeing 787 ✈️", "min": 110, "max": 250},
+    {"name": "Thám tử tư phá đại án 🕵️", "min": 90, "max": 240},
+    {"name": "Nông dân trúng mùa nông sản hữu cơ 🌾", "min": 75, "max": 210},
+    {"name": "Phi hành gia nghiên cứu vũ trụ 🚀", "min": 120, "max": 260},
+]
+
+
+class InventoryView(discord.ui.View):
+    def __init__(self, cog, user_id: str, guild_id: str, settings: dict, author_name: str, author_avatar: str):
+        super().__init__(timeout=90.0)
+        self.cog = cog
+        self.user_id = user_id
+        self.guild_id = guild_id
+        self.settings = settings
+        self.author_name = author_name
+        self.author_avatar = author_avatar
+
+        self.sell_common.label = tr(settings, "economy.inv_btn_sell_common")
+        self.sell_all.label = tr(settings, "economy.inv_btn_sell_all")
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if str(interaction.user.id) != self.user_id:
+            await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(style=discord.ButtonStyle.primary, emoji="💰", custom_id="inv_sell_common")
+    async def sell_common(self, interaction: discord.Interaction, button: discord.ui.Button):
+        count, earned = await async_sell_all_inventory(self.guild_id, self.user_id, rarity="common")
+        sym = self.settings.get("currency_symbol", "🪙")
+        if count == 0:
+            await interaction.response.send_message(tr(self.settings, "economy.sell_no_items"), ephemeral=True)
+            return
+
+        embed = await self.cog.build_inventory_embed(self.guild_id, self.user_id, self.settings, self.author_name, self.author_avatar)
+        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.followup.send(
+            tr(self.settings, "economy.sell_all_success", count=count, earned=earned, sym=sym),
+            ephemeral=True
+        )
+
+    @discord.ui.button(style=discord.ButtonStyle.success, emoji="💎", custom_id="inv_sell_all")
+    async def sell_all(self, interaction: discord.Interaction, button: discord.ui.Button):
+        count, earned = await async_sell_all_inventory(self.guild_id, self.user_id)
+        sym = self.settings.get("currency_symbol", "🪙")
+        if count == 0:
+            await interaction.response.send_message(tr(self.settings, "economy.sell_no_items"), ephemeral=True)
+            return
+
+        embed = await self.cog.build_inventory_embed(self.guild_id, self.user_id, self.settings, self.author_name, self.author_avatar)
+        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.followup.send(
+            tr(self.settings, "economy.sell_all_success", count=count, earned=earned, sym=sym),
+            ephemeral=True
+        )
+
+    @discord.ui.button(label="Đóng", style=discord.ButtonStyle.secondary, emoji="❌", custom_id="inv_close")
+    async def close_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(view=self)
+        self.stop()
+
 
 class Economy(commands.Cog):
     """Module quản lý Tiền tệ, Mini-games & Cửa hàng Role."""
@@ -576,6 +695,229 @@ class Economy(commands.Cog):
                     return
 
         await ctx.send(tr(s, "economy.buy_success", item=info, sym=sym))
+
+    # ─── build_inventory_embed ─────────────────────────────────────────────────
+    async def build_inventory_embed(self, guild_id: str, user_id: str, settings: dict, user_name: str, avatar_url: str) -> discord.Embed:
+        items = await async_get_inventory(guild_id, user_id)
+        sym = settings.get("currency_symbol", "🪙")
+        if not items:
+            embed = discord.Embed(
+                title=tr(settings, "economy.inv_title", user=user_name),
+                description=tr(settings, "economy.inv_empty"),
+                color=0x95A5A6,
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text=tr(settings, "economy.inv_footer", count=0, value=0, sym=sym), icon_url=avatar_url)
+            return embed
+
+        total_items = sum(it["quantity"] for it in items)
+        total_value = sum(it["sell_price"] * it["quantity"] for it in items)
+
+        grouped = {"legendary": [], "epic": [], "rare": [], "common": []}
+        for it in items:
+            rarity = it.get("rarity", "common")
+            grouped.get(rarity, grouped["common"]).append(it)
+
+        embed = discord.Embed(
+            title=tr(settings, "economy.inv_title", user=user_name),
+            color=0x5865F2,
+            timestamp=datetime.now(timezone.utc)
+        )
+
+        rarity_titles = {
+            "legendary": f"🟡 {tr(settings, 'economy.rarity_legendary')}",
+            "epic": f"🟣 {tr(settings, 'economy.rarity_epic')}",
+            "rare": f"🟢 {tr(settings, 'economy.rarity_rare')}",
+            "common": f"⚪ {tr(settings, 'economy.rarity_common')}",
+        }
+
+        for r_key in ["legendary", "epic", "rare", "common"]:
+            r_items = grouped[r_key]
+            if not r_items:
+                continue
+            lines = []
+            for it in r_items:
+                lines.append(f"• **{it['item_name']}** x{it['quantity']} — `ID: {it['item_id']}` (*{it['sell_price']:,} {sym}/món*)")
+            embed.add_field(name=rarity_titles[r_key], value="\n".join(lines), inline=False)
+
+        embed.set_footer(
+            text=tr(settings, "economy.inv_footer", count=total_items, value=total_value, sym=sym),
+            icon_url=avatar_url
+        )
+        return embed
+
+    # ─── work ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="work", description="Lao động nghề nghiệp kiếm tiền lương vào ví (Cooldown 1 giờ)")
+    async def work(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
+        sym = eco_s.get("currency_symbol", "🪙")
+
+        now = time.time()
+        last_used = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work")
+        cooldown = 3600  # 1 giờ
+
+        if now - last_used < cooldown:
+            rem = int(cooldown - (now - last_used))
+            mins = rem // 60
+            secs = rem % 60
+            await ctx.send(tr(s, "economy.work_cooldown", minutes=mins, seconds=secs), ephemeral=True)
+            return
+
+        job = random.choice(WORK_JOBS)
+        base_pay = random.randint(job["min"], job["max"])
+        is_bonus = random.random() < 0.10  # 10% cơ hội thưởng
+        bonus_pay = int(base_pay * 0.5) if is_bonus else 0
+        total_pay = base_pay + bonus_pay
+
+        await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), total_pay)
+        await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work", now)
+
+        desc = tr(s, "economy.work_desc", user=ctx.author.mention, job=job["name"], amount=base_pay, sym=sym)
+        if is_bonus:
+            desc += tr(s, "economy.work_bonus", bonus=bonus_pay, sym=sym)
+
+        embed = discord.Embed(
+            title=tr(s, "economy.work_title"),
+            description=desc,
+            color=0x57F287,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
+
+    # ─── fish ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="fish", description="Câu cá thư giãn và tìm kiếm các loài thủy hải sản quý hiếm (Cooldown 15 phút)")
+    async def fish(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
+        sym = eco_s.get("currency_symbol", "🪙")
+
+        now = time.time()
+        last_used = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "fish")
+        cooldown = 900  # 15 phút
+
+        if now - last_used < cooldown:
+            rem = int(cooldown - (now - last_used))
+            mins = rem // 60
+            secs = rem % 60
+            await ctx.send(tr(s, "economy.fish_cooldown", minutes=mins, seconds=secs), ephemeral=True)
+            return
+
+        weights = [it["weight"] for it in FISH_ITEMS]
+        caught = random.choices(FISH_ITEMS, weights=weights, k=1)[0]
+
+        await async_add_inventory_item(
+            str(ctx.guild.id), str(ctx.author.id),
+            caught["id"], caught["name"], caught["type"],
+            caught["rarity"], 1, caught["price"]
+        )
+        await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "fish", now)
+
+        rarity_text = tr(s, f"economy.rarity_{caught['rarity']}")
+        embed = discord.Embed(
+            title=tr(s, "economy.fish_title"),
+            description=tr(s, "economy.fish_success", item=caught["name"], rarity=rarity_text, price=caught["price"], sym=sym),
+            color=0x3498DB if caught["rarity"] == "common" else (0x2ECC71 if caught["rarity"] == "rare" else 0xF1C40F),
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
+
+    # ─── hunt ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="hunt", description="Đi săn thú trong rừng và tìm kiếm các loài sinh vật quý hiếm (Cooldown 15 phút)")
+    async def hunt(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
+        sym = eco_s.get("currency_symbol", "🪙")
+
+        now = time.time()
+        last_used = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "hunt")
+        cooldown = 900  # 15 phút
+
+        if now - last_used < cooldown:
+            rem = int(cooldown - (now - last_used))
+            mins = rem // 60
+            secs = rem % 60
+            await ctx.send(tr(s, "economy.hunt_cooldown", minutes=mins, seconds=secs), ephemeral=True)
+            return
+
+        weights = [it["weight"] for it in HUNT_ITEMS]
+        hunted = random.choices(HUNT_ITEMS, weights=weights, k=1)[0]
+
+        await async_add_inventory_item(
+            str(ctx.guild.id), str(ctx.author.id),
+            hunted["id"], hunted["name"], hunted["type"],
+            hunted["rarity"], 1, hunted["price"]
+        )
+        await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "hunt", now)
+
+        rarity_text = tr(s, f"economy.rarity_{hunted['rarity']}")
+        embed = discord.Embed(
+            title=tr(s, "economy.hunt_title"),
+            description=tr(s, "economy.hunt_success", item=hunted["name"], rarity=rarity_text, price=hunted["price"], sym=sym),
+            color=0xE67E22 if hunted["rarity"] == "common" else (0x9B59B6 if hunted["rarity"] == "epic" else 0xF1C40F),
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
+
+    # ─── inventory ─────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="inventory", aliases=["inv", "bag"], description="Xem túi đồ cá nhân và quản lý các vật phẩm bạn đang sở hữu")
+    async def inventory(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        embed = await self.build_inventory_embed(
+            str(ctx.guild.id), str(ctx.author.id), s,
+            ctx.author.display_name, ctx.author.display_avatar.url
+        )
+        view = InventoryView(
+            self, str(ctx.author.id), str(ctx.guild.id), s,
+            ctx.author.display_name, ctx.author.display_avatar.url
+        )
+        view.message = await ctx.send(embed=embed, view=view)
+
+    # ─── sell ──────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="sell", description="Bán vật phẩm trong túi đồ của bạn để lấy tiền mặt vào ví")
+    @app_commands.describe(item_id="ID hoặc tên vật phẩm muốn bán", quantity="Số lượng muốn bán (mặc định 1)")
+    async def sell(self, ctx: commands.Context, item_id: str, quantity: int = 1):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
+        sym = eco_s.get("currency_symbol", "🪙")
+
+        if quantity <= 0:
+            await ctx.send(tr(s, "economy.sell_invalid_qty"), ephemeral=True)
+            return
+
+        success, earned, item_name = await async_sell_inventory_item(
+            str(ctx.guild.id), str(ctx.author.id), item_id, quantity
+        )
+
+        if not success:
+            await ctx.send(tr(s, "economy.sell_item_not_found"), ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=tr(s, "economy.sell_success_title"),
+            description=tr(s, "economy.sell_success_desc", qty=quantity, item=item_name, earned=earned, sym=sym),
+            color=0x57F287,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
+
+    @sell.autocomplete("item_id")
+    async def sell_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        if not interaction.guild:
+            return []
+        items = await async_get_inventory(str(interaction.guild.id), str(interaction.user.id))
+        choices = []
+        for it in items:
+            label = f"{it['item_name']} (x{it['quantity']} — {it['sell_price']}🪙)"
+            if not current or current.lower() in it["item_name"].lower() or current.lower() in it["item_id"].lower():
+                choices.append(app_commands.Choice(name=label[:100], value=it["item_id"]))
+            if len(choices) >= 25:
+                break
+        return choices
 
 
 async def setup(bot: commands.Bot):

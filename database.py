@@ -20,7 +20,7 @@ def init_db():
     with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
-        conn.execute("PRAGMA busy_timeout=5000;")
+        conn.execute("PRAGMA busy_timeout=15000;")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS guilds (
                 guild_id              TEXT PRIMARY KEY,
@@ -280,6 +280,30 @@ def init_db():
                 stock       INTEGER DEFAULT -1,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS user_inventory (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                user_id     TEXT NOT NULL,
+                item_id     TEXT NOT NULL,
+                item_name   TEXT NOT NULL,
+                item_type   TEXT NOT NULL,
+                rarity      TEXT DEFAULT 'common',
+                quantity    INTEGER DEFAULT 1,
+                sell_price  INTEGER DEFAULT 50,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(guild_id, user_id, item_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS economy_cooldowns (
+                guild_id    TEXT NOT NULL,
+                user_id     TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                last_used   REAL NOT NULL,
+                PRIMARY KEY (guild_id, user_id, action_type)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_inventory_lookup ON user_inventory (guild_id, user_id);
 
             CREATE TABLE IF NOT EXISTS tempvoice_settings (
                 guild_id            TEXT PRIMARY KEY,
@@ -1886,6 +1910,146 @@ async def async_get_top_economy(guild_id: str, limit: int = 10) -> list:
         """, (guild_id, limit)) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
+
+
+async def async_get_inventory(guild_id: str, user_id: str) -> list[dict]:
+    """Lấy danh sách vật phẩm trong túi đồ của user, sắp xếp theo độ hiếm và tên."""
+    rarity_order = "CASE rarity WHEN 'legendary' THEN 1 WHEN 'epic' THEN 2 WHEN 'rare' THEN 3 ELSE 4 END"
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(f"""
+            SELECT * FROM user_inventory
+            WHERE guild_id = ? AND user_id = ? AND quantity > 0
+            ORDER BY {rarity_order}, item_name ASC
+        """, (guild_id, user_id)) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def async_get_inventory_item(guild_id: str, user_id: str, item_id: str) -> dict | None:
+    """Lấy thông tin một vật phẩm cụ thể trong túi đồ."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM user_inventory
+            WHERE guild_id = ? AND user_id = ? AND item_id = ? AND quantity > 0
+        """, (guild_id, user_id, item_id)) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+
+async def async_add_inventory_item(
+    guild_id: str,
+    user_id: str,
+    item_id: str,
+    item_name: str,
+    item_type: str,
+    rarity: str = "common",
+    quantity: int = 1,
+    sell_price: int = 50
+) -> dict:
+    """Thêm hoặc cộng dồn số lượng vật phẩm vào túi đồ."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("""
+            INSERT INTO user_inventory (guild_id, user_id, item_id, item_name, item_type, rarity, quantity, sell_price, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(guild_id, user_id, item_id) DO UPDATE SET
+                quantity = quantity + excluded.quantity,
+                sell_price = excluded.sell_price,
+                item_name = excluded.item_name,
+                updated_at = CURRENT_TIMESTAMP
+        """, (guild_id, user_id, item_id, item_name, item_type, rarity, quantity, sell_price))
+        await db.commit()
+    return await async_get_inventory_item(guild_id, user_id, item_id) or {}
+
+
+async def async_sell_inventory_item(guild_id: str, user_id: str, item_id: str, quantity: int = 1) -> tuple[bool, int, str]:
+    """Bán một số lượng vật phẩm chỉ định lấy tiền vào ví. Trả về (success, total_earned, item_name)."""
+    if quantity <= 0:
+        return False, 0, ""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM user_inventory
+            WHERE guild_id = ? AND user_id = ? AND item_id = ? AND quantity >= ?
+        """, (guild_id, user_id, item_id, quantity)) as cur:
+            item = await cur.fetchone()
+            if not item:
+                return False, 0, ""
+
+        earned = item["sell_price"] * quantity
+        if item["quantity"] == quantity:
+            await db.execute("DELETE FROM user_inventory WHERE id = ?", (item["id"],))
+        else:
+            await db.execute("UPDATE user_inventory SET quantity = quantity - ? WHERE id = ?", (quantity, item["id"]))
+
+        # Cộng tiền vào ví
+        await db.execute("""
+            INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, ?, 0, 0, 0)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET wallet = wallet + ?
+        """, (guild_id, user_id, earned, earned))
+        await db.commit()
+        return True, earned, item["item_name"]
+
+
+async def async_sell_all_inventory(guild_id: str, user_id: str, rarity: str = None) -> tuple[int, int]:
+    """Bán toàn bộ vật phẩm (hoặc lọc theo rarity) lấy tiền vào ví. Trả về (items_sold_count, total_earned)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        query = "SELECT * FROM user_inventory WHERE guild_id = ? AND user_id = ? AND quantity > 0"
+        params = [guild_id, user_id]
+        if rarity:
+            query += " AND rarity = ?"
+            params.append(rarity)
+
+        async with db.execute(query, tuple(params)) as cur:
+            items = await cur.fetchall()
+
+        if not items:
+            return 0, 0
+
+        total_earned = sum(item["sell_price"] * item["quantity"] for item in items)
+        total_count = sum(item["quantity"] for item in items)
+
+        delete_query = "DELETE FROM user_inventory WHERE guild_id = ? AND user_id = ?"
+        delete_params = [guild_id, user_id]
+        if rarity:
+            delete_query += " AND rarity = ?"
+            delete_params.append(rarity)
+
+        await db.execute(delete_query, tuple(delete_params))
+        await db.execute("""
+            INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, ?, 0, 0, 0)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET wallet = wallet + ?
+        """, (guild_id, user_id, total_earned, total_earned))
+        await db.commit()
+        return total_count, total_earned
+
+
+async def async_get_economy_cooldown(guild_id: str, user_id: str, action_type: str) -> float:
+    """Lấy timestamp lần cuối thực hiện action (work, fish, hunt, rob...)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute(
+            "SELECT last_used FROM economy_cooldowns WHERE guild_id = ? AND user_id = ? AND action_type = ?",
+            (guild_id, user_id, action_type)
+        ) as cur:
+            row = await cur.fetchone()
+            return float(row[0]) if row else 0.0
+
+
+async def async_set_economy_cooldown(guild_id: str, user_id: str, action_type: str, last_used: float = None) -> None:
+    """Ghi nhận timestamp thực hiện action."""
+    import time
+    ts = last_used if last_used is not None else time.time()
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("""
+            INSERT INTO economy_cooldowns (guild_id, user_id, action_type, last_used)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(guild_id, user_id, action_type) DO UPDATE SET last_used = excluded.last_used
+        """, (guild_id, user_id, action_type, ts))
+        await db.commit()
 
 
 # ═════════════════════════════════════════════════════════════════════════════════

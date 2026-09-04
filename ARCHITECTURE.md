@@ -42,7 +42,7 @@
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
 - **Image Generation:** Pillow (`PIL`) in `card_generator.py` for rendering dynamic rank cards and welcome/goodbye banner cards in thread pools.
 - **Audio Pipeline:** `yt-dlp` + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -b:a 96k`).
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1510 keys per file.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1535 keys per file.
 
 ---
 
@@ -114,12 +114,12 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1510 keys
-│   ├── en.json                 # English — 1510 keys
-│   ├── zh.json                 # Chinese — 1510 keys
-│   ├── es.json                 # Spanish — 1510 keys
-│   ├── pt.json                 # Portuguese — 1510 keys
-│   └── fr.json                 # French — 1510 keys
+│   ├── vi.json                 # Vietnamese (Default) — 1535 keys
+│   ├── en.json                 # English — 1535 keys
+│   ├── zh.json                 # Chinese — 1535 keys
+│   ├── es.json                 # Spanish — 1535 keys
+│   ├── pt.json                 # Portuguese — 1535 keys
+│   └── fr.json                 # French — 1535 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -279,7 +279,7 @@ The web dashboard is hosted via Flask in `dashboard/app.py` and `dashboard/api.p
 - **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
-- **Central Command Catalog (`_COMMANDS_DATA`):** All **87 active commands** across **16 categories** are centrally registered in `dashboard/app.py` with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
+- **Central Command Catalog (`_COMMANDS_DATA`):** All **92 active commands** across **16 categories** are centrally registered in `dashboard/app.py` with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
 - **Design System V9.2 (Pastel Obsidian Glow):** The entire Web Dashboard (`/dashboard`, `/home`, `/admin`, `/login`, `/tos`, `/privacy`, `/commands`) is synchronized with the Nekotina-inspired Landing Page aesthetic:
   - **Color Tokens:** Obsidian Dark Background (`#120e24` / `#131217`), Glassmorphism Surface (`rgba(25, 24, 34, 0.85)`), Primary Sakura Pink (`#f4a7bb`), Accent Purple (`#9d8df1`), Blurple (`#5865f2`), Emerald (`#57f287`), Amber Gold (`#fee75c`), Crimson (`#ed4245`).
   - **Typography:** Modern variable font stack powered by Google Fonts `Plus Jakarta Sans` and `Inter`.
@@ -379,7 +379,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1510 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **1535 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
 2. **Async vs. Sync Separation:**
    - **Bot code (`bot/cogs/`)** MUST use async database functions (`async_get_guild_settings`, `async_is_module_enabled`, etc.).
    - **Dashboard code (`dashboard/`)** MUST use sync database functions (`get_guild_settings`, `is_module_enabled`, etc.).
@@ -484,7 +484,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   - Essential Bot style Giveaway redesign with dark header banner and key-value fields.
 - **v2.5 (2026-08)**: 
   - Music Player UI redesign (Music \| 2 style: compact card with right-aligned thumbnail, progress bar, 5 interactive buttons, `/nowplaying`).
-  - Full 6-language i18n synchronization at 1510 keys per file.
+  - Full 6-language i18n synchronization at 1535 keys per file.
 - **v2.0 (2026-07)**: 
   - Rewrite on discord.py v2 + Flask web dashboard.
   - Pure In-Memory RAM Cache replacing Redis for zero external dependencies on low-resource ARM devices.

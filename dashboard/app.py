@@ -1267,6 +1267,55 @@ _COMMANDS_DATA = [
                 "preview": {
                     "type": "text", "text": "🎉 Bạn đã mua thành công **VIP Member**!"
                 }
+            },
+            {
+                "name": "work", "emoji": "💼",
+                "desc": "Lao động nghề nghiệp kiếm tiền lương vào ví (Cooldown 1 giờ)",
+                "usage": "/work", "example": "/work", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "💼 Lao Động Hăng Say",
+                    "desc": "@Nam đã làm công việc **Lập trình viên Fullstack 💻** và nhận được tiền lương **+180 🪙**!"
+                }
+            },
+            {
+                "name": "fish", "emoji": "🎣",
+                "desc": "Câu cá thư giãn và tìm kiếm các loài thủy hải sản quý hiếm (Cooldown 15 phút)",
+                "usage": "/fish", "example": "/fish", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#3498DB", "title": "🎣 Đi Câu Cá Thư Giãn",
+                    "desc": "🌊 Bạn đã quăng cần và câu được **🍣 Cá Hồi Nauy** (*Hiếm*)!<br>💰 Giá trị ước tính: **120 🪙** (đã lưu vào túi đồ)."
+                }
+            },
+            {
+                "name": "hunt", "emoji": "🏹",
+                "desc": "Đi săn thú trong rừng và tìm kiếm các loài sinh vật quý hiếm (Cooldown 15 phút)",
+                "usage": "/hunt", "example": "/hunt", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#E67E22", "title": "🏹 Đi Săn Bắn Trong Rừng",
+                    "desc": "🌲 Bạn đã tiến vào rừng sâu và săn được **🦌 Hươu Sao Đốm Bạc** (*Hiếm*)!<br>💰 Giá trị ước tính: **130 🪙** (đã lưu vào túi đồ)."
+                }
+            },
+            {
+                "name": "inventory", "emoji": "🎒",
+                "desc": "Xem túi đồ cá nhân và quản lý các vật phẩm bạn đang sở hữu",
+                "usage": "/inventory", "example": "/inventory", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "🎒 Túi Đồ Cá Nhân — Nam",
+                    "desc": "🟡 **Huyền Thoại:**<br>• **🐉 Rồng Biển Leviathan** x1 (3,000 🪙/món)<br><br>🟢 **Hiếm:**<br>• **🍣 Cá Hồi Nauy** x2 (120 🪙/món)"
+                }
+            },
+            {
+                "name": "sell", "emoji": "🏷️",
+                "desc": "Bán vật phẩm trong túi đồ của bạn để thu tiền mặt vào ví",
+                "usage": "/sell <item_id> [quantity]", "example": "/sell ca_hoi 2",
+                "args": [
+                    {"name": "item_id", "type": "Choice", "required": True, "desc": "Mã hoặc tên vật phẩm cần bán (hỗ trợ autocomplete)"},
+                    {"name": "quantity", "type": "Number", "required": False, "desc": "Số lượng cần bán (mặc định: 1)"}
+                ],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "💰 Bán Vật Phẩm Thành Công",
+                    "desc": "✅ Bạn đã bán thành công **2x 🍣 Cá Hồi Nauy** và nhận được **+240 🪙** vào ví!"
+                }
             }
         ]
     },
