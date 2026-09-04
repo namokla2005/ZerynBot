@@ -89,13 +89,13 @@ def load_opus_library() -> bool:
 
 load_opus_library()
 
-# ─── FFmpeg options tối ưu cho ARM ─────────────────────────────────────────────
-FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+# ─── FFmpeg options tối ưu cho ARM (Khởi động siêu tốc < 0.2s) ─────────────────
+FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -probesize 128k -analyzeduration 100000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
-MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet 4GB, 10+ server)
-MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU tablet)
+MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet/phone 4-6GB, 10+ server)
+MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU)
 
 # ─── Stream lofi 24/7 ──────────────────────────────────────────────────────────
 LOFI_STREAMS = {
@@ -128,6 +128,7 @@ async def lofi_autocomplete(
 
 _COOKIE_FILE = os.environ.get("YTDLP_COOKIEFILE", None)
 
+# Cấu hình yt-dlp tối ưu tốc độ (giảm timeout xuống 3s, client phản hồi nhanh nhất)
 YDL_OPTS = {
     "format": "bestaudio[acodec=opus]/bestaudio/best",
     "noplaylist": True,
@@ -135,19 +136,20 @@ YDL_OPTS = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
-    "socket_timeout": 8,
+    "socket_timeout": 3,
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "web_creator", "web"],
+            "player_client": ["android", "web"],
         }
     },
     "nocheckcertificate": True,
     "ignoreerrors": True,
+    "skip_download": True,
 }
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS["cookiefile"] = _COOKIE_FILE
 
-# Cấu hình Flat Extraction siêu tốc (chỉ lấy metadata, không tải trang player & không giải mã stream)
+# Cấu hình Flat Extraction siêu tốc (chỉ lấy metadata, timeout 2s)
 YDL_OPTS_FLAT = {
     "extract_flat": True,
     "noplaylist": True,
@@ -155,14 +157,14 @@ YDL_OPTS_FLAT = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
-    "socket_timeout": 5,
+    "socket_timeout": 2,
     "nocheckcertificate": True,
     "ignoreerrors": True,
 }
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS_FLAT["cookiefile"] = _COOKIE_FILE
 
-_extract_semaphore = asyncio.Semaphore(3)
+_extract_semaphore = asyncio.Semaphore(4)
 
 
 def _fmt_duration(seconds) -> str:
@@ -181,7 +183,7 @@ async def _resolve_external_url(query: str) -> str:
             oembed_url = f"https://open.spotify.com/oembed?url={q_strip}"
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             async with aiohttp.ClientSession(headers=headers) as session:
-                async with session.get(oembed_url, timeout=aiohttp.ClientTimeout(total=4)) as resp:
+                async with session.get(oembed_url, timeout=aiohttp.ClientTimeout(total=2)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         title = data.get("title")
@@ -332,6 +334,12 @@ async def extract_info(query: str) -> dict | None:
     if info:
         # Lưu vào In-Memory Cache (TTL 10 phút)
         await cache.aset(cache_key, info, ttl=600)
+        vid = info.get("id")
+        if vid:
+            await cache.aset(f"song_info:{vid}", info, ttl=600)
+        web_url = info.get("webpage_url") or info.get("url")
+        if web_url and isinstance(web_url, str) and web_url.startswith("http"):
+            await cache.aset(f"song_info:{web_url.lower().strip()}", info, ttl=600)
 
     return info
 
