@@ -12,11 +12,28 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$DIR"
 
+PID_FILE="data/watchdog.pid"
+mkdir -p data
+
+# ─── Đảm bảo duy nhất 1 watchdog chạy (Singleton Guard) ─────────────────────────
+if [ -f "$PID_FILE" ]; then
+    old_pid=$(cat "$PID_FILE" 2>/dev/null)
+    if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
+        echo "[Watchdog] Đã phát hiện watchdog cũ (PID $old_pid). Đang dừng..."
+        # Dọn các tiến trình con của watchdog cũ trước
+        for c in $(pgrep -P "$old_pid" 2>/dev/null); do
+            kill -9 "$c" 2>/dev/null
+        done
+        kill -9 "$old_pid" 2>/dev/null
+    fi
+fi
+echo $$ > "$PID_FILE"
+
 HEALTH_URL="http://localhost:5000/health"
 HEALTH_INTERVAL=90        # kiểm tra mỗi 90 giây
 HEALTH_FAIL_THRESHOLD=4   # ~6 phút (4 × 90s) → khớp với OFFLINE_THRESHOLD của bot
 
-echo "[Watchdog] Đã khởi động. (exit-code + health-check)"
+echo "[Watchdog] Đã khởi động (PID $$). (exit-code + health-check)"
 
 restart_count=0
 get_backoff() {
@@ -61,7 +78,7 @@ health_loop() {
 # Khởi động health-check nền
 health_loop &
 HEALTH_PID=$!
-trap 'kill $HEALTH_PID 2>/dev/null; exit 0' INT TERM
+trap 'kill $HEALTH_PID 2>/dev/null; rm -f "$PID_FILE" 2>/dev/null; exit 0' INT TERM EXIT
 
 # ─── Vòng lặp chính: chạy bot + restart sau 15 phút khi dừng/crash ──────────────
 RESTART_DELAY=900  # Đợi đúng 15 phút (900 giây) trước khi khởi động lại

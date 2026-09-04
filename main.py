@@ -38,6 +38,7 @@ from database import init_db
 PID_DIR = os.path.join(BASE_DIR, "data")
 PID_BOT = os.path.join(PID_DIR, "bot.pid")
 PID_DASH = os.path.join(PID_DIR, "dashboard.pid")
+PID_WATCHDOG = os.path.join(PID_DIR, "watchdog.pid")
 
 
 def _read_pid(file_path: str) -> int | None:
@@ -89,14 +90,14 @@ def stop_all():
         except Exception:
             pass
 
-    for pid_file, name in [(PID_BOT, "Bot"), (PID_DASH, "Dashboard")]:
+    for pid_file, name in [(PID_BOT, "Bot"), (PID_DASH, "Dashboard"), (PID_WATCHDOG, "Watchdog")]:
         pid = _read_pid(pid_file)
         if pid and _is_pid_running(pid):
             try:
                 if os.name == "nt":
                     subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
                 else:
-                    os.kill(pid, signal.SIGTERM)
+                    os.kill(pid, signal.SIGKILL)
                 print(f" - Stopped {name} (PID {pid})")
             except Exception as e:
                 print(f" - Error stopping {name}: {e}")
@@ -105,14 +106,15 @@ def stop_all():
     # Tắt watchdog / process con (loại trừ PID của chính tiến trình hiện tại)
     if os.name != "nt":
         my_pid = os.getpid()
-        subprocess.run("pkill -f 'watchdog.sh' 2>/dev/null", shell=True)
-        try:
-            res = subprocess.check_output("pgrep -f 'main.py'", shell=True, text=True).strip().splitlines()
-            for p in res:
-                if p.isdigit() and int(p) != my_pid:
-                    subprocess.run(f"kill -9 {p} 2>/dev/null", shell=True)
-        except Exception:
-            pass
+        # Dùng pgrep + kill thay vì pkill để tránh lỗi 'Bad system call' trên Android SECCOMP
+        for pattern in ["watchdog.sh", "main.py --bot", "main.py --dashboard", "main.py", "sleep 900", "sleep 90"]:
+            try:
+                res = subprocess.check_output(f"pgrep -f '{pattern}'", shell=True, text=True).strip().splitlines()
+                for p in res:
+                    if p.isdigit() and int(p) != my_pid:
+                        subprocess.run(f"kill -9 {p} 2>/dev/null", shell=True)
+            except Exception:
+                pass
         subprocess.run("termux-wake-unlock 2>/dev/null", shell=True)
 
     print("[Main] All services stopped successfully.")
@@ -239,6 +241,13 @@ def start_all():
         watchdog_script = os.path.join(BASE_DIR, "scripts", "watchdog.sh")
         if os.path.exists(watchdog_script):
             p_bot = subprocess.Popen(f"nohup bash {watchdog_script} > {bot_log} 2>&1 &", shell=True)
+            time.sleep(1)
+            try:
+                res_wd = subprocess.check_output("pgrep -f 'watchdog.sh'", shell=True, text=True).strip().splitlines()
+                if res_wd:
+                    _write_pid(PID_WATCHDOG, int(res_wd[0]))
+            except Exception:
+                pass
         else:
             p_bot = subprocess.Popen(f"nohup python main.py --bot > {bot_log} 2>&1 &", shell=True)
         time.sleep(1)
