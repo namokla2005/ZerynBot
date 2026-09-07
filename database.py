@@ -5,9 +5,13 @@ Sync functions for Flask/dashboard, async functions for discord.py/bot.
 import os
 import sqlite3
 import json
+import time
+import logging
 from typing import Optional, Dict, List, Any
 import aiosqlite
 from cache import cache
+
+logger = logging.getLogger("ZerynBot.Database")
 
 # ─── Path setup ────────────────────────────────────────────────────────────────
 # This file lives at v2/database.py
@@ -183,6 +187,12 @@ def init_db():
                 guild_id    TEXT,
                 user_id     TEXT,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS maintenance_jobs (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_key     TEXT UNIQUE NOT NULL,
+                last_run_at REAL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS leveling_settings (
@@ -2819,3 +2829,96 @@ async def async_upsert_verify_settings(guild_id: str, **fields) -> None:
                 (*params, guild_id),
             )
         await db.commit()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: MAINTENANCE / AUTO-PRUNE (Dọn dữ liệu cũ) ────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def async_get_maintenance_job(job_key: str) -> float:
+    """Trả về timestamp lần chạy gần nhất của một job bảo trì (mặc định 0)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute(
+            "SELECT last_run_at FROM maintenance_jobs WHERE job_key = ?", (job_key,)
+        ) as cur:
+            row = await cur.fetchone()
+    return float(row[0]) if row else 0.0
+
+
+async def async_set_maintenance_job(job_key: str, ts: float = None) -> None:
+    """Ghi nhận thời điểm chạy một job bảo trì (chống chạy lặp trong ngày)."""
+    if ts is None:
+        ts = time.time()
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute(
+            "INSERT INTO maintenance_jobs (job_key, last_run_at) VALUES (?, ?) "
+            "ON CONFLICT(job_key) DO UPDATE SET last_run_at = excluded.last_run_at",
+            (job_key, ts),
+        )
+        await db.commit()
+
+
+async def async_prune_old_data(
+    stats_days: int = 60,
+    warnings_days: int = 2,
+    interactions_days: int = 60,
+    reminders_days: int = 30,
+) -> dict:
+    """
+    Dọn dữ liệu cũ để giữ DB gọn (chỉ ghi đúng các bảng tích luỹ theo thời gian):
+    - guild_stats      : > stats_days ngày
+    - automod_warnings : > warnings_days ngày (cảnh cáo chỉ có ý nghĩa trong 24h)
+    - fun_interactions : > interactions_days ngày
+    - reminders        : > reminders_days ngày (reminder đã cũ)
+    KHÔNG đụng user_levels / economy_users (dữ liệu member, phải giữ).
+
+    Trả về dict {table: số dòng đã xoá}.
+    """
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        deleted = {}
+
+        async def _delete(table: str, where: str, params: tuple):
+            async with db.execute(
+                f"DELETE FROM {table} WHERE {where}", params
+            ) as cur:
+                # aiosqlite cursor.rowcount khả dụng sau execute
+                deleted[table] = cur.rowcount
+            await db.commit()
+
+        try:
+            await _delete(
+                "guild_stats",
+                "date_hour < datetime('now', ?) ",
+                (f"-{stats_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] guild_stats error: {exc}")
+
+        try:
+            await _delete(
+                "automod_warnings",
+                "created_at <= datetime('now', ?) ",
+                (f"-{warnings_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] automod_warnings error: {exc}")
+
+        try:
+            await _delete(
+                "fun_interactions",
+                "created_at < datetime('now', ?) ",
+                (f"-{interactions_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] fun_interactions error: {exc}")
+
+        try:
+            await _delete(
+                "reminders",
+                "remind_at < datetime('now', ?) ",
+                (f"-{reminders_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] reminders error: {exc}")
+
+    return deleted
