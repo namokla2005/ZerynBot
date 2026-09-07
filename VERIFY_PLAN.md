@@ -15,7 +15,7 @@
 | `bot/cogs/verify.py` | ⭐ **MỚI** | Cog Validate: `on_member_join`, View + Button, `/setup_verify`, `/verify panel`, `/verify disable` |
 | `bot/cogs/automod.py` | Sửa | Thêm listener `on_member_join` cho Anti-Raid + check `on_audit_log_entry`/`on_guild_channel_delete`/`on_guild_role_delete` cho Anti-Nuke |
 | `database.py` | Sửa | Thêm bảng `verify_settings`, cột anti-raid/nuke cho `automod_settings`, hàm sync/async |
-| `bot/emojis.py` / `emojis.py` | (đã có) | Dùng `e('zb_verified')`, `e('zb_ban')`, `e('zb_kick')`, `e('zb_lock')` cho log/setup |
+| `bot/emojis.py` | (đã có) | Dùng `e('zb_verified')`, `e('zb_ban')`, `e('zb_kick')`, `e('zb_lock')` cho log/setup |
 | `locales/*.json` (6 file) | Sửa | Thêm key `verify.*` + `automod.anti_raid.*` + `automod.anti_nuke.*` |
 | `dashboard/app.py` | Sửa | Route `/dashboard/<guild_id>/verify`, thêm `verify` vào `_COMMANDS_DATA` |
 | `dashboard/templates/server_verify.html` | ⭐ **MỚI** | Trang cấu hình Verify Gate theo design system |

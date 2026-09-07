@@ -45,7 +45,7 @@ except (ImportError, ModuleNotFoundError):
 try:
     from emojis import clean_title, e, embed_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, embed_title
+    from bot.emojis import clean_title, e, embed_title
 
 GEMINI_MODELS = [
     "gemini-2.0-flash",

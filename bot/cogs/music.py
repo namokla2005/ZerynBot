@@ -32,7 +32,7 @@ from i18n import tr
 try:
     from emojis import clean_title, e, embed_title, partial
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, embed_title, partial
+    from bot.emojis import clean_title, e, embed_title, partial
 
 log = logging.getLogger("BotV2.Music")
 

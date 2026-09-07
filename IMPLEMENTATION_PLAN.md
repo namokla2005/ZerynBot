@@ -37,7 +37,7 @@ Kế hoạch này gồm **4 phần** (A, B, C, D) triển khai chi tiết, cộn
 
 | Hạng mục | Trạng thái trên `main` | Chi tiết |
 |---|---|---|
-| **56 custom emoji** | ✅ Đã có | `emojis.py` (root) và `bot/emojis.py` (giống hệt nhau) — `EMOJIS` có đúng **56** emoji, gồm `zb_coin`, `zb_work`, `zb_fish`, `zb_hunt`, `zb_inventory`, `zb_sell`, `zb_web_search`, `zb_verified`, `zb_cat_*`, … Có hàm `e()`, `partial()`, `clean_title()`, `embed_title()` |
+| **56 custom emoji** | ✅ Đã có | `bot/emojis.py` — `EMOJIS` có đúng **56** emoji, gồm `zb_coin`, `zb_work`, `zb_fish`, `zb_hunt`, `zb_inventory`, `zb_sell`, `zb_web_search`, `zb_verified`, `zb_cat_*`, … Có hàm `e()`, `partial()`, `clean_title()`, `embed_title()` |
 | **Phần B — Kinh tế 2.0** | ⚠️ **Đã làm gần xong** | `/work`, `/fish`, `/hunt`, `/inventory`, `/sell` đã có trong `economy.py` (92 lệnh tổng → 16 danh mục). Bảng `user_inventory` + `economy_cooldowns` (với `sell_price`, `rarity`) + index `idx_inventory_lookup` đã có. **Emoji đã gắn** `zb_inventory`, `zb_work`, `zb_fish`, `zb_sell` vào title embed. **Chưa thấy** bảng `items` (catalog) tách riêng — dữ liệu vật phẩm đang lưu inline trong `user_inventory` |
 | **Phần D — AI 2.0** | ⚠️ **Đã làm gần xong** | `/ask` có param `web: bool` (dùng `_fetch_duckduckgo_search`), `/summarize` có param `url` (dùng `_fetch_url_article_content`), `zb_web_search` gắn vào footer. **Cần kiểm tra** phần SSRF (`is_safe_http_url`) có được áp dụng cho `url` chưa |
 | **Phần A1 — busy_timeout** | ✅ Đã sửa | `database.py:23` = `PRAGMA busy_timeout=15000;` (khớp tài liệu) |
@@ -50,7 +50,7 @@ Kế hoạch này gồm **4 phần** (A, B, C, D) triển khai chi tiết, cộn
 
 ### 🔎 Chi tiết kiểm chứng đã chạy (để bạn yên tâm)
 - **`_COMMANDS_DATA` trên `main`** = **16 danh mục / 92 lệnh** (Kinh tế & Shop = 16, đã gồm `work`, `fish`, `hunt`, `inventory`, `sell`).
-- **`emojis.py` và `bot/emojis.py`** = **giống hệt nhau** (diff = 0), 56 emoji, có `e()`, `partial()`.
+- **`bot/emojis.py`** = 56 emoji, có `e()`, `partial()`.
 - **Đếm số emoji** bằng regex `^\s+"<key>": <id 15+ chữ số>` = **56**.
 - **`economy.py`** trên `main` có: `/daily`, `/balance`, `/deposit`, `/withdraw`, `/pay`, `/rich`, `/coinflip`, `/slots`, `/blackjack`, `/shop`, `/buy`, **`/work`**, **`/fish`**, **`/hunt`**, **`/inventory`**, **`/sell`** (16 lệnh).
 - **`database.py`** trên `main` đã có: `user_inventory` (kèm `item_id/item_name/item_type/rarity/quantity/sell_price`), `economy_cooldowns`, index `idx_inventory_lookup`; đã có các hàm `async_get_inventory`, `async_add_inventory_item`, `async_sell_inventory_item`, `async_sell_all_inventory`, `async_get_economy_cooldown`, `async_set_economy_cooldown`.

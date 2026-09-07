@@ -24,7 +24,7 @@ from i18n import tr
 try:
     from emojis import clean_title, e, embed_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import embed_title
+    from bot.emojis import clean_title, e, embed_title
 
 logger = logging.getLogger("BotV2.Admin")
 
