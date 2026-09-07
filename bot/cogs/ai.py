@@ -11,25 +11,41 @@ Features:
 - 👑 Special Bot Owner Persona: Identifies BOT_OWNER_ID and addresses with deep respect as "Cha" / "Bố".
 - Customizable System Prompts & Personalities.
 """
-import sys, os, aiohttp, json, re, urllib.parse
+import os
+import re
+import sys
+import urllib.parse
 from html.parser import HTMLParser
+
+import aiohttp
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import discord
-from discord.ext import commands
-from discord import app_commands
 from datetime import datetime, timezone
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
 import config
+from cache import cache
 from database import (
-    async_get_guild_settings, async_is_module_enabled,
-    async_get_ai_settings, async_get_global_setting
+    async_get_ai_settings,
+    async_get_global_setting,
+    async_get_guild_settings,
+    async_is_module_enabled,
 )
 from i18n import tr
-from cache import cache
+
+# Chống SSRF: tái sử dụng helper đã có ở dashboard/auth.py (không vòng lặp import)
 try:
-    from emojis import e, embed_title, clean_title
+    from dashboard.auth import is_safe_http_url
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, embed_title, clean_title
+    is_safe_http_url = None
+try:
+    from emojis import clean_title, e, embed_title
+except (ImportError, ModuleNotFoundError):
+    from bot.emojis import e, embed_title
 
 GEMINI_MODELS = [
     "gemini-2.0-flash",
@@ -334,7 +350,23 @@ async def _fetch_duckduckgo_search(query: str, max_results: int = 4) -> list[dic
 
 
 async def _fetch_url_article_content(url: str, max_chars: int = 4000) -> str | None:
-    """Tải và trích xuất nội dung văn bản sạch của bài viết/báo chí từ liên kết URL."""
+    """Tải và trích xuất nội dung văn bản sạch của bài viết/báo chí từ liên kết URL.
+
+    Chống SSRF: kiểm tra URL bằng ``is_safe_http_url`` (chặn localhost / IP private /
+    link-local / scheme lạ) ở bước đầu và tại MỌI bước redirect, đồng thời giới hạn
+    số lần redirect để không bị chuyển hướng về nội bộ sau khi đã qua kiểm tra.
+    """
+    import urllib.parse as _urlparse
+
+    def _safe(url_candidate: str) -> bool:
+        if is_safe_http_url is None:
+            return True  # fallback nếu helper không import được — không chặn (vì đã biết)
+        return is_safe_http_url(url_candidate)
+
+    # Bước 0: loại bỏ URL không an toàn ngay từ đầu
+    if not url or not _safe(url):
+        return None
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
@@ -342,17 +374,32 @@ async def _fetch_url_article_content(url: str, max_chars: int = 4000) -> str | N
     timeout = aiohttp.ClientTimeout(total=8)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, headers=headers) as resp:
-                if resp.status == 200:
-                    ctype = resp.headers.get("Content-Type", "").lower()
-                    if "text/html" in ctype or "application/xhtml" in ctype:
-                        html = await resp.text()
-                        parser = CleanTextParser()
-                        parser.feed(html)
-                        clean = parser.get_text()
-                        if len(clean) > max_chars:
-                            clean = clean[:max_chars]
-                        return clean
+            current_url = url
+            max_redirects = 3
+            for _hop in range(max_redirects + 1):
+                async with session.get(current_url, headers=headers, allow_redirects=False) as resp:
+                    if resp.status in (301, 302, 303, 307, 308):
+                        location = resp.headers.get("Location")
+                        if not location:
+                            return None
+                        next_url = _urlparse.urljoin(current_url, location)
+                        # Kiểm tra SSRF cho cả target redirect
+                        if not _safe(next_url):
+                            return None
+                        current_url = next_url
+                        continue
+                    if resp.status == 200:
+                        ctype = resp.headers.get("Content-Type", "").lower()
+                        if "text/html" in ctype or "application/xhtml" in ctype:
+                            html = await resp.text()
+                            parser = CleanTextParser()
+                            parser.feed(html)
+                            clean = parser.get_text()
+                            if len(clean) > max_chars:
+                                clean = clean[:max_chars]
+                            return clean
+                        return None
+                    return None
     except Exception:
         pass
     return None
