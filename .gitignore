@@ -1,6 +1,7 @@
 # Môi trường ảo (Virtual Environments)
 venv/
 env/
+.venv/
 .env
 
 # Cache của Python

@@ -1,0 +1,254 @@
+{% extends "base_server.html" %}
+{% block title %}{{ t('verify.module_name') }}{% endblock %}
+
+{% block head %}
+<style>
+  .module-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .module-title { font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; }
+  .card { background: #1e1f22; border: 1px solid #3f4147; border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+  .card-title { font-size: 1.25rem; font-weight: 600; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .form-group { margin-bottom: 20px; }
+  .form-label { display: block; color: #b5bac1; margin-bottom: 8px; font-size: 0.9rem; font-weight: 500; }
+  .form-control { width: 100%; background: #2b2d31; border: 1px solid #1e1f22; color: #dbdee1; padding: 10px 12px; border-radius: 4px; transition: border-color 0.2s; }
+  .form-control:focus { outline: none; border-color: #5865F2; }
+  textarea.form-control { min-height: 90px; resize: vertical; }
+
+  .switch-container { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .switch-text { color: #dbdee1; font-weight: 500; }
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #80848e; transition: .3s; border-radius: 24px; }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+  input:checked+.slider { background-color: #5865F2; }
+  input:checked+.slider:before { transform: translateX(20px); }
+
+  /* Custom Single-Select */
+  .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
+  .custom-select-display { background: #2b2d31; border: 1px solid #1e1f22; border-radius: 4px; padding: 8px 12px; min-height: 40px; display: flex; align-items: center; cursor: pointer; transition: border-color 0.2s; }
+  .custom-select-display:hover { border-color: #5865F2; }
+  .custom-select-display.open { border-color: #5865F2; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .chips-container { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { background: #1e1f22; border: 1px solid #3f4147; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; color: #dbdee1; }
+  .chip .role-color { width: 10px; height: 10px; border-radius: 50%; }
+  .chip .chip-remove { cursor: pointer; opacity: 0.6; margin-left: 2px; }
+  .chip .chip-remove:hover { opacity: 1; color: #ED4245; }
+  .custom-select-arrow { margin-left: auto; color: #b5bac1; font-size: 0.8rem; }
+  .custom-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #2b2d31; border: 1px solid #1e1f22; border-top: none; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 10; display: none; }
+  .custom-select-wrapper.open { z-index: 99; }
+  .custom-select-wrapper.open .custom-select-dropdown { display: block; }
+  .custom-option { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #dbdee1; transition: background 0.2s; }
+  .custom-option:hover { background: #3f4147; }
+  .custom-option.selected { background: rgba(88, 101, 242, 0.1); color: #5865F2; font-weight: bold; }
+  .role-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .placeholder-text { color: #80848e; font-size: 0.9rem; }
+  .hint { color: #b5bac1; font-size: 0.85rem; margin-top: 8px; }
+  .bottom-actions { margin-top: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title"><i class="bi bi-shield-check" style="color: #5865F2;"></i> {{ t('verify.module_name') }}</h1>
+  <p class="page-subtitle">{{ t('verify.panel_title') }}</p>
+</div>
+
+<form method="POST" action="{{ url_for('server_verify', guild_id=guild_id) }}">
+
+  <div class="card">
+    <div class="card-title"><i class="bi bi-gear-fill" style="color:var(--accent)"></i> {{ t('verify.field_status') }}</div>
+    <div class="form-group" style="display: flex; flex-direction: column; gap: 16px;">
+      <label class="switch-container">
+        <div class="switch">
+          <input type="checkbox" name="enabled" value="1" {% if settings.get('enabled') %}checked{% endif %}>
+          <span class="slider"></span>
+        </div>
+        <span class="switch-text">{{ t('verify.status_enabled') }} — Verify Gate</span>
+      </label>
+
+      <label class="switch-container">
+        <div class="switch">
+          <input type="checkbox" name="hide_channels" value="1" {% if settings.get('hide_channels', 1) %}checked{% endif %}>
+          <span class="slider"></span>
+        </div>
+        <span class="switch-text">{{ t('verify.field_hide') }} — {{ t('verify.hard') }}</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="bi bi-ui-radios" style="color:var(--accent)"></i> {{ t('verify.field_channel') }}</div>
+
+    <div class="form-group">
+      <label class="form-label">{{ t('verify.field_channel') }}</label>
+      <div id="hidden-inputs-channel_id"></div>
+      <div class="custom-select-wrapper" id="select-channel_id">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-channel_id"></div>
+          <div class="placeholder-text" id="placeholder-channel_id">{{ t('verify.not_set') }}</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-channel_id"></div>
+      </div>
+      <div class="hint"><em>{{ t('verify.field_channel') }}</em></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">{{ t('verify.field_role') }}</label>
+      <div id="hidden-inputs-verified_role_id"></div>
+      <div class="custom-select-wrapper" id="select-verified_role_id">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-verified_role_id"></div>
+          <div class="placeholder-text" id="placeholder-verified_role_id">{{ t('verify.not_set') }}</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-verified_role_id"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">{{ t('verify.field_pending') }}</label>
+      <div id="hidden-inputs-pending_role_id"></div>
+      <div class="custom-select-wrapper" id="select-pending_role_id">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-pending_role_id"></div>
+          <div class="placeholder-text" id="placeholder-pending_role_id">{{ t('verify.not_set') }}</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-pending_role_id"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">{{ t('verify.field_log') }}</label>
+      <div id="hidden-inputs-log_channel_id"></div>
+      <div class="custom-select-wrapper" id="select-log_channel_id">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-log_channel_id"></div>
+          <div class="placeholder-text" id="placeholder-log_channel_id">{{ t('verify.not_set') }}</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-log_channel_id"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="bi bi-chat-text" style="color:var(--accent)"></i> {{ t('verify.panel_title') }}</div>
+
+    <div class="form-group">
+      <label class="form-label">{{ t('verify.field_status') }} (hỗ trợ {server})</label>
+      <textarea name="verify_text" class="form-control" placeholder="Chào mừng đến với **{server}**! Bấm nút bên dưới để xác thực.">{{ settings.get('verify_text', '') }}</textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">{{ t('verify.button_label') }}</label>
+      <input type="text" name="button_label" class="form-control" value="{{ settings.get('button_label', 'Tôi đã đọc nội quy & Xác thực') }}">
+    </div>
+  </div>
+
+  <div class="bottom-actions">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-save2"></i> {{ t('automod.save_button') }}
+    </button>
+  </div>
+</form>
+
+<script>
+  const allRoles = ({{ roles | tojson | safe }} || []).map(r => ({
+    id: r.role_id || r.id, name: r.role_name || r.name, color: r.color_hex || r.color
+  }));
+  const allChannels = ({{ channels | tojson | safe }} || []).map(c => ({
+    id: c.channel_id || c.id, name: c.channel_name || c.name
+  }));
+  const settingsData = {{ settings | tojson | safe }} || {};
+
+  function createSingleSelector(wrapperId, inputName, optionsList, hiddenContainerId, selectedId, isChannel = false) {
+    const wrapper = document.getElementById(wrapperId);
+    const display = wrapper.querySelector('.custom-select-display');
+    const dropdown = wrapper.querySelector('.custom-select-dropdown');
+    const chipsContainer = wrapper.querySelector('.chips-container');
+    const placeholder = wrapper.querySelector('.placeholder-text');
+    const hiddenContainer = document.getElementById(hiddenContainerId);
+    let currentSelectedId = selectedId || null;
+
+    function renderChips() {
+      chipsContainer.innerHTML = '';
+      hiddenContainer.innerHTML = '';
+      const optData = currentSelectedId ? optionsList.find(r => r.id === currentSelectedId) : null;
+      if (!optData) {
+        placeholder.style.display = 'block';
+      } else {
+        placeholder.style.display = 'none';
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        let prefix = '';
+        if (isChannel) {
+          prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
+        } else if (optData.color) {
+          prefix = `<span class="role-color" style="background-color: ${optData.color && optData.color !== '#000000' ? optData.color : '#b9bbbe'}"></span> `;
+        }
+        chip.innerHTML = `${prefix}${optData.name}<i class="bi bi-x chip-remove" data-id="${optData.id}"></i>`;
+        chipsContainer.appendChild(chip);
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = inputName;
+        hiddenInput.value = optData.id;
+        hiddenContainer.appendChild(hiddenInput);
+      }
+      dropdown.querySelectorAll('.custom-option').forEach(opt => {
+        if (opt.dataset.id === currentSelectedId) opt.classList.add('selected');
+        else opt.classList.remove('selected');
+      });
+    }
+
+    function renderDropdown() {
+      dropdown.innerHTML = '';
+      optionsList.forEach(optData => {
+        if (optData.name === '@everyone') return;
+        const option = document.createElement('div');
+        option.className = 'custom-option';
+        option.dataset.id = optData.id;
+        let prefix = '';
+        if (isChannel) {
+          prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
+        } else if (optData.color) {
+          prefix = `<span class="role-color" style="background-color: ${optData.color && optData.color !== '#000000' ? optData.color : '#b9bbbe'}"></span> `;
+        }
+        option.innerHTML = `${prefix}${optData.name}`;
+        option.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentSelectedId = (currentSelectedId === optData.id) ? null : optData.id;
+          renderChips();
+          wrapper.classList.remove('open');
+        });
+        dropdown.appendChild(option);
+      });
+    }
+
+    display.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => { if (w !== wrapper) w.classList.remove('open'); });
+      wrapper.classList.toggle('open');
+    });
+    chipsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('chip-remove')) {
+        e.stopPropagation();
+        currentSelectedId = null;
+        renderChips();
+      }
+    });
+    renderDropdown();
+    renderChips();
+  }
+
+  createSingleSelector('select-channel_id', 'channel_id', allChannels, 'hidden-inputs-channel_id', settingsData.channel_id, true);
+  createSingleSelector('select-verified_role_id', 'verified_role_id', allRoles, 'hidden-inputs-verified_role_id', settingsData.verified_role_id, false);
+  createSingleSelector('select-pending_role_id', 'pending_role_id', allRoles, 'hidden-inputs-pending_role_id', settingsData.pending_role_id, false);
+  createSingleSelector('select-log_channel_id', 'log_channel_id', allChannels, 'hidden-inputs-log_channel_id', settingsData.log_channel_id, true);
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-select-wrapper')) {
+      document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+    }
+  });
+</script>
+{% endblock %}

@@ -257,6 +257,23 @@
     </label>
   </div>
 
+  <!-- Verify Gate -->
+  <div class="module-card {% if modules.get('verify', True) %}mod-on{% else %}mod-off{% endif %}">
+    <div class="mod-info">
+      <div class="mod-name"><span class="mod-icon">🔐</span> {{ t('nav.verify') | default('Verify Gate') }}</div>
+      <div class="mod-desc">{{ t('dashboard.verify_desc') }}</div>
+      <a href="{{ url_for('server_verify', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+        {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
+      </a>
+    </div>
+    <label class="switch">
+      <input type="checkbox" class="module-toggle"
+             data-guild="{{ guild_id }}" data-module="verify"
+             {% if modules.get('verify', True) %}checked{% endif %}>
+      <span class="switch-track"></span>
+    </label>
+  </div>
+
   <!-- Logger -->
   <div class="module-card {% if modules.get('logger', False) %}mod-on{% else %}mod-off{% endif %}">
     <div class="mod-info">

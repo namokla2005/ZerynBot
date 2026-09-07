@@ -732,6 +732,9 @@ CAT_MAP = {
     "Automods": {
         "vi": "Kiểm duyệt tự động", "en": "Automods", "zh": "自动审核", "es": "AutoMod", "pt": "AutoMod", "fr": "Modération Auto"
     },
+    "Verify Gate": {
+        "vi": "Xác thực thành viên", "en": "Verify Gate", "zh": "验证门禁", "es": "Puerta de Verificación", "pt": "Portão de Verificação", "fr": "Porte de Vérification"
+    },
     "Leveling": {
         "vi": "Cấp bậc & XP", "en": "Leveling & XP", "zh": "等级与经验", "es": "Niveles y XP", "pt": "Níveis e XP", "fr": "Niveaux & XP"
     },
