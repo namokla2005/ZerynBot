@@ -26,13 +26,13 @@ from discord import app_commands
 from discord.ext import commands
 
 from cache import cache
-from database import async_get_guild_settings
+from database import async_get_guild_settings, async_get_song_cache, async_set_song_cache
 from i18n import tr
 
 try:
     from emojis import clean_title, e, embed_title, partial
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import clean_title, e, embed_title, partial
+    from bot.emojis import e, embed_title, partial
 
 log = logging.getLogger("BotV2.Music")
 
@@ -96,9 +96,15 @@ def load_opus_library() -> bool:
 load_opus_library()
 
 # ─── FFmpeg options tối ưu cho ARM (Đồng bộ PTS chống giật & lệch tốc độ) ─────
-FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -probesize 1M -analyzeduration 1000000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
+#   -fflags +genpts          : Sinh PTS khi stream thiếu/nhảy timestamp → chống "lúc nhanh lúc chậm"
+#   -probesize 512K / -analyzeduration 500000 : An toàn hơn 128K/250000 (tránh nhận sai demuxer
+#                             cho luồng AAC/m4a), vẫn nhanh hơn nhiều so với 1M/1000000 ban đầu.
+FFMPEG_BEFORE = '-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -fflags +genpts -probesize 512K -analyzeduration 500000 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
+#   -c:a copy                  : Chỉ cho nhánh copy luồng Opus WebM (không resample)
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
-FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
+#   -af aresample=async=1:first_pts=0 : Chống drift PTS chính hiệu (encode lại sang Opus 48k).
+#   KHÔNG thêm -af vào FFMPEG_OPTS_COPY (xung đột với -c:a copy).
+FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1 -af aresample=async=1:first_pts=0"
 
 MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet/phone 4-6GB, 10+ server)
 MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU)
@@ -136,7 +142,7 @@ _COOKIE_FILE = os.environ.get("YTDLP_COOKIEFILE", None)
 
 # Cấu hình yt-dlp tối ưu tốc độ (giảm timeout xuống 3s, client phản hồi nhanh nhất)
 YDL_OPTS = {
-    "format": "bestaudio[acodec=opus]/bestaudio/best",
+    "format": "bestaudio[abr<=160]/bestaudio/best",
     "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
@@ -145,12 +151,17 @@ YDL_OPTS = {
     "socket_timeout": 3,
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "web"],
+            # "tv" (TVHTML5) nhanh, thường không cần PO-token/JS; "web_safari" làm fallback ổn định.
+            # Tránh client "web" (bị YouTube throttle + đòi PO-token → chậm 3-6s).
+            "player_client": ["tv", "web_safari"],
         }
     },
     "nocheckcertificate": True,
     "ignoreerrors": True,
     "skip_download": True,
+    # Không kéo manifest dự phòng → ít dữ liệu hơn, extract nhanh hơn
+    "youtube_include_dash_manifest": False,
+    "youtube_include_hls_manifest": False,
 }
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS["cookiefile"] = _COOKIE_FILE
@@ -166,6 +177,8 @@ YDL_OPTS_FLAT = {
     "socket_timeout": 2,
     "nocheckcertificate": True,
     "ignoreerrors": True,
+    "youtube_include_dash_manifest": False,
+    "youtube_include_hls_manifest": False,
 }
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS_FLAT["cookiefile"] = _COOKIE_FILE
@@ -332,20 +345,29 @@ async def extract_info(query: str) -> dict | None:
     if cached is not None:
         return cached
 
+    # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
+    disk = await async_get_song_cache(cache_key, ttl=21600)
+    if disk is not None:
+        await cache.aset(cache_key, disk, ttl=600)
+        return disk
+
     # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
     async with _extract_semaphore:
         loop = asyncio.get_running_loop()
         info = await loop.run_in_executor(None, _extract_sync, query)
 
     if info:
-        # Lưu vào In-Memory Cache (TTL 10 phút)
+        # Lưu vào In-Memory Cache (TTL 10 phút) + disk cache
         await cache.aset(cache_key, info, ttl=600)
+        await async_set_song_cache(cache_key, info)
         vid = info.get("id")
         if vid:
             await cache.aset(f"song_info:{vid}", info, ttl=600)
+            await async_set_song_cache(f"song_info:{vid}", info)
         web_url = info.get("webpage_url") or info.get("url")
         if web_url and isinstance(web_url, str) and web_url.startswith("http"):
             await cache.aset(f"song_info:{web_url.lower().strip()}", info, ttl=600)
+            await async_set_song_cache(f"song_info:{web_url.lower().strip()}", info)
 
     return info
 
@@ -420,6 +442,22 @@ def _get_stream_url(info: dict) -> str | None:
     return None
 
 
+def _get_stream_acodec(info: dict, stream_url: str | None) -> str:
+    """Xác định codec audio của URL stream đã chọn (trả về 'opus', 'mp4a', ...).
+
+    Chính xác hơn heuristic khớp chuỗi URL, tránh nhầm khi YouTube đổi tên tham số.
+    """
+    if not stream_url or not info:
+        return ""
+    for f in info.get("formats", []):
+        if f.get("url") == stream_url:
+            return (f.get("acodec") or "").lower()
+    # Fallback: heuristic theo mimetype/URL
+    if "mime=audio%2Fwebm" in stream_url or "audio/webm" in stream_url:
+        return "opus"
+    return ""
+
+
 def _get_best_thumbnail(info: dict) -> str:
     thumbnails = info.get("thumbnails", [])
     if thumbnails and isinstance(thumbnails, list):
@@ -432,7 +470,7 @@ def _get_best_thumbnail(info: dict) -> str:
 
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
-    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url")
+    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus")
 
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")
@@ -443,6 +481,8 @@ class Track:
         self.uploader      = info.get("uploader") or info.get("channel") or "—"
         self.thumbnail     = _get_best_thumbnail(info)
         self.requester     = requester
+        # Xác định opus chính xác theo acodec (fallback heuristic nếu không tìm thấy format)
+        self.is_opus       = _get_stream_acodec(info, self.stream_url) == "opus"
 
     @property
     def is_stream_expired(self) -> bool:
@@ -522,8 +562,17 @@ class MusicPlayer:
             if info:
                 nxt.stream_url    = _get_stream_url(info)
                 nxt.stream_expire = time.time() + (5.5 * 3600)
+                nxt.is_opus       = _get_stream_acodec(info, nxt.stream_url) == "opus"
         except Exception as e:
             log.debug(f"[Music] Preload error: {e}")
+
+    def _schedule_preload(self):
+        """Preload bài tiếp theo (queue[0]) ngay khi có hàng chờ, tránh chờ tới lúc hết bài."""
+        if not self.queue:
+            return
+        if self._preload_task and not self._preload_task.done():
+            self._preload_task.cancel()
+        self._preload_task = asyncio.create_task(self._preload_next())
 
     def _after_play(self, error=None):
         if error:
@@ -570,7 +619,6 @@ class MusicPlayer:
                 new_track = Track(related_info, requester=requester)
                 if self.text_channel:
                     try:
-                        s = await async_get_guild_settings(str(self.guild.id))
                         await self.text_channel.send(
                             f"♾️ **Autoplay:** Tự động phát bài tiếp theo **[{new_track.title}]({new_track.url})**",
                             delete_after=10
@@ -621,6 +669,7 @@ class MusicPlayer:
                     return
                 track.stream_url    = _get_stream_url(info)
                 track.stream_expire = time.time() + (5.5 * 3600)
+                track.is_opus       = _get_stream_acodec(info, track.stream_url) == "opus"
 
             if not track.stream_url:
                 log.warning(f"[Music] Cannot resolve stream URL for '{track.title}'")
@@ -631,8 +680,8 @@ class MusicPlayer:
                             tr(s, "music.cannot_decode", title=track.title),
                             delete_after=8,
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.debug(f"[Music] cannot_decode send error: {e}")
                 self._dispatch_next()
                 return
 
@@ -642,7 +691,8 @@ class MusicPlayer:
             self.total_paused_time = 0.0
 
             # Tự động chọn Opus copy mode nếu stream gốc là Opus WebM (giảm 90% CPU)
-            is_opus = (
+            # Dùng track.is_opus (đã xác định theo acodec), fallback heuristic URL.
+            is_opus = track.is_opus or (
                 track.stream_url
                 and ("mime=audio%2Fwebm" in track.stream_url or "audio/webm" in track.stream_url)
             )
@@ -655,6 +705,7 @@ class MusicPlayer:
                     await asyncio.sleep(0.05)
 
             source = None
+            _t_ffmpeg = time.time()
             try:
                 if is_opus and self.volume == 1.0:
                     try:
@@ -680,6 +731,7 @@ class MusicPlayer:
                     load_opus_library()
 
                 self.vc.play(source, after=self._after_play)
+                log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus})")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
                 if self.text_channel:
@@ -689,8 +741,8 @@ class MusicPlayer:
                             tr(s, "music.cannot_decode", title=track.title),
                             delete_after=8,
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log.debug(f"[Music] cannot_decode send error: {e}")
                 self._dispatch_next()
                 return
 
@@ -699,9 +751,7 @@ class MusicPlayer:
 
             # Pre-load bài tiếp theo ở background
             if self.queue:
-                if self._preload_task and not self._preload_task.done():
-                    self._preload_task.cancel()
-                self._preload_task = asyncio.create_task(self._preload_next())
+                self._schedule_preload()
 
     async def _send_now_playing(self):
         if not self.text_channel or not self.current:
@@ -709,8 +759,8 @@ class MusicPlayer:
         if self.now_playing_msg:
             try:
                 await self.now_playing_msg.delete()
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug(f"[Music] delete old NP message error: {e}")
         s = await async_get_guild_settings(str(self.guild.id))
         view  = MusicControlView(self, s)
         elapsed = self.get_elapsed()
@@ -725,6 +775,9 @@ class MusicPlayer:
         self._reset_inactivity_timer()
         if self.vc.is_playing() or self.vc.is_paused() or self.current:
             self.queue.append(track)
+            # Preload sớm bài kế tiếp để skip tới là có sẵn ngay
+            if self.queue:
+                self._schedule_preload()
         else:
             await self._play(track)
 
@@ -754,13 +807,13 @@ class MusicPlayer:
             self.vc.stop()
         try:
             await self.vc.disconnect()
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug(f"[Music] voice disconnect error: {e}")
         if self.now_playing_msg:
             try:
                 await self.now_playing_msg.delete()
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug(f"[Music] delete NP message (stop) error: {e}")
         self.now_playing_msg = None
 
 
@@ -1071,6 +1124,7 @@ class Music(commands.Cog, name="Music"):
         self._players.pop(guild_id, None)
 
     async def _ensure(self, ctx: commands.Context) -> MusicPlayer | None:
+        _t0 = time.time()
         s = await async_get_guild_settings(str(ctx.guild.id))
         if not ctx.author.voice:
             await ctx.send(tr(s, "music.join_voice_first"))
@@ -1106,6 +1160,7 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.cannot_connect", err=e))
             return None
 
+        log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
         player = MusicPlayer(ctx.guild, ctx.channel, vc)
         self._players[guild_id] = player
         return player
@@ -1170,18 +1225,32 @@ class Music(commands.Cog, name="Music"):
     @app_commands.describe(query="Tên bài hát, link YouTube hoặc link Spotify")
     async def play(self, ctx: commands.Context, *, query: str):
         await ctx.defer()
+        _t0 = time.time()
         s = await async_get_guild_settings(str(ctx.guild.id))
+
+        # Nếu không phải Spotify → bắt đầu extract NGAY (song song với việc kết nối voice)
+        is_spotify = "spotify.com/track" in query or "spotify.link" in query
+        info_task = None if is_spotify else asyncio.create_task(extract_info(query))
+
+        # Kết nối voice (chạy song song với extract)
         player = await self._ensure(ctx)
         if not player:
+            if info_task:
+                info_task.cancel()
             return
 
-        # Tự động phân giải link Spotify nếu có
-        resolved_query = await _resolve_external_url(query)
-        msg = await ctx.send(tr(s, "music.searching", query=query))
-        info = await extract_info(resolved_query)
+        # Chờ kết quả extract (đã chạy song song với _ensure ở trên)
+        if info_task:
+            info = await info_task
+        else:
+            resolved_query = await _resolve_external_url(query)
+            info = await extract_info(resolved_query)
+
         if not info:
-            await msg.edit(content=tr(s, "music.not_found", query=query))
+            await ctx.send(tr(s, "music.not_found", query=query))
             return
+
+        log.info(f"[Music][timing] play ready in {time.time() - _t0:.2f}s (query='{query[:40]}')")
 
         track = Track(info, requester=ctx.author)
 
@@ -1197,9 +1266,8 @@ class Music(commands.Cog, name="Music"):
             embed.add_field(name=tr(s, "music.requester_field"),  value=ctx.author.mention,         inline=True)
             if track.thumbnail:
                 embed.set_thumbnail(url=track.thumbnail)
-            await msg.edit(content=None, embed=embed)
+            await ctx.send(embed=embed)
         else:
-            await msg.delete()
             await player.add_and_play(track)
 
     @commands.hybrid_command(name="nowplaying", aliases=["np"], description="Xem bài hát đang phát và thanh tiến trình")

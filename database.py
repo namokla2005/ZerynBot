@@ -128,6 +128,12 @@ def init_db():
                 created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS music_song_cache (
+                cache_key   TEXT PRIMARY KEY,
+                payload     TEXT NOT NULL,
+                created_at  REAL DEFAULT 0
+            );
+
             CREATE TABLE IF NOT EXISTS music_playlist_tracks (
                 id             INTEGER PRIMARY KEY AUTOINCREMENT,
                 playlist_id    INTEGER NOT NULL,
@@ -1236,6 +1242,41 @@ async def async_get_playlist_by_name(guild_id: str, name: str) -> Optional[Dict]
             d["tracks"] = await async_get_playlist_tracks(d["id"])
             return d
         return None
+
+
+# ─── Song info disk cache (giảm thời gian re-extract sau khi restart) ─────────
+async def async_get_song_cache(cache_key: str, ttl: int = 21600) -> Optional[Any]:
+    """Trả về info dict đã lưu (JSON) nếu chưa quá TTL, ngược lại None."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+            async with db.execute(
+                "SELECT payload, created_at FROM music_song_cache WHERE cache_key = ?",
+                (cache_key,),
+            ) as cur:
+                row = await cur.fetchone()
+        if not row:
+            return None
+        payload, created_at = row
+        if created_at and (time.time() - float(created_at)) > ttl:
+            return None
+        return json.loads(payload)
+    except Exception:
+        return None
+
+
+async def async_set_song_cache(cache_key: str, info: Any) -> None:
+    """Lưu info dict vào disk cache (JSON), dùng cho lần chạy sau / sau restart."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+            await db.execute(
+                "INSERT INTO music_song_cache (cache_key, payload, created_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, created_at = excluded.created_at",
+                (cache_key, json.dumps(info, ensure_ascii=False, default=str), time.time()),
+            )
+            await db.commit()
+    except Exception as exc:
+        # Ghi cache thất bại không được làm hỏng việc phát nhạc — chỉ ghi log.
+        logger.debug(f"[MusicCache] set_song_cache error (key={cache_key[:32]}): {exc}")
 
 async def async_create_playlist(guild_id: str, name: str, creator_id: str = "", creator_name: str = "") -> int:
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
