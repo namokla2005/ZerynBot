@@ -177,6 +177,7 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | `reminders` | `id` | User scheduled reminders (`user_id`, `guild_id`, `channel_id`, `reason`, `remind_at`, `created_at`). |
 | `bot_global_settings` | `key` | Global bot configurations (`gemini_api_key`, `maintenance_mode`, etc.). |
 | `verify_settings` | `guild_id` | Verify Gate config: `enabled`, `channel_id` (`#xac-thuc`), `verified_role_id`, `pending_role_id`, `verify_text`, `button_label`, `log_channel_id`, `hide_channels`, `saved_overrides` JSON list. |
+| `maintenance_jobs` | `job_key` | Track last run of maintenance tasks (e.g. `auto_prune`) to avoid duplicate daily pruning. |
 
 ---
 
@@ -240,6 +241,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | **Admin** | `bot/cogs/admin.py` | Slash command sync (`/sync`), global broadcast, reload extensions, `/backup` instant database export & 24h automated WAL cleanup & backup task. |
 | **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL regex, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown). Triggers warn/timeout and dispatches `automod_action`. |
 | **Verify** | `bot/cogs/verify.py` | Verify Gate (`/verify`): button-based verification (`zb_verify_button`), hard gate (member only sees `#xac-thuc` via pending role + saved overrides snapshot), `on_member_join` pending role assignment. |
+| **Maintenance** | `bot/cogs/maintenance.py` | Silent background auto-prune task: deletes old `guild_stats` (>60d), `automod_warnings` (>2d), `fun_interactions` (>60d), `reminders` (>30d). Uses `maintenance_jobs.last_run_at` to run only once/day. |
 | **AI** | `bot/cogs/ai.py` | Multi-provider AI assistant: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini 2.0 Flash / 1.5 Pro, and OpenRouter (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona). Supports vision analysis, dual-prefix matching, Admin model selection (`global_ai_model`), and fallback routing. |
 | **CustomCommands** | `bot/cogs/customcommands.py` | Trigger-Response engine (`/customcmd add/delete/list`) with dynamic variable replacements (`{user}`, `{mention}`, `{server}`, `{members}`, `{random:X-Y}`) and Rich Embeds. |
 | **Economy** | `bot/cogs/economy.py` | `/daily` streak rewards, `/balance`, `/pay`, `/deposit`, `/withdraw` (Bank safe custody), `/rich` leaderboard, mini-games (`/coinflip`, `/slots`, `/blackjack` 21 with interactive buttons), and server role shop (`/shop`, `/buy` paid with Bank balance). |
