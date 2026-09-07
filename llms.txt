@@ -18,12 +18,12 @@
 - **Web Dashboard**: Flask 3.x with Jinja2 templates, Discord OAuth2 authentication (`https://zerynbot.id.vn/callback`).
 - **Database**: SQLite in WAL mode (`data/bot.db`) with `PRAGMA busy_timeout = 15000` and automated 24h `.zip` backups routed to private `BACKUP_DB` webhook.
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`cache.py`) with thread-safe/async-safe TTL eviction.
-- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1561 keys per file.
+- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1587 keys per file.
 - **Audio Pipeline**: `yt-dlp` + `FFmpegOpusAudio` with single-thread optimization (<0.8s playback start), Music | 2 compact player card UI, progress bar, 5 interactive buttons, and `/nowplaying`.
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
 - **AI Routing**: Groq Cloud (`qwen/qwen3.8-27b` default, `gpt-oss-20b`, `compound`), Google Gemini, and OpenRouter with Multimodal Vision and Admin Model Selector (`global_ai_model`).
 
-## 19 Active Modules
+## 20 Active Modules
 
 1. **welcome_goodbye**: Dynamic Pillow welcome/goodbye banner cards with custom avatar borders and localized messages.
 2. **autoroles**: Automatic role assignment for regular members and bots upon joining.
@@ -39,11 +39,12 @@
 12. **economy**: Separated Wallet (gambling `/coinflip`, `/slots`, `/blackjack`, `/pay`, `/work`, `/fish`, `/hunt`, `/sell`) and Bank (safe custody `/deposit`, `/withdraw`, `/inventory` and `/shop` checkout).
 13. **tempvoice**: Join-to-Create voice hubs with in-chat button controls (Lock, Limit, Rename, Kick) and auto-deletion.
 14. **customcommands**: Custom command triggers and auto-responders with variable replacements (`{user}`, `{server}`, `{members}`).
-15. **ai**: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini, OpenRouter AI assistant (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona, Vision support).
+15. **ai**: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini, OpenRouter AI assistant (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona, Vision support, DuckDuckGo web search, SSRF guard).
 16. **remind**: Scheduled smart reminders and timers (`/remindme`, `/reminders`, `/delreminder`) with 15s background watchdog.
 17. **moderation**: Comprehensive moderation suite (`/kick`, `/ban`, `/unban`, `/timeout`, `/untimeout`, `/warn`, `/warnings`, `/delwarn`, `/clear`, `/slowmode`, `/lock`, `/unlock`).
 18. **fun**: Anime GIF social interactions (10 actions via nekos.best: `/hug`, `/pat`, `/kiss`, `/slap`, `/feed`, `/cuddle`, `/poke`, `/highfive`, `/cry`, `/dance`), love compatibility `/ship`, interactive proposal `/marry`, `/divorce`, `/profile`.
 19. **birthday**: Member birthday tracking (`/birthday set`, `/birthday check`, `/birthday list`, `/birthday remove`), automated 00:00 midnight celebration embeds, temporary 24h Birthday VIP role, and bank coins/XP bonuses.
+20. **verify**: Verification Gate (CAPTCHA / button-based verification, `/setup_verify`, `/verify panel`, `/verify disable`), quarantine with pending roles, join-flood Anti-Raid lockdown, and Anti-Nuke admin safeguard.
 
 ## Key Project Files
 

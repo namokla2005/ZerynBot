@@ -66,14 +66,14 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── tester.py               # Standalone test/debug helper script
 │   ├── fonts/                  # Custom TrueType fonts (.ttf) for card rendering
 │   ├── emojis.py               # Custom Discord Application Emojis registry & helpers (e, partial)
-│   └── cogs/                   # Modular Bot Feature Cogs (22 total)
+│   └── cogs/                   # Modular Bot Feature Cogs (24 total)
 │       ├── admin.py            # Bot owner global administration, slash command sync, /backup & 24h auto-backup
 │       ├── ai.py               # Multi-provider AI assistant (Groq Qwen 3.8 27B / Gemini / OpenRouter), /ask, /summarize, #ai-chat, Owner Persona
-│       ├── automod.py          # Real-time message filter (spam, bad words, fake links, caps, pings)
+│       ├── automod.py          # Real-time message filter (spam, bad words, fake links, caps, pings, anti-raid/nuke)
 │       ├── autorole.py         # On-member-join role auto-assignment
 │       ├── birthday.py         # Birthday system (/birthday set/check/list/remove, midnight loop, VIP role, rewards)
 │       ├── customcommands.py   # Custom commands & Auto-responders with variable replacements
-│       ├── economy.py          # /daily streak, wallet, bank, /pay, /slots, /coinflip, /blackjack, /shop
+│       ├── economy.py          # /daily streak, wallet, bank, /pay, /slots, /coinflip, /blackjack, /shop, /work, /fish, /hunt, /inventory, /sell
 │       ├── events.py           # Join/leave event listeners, guild cache, banner delivery
 │       ├── fun.py              # Anime GIF interactions (10 actions via nekos.best), /ship, /marry, /divorce, /profile
 │       ├── giveaway.py         # Essential Bot style Giveaway (banner header, key-value fields, role requirements, live counter)
@@ -81,6 +81,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       ├── lang.py             # /lang language picker slash command
 │       ├── leveling.py         # Chat & Voice XP engine, rank calculation, level rewards
 │       ├── logger.py           # Server audit log events listener & embed logger
+│       ├── maintenance.py      # Scheduled auto-prune background task (old logs, stats, warnings)
 │       ├── moderation.py       # Moderation suite (/kick, /ban, /unban, /timeout, /warn, /clear, /slowmode, /lock...)
 │       ├── music.py            # Music | 2 style audio player (compact card, right thumbnail, progress bar, 5 interactive buttons, /nowplaying)
 │       ├── reactionroles.py    # Reaction role listener & interactive button handler
@@ -88,7 +89,8 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       ├── stats.py            # Hourly event metrics collector for dashboard analytics
 │       ├── tempvoice.py        # Temporary Voice channels (Join-to-Create hub, in-chat button controls)
 │       ├── ticket.py           # Support ticket panel creation, persistent views, channel setup
-│       └── utility.py          # Ping, membercount, 10-category interactive /help Command Center, poll, roll, choose
+│       ├── utility.py          # Ping, membercount, 17-category interactive /help Command Center, poll, roll, choose
+│       └── verify.py           # Verification gate (/setup_verify, /verify panel, anti-raid & anti-nuke)
 │
 ├── dashboard/                  # Flask Web Management Dashboard
 │   ├── app.py                  # Flask routes, OAuth2 handlers, server module controllers
@@ -108,6 +110,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       ├── server_leveling.html# Leveling & XP rewards page
 │       ├── server_logger.html  # Audit Logger configuration page
 │       ├── server_tempvoice.html# Temporary Voice Hub configuration page
+│       ├── server_verify.html  # Verification Gate & Anti-Raid/Nuke configuration page
 │       ├── tickets.html        # Ticket System panel builder page
 │       ├── reactionroles.html  # Reaction Roles panel builder page
 │       ├── music.html          # Server music playlists & settings page
@@ -239,17 +242,21 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 |----------|-----------|------------------------------------------------|
 | **Admin** | `bot/cogs/admin.py` | Slash command sync (`/sync`), global broadcast, reload extensions, `/backup` instant database export & 24h automated WAL cleanup & backup task. |
 | **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL regex, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown). Triggers warn/timeout and dispatches `automod_action`. |
+| **Autorole** | `bot/cogs/autorole.py` | Listens to `on_member_join`: automatically assigns designated default member roles and bot roles upon entry. |
+| **Birthday** | `bot/cogs/birthday.py` | Member birthday registry (`/birthday set/check/list/remove`), midnight 00:00 celebration scheduler, 24h temporary Birthday VIP role, and bank coins/XP bonus. |
 | **Verify** | `bot/cogs/verify.py` | Verify Gate (`/verify`): button-based verification (`zb_verify_button`), hard gate (member only sees `#xac-thuc` via pending role + saved overrides snapshot), `on_member_join` pending role assignment. |
 | **Maintenance** | `bot/cogs/maintenance.py` | Silent background auto-prune task: deletes old `guild_stats` (>60d), `automod_warnings` (>2d), `fun_interactions` (>60d), `reminders` (>30d). Uses `maintenance_jobs.last_run_at` to run only once/day. |
-| **AI** | `bot/cogs/ai.py` | Multi-provider AI assistant: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini 2.0 Flash / 1.5 Pro, and OpenRouter (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona). Supports vision analysis, dual-prefix matching, Admin model selection (`global_ai_model`), and fallback routing. |
+| **AI** | `bot/cogs/ai.py` | Multi-provider AI assistant: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini 2.0 Flash / 1.5 Pro, and OpenRouter (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona). Supports vision analysis, dual-prefix matching, Admin model selection (`global_ai_model`), SSRF guard, and fallback routing. |
 | **CustomCommands** | `bot/cogs/customcommands.py` | Trigger-Response engine (`/customcmd add/delete/list`) with dynamic variable replacements (`{user}`, `{mention}`, `{server}`, `{members}`, `{random:X-Y}`) and Rich Embeds. |
-| **Economy** | `bot/cogs/economy.py` | `/daily` streak rewards, `/balance`, `/pay`, `/deposit`, `/withdraw` (Bank safe custody), `/rich` leaderboard, mini-games (`/coinflip`, `/slots`, `/blackjack` 21 with interactive buttons), and server role shop (`/shop`, `/buy` paid with Bank balance). |
+| **Economy** | `bot/cogs/economy.py` | `/daily` streak rewards, `/balance`, `/pay`, `/deposit`, `/withdraw` (Bank safe custody), `/rich` leaderboard, mini-games (`/coinflip`, `/slots`, `/blackjack` 21 with interactive buttons), `/work`, `/fish`, `/hunt`, `/inventory`, `/sell`, and server role shop (`/shop`, `/buy` paid with Bank balance). |
 | **Events** | `bot/cogs/events.py` | `on_member_join` & `on_member_remove`: generates dynamic Pillow welcome/goodbye banner card (or fallback embed), caches guild structure (`_cache_guild`), enforces guild blacklist. |
+| **Fun** | `bot/cogs/fun.py` | Anime GIF social interactions (10 actions via nekos.best API: hug, pat, kiss, slap, feed, cuddle, poke, highfive, cry, dance), love match `/ship`, interactive proposal `/marry`, `/divorce`, and affection `/profile`. |
 | **Giveaway** | `bot/cogs/giveaway.py` | `/giveaway start/end/reroll`. Runs `giveaway_loop` (every 15s) with `ended == 1` double-check to prevent double-ending race conditions. Uses field index 2 for live participant count edits. |
 | **Info** | `bot/cogs/info.py` | `/serverinfo`, `/userinfo`, `/avatar`, `/botinfo`, `/roleinfo`, `/channelinfo`. Fully localized badge and verification level mappers. |
 | **Lang** | `bot/cogs/lang.py` | `/lang` hybrid command to change guild language in SQLite & invalidate cache. |
 | **Leveling** | `bot/cogs/leveling.py` | Message XP (60s cooldown per user), `voice_xp_task` (90s batch interval loop for non-muted voice members), reward role assignment (`stack_rewards` logic), rank card Pillow generator fallback. Uses `leveling.xp_*` namespace. |
 | **Logger** | `bot/cogs/logger.py` | Listens to Discord audit events: message edit/delete, member join/leave/kick/ban, role updates, channel edits, automod violations (`on_automod_action`), ticket actions (`on_ticket_action`). |
+| **Moderation** | `bot/cogs/moderation.py` | Complete moderation suite: `/kick`, `/ban`, `/unban`, `/timeout`, `/untimeout`, `/warn`, `/warnings`, `/delwarn`, `/clear`, `/slowmode`, `/lock`, `/unlock`. Escalating warning thresholds with mod log dispatch. |
 | **Music** | `bot/cogs/music.py` | yt-dlp + `FFmpegOpusAudio` playback manager with low-latency buffer tuning (<0.8s start). Spotify track auto-resolver, `/volume` (1-150%), `/shuffle`, 3-minute inactivity auto-leave, atomic play lock, `MusicControlView` (Pause, Skip, Stop, Loop buttons), Lofi 24/7 streams (SomaFM & YouTube), custom playlists. |
 | **ReactionRoles** | `bot/cogs/reactionroles.py` | Listens for raw reaction add/remove and button interactions to toggle configured roles. |
 | **Remind** | `bot/cogs/remind.py` | Smart reminders & timer scheduling (`/remindme`, `/reminders`, `/delreminder`), 15-second background loop, in-channel or DM alert fallback, full 6-language i18n support. |
@@ -482,6 +489,9 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 ## 12. System Changelog & Evolution Highlights
 
+- **v2.9 (2026-09)**:
+  - **Verify Gate & Anti-Raid / Anti-Nuke (Module 20)**: Interactive CAPTCHA / button-based verification gate, automated quarantine with pending role, Anti-Raid lockdown on join flood, Anti-Nuke admin safeguard. Added `/setup_verify`, `/verify panel`, `/verify disable` and dedicated dashboard management page `server_verify.html`.
+  - **Security & Reliability Hardening**: SSRF guard via `is_safe_http_url` on `/summarize` URLs, true LRU cache eviction in `cache.py`, automated maintenance auto-prune task in `bot/cogs/maintenance.py`, and centralized emoji registry in `bot/emojis.py`.
 - **v2.8 (2026-09)**:
   - **AI Phase 3 (AI Web 2.0)**: Real-time DuckDuckGo web search grounding (`/ask prompt:... web:True`) and full article/URL content extractor & summarizer (`/summarize url:...`).
   - **Command Center & `/help` Overhaul**: Reorganized interactive dropdown into 17 distinct categories covering all 103 commands, updated 20 modules overview, and synchronized 1587 keys across 6 languages.

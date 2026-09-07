@@ -2,9 +2,9 @@
 """
 Script: validate_all.py — Bộ Kiểm Thử Tự Động Toàn Diện 1-Click Cho ZerynBot V2
 Thực hiện 4 kiểm tra cốt lõi:
-1. Đồng bộ 100% key giữa 6 file từ điển ngôn ngữ (1510 keys/file).
+1. Đồng bộ 100% key giữa 6 file từ điển ngôn ngữ (1587 keys/file).
 2. Kiểm tra biên dịch cú pháp tất cả file Python (.py) trong repo.
-3. Kiểm tra số lượng lệnh trong _COMMANDS_DATA (87 lệnh, 16 danh mục).
+3. Kiểm tra số lượng lệnh trong _COMMANDS_DATA (103 lệnh, 17 danh mục).
 4. Kiểm tra sự nhất quán về số liệu trong các tài liệu (ARCHITECTURE.md, AGENTS.md, llms.txt).
 """
 

@@ -5,13 +5,13 @@
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
   <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1587%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
-  <img src="https://img.shields.io/badge/Modules-19%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="19 Modules">
-  <img src="https://img.shields.io/badge/Commands-92%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="92 Commands">
+  <img src="https://img.shields.io/badge/Modules-20%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="20 Modules">
+  <img src="https://img.shields.io/badge/Commands-103%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="103 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (19 Modules & 92 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (20 Modules & 103 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
@@ -44,7 +44,9 @@
 - Quản lý danh sách lịch hẹn với `/reminders` và hủy hẹn giờ với `/delreminder <id>`.
 
 ### 🧠 6. Trí Tuệ Nhân Tạo (AI Assistant & Chatbot)
-- **Tích hợp mô hình AI hiện đại**: Gemini, OpenAI, Groq LPU, Claude với khả năng hội thoại thông minh, tóm tắt tin nhắn kênh chat (`/ai summarize`) và trả lời câu hỏi (`/ai ask`).
+- **Tích hợp mô hình AI hiện đại**: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini (`gemini-2.0-flash`, `gemini-1.5-pro`), OpenRouter với khả năng đàm thoại thông minh, nhận diện hình ảnh (Multimodal Vision), tóm tắt tin nhắn kênh chat (`/summarize`) và trả lời câu hỏi (`/ask`).
+- **Tra cứu Web thời gian thực (Web Search Grounding)**: Hỗ trợ cờ `web: True` trong lệnh `/ask` tự động tìm kiếm thông tin mới nhất qua DuckDuckGo.
+- **Tóm tắt bài viết URL an toàn**: Lệnh `/summarize url:<link>` trích xuất và tóm tắt nội dung trang web với lớp bảo vệ **SSRF Guard** chống tấn công mạng nội bộ.
 - **Tùy biến nhân cách AI (Custom System Prompt)**: Lựa chọn các preset phong cách (thân thiện, hài hước, chuyên nghiệp, Tsundere) hoặc nhập prompt riêng biệt theo từng Server ngay trên Dashboard.
 - **Hỗ trợ Multi-Key & Channel Lock**: Khóa kênh chat AI riêng biệt và quản lý API Key linh hoạt.
 
@@ -53,10 +55,15 @@
 - **Bảng điều khiển tương tác (Interactive Control Panel)**: Đổi tên phòng, đặt giới hạn số người (User Limit), Khóa/Mở phòng Voice (`/voice lock`, `/voice unlock`, `/voice limit`, `/voice rename`).
 - **Tự động dọn dẹp (Auto Cleanup)**: Tự động xóa phòng Voice rác ngay khi không còn ai trong phòng.
 
-### 💰 8. Hệ Thống Kinh Tế Ảo & Ngân Hàng An Toàn (Virtual Economy & Bank System)
+### 💰 8. Hệ Thống Kinh Tế Ảo, Nghề Nghiệp & Ngân Hàng (Virtual Economy 2.0)
 - **Tách biệt Ví (Wallet) & Ngân hàng (Bank)**:
   - 💵 **Tiền mặt Ví (Wallet)**: Dùng để chuyển tiền (`/pay`), tham gia mini-games giải trí (`/coinflip`, `/slots`, `/blackjack`). Mini-games **chỉ trừ tiền trong Ví**; tài sản trong Ngân hàng luôn an toàn 100%.
   - 🏦 **Tài khoản Ngân hàng (Bank)**: Nơi giữ tiền an toàn và dùng để thanh toán mua sắm Role trong Cửa hàng Server (`/shop`, `/buy`).
+- **Nghề Nghiệp & Thu Thập Vật Phẩm (Kinh Tế 2.0)**:
+  - `/work`: Làm việc chăm chỉ nhận tiền lương và tích lũy coin.
+  - `/fish` & `/hunt`: Đi câu cá hoặc săn thú với xác suất nhận vật phẩm theo cấp độ hiếm (Common, Uncommon, Rare, Epic, Legendary).
+  - `/inventory`: Xem túi đồ cá nhân chứa các vật phẩm đã thu thập.
+  - `/sell <item>` / `/sell all`: Bán một hoặc toàn bộ vật phẩm trong túi đồ đổi lấy tiền mặt vào Ví.
 - **Lệnh Nạp & Rút Tiền Linh Hoạt**:
   - `/deposit <amount>` (hoặc `/dep all`): Nạp tiền mặt từ Ví vào tài khoản Ngân hàng.
   - `/withdraw <amount>` (hoặc `/with all`): Rút tiền từ Ngân hàng về Ví khi cần cá cược hoặc chuyển khoản.
@@ -77,27 +84,34 @@
 - **Tự động ngắt kết nối (Inactivity Watchdog)**: Tự động rời kênh voice sau 3 phút nếu không có bài hát nào được phát để giải phóng tài nguyên.
 - **Điều khiển phong phú**: Lệnh `/volume <1-150>`, `/shuffle`, `/autoplay`, `/loop`, `/replay`, `/lofi` (SomaFM & YouTube Radio), quản lý Playlist cá nhân & máy chủ.
 
-### 🛡️ 10. Kiểm Duyệt Tự Động (AutoMod)
+### 🛡️ 10. Kiểm Duyệt Tự Động & Chống Phá Hoại (AutoMod, Anti-Raid & Anti-Nuke)
 - **Bộ lọc đa lớp**: Anti-Spam (cửa sổ trượt 5s), Banned Words Filter, Fake Link / Phishing Filter, Anti-Invite Links, Anti-Caps Lock (>70%), Anti-Mass Ping.
-- **Phạt tự động**: Cảnh cáo công khai + DM chi tiết, Tạm khóa chat (Timeout) linh hoạt từ 1 phút đến 24 giờ.
-- **Whitelist**: Hỗ trợ Role Whitelist & Channel Whitelist linh hoạt.
+- **Hệ thống Chống Đột Nhập (Anti-Raid)**: Tự động đếm tần suất join thành viên mới theo cửa sổ thời gian; tự động kích hoạt chế độ phong tỏa khẩn cấp (Lockdown) và trừng phạt bot rác.
+- **Hệ thống Chống Phá Hoại (Anti-Nuke)**: Giám sát thời gian thực các hành vi nguy hiểm như xóa kênh, xóa vai trò hàng loạt; tự động thu hồi quyền hạn và ban tài khoản tấn công.
+- **Phạt tự động & Whitelist**: Cảnh cáo công khai + DM chi tiết, Tạm khóa chat (Timeout) linh hoạt từ 1 phút đến 24 giờ, hỗ trợ Role & Channel Whitelist.
 
-### 🎫 11. Hệ Thống Support Ticket (Ticket System)
+### ✅ 11. Cổng Xác Minh Thành Viên (Verify Gate System)
+- **Cổng xác thực linh hoạt**: Hỗ trợ 2 chế độ: Nút bấm xác nhận (`Button Verify`) hoặc `CAPTCHA` chọn đúng biểu tượng để loại trừ 100% self-bot / bot spam.
+- **Phân quyền cách ly an toàn**: Tự động gán Role tạm thời (`pending_role`), ẩn toàn bộ server chỉ để lộ duy nhất kênh xác minh.
+- **Gán Role tự động & Mở khóa server**: Tự động cấp Role chính thức (`verified_role`) và gỡ Role tạm ngay khi vượt qua xác minh.
+- **Tùy biến bảng thông báo**: Lệnh `/setup_verify`, `/verify panel`, `/verify disable` và trang cấu hình chuyên dụng `/dashboard/<id>/verify`.
+
+### 🎫 12. Hệ Thống Support Ticket (Ticket System)
 - Tạo nhiều bảng Ticket tương tác với nút bấm tuỳ chỉnh màu sắc & biểu tượng.
 - Tạo kênh chat riêng tư kèm phân quyền bảo mật chặt chẽ cho đội ngũ Support.
 - Quy trình Đóng / Xóa ticket có đếm ngược trực quan và ghi log chi tiết.
 
-### ⭐ 12. Hệ Thống Cấp Độ (Leveling & Rank Cards)
+### ⭐ 13. Hệ Thống Cấp Độ (Leveling & Rank Cards)
 - Tính điểm XP linh hoạt từ Chat text (cooldown 60s) và Voice channel (quét định kỳ 90s).
 - Tạo ảnh thẻ Rank Card trực quan bằng thư viện Pillow (`PIL`).
 - Tự động trao Role phần thưởng khi đạt mốc Level (hỗ trợ tích lũy Role hoặc thay thế).
 - Quản trị viên dễ dàng quản lý XP với các lệnh `/xp add`, `/xp set`, `/xp reset`.
 
-### 🤖 13. Tự Động Trao Role & Reaction Roles
+### 🤖 14. Tự Động Trao Role & Reaction Roles
 - **Auto Roles**: Tự động gán role ban đầu cho User và Bot khi vừa vào máy chủ.
 - **Reaction Roles**: Tạo bảng chọn role trực quan qua nút bấm Button hoặc Reaction Emoji.
 
-### 🎉 14. Sự Kiện Giveaway Đỉnh Cao (Essential Bot Style)
+### 🎉 15. Sự Kiện Giveaway Đỉnh Cao (Essential Bot Style)
 - **Banner đồ họa Dark Theme**: Tự động gắn ảnh bìa `🎉 GIVEAWAY` sang trọng ở đầu Embed.
 - **Bố cục Key-Value chuẩn mực**: `**Phần thưởng:**`, `**Số người thắng:**`, `**Tạo bởi:**`, `**Vai trò yêu cầu:**` (tùy chọn), `**Lượt tham gia:**`, `**Kết thúc:**`.
 - **Nút bấm Blurple `🎉 Tham gia Giveaway`**: Đếm số người tham gia realtime và cập nhật trực tiếp trên Embed.
@@ -105,39 +119,40 @@
 - Khởi tạo & quản lý sự kiện bằng lệnh `/giveaway start` (kèm tham số `role` yêu cầu), `/giveaway end`, `/giveaway reroll`.
 - Cơ chế bảo vệ chống race-condition (tránh trao giải lặp lại 2 lần).
 
-### 💬 15. Lệnh Tùy Biến (Custom Commands & Auto-Responders)
+### 💬 16. Lệnh Tùy Biến (Custom Commands & Auto-Responders)
 - **Tạo phản hồi tự động**: Lệnh `/customcmd add`, `/customcmd list`, `/customcmd delete` hỗ trợ đối sánh từ khóa linh hoạt (`exact`, `contains`, `startswith`).
 - **Thống kê lượt sử dụng**: Theo dõi chi tiết số lần kích hoạt của từng lệnh trên Dashboard.
 
-### 📊 16. Nhật Ký Máy Chủ & Thống Kê Thời Gian Thực
+### 📊 17. Nhật Ký Máy Chủ & Thống Kê Thời Gian Thực
 - **Audit Logger**: Ghi log chi tiết tin nhắn sửa/xóa, thành viên ra/vào, kick/ban, thay đổi Role, kênh, ticket.
 - **Real-time Stats**: Thống kê số lượng tin nhắn, thành viên ra vào theo từng giờ cho biểu đồ Dashboard.
 - **Utility & Info**: Menu `/help` tương thích 6 ngôn ngữ, `/ping`, `/membercount`, `/serverinfo`, `/userinfo`, `/avatar`, `/poll`, `/roll`, `/choose`.
 
-### 📦 17. Sao Lưu Tự Động & Bảo Trì Dữ Liệu (24h Auto Backup & WAL Checkpoint)
-- **Tác vụ ngầm 24h (`auto_backup_task`)**: Tự động dọn dẹp WAL (`PRAGMA wal_checkpoint(TRUNCATE);`), nén cơ sở dữ liệu `data/bot.db` thành file `.zip`, lưu trữ có giới hạn 7 ngày và gửi backup về Discord qua `WEBHOOK_LOG_URL`.
+### 📦 18. Sao Lưu Tự Động & Bảo Trì Dữ Liệu (24h Auto Backup, Pruning & WAL Checkpoint)
+- **Tác vụ ngầm 24h (`auto_backup_task`)**: Tự động dọn dẹp WAL (`PRAGMA wal_checkpoint(TRUNCATE);`), nén cơ sở dữ liệu `data/bot.db` thành file `.zip`, lưu trữ có giới hạn 7 ngày và gửi backup về Discord qua `BACKUP_DB_URL`.
+- **Bảo trì dữ liệu tự động (Auto-Prune)**: Tự động xóa sạch các bản ghi log, cảnh cáo và tương tác cũ quá hạn (60 ngày) qua `maintenance.py` để tiết kiệm dung lượng SQLite.
 - **Lệnh Chủ Bot `/backup`**: Cho phép Bot Owner tải về bản sao lưu database toàn vẹn ngay lập tức.
 
-### 🌐 18. Web Dashboard Quản Trị Server (Flask + Discord OAuth2)
+### 🌐 19. Web Dashboard Quản Trị Server (Flask + Discord OAuth2)
 - **Giao diện Midnight Obsidian Glassmorphism**: Thiết kế kính mờ sang trọng, ấm áp, chống mỏi mắt với chuẩn form control cao cấp.
 - **Sidebar Phân Cấp Ưu Tiên**:
   - 🛡️ *Quản Trị Cốt Lõi*: Moderation, Automods, Verify Gate (Xác thực thành viên), Welcome & Goodbye, Auto Roles, Logging.
   - 🤖 *Cộng Đồng & Giải Trí*: AI Assistant, Leveling, Economy, Birthday, Fun & Social, Temp Voice, Music, Reaction Roles.
   - ⚙️ *Tiện Ích & Công Cụ*: Support Tickets, Giveaways, Custom Commands, Info, Utility.
-- **Trang Chủ Hiện Đại**: Lưới 15 module đối xứng cân đối kèm nút `[ + And More ]` và 9 khối showcase tính năng trực quan.
+- **Trang Chủ Hiện Đại**: Lưới 20 module đối xứng cân đối kèm nút `[ + And More ]` và 9 khối showcase tính năng trực quan.
 - **Bảo Mật & Điều Khoản Chuyên Nghiệp**: Trang Điều khoản dịch vụ (`/tos`) và Chính sách bảo mật (`/privacy`) chuẩn pháp lý với thanh mục lục cố định (Sticky TOC).
 - **Trang Admin dành cho Bot Owner (`/admin`)**:
   - Xem danh sách máy chủ active, phát thông báo Broadcast toàn hệ thống, Kick/Blacklist server vi phạm.
   - **Web Terminal**: Nhập lệnh shell trực tiếp trên trình duyệt (tương thích 100% Android Termux/Linux).
   - **Git Pull & Restart 1-Click**: Tự động cập nhật mã nguồn qua `git fetch & reset hard` và khởi động lại bot ngay trên Web.
 
-### 🔒 19. Bảo Mật & Hạ Tầng Chuẩn Production (Security & Hardening)
+### 🔒 20. Bảo Mật & Hạ Tầng Chuẩn Production (Security & Hardening)
 - **WSGI Production Server**: Tích hợp máy chủ **Waitress WSGI** cho Web Dashboard, ổn định và chịu tải tốt hơn.
 - **Bảo vệ CSRF Per-Session**: Tự động inject và kiểm tra CSRF token per-session qua `_csrf_bootstrap.html` cho toàn bộ form và request.
 - **Chống Login CSRF & IDOR**: Bắt buộc tham số `state` trong OAuth2 flow; kiểm duyệt chặt chẽ quyền sở hữu `channel_id` theo `guild_id`.
-- **Chống SSRF**: Hàm `is_safe_http_url` kiểm duyệt URL đầu vào (Card background, media).
+- **Chống SSRF**: Hàm `is_safe_http_url` kiểm duyệt URL đầu vào (Card background, media, AI article summarization).
 - **Giới hạn tần suất (Rate Limiter)**: Tích hợp `Flask-Limiter` bảo vệ các route nhạy cảm (`/login`, `/callback`, `/admin/system/*`).
-- **Bộ Test Suite Tự Động (55 Tests)**: Kiểm thử unit test và security test (`tests/`) bảo vệ toàn diện hệ thống.
+- **Bộ Test Suite Tự Động**: Kiểm thử unit test và security test (`tests/`) bảo vệ toàn diện hệ thống.
 
 ---
 

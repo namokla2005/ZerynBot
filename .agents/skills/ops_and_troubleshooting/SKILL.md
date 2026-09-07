@@ -68,5 +68,5 @@ Khi gặp sự cố hỏng hóc CSDL:
 ## 🛠️ 5. Bộ Script Tự Động Hóa Trong `assets/`
 
 - ⚡ **[`validate_all.py`](../zerynbot_architecture_context/assets/validate_all.py)**: Kiểm thử toàn diện 1-Click (i18n + Python compilation + commands count + doc sync).
-- 🧪 **[`validate_i18n.py`](../zerynbot_architecture_context/assets/validate_i18n.py)**: Kiểm thử parity 1510 keys giữa 6 ngôn ngữ.
+- 🧪 **[`validate_i18n.py`](../zerynbot_architecture_context/assets/validate_i18n.py)**: Kiểm thử parity 1587 keys giữa 6 ngôn ngữ.
 - 🗄️ **[`check_db_schema.py`](../zerynbot_architecture_context/assets/check_db_schema.py)**: Kiểm tra cấu trúc CSDL và các lệnh Migration an toàn.

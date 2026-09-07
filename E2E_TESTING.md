@@ -47,9 +47,9 @@ mock_user_session = {
    * Kiểm tra Hero Section (Tiêu đề, Avatar Mascot Chibi Zeryn tròn phát sáng, nút Add to Discord).
    * Kiểm tra lưới 16 tính năng nổi bật (Features Grid).
 2. **Mở URL `/commands`**:
-   * Kiểm tra hiển thị đầy đủ danh sách **87 Lệnh** được nạp từ `_COMMANDS_DATA` (địa phương hóa qua `commands_catalog.py`).
-   * Thử tìm kiếm lệnh trên ô Search (ví dụ: gõ `deposit` -> lọc đúng lệnh nạp tiền ngân hàng).
-   * Thử chuyển đổi danh mục (Kinh tế & Shop, Nhạc 24/7, Kiểm duyệt, v.v.).
+   * Kiểm tra hiển thị đầy đủ danh sách **103 Lệnh** thuộc **17 danh mục** được nạp từ `_COMMANDS_DATA` (địa phương hóa qua `commands_catalog.py`).
+   * Thử tìm kiếm lệnh trên ô Search (ví dụ: gõ `verify` -> lọc đúng lệnh cổng xác minh thành viên).
+   * Thử chuyển đổi danh mục (Kinh tế & Shop, Nhạc 24/7, Xác minh, Kiểm duyệt, v.v.).
 3. **Mở URL `/tos` và `/privacy`**:
    * Kiểm tra thanh mục lục bên trái (Sticky TOC) cuộn mượt mà (smooth scrolling) tới từng phần.
 
@@ -77,6 +77,12 @@ mock_user_session = {
 3. **Embed Builder (`/dashboard/<id>/embeds`)**:
    * Thêm tiêu đề, mô tả, màu sắc hex, trường thông tin (Fields).
    * Kiểm tra bản xem trước khớp 100% với giao diện Discord Rich Embed chuẩn.
+4. **Cổng Xác Minh & Anti-Raid (`/dashboard/<id>/verify`)**:
+   * Thử bật công tắc Toggle Kích hoạt Verify Gate.
+   * Chọn kênh xác minh (`#xac-thuc`), vai trò đã xác minh (`@Thành Viên`), vai trò tạm thời (`@Chưa Xác Minh`).
+   * Chuyển đổi phương thức xác minh (Nút bấm Button / CAPTCHA emoji).
+   * Cấu hình ngưỡng Anti-Raid (số lượng join/khoảng thời gian) và chế độ phong tỏa (Lockdown).
+   * Bấm *"Lưu Cài Đặt"* ➔ Kiểm tra hiển thị Toast Notification thành công và trạng thái được lưu vào CSDL.
 
 ---
 
