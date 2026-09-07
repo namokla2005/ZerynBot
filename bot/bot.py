@@ -3,12 +3,12 @@ bot.py — Discord Bot v2 entry point.
 Uses discord.py app_commands (slash commands) as primary interface.
 """
 import asyncio
-import logging
-import sys
-import os
 import json
-import time
+import logging
+import os
+import sys
 import threading
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -16,13 +16,14 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from logging.handlers import RotatingFileHandler
+
 import discord
 from discord.ext import commands
+
 import config
 from database import init_db
 from i18n import tr
-
-from logging.handlers import RotatingFileHandler
 
 # ─── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -124,6 +125,7 @@ def load_opus_library() -> bool:
                 logger.info(f"[Opus] Loaded Opus library successfully from: {candidate}")
                 return True
         except Exception:
+            logger.debug("[Opus] Candidate load failed: %s", candidate)
             continue
 
     try:
@@ -234,7 +236,7 @@ class BotV2(commands.Bot):
             # Chưa ready / đang offline
             if disconnected_at is None:
                 disconnected_at = time.time()
-                logger.warning(f"[Health] Bot chưa ready — bắt đầu đếm thời gian offline.")
+                logger.warning("[Health] Bot chưa ready — bắt đầu đếm thời gian offline.")
             else:
                 elapsed = time.time() - disconnected_at
                 logger.warning(

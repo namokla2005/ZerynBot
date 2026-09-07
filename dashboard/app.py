@@ -557,13 +557,20 @@ def server_automod(guild_id: str):
             "immune_roles": immune_roles,
             "spam_allowed_channels": spam_allowed_channels,
             "notify_role_id": form.get("notify_role_id") or None,
-            "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None)
+            "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None),
+            # Anti-Raid / Anti-Nuke
+            "anti_raid_enabled": 1 if form.get("anti_raid_enabled") else 0,
+            "raid_join_per_window": int(form.get("raid_join_per_window", 5) or 5),
+            "raid_action": form.get("raid_action", "lockdown"),
+            "anti_nuke_enabled": 1 if form.get("anti_nuke_enabled") else 0,
+            "nuke_actions": form.getlist("nuke_actions"),
         }
         db.upsert_automod_settings(guild_id, **fields)
         # Enable module if any feature is enabled
         is_module_active = (fields["spam_enabled"] or fields["bad_words_enabled"] or 
                             fields["links_enabled"] or fields["anti_invite_enabled"] or 
-                            fields["anti_caps_enabled"] or fields["anti_mentions_enabled"])
+                            fields["anti_caps_enabled"] or fields["anti_mentions_enabled"] or
+                            fields["anti_raid_enabled"] or fields["anti_nuke_enabled"])
         db.set_module(guild_id, "automods", bool(is_module_active))
         
         flash("✅ Đã lưu cài đặt Automods!", "success")
@@ -587,6 +594,41 @@ def server_automod(guild_id: str):
         bad_words_str=bad_words_str,
         blacklist_links_str=blacklist_links_str,
         whitelist_links_str=whitelist_links_str,
+        meta=db.get_guild_meta(guild_id) or {}
+    )
+
+
+@app.route("/dashboard/<guild_id>/verify", methods=["GET", "POST"])
+@guild_access_required
+def server_verify(guild_id: str):
+    if request.method == "POST":
+        form = request.form
+        enabled = 1 if form.get("enabled") else 0
+        fields = {
+            "enabled": enabled,
+            "hide_channels": 1 if form.get("hide_channels") else 0,
+            "channel_id": _safe_channel(guild_id, form.get("channel_id") or None),
+            "verified_role_id": form.get("verified_role_id") or None,
+            "pending_role_id": form.get("pending_role_id") or None,
+            "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None),
+            "verify_text": form.get("verify_text", "").strip(),
+            "button_label": form.get("button_label", "").strip() or "Tôi đã đọc nội quy & Xác thực",
+        }
+        db.upsert_verify_settings(guild_id, **fields)
+        db.set_module(guild_id, "verify", bool(enabled))
+        flash("✅ Đã lưu cài đặt Verify Gate!", "success")
+        return redirect(url_for("server_verify", guild_id=guild_id))
+
+    settings = db.get_verify_settings(guild_id)
+    roles = db.get_guild_roles(guild_id)
+    channels = db.get_guild_channels(guild_id)
+
+    return render_template(
+        "server_verify.html",
+        **_server_ctx(guild_id, active_page="verify"),
+        settings=settings,
+        roles=roles,
+        channels=channels,
         meta=db.get_guild_meta(guild_id) or {}
     )
 
@@ -639,7 +681,7 @@ def server_birthday(guild_id: str):
     channels = db.get_guild_channels(guild_id)
     roles = db.get_guild_roles(guild_id)
     bday_settings = db.get_birthday_settings_sync(guild_id)
-    now_month = datetime.now().month
+    now_month = datetime.now(timezone.utc).month
     bday_count = db.get_birthdays_this_month_count(guild_id, now_month)
 
     return render_template(
@@ -660,7 +702,7 @@ def server_embeds(guild_id: str):
         guild_id, "embeds",
         embeds=db.get_saved_embeds(guild_id),
         channels=db.get_guild_channels(guild_id),
-        now=datetime.now().strftime("%H:%M"),
+        now=datetime.now(timezone.utc).strftime("%H:%M"),
     ))
 
 
@@ -843,6 +885,107 @@ _COMMANDS_DATA = [
                     "type": "embed", "color": "#5865f2", "title": "🛡️ Automods — My Server",
                     "desc": "**Trạng thái:** 🟢 Đang Hoạt Động<br>*(Để tuỳ chỉnh chi tiết, vui lòng dùng Dashboard)*"
                 }
+            },
+            {
+                "name": "automods raidlock", "emoji": "🔒",
+                "desc": "Khoá server (lockdown) khi có raid/nuke",
+                "usage": "/automods raidlock", "example": "/automods raidlock",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#ED4245", "title": "🔒 Server Lockdown",
+                    "desc": "Đã chặn @everyone gửi tin trên toàn server.<br>Dùng `/automods raidunlock` để mở lại."
+                }
+            },
+            {
+                "name": "automods raidunlock", "emoji": "🔓",
+                "desc": "Mở khoá server sau lockdown, khôi phục overwrites",
+                "usage": "/automods raidunlock", "example": "/automods raidunlock",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "🔓 Server Mở Lại",
+                    "desc": "Đã khôi phục quyền gửi tin cho @everyone."
+                }
+            }
+        ]
+    },
+    {
+        "category": "Verify Gate",
+        "icon": "🔐",
+        "commands": [
+            {
+                "name": "verify status", "emoji": "🔐",
+                "desc": "Xem trạng thái Verify Gate",
+                "usage": "/verify status", "example": "/verify status",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🔐 Verify Gate",
+                    "desc": "**Trạng thái:** 🟢 BẬT (hard gate)<br>**Kênh xác thực:** #xac-thuc<br>**Vai trò đã xác thực:** @Member"
+                }
+            },
+            {
+                "name": "verify enable", "emoji": "✅",
+                "desc": "BẬT Verify Gate (hard gate)",
+                "usage": "/verify enable", "example": "/verify enable",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "✅ Verify Gate Bật",
+                    "desc": "Thành viên mới sẽ chỉ thấy kênh xác thực."
+                }
+            },
+            {
+                "name": "verify disable", "emoji": "🔴",
+                "desc": "TẮT Verify Gate và khôi phục overrides",
+                "usage": "/verify disable", "example": "/verify disable",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#ed4245", "title": "🔴 Verify Gate Tắt",
+                    "desc": "Đã khôi phục overrides cho các kênh."
+                }
+            },
+            {
+                "name": "verify channel", "emoji": "📌",
+                "desc": "Đặt kênh xác thực",
+                "usage": "/verify channel #kênh", "example": "/verify channel #xac-thuc",
+                "args": [{"name": "channel", "type": "Channel", "required": True, "desc": "Kênh dùng làm kênh xác thực"}],
+                "preview": {"type": "embed", "color": "#5865f2", "title": "📌 Kênh xác thực", "desc": "✅ Đã đặt kênh xác thực: #xac-thuc"}
+            },
+            {
+                "name": "verify role", "emoji": "🎖️",
+                "desc": "Đặt vai trò thành viên đã xác thực",
+                "usage": "/verify role @Member", "example": "/verify role @Member",
+                "args": [{"name": "role", "type": "Role", "required": True, "desc": "Vai trò được gán sau khi xác thực"}],
+                "preview": {"type": "embed", "color": "#5865f2", "title": "🎖️ Vai trò xác thực", "desc": "✅ Đã đặt vai trò xác thực: @Member"}
+            },
+            {
+                "name": "verify panel", "emoji": "📢",
+                "desc": "Gửi bảng xác thực (nút bấm) vào kênh xác thực",
+                "usage": "/verify panel", "example": "/verify panel",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "🔐 Xác thực thành viên",
+                    "desc": "Chào mừng! Bấm nút bên dưới để xác thực.<br>**[✅ Tôi đã đọc nội quy & Xác thực]**"
+                }
+            },
+            {
+                "name": "verify text", "emoji": "💬",
+                "desc": "Đặt nội dung thông điệp xác thực",
+                "usage": "/verify text (nội dung)", "example": "/verify text Chào mừng!",
+                "args": [{"name": "content", "type": "String", "required": True, "desc": "Nội dung (hỗ trợ {server})"}],
+                "preview": {"type": "embed", "color": "#5865f2", "title": "💬 Nội dung", "desc": "✅ Đã đặt nội dung xác thực."}
+            },
+            {
+                "name": "verify button", "emoji": "🔘",
+                "desc": "Đặt nhãn nút xác thực",
+                "usage": "/verify button (nhãn)", "example": "/verify button Tôi đã đọc nội quy",
+                "args": [{"name": "label", "type": "String", "required": True, "desc": "Chữ hiển thị trên nút"}],
+                "preview": {"type": "embed", "color": "#5865f2", "title": "🔘 Nhãn nút", "desc": "✅ Đã đặt nhãn nút: **Tôi đã đọc nội quy**"}
+            },
+            {
+                "name": "verify hide", "emoji": "👁️",
+                "desc": "Bật/tắt chế độ ẩn kênh (hard gate)",
+                "usage": "/verify hide on|off", "example": "/verify hide on",
+                "args": [{"name": "state", "type": "String", "required": True, "desc": "on/off"}],
+                "preview": {"type": "embed", "color": "#5865f2", "title": "👁️ Chế độ ẩn kênh", "desc": "✅ Đã bật chế độ hard gate."}
             }
         ]
     },

@@ -5,9 +5,13 @@ Sync functions for Flask/dashboard, async functions for discord.py/bot.
 import os
 import sqlite3
 import json
+import time
+import logging
 from typing import Optional, Dict, List, Any
 import aiosqlite
 from cache import cache
+
+logger = logging.getLogger("ZerynBot.Database")
 
 # ─── Path setup ────────────────────────────────────────────────────────────────
 # This file lives at v2/database.py
@@ -170,7 +174,12 @@ def init_db():
                 bad_words_enabled INTEGER DEFAULT 0,
                 links_enabled   INTEGER DEFAULT 0,
                 notify_role_id  TEXT,
-                log_channel_id  TEXT
+                log_channel_id  TEXT,
+                anti_raid_enabled       INTEGER DEFAULT 0,
+                raid_join_per_window    INTEGER DEFAULT 5,
+                raid_action             TEXT DEFAULT 'lockdown',
+                anti_nuke_enabled       INTEGER DEFAULT 0,
+                nuke_actions            TEXT DEFAULT '["channel_delete","role_delete","guild_update"]'
             );
 
             CREATE TABLE IF NOT EXISTS automod_warnings (
@@ -178,6 +187,12 @@ def init_db():
                 guild_id    TEXT,
                 user_id     TEXT,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS maintenance_jobs (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_key     TEXT UNIQUE NOT NULL,
+                last_run_at REAL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS leveling_settings (
@@ -408,6 +423,20 @@ def init_db():
                 count       INTEGER DEFAULT 0,
                 PRIMARY KEY (guild_id, user_id, target_id, action)
             );
+
+            CREATE TABLE IF NOT EXISTS verify_settings (
+                guild_id            TEXT PRIMARY KEY,
+                enabled             INTEGER DEFAULT 0,
+                channel_id          TEXT,
+                verified_role_id    TEXT,
+                pending_role_id     TEXT,
+                verify_text         TEXT DEFAULT 'Chào mừng đến với **{server}**! Bấm nút bên dưới để xác thực.',
+                button_label        TEXT DEFAULT 'Tôi đã đọc nội quy & Xác thực',
+                log_channel_id      TEXT,
+                hide_channels       INTEGER DEFAULT 1,
+                saved_overrides     TEXT DEFAULT '[]',
+                updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -449,6 +478,20 @@ def init_db():
             conn.execute("ALTER TABLE automod_settings ADD COLUMN max_mentions INTEGER DEFAULT 5")
         if "timeout_duration_minutes" not in am_cols:
             conn.execute("ALTER TABLE automod_settings ADD COLUMN timeout_duration_minutes INTEGER DEFAULT 5")
+        if "anti_raid_enabled" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN anti_raid_enabled INTEGER DEFAULT 0")
+        if "raid_join_per_window" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN raid_join_per_window INTEGER DEFAULT 5")
+        if "raid_action" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN raid_action TEXT DEFAULT 'lockdown'")
+        if "anti_nuke_enabled" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN anti_nuke_enabled INTEGER DEFAULT 0")
+        if "nuke_actions" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN nuke_actions TEXT DEFAULT '[\"channel_delete\",\"role_delete\",\"guild_update\"]'")
+        if "raid_locked" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN raid_locked INTEGER DEFAULT 0")
+        if "raid_snapshot" not in am_cols:
+            conn.execute("ALTER TABLE automod_settings ADD COLUMN raid_snapshot TEXT DEFAULT '[]'")
             
         cursor.execute("PRAGMA table_info(music_playlists)")
         pl_cols = [row[1] for row in cursor.fetchall()]
@@ -468,7 +511,7 @@ DEFAULT_MODULES = [
     "welcome_goodbye", "autoroles", "leveling", "utility", "info",
     "music", "tickets", "reactionroles", "automods", "logger",
     "giveaways", "economy", "tempvoice", "customcommands", "ai", "remind",
-    "moderation", "fun", "birthday"
+    "moderation", "fun", "birthday", "verify"
 ]
 
 # ─── Blacklist (sync — Flask) ──────────────────────────────────────────────────
@@ -1275,7 +1318,14 @@ _DEFAULT_AUTOMOD = {
     "notify_role_id": None,
     "log_channel_id": None,
     "immune_roles": "[]",
-    "spam_allowed_channels": "[]"
+    "spam_allowed_channels": "[]",
+    "anti_raid_enabled": 0,
+    "raid_join_per_window": 5,
+    "raid_action": "lockdown",
+    "anti_nuke_enabled": 0,
+    "nuke_actions": "[\"channel_delete\",\"role_delete\",\"guild_update\"]",
+    "raid_locked": 0,
+    "raid_snapshot": "[]"
 }
 
 def get_logger_settings(guild_id: str) -> dict:
@@ -1348,8 +1398,13 @@ def get_automod_settings(guild_id: str) -> dict:
             res["whitelist_links"] = json.loads(res.get("whitelist_links") or "[]")
             res["immune_roles"] = json.loads(res.get("immune_roles") or "[]")
             res["spam_allowed_channels"] = json.loads(res.get("spam_allowed_channels") or "[]")
+            res["nuke_actions"] = json.loads(res.get("nuke_actions") or "[\"channel_delete\",\"role_delete\",\"guild_update\"]")
+            res["raid_snapshot"] = json.loads(res.get("raid_snapshot") or "[]")
             return res
-        return dict(_DEFAULT_AUTOMOD)
+        res = dict(_DEFAULT_AUTOMOD)
+        res["nuke_actions"] = json.loads(res.get("nuke_actions") or "[\"channel_delete\",\"role_delete\",\"guild_update\"]")
+        res["raid_snapshot"] = json.loads(res.get("raid_snapshot") or "[]")
+        return res
 
 def upsert_automod_settings(guild_id: str, **kwargs):
     s = get_automod_settings(guild_id)
@@ -1359,7 +1414,9 @@ def upsert_automod_settings(guild_id: str, **kwargs):
     whitelist_links = json.dumps(s.get("whitelist_links", [])) if isinstance(s.get("whitelist_links"), list) else s.get("whitelist_links", "[]")
     immune_roles = json.dumps(s.get("immune_roles", [])) if isinstance(s.get("immune_roles"), list) else s.get("immune_roles", "[]")
     spam_allowed_channels = json.dumps(s.get("spam_allowed_channels", [])) if isinstance(s.get("spam_allowed_channels"), list) else s.get("spam_allowed_channels", "[]")
-    
+    nuke_actions = json.dumps(s.get("nuke_actions", ["channel_delete","role_delete","guild_update"])) if isinstance(s.get("nuke_actions"), list) else s.get("nuke_actions", "[\"channel_delete\",\"role_delete\",\"guild_update\"]")
+    raid_snapshot = json.dumps(s.get("raid_snapshot", [])) if isinstance(s.get("raid_snapshot"), list) else s.get("raid_snapshot", "[]")
+
     with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
         conn.execute("""
             INSERT INTO automod_settings (
@@ -1368,8 +1425,10 @@ def upsert_automod_settings(guild_id: str, **kwargs):
                 anti_invite_enabled, anti_caps_enabled, anti_mentions_enabled,
                 max_mentions, timeout_duration_minutes,
                 notify_role_id, log_channel_id,
-                immune_roles, spam_allowed_channels
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                immune_roles, spam_allowed_channels,
+                anti_raid_enabled, raid_join_per_window, raid_action,
+                anti_nuke_enabled, nuke_actions, raid_locked, raid_snapshot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(guild_id) DO UPDATE SET
                 bad_words=excluded.bad_words,
                 blacklist_links=excluded.blacklist_links,
@@ -1385,14 +1444,24 @@ def upsert_automod_settings(guild_id: str, **kwargs):
                 notify_role_id=excluded.notify_role_id,
                 log_channel_id=excluded.log_channel_id,
                 immune_roles=excluded.immune_roles,
-                spam_allowed_channels=excluded.spam_allowed_channels
+                spam_allowed_channels=excluded.spam_allowed_channels,
+                anti_raid_enabled=excluded.anti_raid_enabled,
+                raid_join_per_window=excluded.raid_join_per_window,
+                raid_action=excluded.raid_action,
+                anti_nuke_enabled=excluded.anti_nuke_enabled,
+                nuke_actions=excluded.nuke_actions,
+                raid_locked=excluded.raid_locked,
+                raid_snapshot=excluded.raid_snapshot
         """, (
             guild_id, bad_words, blacklist_links, whitelist_links,
             int(s.get("spam_enabled", 0)), int(s.get("bad_words_enabled", 0)), int(s.get("links_enabled", 0)),
             int(s.get("anti_invite_enabled", 0)), int(s.get("anti_caps_enabled", 0)), int(s.get("anti_mentions_enabled", 0)),
             int(s.get("max_mentions", 5)), int(s.get("timeout_duration_minutes", 5)),
             s.get("notify_role_id"), s.get("log_channel_id"),
-            immune_roles, spam_allowed_channels
+            immune_roles, spam_allowed_channels,
+            int(s.get("anti_raid_enabled", 0)), int(s.get("raid_join_per_window", 5)),
+            s.get("raid_action", "lockdown"), int(s.get("anti_nuke_enabled", 0)),
+            nuke_actions, int(s.get("raid_locked", 0)), raid_snapshot
         ))
         conn.commit()
 
@@ -1408,8 +1477,44 @@ async def async_get_automod_settings(guild_id: str) -> dict:
                 res["whitelist_links"] = json.loads(res.get("whitelist_links") or "[]")
                 res["immune_roles"] = json.loads(res.get("immune_roles") or "[]")
                 res["spam_allowed_channels"] = json.loads(res.get("spam_allowed_channels") or "[]")
+                res["nuke_actions"] = json.loads(res.get("nuke_actions") or "[\"channel_delete\",\"role_delete\",\"guild_update\"]")
+                res["raid_snapshot"] = json.loads(res.get("raid_snapshot") or "[]")
+                res["raid_locked"] = int(res.get("raid_locked") or 0)
                 return res
-            return dict(_DEFAULT_AUTOMOD)
+            res = dict(_DEFAULT_AUTOMOD)
+            res["nuke_actions"] = json.loads(res.get("nuke_actions") or "[\"channel_delete\",\"role_delete\",\"guild_update\"]")
+            res["raid_snapshot"] = json.loads(res.get("raid_snapshot") or "[]")
+            res["raid_locked"] = int(res.get("raid_locked") or 0)
+            return res
+
+async def async_update_automod_settings(guild_id: str, **fields) -> None:
+    """Async — Cập nhật các cột nhất định của automod_settings (dùng cho bot cog)."""
+    if not fields:
+        return
+    allow = {
+        "anti_raid_enabled", "raid_join_per_window", "raid_action",
+        "anti_nuke_enabled", "nuke_actions", "raid_locked", "raid_snapshot",
+    }
+    set_clause = ", ".join(f"{k} = ?" for k in fields if k in allow)
+    if not set_clause:
+        return
+    # Với các cột JSON được truyền dạng list, đưa về chuỗi JSON
+    params = []
+    for k in fields:
+        if k not in allow:
+            continue
+        v = fields[k]
+        if k in ("nuke_actions", "raid_snapshot") and isinstance(v, list):
+            v = json.dumps(v, ensure_ascii=False)
+        elif k in ("anti_raid_enabled", "anti_nuke_enabled", "raid_locked"):
+            v = int(v)
+        params.append(v)
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute(
+            f"UPDATE automod_settings SET {set_clause} WHERE guild_id = ?",
+            (*params, guild_id),
+        )
+        await db.commit()
 
 async def async_add_automod_warning(guild_id: str, user_id: str) -> int:
     """Returns the total number of warnings the user has in the last 24 hours (including this one)."""
@@ -2639,3 +2744,181 @@ def get_birthdays_this_month_count(guild_id: str, month: int) -> int:
             "SELECT COUNT(*) FROM user_birthdays WHERE month = ?", (month,)
         ).fetchone()
         return row[0] if row else 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: VERIFY GATE (Xác Thực Thành Viên) ──────────────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════════
+
+_DEFAULT_VERIFY = {
+    "guild_id": None,
+    "enabled": 0,
+    "channel_id": None,
+    "verified_role_id": None,
+    "pending_role_id": None,
+    "verify_text": "Chào mừng đến với **{server}**! Bấm nút bên dưới để xác thực.",
+    "button_label": "Tôi đã đọc nội quy & Xác thực",
+    "log_channel_id": None,
+    "hide_channels": 1,
+    "saved_overrides": "[]",
+}
+
+
+def get_verify_settings(guild_id: str) -> dict:
+    """Sync — Get verify settings for dashboard."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM verify_settings WHERE guild_id = ?", (guild_id,)
+        ).fetchone()
+    if row:
+        return _row_to_dict(row)
+    return {"guild_id": guild_id, **_DEFAULT_VERIFY}
+
+
+def upsert_verify_settings(guild_id: str, **fields) -> None:
+    """Sync — Insert or update verify settings."""
+    if not fields:
+        return
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.execute("INSERT OR IGNORE INTO verify_settings (guild_id) VALUES (?)", (guild_id,))
+        allow = {
+            "enabled", "channel_id", "verified_role_id", "pending_role_id",
+            "verify_text", "button_label", "log_channel_id", "hide_channels",
+            "saved_overrides",
+        }
+        set_clause = ", ".join(f"{k} = ?" for k in fields if k in allow)
+        if set_clause:
+            params = [fields[k] for k in fields if k in allow]
+            conn.execute(
+                f"UPDATE verify_settings SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?",
+                (*params, guild_id),
+            )
+        conn.commit()
+
+
+async def async_get_verify_settings(guild_id: str) -> dict:
+    """Async — Get verify settings for Discord bot."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM verify_settings WHERE guild_id = ?", (guild_id,)
+        ) as cur:
+            row = await cur.fetchone()
+        if row:
+            return dict(row)
+    return {"guild_id": guild_id, **_DEFAULT_VERIFY}
+
+
+async def async_upsert_verify_settings(guild_id: str, **fields) -> None:
+    """Async — Insert or update verify settings."""
+    if not fields:
+        return
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("INSERT OR IGNORE INTO verify_settings (guild_id) VALUES (?)", (guild_id,))
+        allow = {
+            "enabled", "channel_id", "verified_role_id", "pending_role_id",
+            "verify_text", "button_label", "log_channel_id", "hide_channels",
+            "saved_overrides",
+        }
+        set_clause = ", ".join(f"{k} = ?" for k in fields if k in allow)
+        if set_clause:
+            params = [fields[k] for k in fields if k in allow]
+            await db.execute(
+                f"UPDATE verify_settings SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?",
+                (*params, guild_id),
+            )
+        await db.commit()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: MAINTENANCE / AUTO-PRUNE (Dọn dữ liệu cũ) ────────────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def async_get_maintenance_job(job_key: str) -> float:
+    """Trả về timestamp lần chạy gần nhất của một job bảo trì (mặc định 0)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute(
+            "SELECT last_run_at FROM maintenance_jobs WHERE job_key = ?", (job_key,)
+        ) as cur:
+            row = await cur.fetchone()
+    return float(row[0]) if row else 0.0
+
+
+async def async_set_maintenance_job(job_key: str, ts: float = None) -> None:
+    """Ghi nhận thời điểm chạy một job bảo trì (chống chạy lặp trong ngày)."""
+    if ts is None:
+        ts = time.time()
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute(
+            "INSERT INTO maintenance_jobs (job_key, last_run_at) VALUES (?, ?) "
+            "ON CONFLICT(job_key) DO UPDATE SET last_run_at = excluded.last_run_at",
+            (job_key, ts),
+        )
+        await db.commit()
+
+
+async def async_prune_old_data(
+    stats_days: int = 60,
+    warnings_days: int = 2,
+    interactions_days: int = 60,
+    reminders_days: int = 30,
+) -> dict:
+    """
+    Dọn dữ liệu cũ để giữ DB gọn (chỉ ghi đúng các bảng tích luỹ theo thời gian):
+    - guild_stats      : > stats_days ngày
+    - automod_warnings : > warnings_days ngày (cảnh cáo chỉ có ý nghĩa trong 24h)
+    - fun_interactions : > interactions_days ngày
+    - reminders        : > reminders_days ngày (reminder đã cũ)
+    KHÔNG đụng user_levels / economy_users (dữ liệu member, phải giữ).
+
+    Trả về dict {table: số dòng đã xoá}.
+    """
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        deleted = {}
+
+        async def _delete(table: str, where: str, params: tuple):
+            async with db.execute(
+                f"DELETE FROM {table} WHERE {where}", params
+            ) as cur:
+                # aiosqlite cursor.rowcount khả dụng sau execute
+                deleted[table] = cur.rowcount
+            await db.commit()
+
+        try:
+            await _delete(
+                "guild_stats",
+                "date_hour < datetime('now', ?) ",
+                (f"-{stats_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] guild_stats error: {exc}")
+
+        try:
+            await _delete(
+                "automod_warnings",
+                "created_at <= datetime('now', ?) ",
+                (f"-{warnings_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] automod_warnings error: {exc}")
+
+        try:
+            await _delete(
+                "fun_interactions",
+                "created_at < datetime('now', ?) ",
+                (f"-{interactions_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] fun_interactions error: {exc}")
+
+        try:
+            await _delete(
+                "reminders",
+                "remind_at < datetime('now', ?) ",
+                (f"-{reminders_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] reminders error: {exc}")
+
+    return deleted

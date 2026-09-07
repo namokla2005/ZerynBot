@@ -72,13 +72,13 @@ class Birthday(commands.Cog):
         # Validate date
         try:
             test_year = year or 2000
-            datetime(test_year, month, day)
+            datetime(test_year, month, day, tzinfo=timezone.utc)
         except ValueError:
             return await interaction.response.send_message(
                 tr(s, "birthday.invalid_date"), ephemeral=True
             )
 
-        if year and (year < 1920 or year > datetime.now().year):
+        if year and (year < 1920 or year > datetime.now(timezone.utc).year):
             return await interaction.response.send_message(
                 tr(s, "birthday.invalid_year"), ephemeral=True
             )

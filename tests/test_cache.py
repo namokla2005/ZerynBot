@@ -1,5 +1,4 @@
 """Tests cho cache.py — In-Memory RAM Cache (TTL, sync/async, delete pattern)."""
-import pytest
 
 from cache import cache
 
@@ -41,3 +40,24 @@ async def test_delete_pattern():
     assert await cache.aget("settings:2") is None
     assert await cache.aget("other:1") == "c"  # key khác pattern vẫn còn
     await cache.adelete("other:1")
+
+
+def test_lru_eviction():
+    """True LRU: khi đầy, entry 'cũ nhất' (ít được dùng nhất) bị evict trước."""
+    from cache import MemoryCache
+    c = MemoryCache(max_size=3)
+
+    c.set("a", 1, ttl=60)
+    c.set("b", 2, ttl=60)
+    c.set("c", 3, ttl=60)
+
+    # Dùng 'a' → 'a' giờ là recently used; thứ tự LRU: b, c, a
+    assert c.get("a") == 1
+
+    # Thêm 'd' → vượt capacity (4 > 3) → evict 'b' (LRU nhất)
+    c.set("d", 4, ttl=60)
+
+    assert c.get("b") is None, "b là least-recently-used → phải bị evict"
+    assert c.get("c") == 3
+    assert c.get("a") == 1
+    assert c.get("d") == 4

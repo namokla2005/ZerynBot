@@ -1,18 +1,30 @@
-import sys, os, time, zipfile, io, shutil, logging
+import io
+import logging
+import os
+import sys
+import time
+import zipfile
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import discord
-from discord import app_commands
-from discord.ext import commands, tasks
 from datetime import datetime, timezone
-import config
-from database import async_get_guild_settings, async_is_module_enabled, async_wal_checkpoint
+
 import checks
+import discord
+from discord.ext import commands, tasks
+
+import config
+from database import (
+    async_get_guild_settings,
+    async_is_module_enabled,
+    async_wal_checkpoint,
+)
 from i18n import tr
+
 try:
-    from emojis import e, embed_title, clean_title
+    from emojis import clean_title, e, embed_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, embed_title, clean_title
+    from bot.emojis import embed_title
 
 logger = logging.getLogger("BotV2.Admin")
 
@@ -42,7 +54,7 @@ class Admin(commands.Cog):
             backup_dir = os.path.join(base_dir, "data", "backups")
             os.makedirs(backup_dir, exist_ok=True)
 
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
             zip_filename = f"backup_{timestamp}.zip"
             zip_path = os.path.join(backup_dir, zip_filename)
 
@@ -52,7 +64,7 @@ class Admin(commands.Cog):
             logger.info(f"📦 [Auto-Backup] Created database backup: {zip_path}")
 
             # 2. Xóa các bản backup cũ hơn 7 ngày để tiết kiệm dung lượng
-            now = datetime.now().timestamp()
+            now = datetime.now(timezone.utc).timestamp()
             for f in os.listdir(backup_dir):
                 fp = os.path.join(backup_dir, f)
                 if os.path.isfile(fp) and f.startswith("backup_") and f.endswith(".zip"):
@@ -221,7 +233,7 @@ class Admin(commands.Cog):
                 zf.write(db_path, arcname="bot.db")
             zip_buffer.seek(0)
 
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M%S")
             filename = f"ZerynBot_backup_{timestamp}.zip"
             size_kb = round(len(zip_buffer.getvalue()) / 1024, 2)
 

@@ -66,6 +66,12 @@
             <span class="status-dot nav-dot-automods
             {% if modules.get('automods', False) %}on{% else %}off{% endif %}"></span>
           </a>
+          <a href="{{ url_for('server_verify', guild_id=guild_id) }}"
+            class="nav-item {% if active_page == 'verify' %}active{% endif %}">
+            <i class="nav-icon bi bi-shield-check"></i> {{ t('nav.verify') | default('Verify Gate') }}
+            <span class="status-dot nav-dot-verify
+            {% if modules.get('verify', True) %}on{% else %}off{% endif %}"></span>
+          </a>
           <a href="{{ url_for('server_welcome', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'welcome' %}active{% endif %}">
             <i class="nav-icon bi bi-emoji-smile-fill"></i> {{ t('nav.welcome_goodbye') | default('Welcome & Goodbye') }}

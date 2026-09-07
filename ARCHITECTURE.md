@@ -42,7 +42,7 @@
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
 - **Image Generation:** Pillow (`PIL`) in `card_generator.py` for rendering dynamic rank cards and welcome/goodbye banner cards in thread pools.
 - **Audio Pipeline:** `yt-dlp` + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -b:a 96k`).
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1561 keys per file.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1587 keys per file.
 
 ---
 
@@ -116,12 +116,12 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1561 keys
-│   ├── en.json                 # English — 1561 keys
-│   ├── zh.json                 # Chinese — 1561 keys
-│   ├── es.json                 # Spanish — 1561 keys
-│   ├── pt.json                 # Portuguese — 1561 keys
-│   └── fr.json                 # French — 1561 keys
+│   ├── vi.json                 # Vietnamese (Default) — 1587 keys
+│   ├── en.json                 # English — 1587 keys
+│   ├── zh.json                 # Chinese — 1587 keys
+│   ├── es.json                 # Spanish — 1587 keys
+│   ├── pt.json                 # Portuguese — 1587 keys
+│   └── fr.json                 # French — 1587 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -147,7 +147,7 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | Table Name | Primary Key | Description & Key Columns |
 |------------|-------------|---------------------------|
 | `guilds` | `guild_id` | Core server settings, `welcome_*` config, `goodbye_*` config, `language` (default `'vi'`), `autoroles_user`, `autoroles_bot`, `bot_admin_roles`. |
-| `guild_modules` | `(guild_id, module_name)` | Feature toggles per server (`enabled` = 1 or 0). **19 Modules**: `welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`. |
+| `guild_modules` | `(guild_id, module_name)` | Feature toggles per server (`enabled` = 1 or 0). **20 Modules**: `welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`, `verify`. |
 | `guild_channels` | `(guild_id, channel_id)` | Cached text/voice channels for dashboard dropdown selectors. |
 | `guild_roles` | `(guild_id, role_id)` | Cached server roles with color hex & hierarchy position. |
 | `guild_meta` | `guild_id` | Cached server metadata (name, icon URL, member count). |
@@ -158,7 +158,7 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | `reaction_roles_items` | `id` | Emoji to Role mappings attached to a reaction panel (`panel_id` FK). |
 | `music_playlists` | `id` | Guild custom music playlists (`name`, `creator_id`). |
 | `music_playlist_tracks` | `id` | Track entries in a music playlist (`url`, `title`, `duration`, `thumbnail`). |
-| `automod_settings` | `guild_id` | `spam_enabled`, `bad_words_enabled`, `links_enabled`, `anti_invite_enabled`, `anti_caps_enabled`, `anti_mentions_enabled`, `bad_words` JSON list, `blacklist_links` JSON list, `whitelist_links` JSON list, `immune_roles` JSON list, `spam_allowed_channels` JSON list, `notify_role_id`, `log_channel_id`, `timeout_duration_minutes`. |
+| `automod_settings` | `guild_id` | `spam_enabled`, `bad_words_enabled`, `links_enabled`, `anti_invite_enabled`, `anti_caps_enabled`, `anti_mentions_enabled`, `bad_words` JSON list, `blacklist_links` JSON list, `whitelist_links` JSON list, `immune_roles` JSON list, `spam_allowed_channels` JSON list, `notify_role_id`, `log_channel_id`, `timeout_duration_minutes`, `anti_raid_enabled`, `raid_join_per_window`, `raid_action`, `anti_nuke_enabled`, `nuke_actions` JSON list, `raid_locked`, `raid_snapshot` JSON list. |
 | `automod_warnings` | `id` | Log of user Automod warning counts per server. |
 | `leveling_settings` | `guild_id` | `message_xp_min` (15), `message_xp_max` (25), `voice_xp` (10), `announce_channel_id`, `announce_message`, `stack_rewards`. |
 | `user_levels` | `(guild_id, user_id)` | User XP, level, `last_message_at` timestamp, `last_voice_xp_at` timestamp. |
@@ -176,6 +176,8 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | `ai_settings` | `guild_id` | AI assistant configuration (`enabled`, `ai_channel_id`, `personality_preset`, `custom_prompt`, `allow_ask`, `allow_summarize`, `rate_limit`). |
 | `reminders` | `id` | User scheduled reminders (`user_id`, `guild_id`, `channel_id`, `reason`, `remind_at`, `created_at`). |
 | `bot_global_settings` | `key` | Global bot configurations (`gemini_api_key`, `maintenance_mode`, etc.). |
+| `verify_settings` | `guild_id` | Verify Gate config: `enabled`, `channel_id` (`#xac-thuc`), `verified_role_id`, `pending_role_id`, `verify_text`, `button_label`, `log_channel_id`, `hide_channels`, `saved_overrides` JSON list. |
+| `maintenance_jobs` | `job_key` | Track last run of maintenance tasks (e.g. `auto_prune`) to avoid duplicate daily pruning. |
 
 ---
 
@@ -237,7 +239,9 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | Cog Name | File Path | Primary Responsibilities & Key Event Listeners |
 |----------|-----------|------------------------------------------------|
 | **Admin** | `bot/cogs/admin.py` | Slash command sync (`/sync`), global broadcast, reload extensions, `/backup` instant database export & 24h automated WAL cleanup & backup task. |
-| **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL regex, invite filter, CAPS check, mass ping. Triggers warn/timeout and dispatches `automod_action`. |
+| **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL regex, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown). Triggers warn/timeout and dispatches `automod_action`. |
+| **Verify** | `bot/cogs/verify.py` | Verify Gate (`/verify`): button-based verification (`zb_verify_button`), hard gate (member only sees `#xac-thuc` via pending role + saved overrides snapshot), `on_member_join` pending role assignment. |
+| **Maintenance** | `bot/cogs/maintenance.py` | Silent background auto-prune task: deletes old `guild_stats` (>60d), `automod_warnings` (>2d), `fun_interactions` (>60d), `reminders` (>30d). Uses `maintenance_jobs.last_run_at` to run only once/day. |
 | **AI** | `bot/cogs/ai.py` | Multi-provider AI assistant: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini 2.0 Flash / 1.5 Pro, and OpenRouter (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona). Supports vision analysis, dual-prefix matching, Admin model selection (`global_ai_model`), and fallback routing. |
 | **CustomCommands** | `bot/cogs/customcommands.py` | Trigger-Response engine (`/customcmd add/delete/list`) with dynamic variable replacements (`{user}`, `{mention}`, `{server}`, `{members}`, `{random:X-Y}`) and Rich Embeds. |
 | **Economy** | `bot/cogs/economy.py` | `/daily` streak rewards, `/balance`, `/pay`, `/deposit`, `/withdraw` (Bank safe custody), `/rich` leaderboard, mini-games (`/coinflip`, `/slots`, `/blackjack` 21 with interactive buttons), and server role shop (`/shop`, `/buy` paid with Bank balance). |
@@ -281,7 +285,7 @@ The web dashboard is hosted via Flask in `dashboard/app.py` and `dashboard/api.p
 - **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
-- **Central Command Catalog (`_COMMANDS_DATA`):** All **92 active commands** across **16 categories** are centrally registered in `dashboard/app.py` with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
+- **Central Command Catalog (`_COMMANDS_DATA`):** All **103 active commands** across **17 categories** are centrally registered in `dashboard/app.py` with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
 - **Design System V9.2 (Pastel Obsidian Glow):** The entire Web Dashboard (`/dashboard`, `/home`, `/admin`, `/login`, `/tos`, `/privacy`, `/commands`) is synchronized with the Nekotina-inspired Landing Page aesthetic:
   - **Color Tokens:** Obsidian Dark Background (`#120e24` / `#131217`), Glassmorphism Surface (`rgba(25, 24, 34, 0.85)`), Primary Sakura Pink (`#f4a7bb`), Accent Purple (`#9d8df1`), Blurple (`#5865f2`), Emerald (`#57f287`), Amber Gold (`#fee75c`), Crimson (`#ed4245`).
   - **Typography:** Modern variable font stack powered by Google Fonts `Plus Jakarta Sans` and `Inter`.
@@ -381,7 +385,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1561 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **1587 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
 2. **Async vs. Sync Separation:**
    - **Bot code (`bot/cogs/`)** MUST use async database functions (`async_get_guild_settings`, `async_is_module_enabled`, etc.).
    - **Dashboard code (`dashboard/`)** MUST use sync database functions (`get_guild_settings`, `is_module_enabled`, etc.).
@@ -481,7 +485,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 - **v2.8 (2026-09)**:
   - **AI Phase 3 (AI Web 2.0)**: Real-time DuckDuckGo web search grounding (`/ask prompt:... web:True`) and full article/URL content extractor & summarizer (`/summarize url:...`).
-  - **Command Center & `/help` Overhaul**: Reorganized interactive dropdown into 15 distinct categories covering all 92 commands, updated 19 modules overview, and synchronized 1561 keys across 6 languages.
+  - **Command Center & `/help` Overhaul**: Reorganized interactive dropdown into 17 distinct categories covering all 103 commands, updated 20 modules overview, and synchronized 1587 keys across 6 languages.
 - **v2.6 (2026-08)**: 
   - Dynamic AI Model selector dropdown in Admin Dashboard with live API connectivity tester.
   - Active Groq models alignment (Qwen 3.8 27B, GPT-OSS 20B/120B, Groq Compound) with dual-prefix fallback.
