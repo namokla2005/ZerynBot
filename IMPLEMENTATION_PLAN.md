@@ -2,6 +2,8 @@
 
 > **Bản:** v1.0  ·  **Ngày:** 2026-09-02  ·  **Branch làm việc:** `arena/01a062d4-zerynbot`
 > **Nguyên tắc xuyên suốt:** tuân thủ tuyệt đối `AGENTS.md` + SOP 5 bước thêm lệnh + 7 bước Dashboard trong `.agents/`, và **đồng bộ tài liệu trong cùng một commit** (Conventional Commits).
+>
+> ✅ **TRẠNG THÁI 2026-09-07:** Đã triển khai **TOÀN BỘ** A1–A4, B, C, D trên branch `arena/01a062d4-zerynbot` (kiểm chứng `validate_all.py` 100%, `pytest` 58 pass). Phần E/F (Live Log, Announcement) là lộ trình tương lai, chưa code. Xem `VERIFY_PLAN.md` để biết chi tiết từng bước.
 
 ---
 
