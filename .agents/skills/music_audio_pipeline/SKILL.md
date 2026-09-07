@@ -26,15 +26,19 @@ FFMPEG_BEFORE = (
     "-loglevel error "
     "-reconnect 1 "
     "-reconnect_streamed 1 "
-    "-reconnect_delay_max 5 "
-    "-probesize 1M "
-    "-analyzeduration 1000000 "
+    "-reconnect_delay_max 2 "
+    "-fflags +genpts "
+    "-probesize 512K "
+    "-analyzeduration 500000 "
     '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
 )
+FFMPEG_OPTS_COPY = "-vn -sn -c:a copy -threads 1"
+FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1 -af aresample=async=1:first_pts=0"
 ```
 
 > [!WARNING]
-> Tuyệt đối không dùng các cờ không tương thích trên Termux như `-reconnect_at_eof` hoặc cờ `-headers` không được escape chuỗi đúng chuẩn.
+> - **yt-dlp player_client**: Luôn sử dụng `["android", "web"]`. Tuyệt đối **KHÔNG dùng client `tv`** vì YouTube trả lỗi `The page needs to be reloaded` khiến toàn bộ video & stream thất bại.
+> - Tuyệt đối không dùng các cờ không tương thích trên Termux như `-reconnect_at_eof` hoặc cờ `-headers` không được escape chuỗi đúng chuẩn.
 
 ---
 

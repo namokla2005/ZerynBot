@@ -21,17 +21,11 @@ def _import():
     return M
 
 
-def test_ytdl_client_is_fast():
+def test_ytdl_client_is_stable():
     M = _import()
     clients = M.YDL_OPTS["extractor_args"]["youtube"]["player_client"]
-    assert "tv" in clients, f"player_client phải có 'tv' (nhanh): {clients}"
-    assert "web" not in clients, f"Không dùng client 'web' (chậm/throttle): {clients}"
-
-
-def test_ytdl_disables_extra_manifests():
-    M = _import()
-    assert M.YDL_OPTS.get("youtube_include_dash_manifest") is False
-    assert M.YDL_OPTS.get("youtube_include_hls_manifest") is False
+    assert "android" in clients, f"player_client phải có 'android': {clients}"
+    assert "tv" not in clients, f"Không dùng client 'tv' (bị lỗi 'The page needs to be reloaded'): {clients}"
 
 
 def test_ffmpeg_probe_reduced():

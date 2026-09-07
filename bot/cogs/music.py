@@ -151,17 +151,14 @@ YDL_OPTS = {
     "socket_timeout": 3,
     "extractor_args": {
         "youtube": {
-            # "tv" (TVHTML5) nhanh, thường không cần PO-token/JS; "web_safari" làm fallback ổn định.
-            # Tránh client "web" (bị YouTube throttle + đòi PO-token → chậm 3-6s).
-            "player_client": ["tv", "web_safari"],
+            # Dùng client "android" kết hợp fallback "web" — tương thích 100% video & live stream.
+            # Tránh dùng "tv" (bị YouTube trả lỗi "The page needs to be reloaded").
+            "player_client": ["android", "web"],
         }
     },
     "nocheckcertificate": True,
     "ignoreerrors": True,
     "skip_download": True,
-    # Không kéo manifest dự phòng → ít dữ liệu hơn, extract nhanh hơn
-    "youtube_include_dash_manifest": False,
-    "youtube_include_hls_manifest": False,
 }
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS["cookiefile"] = _COOKIE_FILE
@@ -177,8 +174,6 @@ YDL_OPTS_FLAT = {
     "socket_timeout": 2,
     "nocheckcertificate": True,
     "ignoreerrors": True,
-    "youtube_include_dash_manifest": False,
-    "youtube_include_hls_manifest": False,
 }
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS_FLAT["cookiefile"] = _COOKIE_FILE
