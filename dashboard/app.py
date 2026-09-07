@@ -681,7 +681,7 @@ def server_birthday(guild_id: str):
     channels = db.get_guild_channels(guild_id)
     roles = db.get_guild_roles(guild_id)
     bday_settings = db.get_birthday_settings_sync(guild_id)
-    now_month = datetime.now().month
+    now_month = datetime.now(timezone.utc).month
     bday_count = db.get_birthdays_this_month_count(guild_id, now_month)
 
     return render_template(
@@ -702,7 +702,7 @@ def server_embeds(guild_id: str):
         guild_id, "embeds",
         embeds=db.get_saved_embeds(guild_id),
         channels=db.get_guild_channels(guild_id),
-        now=datetime.now().strftime("%H:%M"),
+        now=datetime.now(timezone.utc).strftime("%H:%M"),
     ))
 
 

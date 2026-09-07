@@ -13,25 +13,26 @@ Tối ưu:
   - Hỗ trợ /volume (1-150%) và /shuffle (xáo trộn hàng chờ)
 """
 import asyncio
-import os
-import time
 import logging
+import os
 import random
 import re
+import time
 
 import aiohttp
 import discord
+import yt_dlp
 from discord import app_commands
 from discord.ext import commands
-import yt_dlp
 
 from cache import cache
 from database import async_get_guild_settings
 from i18n import tr
+
 try:
-    from emojis import e, partial, embed_title, clean_title
+    from emojis import clean_title, e, embed_title, partial
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, partial, embed_title, clean_title
+    from bot.emojis import e, embed_title, partial
 
 log = logging.getLogger("BotV2.Music")
 
@@ -75,6 +76,7 @@ def load_opus_library() -> bool:
                 log.info(f"[Opus] Loaded Opus library successfully from: {candidate}")
                 return True
         except Exception:
+            log.debug("[Opus] Candidate load failed: %s", candidate)
             continue
 
     try:
@@ -430,7 +432,7 @@ def _get_best_thumbnail(info: dict) -> str:
 
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
-    __slots__ = ("title", "url", "stream_url", "stream_expire", "duration", "uploader", "thumbnail", "requester")
+    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url")
 
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")

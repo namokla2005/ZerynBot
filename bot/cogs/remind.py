@@ -41,7 +41,7 @@ def parse_time_duration(time_str: str) -> int | None:
     if time_match:
         hour, minute = int(time_match.group(1)), int(time_match.group(2))
         if 0 <= hour < 24 and 0 <= minute < 60:
-            now_dt = datetime.now()
+            now_dt = datetime.now()  # noqa: DTZ005 — giờ local (HH:MM) có chủ đích
             target_dt = now_dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
             if target_dt <= now_dt:
                 target_dt += timedelta(days=1)

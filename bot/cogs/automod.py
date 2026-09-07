@@ -1,35 +1,36 @@
 """
 Cog: Automod
 """
-import sys, os, time, re
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+import re
+import time
 from collections import defaultdict
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger("BotV2.AutoMod")
 
+import json
+
+import checks
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-import json
 import config
 from database import (
-    async_is_module_enabled,
-    async_get_automod_settings,
     async_add_automod_warning,
+    async_get_automod_settings,
     async_get_guild_settings,
+    async_is_module_enabled,
     async_update_automod_settings,
-    set_module
 )
-import checks
 from i18n import tr
+
 try:
-    from emojis import e, embed_title, clean_title
+    from emojis import clean_title, e, embed_title
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, embed_title, clean_title
+    from bot.emojis import embed_title
 
 
 # ─── Helpers serialization overwrites (cho Anti-Raid lockdown) ─────────────────
@@ -132,7 +133,7 @@ class Automod(commands.Cog):
                 
                 try:
                     await msg.delete(delay=15.0)
-                except:
+                except Exception:
                     pass
                 
                 # Send DM with detailed reason
@@ -168,7 +169,7 @@ class Automod(commands.Cog):
                 msg = await message.channel.send(embed=embed)
                 try:
                     await msg.delete(delay=15.0)
-                except:
+                except Exception:
                     pass
                 
                 # Send DM
@@ -491,7 +492,7 @@ class Automod(commands.Cog):
 
         await self._log_automod(guild_id, settings, "Anti-Nuke", desc)
 
-    async def _find_nuke_actor(self, guild: discord.Guild) -> Optional[discord.User]:
+    async def _find_nuke_actor(self, guild: discord.Guild) -> discord.User | None:
         """Tìm người xoá gần nhất từ audit log (kênh/vai trò)."""
         now = discord.utils.utcnow()
         for action in (discord.AuditLogAction.channel_delete, discord.AuditLogAction.role_delete):

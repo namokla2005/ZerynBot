@@ -19,7 +19,7 @@ async def check_bot_admin(ctx: commands.Context) -> bool:
     
     try:
         admin_roles = json.loads(admin_roles_str)
-    except:
+    except Exception:
         admin_roles = []
         
     if admin_roles:

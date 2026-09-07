@@ -12,28 +12,29 @@ Xác thực thành viên trước khi vào server (chế độ hard gate).
 Yêu cầu quyền: `manage_roles` (gán vai trò), `manage_channels` (gate hard).
 """
 
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import json
 import logging
-from typing import Optional
 
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 
 from database import (
-    async_is_module_enabled,
     async_get_verify_settings,
+    async_is_module_enabled,
     async_upsert_verify_settings,
 )
 from i18n import tr
 
 try:
-    from emojis import e, partial, embed_title
+    from emojis import e, embed_title, partial
 except (ImportError, ModuleNotFoundError):
-    from bot.emojis import e, partial, embed_title
+    from bot.emojis import e, embed_title, partial
 
 log = logging.getLogger("BotV2.Verify")
 
@@ -44,7 +45,7 @@ VERIFY_BUTTON_ID = "zb_verify_button"
 # ═════════════════════════════════════════════════════════════════════════════
 # ─── Helpers serialization PermissionOverwrite (cho snapshot overrides) ──────
 # ═════════════════════════════════════════════════════════════════════════════
-def _serialize_overwrite(overwrite: Optional[discord.PermissionOverwrite]) -> Optional[dict]:
+def _serialize_overwrite(overwrite: discord.PermissionOverwrite | None) -> dict | None:
     """
     Chuyển PermissionOverwrite thành dict {perm_name: bool} chỉ chứa quyền được set.
     Các quyền có value None (không set) được bỏ qua.
@@ -59,7 +60,7 @@ def _serialize_overwrite(overwrite: Optional[discord.PermissionOverwrite]) -> Op
     return data or None
 
 
-def _deserialize_overwrite(data: Optional[dict]) -> Optional[discord.PermissionOverwrite]:
+def _deserialize_overwrite(data: dict | None) -> discord.PermissionOverwrite | None:
     if not data:
         return None
     return discord.PermissionOverwrite(**data)
@@ -501,7 +502,7 @@ class Verify(commands.Cog, name="Verify"):
                     log.warning(f"[Verify] add pending role failed: {exc}")
 
     # ─── Hard gate helpers ───────────────────────────────────────────────────
-    async def _ensure_pending_role(self, ctx: commands.Context) -> Optional[discord.Role]:
+    async def _ensure_pending_role(self, ctx: commands.Context) -> discord.Role | None:
         """Tạo vai trò chờ (pending) nếu chưa tồn tại."""
         name = "Chưa xác thực"
         try:
