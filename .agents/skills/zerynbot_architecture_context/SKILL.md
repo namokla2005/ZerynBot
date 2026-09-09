@@ -18,10 +18,11 @@ Kỹ năng này cung cấp bộ quy chuẩn tác nghiệp chuẩn (SOP), danh m�
 Trước khi thực hiện bất kỳ thay đổi nào trong dự án, AI **BẮT BUỘC** đọc tệp kiến trúc chính:
 - 📖 [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md)
 
-Khi xử lý các bài toán chuyên biệt, AI đọc thêm tài liệu tương ứng trong thư mục `references/`:
+Khi xử lý các bài toán chuyên biệt, AI đọc thêm tài liệu tương ứng trong thư mục `references/` và `rules/`:
 1. 🔒 **Bảo mật & Quy tắc API**: [`.agents/skills/zerynbot_architecture_context/references/security_and_api_rules.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/references/security_and_api_rules.md)
-2. 🎨 **Thiết kế Web & Hướng dẫn Avatar Mascot**: [`.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md)
-3. 🧪 **Kiểm thử tự động Web Dashboard**: [`E2E_TESTING.md`](https://github.com/namokla2005/ZerynBot/blob/main/E2E_TESTING.md)
+2. 💡 **Quy tắc Phản biện & Tư vấn Kỹ thuật**: [`.agents/rules/critical_inquiry.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/rules/critical_inquiry.md)
+3. 🎨 **Thiết kế Web & Hướng dẫn Avatar Mascot**: [`.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/references/design_and_avatar_guide.md)
+4. 🧪 **Kiểm thử tự động Web Dashboard**: [`E2E_TESTING.md`](https://github.com/namokla2005/ZerynBot/blob/main/E2E_TESTING.md)
 
 ---
 

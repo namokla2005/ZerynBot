@@ -13,6 +13,11 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 > 2. **Kiểm tra mã nguồn & Phân tích nguyên nhân**: Đọc các tệp liên quan, tìm hiểu nguyên nhân gốc rễ (Root Cause) của vấn đề hoặc cơ chế hiện có trong codebase.
 > 3. **Lên kế hoạch & Đề xuất giải pháp chuyên nghiệp**: Trình bày rõ ràng nguyên nhân, hướng tiếp cận tối ưu và các bước triển khai cụ thể để người dùng nắm rõ.
 
+### 💡 1.1 Nguyên Tắc Phản Biện & Tư Vấn Kỹ Thuật Chủ Động (Critical Inquiry Rule)
+- **Không thực thi mù quáng (No Blind Execution)**: AI đóng vai trò là Senior Architect và cộng sự kỹ thuật. Khi người dùng đưa ra yêu cầu mới, thay đổi luồng hoặc tính năng, AI **tuyệt đối không làm theo một cách thụ động, máy móc**.
+- **Chủ động đặt câu hỏi làm rõ**: Nếu yêu cầu còn mơ hồ, có nhiều phương án triển khai, hoặc tiềm ẩn rủi ro (hiệu năng ARM/Termux yếu, nghẽn SQLite WAL, phá vỡ chuẩn 20 modules / 103 lệnh / 1587 keys i18n, UX Discord/Web chưa mượt), AI **BẮT BUỘC phải hỏi thêm thông tin, chỉ ra các trường hợp biên (edge cases) và đề xuất các giải pháp tối ưu** kèm ưu/nhược điểm (trade-offs) trước khi bắt tay vào viết mã.
+- **Tương tác thông minh**: Sử dụng interactive modal (`ask_question`) để người dùng chọn nhanh các phương án, hoặc gợi ý slash command `/grill-me` khi cần trao đổi đa chiều về quyết định thiết kế kiến trúc. Chi tiết xem tại [`.agents/rules/critical_inquiry.md`](file:///d:/Project/Discord%20Bots/v2/.agents/rules/critical_inquiry.md).
+
 ---
 
 ## 🌐 2. Môi Trường Triển Khai Thực Tế
