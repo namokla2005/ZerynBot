@@ -118,3 +118,14 @@ Mỗi lần chạy kiểm thử trình duyệt, Agent báo cáo theo định d�
 - **Lỗi JavaScript Console**: 0 Errors
 - **Giao diện Responsive**: Hoàn hảo trên Desktop, Tablet, Mobile
 ```
+
+---
+
+## 🔌 6. Tự Động Hóa Kiểm Thử & Chẩn Đoán Qua MCP Server
+
+Dự án tích hợp giao thức **Model Context Protocol (MCP)** tại `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json` hỗ trợ tự động hóa kiểm định:
+1. **Kiểm tra trạng thái CSDL tức thì (`sqlite` MCP)**:
+   * Chạy truy vấn xác minh trạng thái lưu trữ của các bảng sau khi test UI (ví dụ kiểm tra bảng `guild_modules`, `verify_settings`, `music_song_cache`).
+2. **Kiểm tra sức khỏe thiết bị từ xa (`termux` MCP)**:
+   * Sau khi hoàn tất kiểm thử, gọi tool `termux_get_status` để kiểm tra mức tiêu thụ RAM (`free -h`) và tiến trình watchdog trên thiết bị Tecno Pova 2 thực tế.
+   * Đọc trực tiếp log thời gian thực qua `termux_read_logs` để phát hiện các lỗi ngầm (Silent Exceptions) mà UI không hiển thị.

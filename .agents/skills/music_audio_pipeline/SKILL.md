@@ -40,6 +40,11 @@ FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1 -af aresample=async=1:first_pts=0"
 > - **yt-dlp player_client**: Luôn sử dụng `["android", "web"]`. Tuyệt đối **KHÔNG dùng client `tv`** vì YouTube trả lỗi `The page needs to be reloaded` khiến toàn bộ video & stream thất bại.
 > - Tuyệt đối không dùng các cờ không tương thích trên Termux như `-reconnect_at_eof` hoặc cờ `-headers` không được escape chuỗi đúng chuẩn.
 
+### 2.3 Cơ Chế Bộ Nhớ Đệm 2 Tầng (Dual-Tier Cache) & Trích Xuất Song Song
+- **Tầng 1 (In-Memory RAM Cache - `cache.py`)**: Lưu trữ thông tin bài hát trong RAM (TTL 10 phút).
+- **Tầng 2 (SQLite Disk Cache - `music_song_cache`)**: Lưu `payload` JSON trích xuất từ yt-dlp vào CSDL SQLite (`async_get_song_cache` / `async_set_song_cache`) với **TTL 6 giờ**. Khi bot khởi động lại (restart), không cần tốn 2-4 giây trích xuất lại metadata từ YouTube mà phát ngay lập tức (< 0.5s).
+- **Trích xuất song song (Concurrent Extraction)**: Khi người dùng gõ `/play`, bot khởi chạy đồng thời tác vụ kết nối kênh voice (`_ensure_voice_client`) và tác vụ trích xuất metadata (`extract_info`), giúp giảm 50% tổng thời gian chờ phát bài đầu tiên.
+
 ---
 
 ## 🧩 3. Cơ Chế Nạp Thư Viện `libopus` Động

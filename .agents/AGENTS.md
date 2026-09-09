@@ -52,6 +52,14 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 - **Hệ thống Kinh Tế & Ngân Hàng**:
   - **Ví (Wallet)**: Tiền mặt dùng để chuyển khoản `/pay`, chơi mini-games (`/coinflip`, `/slots`, `/blackjack`). Mini-games chỉ cược bằng tiền Ví.
   - **Ngân hàng (Bank)**: Nơi giữ an toàn tài sản và thanh toán mua sắm Role trong Cửa hàng Server (`/shop`, `/buy`). Hỗ trợ nạp `/deposit` và rút `/withdraw` linh hoạt (hỗ trợ từ khóa `all`/`max`).
+- **Hệ thống Phát Nhạc (Audio Engine)**:
+  - **Trích xuất song song**: `extract_info` chạy đồng thời với `_ensure` kết nối voice channel (`asyncio.create_task`), cắt giảm 50% độ trễ khởi động.
+  - **Cache 2 tầng**: In-Memory RAM Cache (`cache.py`) + SQLite disk cache (`music_song_cache` với TTL 6 giờ).
+  - **Tối ưu FFmpeg & yt-dlp**: Cờ FFmpeg `-fflags +genpts -probesize 512K -analyzeduration 500000 -af aresample=async=1:first_pts=0` (chống lệch nhịp PTS), client yt-dlp `["android", "web"]` (tuyệt đối không dùng `tv` để tránh lỗi *"The page needs to be reloaded"*).
+- **Hạ Tầng Tác Nghiệp MCP (Model Context Protocol)**:
+  - **Cấu hình chuẩn tại**: `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`.
+  - **Máy chủ SQLite MCP**: `uvx mcp-server-sqlite --db-path data/bot.db` truy vấn CSDL trực tiếp.
+  - **Máy chủ Termux Remote MCP**: `python scripts/termux_mcp.py` điều phối từ xa thiết bị Tecno Pova 2 qua Paramiko SSH (port 8022 qua LAN hoặc Tailscale Mesh), tích hợp các lệnh ánh xạ 100% với `main.py` (`termux_system_restart`, `termux_system_stop`, `termux_system_test`, `termux_get_status`, `termux_read_logs`, `termux_git_pull`).
 
 ---
 

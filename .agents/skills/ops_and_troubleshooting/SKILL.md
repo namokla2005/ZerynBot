@@ -70,3 +70,29 @@ Khi gặp sự cố hỏng hóc CSDL:
 - ⚡ **[`validate_all.py`](../zerynbot_architecture_context/assets/validate_all.py)**: Kiểm thử toàn diện 1-Click (i18n + Python compilation + commands count + doc sync).
 - 🧪 **[`validate_i18n.py`](../zerynbot_architecture_context/assets/validate_i18n.py)**: Kiểm thử parity 1587 keys giữa 6 ngôn ngữ.
 - 🗄️ **[`check_db_schema.py`](../zerynbot_architecture_context/assets/check_db_schema.py)**: Kiểm tra cấu trúc CSDL và các lệnh Migration an toàn.
+
+---
+
+## 🔌 6. Quản Trị Hệ Thống Từ Xa Qua MCP Server (Model Context Protocol)
+
+Để AI có thể tự động gỡ lỗi, kiểm tra sức khỏe và điều khiển bot trên thiết bị Android Termux từ xa (không cần người dùng copy-paste log thủ công), dự án tích hợp hệ thống MCP Server chuẩn:
+
+### 6.1 Kiến Trúc MCP Của ZerynBot
+- **File cấu hình IDE Antigravity**: `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`
+- **Máy chủ SQLite MCP**: `uvx mcp-server-sqlite --db-path d:\Project\Discord Bots\v2\data\bot.db`
+- **Máy chủ Termux Manager MCP**: `python scripts/termux_mcp.py` kết nối trực tiếp qua Paramiko SSH (port 8022).
+
+### 6.2 Các Công Cụ MCP Hỗ Trợ (Mapped 100% Với `main.py`)
+| Tool MCP | Lệnh Chạy Trên Termux | Mục Đích |
+| :--- | :--- | :--- |
+| `termux_system_restart` | `python main.py --restart` | Khởi động lại toàn bộ Bot + Dashboard an toàn |
+| `termux_system_stop` | `python main.py --stop` | Dừng sạch tiến trình và gửi Webhook thông báo |
+| `termux_system_test` | `python main.py --test` | Chạy bộ tự chẩn đoán lỗi `SystemTester` |
+| `termux_get_status` | `free -h` & `ps -ef \| grep python` | Kiểm tra tài nguyên RAM/Swap và trạng thái PID |
+| `termux_read_logs` | `tail -n <lines> data/bot.log` | Đọc trực tiếp log thời gian thực mà không cần gõ `cat` |
+| `termux_git_pull` | `git pull origin main` | Tự động đồng bộ mã nguồn mới nhất từ GitHub |
+| `termux_run_command` | `<command>` | Chạy lệnh bash tùy chỉnh trong thư mục bot |
+
+### 6.3 Kết Nối Xuyên Mạng (Khi Không Ở Chung Mạng Wi-Fi)
+- **Khi ở nhà**: Kết nối trực tiếp qua LAN IP `192.168.2.50:8022`.
+- **Khi ở ngoài (trường học, cafe, 4G)**: Cài đặt **Tailscale** trên điện thoại Tecno Pova 2 và Windows PC. Cập nhật `TERMUX_HOST` thành IP ảo cố định `100.x.y.z` trong `mcp_config.json` để duy trì kết nối mọi lúc mọi nơi.

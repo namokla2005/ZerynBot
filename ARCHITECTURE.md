@@ -41,7 +41,8 @@
   - **Sync Access (Dashboard):** `sqlite3` via `database.py` sync helper functions.
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
 - **Image Generation:** Pillow (`PIL`) in `card_generator.py` for rendering dynamic rank cards and welcome/goodbye banner cards in thread pools.
-- **Audio Pipeline:** `yt-dlp` + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -b:a 96k`).
+- **Audio Pipeline:** `yt-dlp` (`player_client: ["android", "web"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000 -af aresample=async=1:first_pts=0`). Dual-tier caching (RAM Cache + SQLite disk cache `music_song_cache` with 6-hour TTL).
+- **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1587 keys per file.
 
 ---
@@ -128,6 +129,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
 │   ├── termux_boot.sh          # Android Termux boot auto-start script
+│   ├── termux_mcp.py           # MCP Server (Model Context Protocol) for remote Termux SSH operations
 │   └── watchdog.sh             # Background process health watchdog script
 │
 └── data/                       # Persistent Data Storage (git-ignored)
@@ -160,6 +162,7 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | `reaction_roles_items` | `id` | Emoji to Role mappings attached to a reaction panel (`panel_id` FK). |
 | `music_playlists` | `id` | Guild custom music playlists (`name`, `creator_id`). |
 | `music_playlist_tracks` | `id` | Track entries in a music playlist (`url`, `title`, `duration`, `thumbnail`). |
+| `music_song_cache` | `cache_key` | Disk cache for extracted yt-dlp metadata (`payload` JSON, `created_at` REAL). 6-hour TTL reduces cold startup latency to < 0.5s. |
 | `automod_settings` | `guild_id` | `spam_enabled`, `bad_words_enabled`, `links_enabled`, `anti_invite_enabled`, `anti_caps_enabled`, `anti_mentions_enabled`, `bad_words` JSON list, `blacklist_links` JSON list, `whitelist_links` JSON list, `immune_roles` JSON list, `spam_allowed_channels` JSON list, `notify_role_id`, `log_channel_id`, `timeout_duration_minutes`, `anti_raid_enabled`, `raid_join_per_window`, `raid_action`, `anti_nuke_enabled`, `nuke_actions` JSON list, `raid_locked`, `raid_snapshot` JSON list. |
 | `automod_warnings` | `id` | Log of user Automod warning counts per server. |
 | `leveling_settings` | `guild_id` | `message_xp_min` (15), `message_xp_max` (25), `voice_xp` (10), `announce_channel_id`, `announce_message`, `stack_rewards`. |

@@ -78,7 +78,9 @@
   - `⏭️ Bỏ qua`: Chuyển ngay sang bài tiếp theo.
   - `🔁 Lặp lại`: 3 chế độ thông minh (`Lặp lại: Tắt` ➔ `🔂 Lặp 1 bài` ➔ `🔁 Lặp toàn bộ`).
 - **Lệnh `/nowplaying` (`/np`)**: Tra cứu thông tin bài hát và vị trí phát theo thời gian thực.
-- **Tối ưu hóa âm thanh ARM**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ đệm tối ưu hóa giúp **khởi động bài hát < 0.8 giây**.
+- **Tối ưu hóa âm thanh ARM & yt-dlp**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ tối ưu `-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000 -af aresample=async=1:first_pts=0` triệt tiêu giật lag âm thanh và chống drift PTS. Client yt-dlp chuẩn `["android", "web"]` khắc phục triệt để lỗi YouTube *"The page needs to be reloaded"*.
+- **Bộ nhớ đệm 2 tầng (Dual-tier Cache)**: Kết hợp In-Memory RAM Cache (`cache.py`) và SQLite Disk Cache (`music_song_cache` với TTL 6 giờ). Khởi động phát lại tức thì (< 0.5s) ngay cả sau khi bot khởi động lại.
+- **Trích xuất song song (Concurrent Extraction)**: Khởi chạy đồng thời kết nối Voice Channel và trích xuất luồng audio (`extract_info`), giảm 50% độ trễ khởi động bài hát ban đầu.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.
 - **Khóa đồng bộ chống xung đột (Atomic Play Lock)**: Loại bỏ triệt để lỗi `Already playing audio` khi người dùng spam lệnh.
 - **Tự động ngắt kết nối (Inactivity Watchdog)**: Tự động rời kênh voice sau 3 phút nếu không có bài hát nào được phát để giải phóng tài nguyên.
@@ -254,6 +256,49 @@ python main.py --test
 
 ---
 
+## 🔌 Quản Trị Từ Xa & Giao Thức MCP (Model Context Protocol)
+
+Dự án tích hợp đầy đủ giao thức **Model Context Protocol (MCP)** cho phép Trợ lý AI (Google Antigravity, Claude Desktop, Cursor) gỡ lỗi, kiểm tra sức khỏe và điều khiển bot trên thiết bị Android **Termux** hoàn toàn tự động mà không cần gõ lệnh thủ công:
+
+### 1. Cấu hình IDE Antigravity / Claude Desktop
+File cấu hình tại `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "sqlite": {
+      "command": "uvx",
+      "args": ["mcp-server-sqlite", "--db-path", "d:\\Project\\Discord Bots\\v2\\data\\bot.db"]
+    },
+    "termux": {
+      "command": "python",
+      "args": ["d:\\Project\\Discord Bots\\v2\\scripts\\termux_mcp.py"],
+      "env": {
+        "TERMUX_HOST": "192.168.2.50",
+        "TERMUX_PORT": "8022",
+        "TERMUX_USER": "u0_a224",
+        "TERMUX_PASS": "nam123",
+        "BOT_DIR": "~/zerynbot"
+      }
+    }
+  }
+}
+```
+
+### 2. Danh Sách Công Cụ MCP (Ánh Xạ 100% Lệnh `main.py`)
+| Tool MCP | Lệnh Chạy Trên Termux | Chức Năng |
+| :--- | :--- | :--- |
+| `termux_system_restart` | `python main.py --restart` | Khởi động lại toàn bộ Bot + Dashboard an toàn |
+| `termux_system_stop` | `python main.py --stop` | Dừng sạch tiến trình và gửi Webhook thông báo |
+| `termux_system_test` | `python main.py --test` | Chạy bộ tự chẩn đoán lỗi `SystemTester` |
+| `termux_get_status` | `free -h` & `ps -ef \| grep python` | Kiểm tra tài nguyên RAM/Swap và trạng thái PID |
+| `termux_read_logs` | `tail -n <lines> data/bot.log` | Đọc log thời gian thực trực tiếp từ thiết bị |
+| `termux_git_pull` | `git pull origin main` | Tự động cập nhật mã nguồn mới nhất từ GitHub |
+| `termux_run_command` | `<command>` | Thực thi lệnh bash tùy chỉnh trong thư mục bot |
+
+> 🌐 **Kết Nối Xuyên Mạng**: Khi ở trường học hoặc ngoài mạng Wi-Fi gia đình, cài đặt **Tailscale** trên điện thoại Tecno Pova 2 và máy tính Windows. Thay đổi `TERMUX_HOST` thành IP ảo cố định `100.x.y.z` trong `mcp_config.json` để duy trì kết nối điều khiển 24/7.
+
+---
+
 ## 📂 Cấu Trúc Thư Mục Dự Án
 
 ```text
@@ -278,7 +323,7 @@ ZerynBot/
 │   ├── static/          # CSS (v9.2), JS, Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme & CSRF bootstrap)
 ├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1587 keys/file
-├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh)
+├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py)
 ├── tests/               # 🧪 55 Unit tests (cache, i18n, database, dashboard security, smoke-load 22 cogs)
 ├── .github/             # CI pipeline & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json

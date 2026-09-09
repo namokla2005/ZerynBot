@@ -19,7 +19,8 @@
 - **Database**: SQLite in WAL mode (`data/bot.db`) with `PRAGMA busy_timeout = 15000` and automated 24h `.zip` backups routed to private `BACKUP_DB` webhook.
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`cache.py`) with thread-safe/async-safe TTL eviction.
 - **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1587 keys per file.
-- **Audio Pipeline**: `yt-dlp` + `FFmpegOpusAudio` with single-thread optimization (<0.8s playback start), Music | 2 compact player card UI, progress bar, 5 interactive buttons, and `/nowplaying`.
+- **Audio Pipeline**: `yt-dlp` (`player_client: ["android", "web"]`) + `FFmpegOpusAudio` with single-thread optimization (`-threads 1 -fflags +genpts -af aresample=async=1:first_pts=0`), dual-tier caching (RAM Cache + SQLite disk cache `music_song_cache` with 6-hour TTL, <0.8s playback start), Music | 2 compact player card UI, progress bar, 5 interactive buttons, and `/nowplaying`.
+- **DevOps & MCP Integration**: Model Context Protocol integration (`mcp_config.json`, `uvx mcp-server-sqlite`, and `scripts/termux_mcp.py` mapped to `main.py` CLI over Paramiko SSH port 8022 via LAN or Tailscale Mesh).
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
 - **AI Routing**: Groq Cloud (`qwen/qwen3.8-27b` default, `gpt-oss-20b`, `compound`), Google Gemini, and OpenRouter with Multimodal Vision and Admin Model Selector (`global_ai_model`).
 
@@ -57,4 +58,5 @@
 - `bot/cogs/`: 24 functional cogs containing 103 total commands across 17 categories.
 - `dashboard/app.py`: Web dashboard routes and `_COMMANDS_DATA` central registry.
 - `dashboard/api.py`: AJAX JSON endpoints for real-time dashboard updates.
+- `scripts/termux_mcp.py`: MCP Server for remote Termux SSH operations and automated diagnostics.
 - `locales/`: 6 locale dictionary files (1587 keys each).
