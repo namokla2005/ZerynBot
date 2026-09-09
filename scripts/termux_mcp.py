@@ -96,20 +96,28 @@ def termux_read_logs(filename: str = "bot.log", lines: int = 60) -> str:
     return _run_ssh(cmd, timeout=8.0)
 
 
-@server.tool(name="termux_restart_bot", description="Khởi động lại Bot Discord trên Termux (python main.py restart --bot)")
-def termux_restart_bot() -> str:
-    """Thực thi khởi động lại Bot Discord an toàn trên Termux."""
+@server.tool(name="termux_system_restart", description="Khởi động lại toàn bộ hệ thống ZerynBot trên Termux (python main.py --restart)")
+def termux_system_restart() -> str:
+    """Khởi động lại toàn bộ hệ thống (Bot + Dashboard) qua main.py --restart."""
     cfg = _get_config()
-    cmd = f"cd {cfg['bot_dir']} && python main.py restart --bot"
+    cmd = f"cd {cfg['bot_dir']} && python main.py --restart"
+    return _run_ssh(cmd, timeout=20.0)
+
+
+@server.tool(name="termux_system_stop", description="Dừng sạch toàn bộ hệ thống ZerynBot trên Termux (python main.py --stop)")
+def termux_system_stop() -> str:
+    """Dừng sạch toàn bộ services qua main.py --stop."""
+    cfg = _get_config()
+    cmd = f"cd {cfg['bot_dir']} && python main.py --stop"
     return _run_ssh(cmd, timeout=15.0)
 
 
-@server.tool(name="termux_restart_dashboard", description="Khởi động lại Web Dashboard trên Termux (python main.py restart --dashboard)")
-def termux_restart_dashboard() -> str:
-    """Thực thi khởi động lại Web Dashboard trên Termux."""
+@server.tool(name="termux_system_test", description="Chạy bộ tự chẩn đoán lỗi hệ thống trên Termux (python main.py --test)")
+def termux_system_test() -> str:
+    """Chạy SystemTester qua main.py --test."""
     cfg = _get_config()
-    cmd = f"cd {cfg['bot_dir']} && python main.py restart --dashboard"
-    return _run_ssh(cmd, timeout=15.0)
+    cmd = f"cd {cfg['bot_dir']} && python main.py --test"
+    return _run_ssh(cmd, timeout=30.0)
 
 
 @server.tool(name="termux_git_pull", description="Kéo mã nguồn mới nhất từ GitHub về Termux (git pull origin main)")
