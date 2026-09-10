@@ -65,6 +65,11 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
   - **Cấu hình chuẩn tại**: `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`.
   - **Máy chủ SQLite MCP**: `uvx mcp-server-sqlite --db-path data/bot.db` truy vấn CSDL trực tiếp.
   - **Máy chủ Termux Remote MCP**: `python scripts/termux_mcp.py` điều phối từ xa thiết bị Tecno Pova 2 qua Paramiko SSH (port 8022 qua LAN hoặc Tailscale Mesh), tích hợp các lệnh ánh xạ 100% với `main.py` (`termux_system_restart`, `termux_system_stop`, `termux_system_test`, `termux_get_status`, `termux_read_logs`, `termux_git_pull`).
+- **Tiêu chuẩn An Ninh & Đồng Thời (Security & Concurrency Defense)**:
+  - **Chống SSRF**: Bắt buộc dùng `is_safe_http_url` phân giải qua `socket.getaddrinfo`, cấm toàn bộ dải IP private, loopback, IPv6 và decimal notation (`2130706433`), kiểm duyệt từng bước chuyển hướng redirect và giới hạn stream tải tối đa 5MB.
+  - **Chống Stored XSS**: Tuyệt đối không dùng `innerHTML` để nối chuỗi dữ liệu người dùng trong Dashboard JS (như Embed Builder); luôn tạo phần tử DOM và gán qua `textContent`. Chỉ chấp nhận URL giao thức `http:` và `https:`. Nạp dữ liệu cấu hình thông qua thẻ `<script type="application/json">`.
+  - **Chống IDOR Máy Chủ**: Bắt buộc giới hạn kênh sự kiện theo `member.guild.get_channel(cid)` thay vì tìm kiếm toàn cục; Dashboard API phải xác thực kênh thuộc quyền quản lý của guild (`_require_channel_in_guild`) và làm mới quyền hạn Discord định kỳ (`SESSION_GUILD_TTL`).
+  - **Tính Nguyên Tử SQLite & Miễn Nhiễm Deadlock**: Mọi thao tác trừ tiền hoặc giảm kho phải dùng câu lệnh SQL điều kiện nguyên tử (`WHERE wallet >= ?`, `WHERE bank >= ?`, `WHERE stock > 0`) và kiểm tra `cursor.rowcount == 1`. Các hàm giao dịch nhiều bước (như `/pay`) bắt buộc thực hiện trên cùng 1 kết nối `aiosqlite.connect` duy nhất, khởi tạo receiver bằng `INSERT OR IGNORE` ngay trong transaction để loại bỏ hoàn toàn SQLite deadlock.
 
 ---
 

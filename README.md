@@ -67,6 +67,7 @@
 - **Lệnh Nạp & Rút Tiền Linh Hoạt**:
   - `/deposit <amount>` (hoặc `/dep all`): Nạp tiền mặt từ Ví vào tài khoản Ngân hàng.
   - `/withdraw <amount>` (hoặc `/with all`): Rút tiền từ Ngân hàng về Ví khi cần cá cược hoặc chuyển khoản.
+- **Giao dịch nguyên tử & Miễn nhiễm Deadlock (Atomic Transactions & Concurrency)**: Áp dụng câu lệnh SQL điều kiện nguyên tử (`WHERE wallet >= ?`, `WHERE bank >= ?`, `WHERE stock > 0`), triệt tiêu 100% tình trạng đua lệnh (Race Condition) và số dư âm. Thao tác `/pay` xử lý trọn gói trên một kết nối SQLite duy nhất, loại trừ hoàn toàn lỗi xung đột khóa bảng (`database is locked`).
 - **Tiện ích kinh tế**: Lệnh `/balance` (hiển thị chi tiết Ví, Ngân hàng, Tổng tài sản), `/daily` (nhận thưởng và chuỗi streak), `/rich` (Bảng xếp hạng đại gia).
 
 ### 🎵 9. Module Nhạc Siêu Tốc & Giao Diện Thẻ Hiện Đại (Music Pipeline & Compact Player)
@@ -151,8 +152,10 @@
 ### 🔒 20. Bảo Mật & Hạ Tầng Chuẩn Production (Security & Hardening)
 - **WSGI Production Server**: Tích hợp máy chủ **Waitress WSGI** cho Web Dashboard, ổn định và chịu tải tốt hơn.
 - **Bảo vệ CSRF Per-Session**: Tự động inject và kiểm tra CSRF token per-session qua `_csrf_bootstrap.html` cho toàn bộ form và request.
-- **Chống Login CSRF & IDOR**: Bắt buộc tham số `state` trong OAuth2 flow; kiểm duyệt chặt chẽ quyền sở hữu `channel_id` theo `guild_id`.
-- **Chống SSRF**: Hàm `is_safe_http_url` kiểm duyệt URL đầu vào (Card background, media, AI article summarization).
+- **Chống Login CSRF & Phân quyền API (RBAC)**: Bắt buộc tham số `state` trong OAuth2 flow; tự động làm mới quyền hạn Discord (`SESSION_GUILD_TTL`) và kiểm tra nghiêm ngặt quyền `Administrator` / `Manage Server` / `bot_admin_roles`.
+- **Cách ly kênh chống IDOR (Cross-Guild Channel Isolation)**: Xác thực quyền sở hữu kênh qua `_require_channel_in_guild` trên Dashboard API và phân giải kênh theo `member.guild.get_channel()` trong sự kiện Bot để ngăn chặn rò rỉ tin nhắn sang máy chủ khác.
+- **Miễn nhiễm Stored XSS (DOM Sanitization)**: Loại bỏ hoàn toàn `innerHTML` nối chuỗi trong Embed Builder, nạp cấu hình qua `<script type="application/json">` và kiểm soát giao thức URL an toàn (`http:`, `https:`).
+- **Phòng chống SSRF Thực Thụ (True DNS Resolution)**: Hàm `is_safe_http_url` tích hợp phân giải DNS thực (`socket.getaddrinfo`), chặn triệt để toàn bộ dải IP riêng tư, loopback, IPv6 và địa chỉ thập phân nguy hiểm (`2130706433`), kiểm tra từng bước redirect và giới hạn stream tải 5MB bảo vệ RAM.
 - **Giới hạn tần suất (Rate Limiter)**: Tích hợp `Flask-Limiter` bảo vệ các route nhạy cảm (`/login`, `/callback`, `/admin/system/*`).
 - **Bộ Test Suite Tự Động**: Kiểm thử unit test và security test (`tests/`) bảo vệ toàn diện hệ thống.
 

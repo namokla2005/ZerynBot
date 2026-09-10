@@ -129,3 +129,55 @@ Dự án tích hợp giao thức **Model Context Protocol (MCP)** tại `C:\User
 2. **Kiểm tra sức khỏe thiết bị từ xa (`termux` MCP)**:
    * Sau khi hoàn tất kiểm thử, gọi tool `termux_get_status` để kiểm tra mức tiêu thụ RAM (`free -h`) và tiến trình watchdog trên thiết bị Tecno Pova 2 thực tế.
    * Đọc trực tiếp log thời gian thực qua `termux_read_logs` để phát hiện các lỗi ngầm (Silent Exceptions) mà UI không hiển thị.
+
+---
+
+## 🛡️ 7. Kịch Bản Kiểm Thử An Ninh & Đồng Thời (Security & Concurrency Test Scenarios)
+
+Dành cho việc kiểm thử tự động và bán tự động các lớp phòng thủ mới (v3.0 Security Defense-in-Depth):
+
+### Kịch Bản 7.1: Phòng Chống Stored XSS trong Embed Builder (`/dashboard/<id>/embeds`)
+1. **Kiểm tra Payload Script Injection**:
+   - Nhập payload vào các trường Title, Description, Field Name, Field Value, Author Name, Footer Text:
+     `<script>alert(1)</script><img src=x onerror=alert('xss')>`
+   - Kiểm tra khung Live Preview: Chuỗi payload phải hiển thị dưới dạng văn bản thô (plain text via `textContent`), tuyệt đối không được thực thi mã JavaScript và không render thẻ HTML nguy hiểm.
+2. **Kiểm tra Protocol Whitelisting**:
+   - Nhập Title URL dạng nguy hiểm: `javascript:alert(document.cookie)` hoặc `data:text/html,...`.
+   - Kiểm tra thuộc tính `href` trong DOM preview: Không được tạo liên kết hoặc tự động bị gỡ bỏ, chỉ chấp nhận giao thức `http:` và `https:`.
+3. **Kiểm tra Tải Dữ Liệu An Toàn**:
+   - Dữ liệu embed khởi tạo được nạp qua `<script type="application/json">` thay vì inline JavaScript variables.
+
+### Kịch Bản 7.2: Xác Thực & Phân Quyền API Dashboard (`/api/guild/<id>/...`)
+1. **Kiểm tra Phân Quyền Vai Trò (RBAC)**:
+   - Gửi request `POST /api/guild/<id>/settings` với user không có quyền `Administrator` / `Manage Server` và không thuộc `bot_admin_roles`.
+   - Kết quả mong đợi: HTTP 403 Forbidden `{ok: false, error: "Access denied"}`.
+2. **Kiểm tra Tự Động Làm Mới Quyền Hạn (Session TTL)**:
+   - Giả lập phiên đăng nhập cũ vượt quá `SESSION_GUILD_TTL` (10 phút).
+   - Gửi yêu cầu API: Hệ thống phải tự động kích hoạt làm mới danh sách quyền hạn máy chủ từ Discord API hoặc từ chối hợp lệ khi hết hạn refresh token.
+
+### Kịch Bản 7.3: Phòng Chống Tấn Công SSRF (Server-Side Request Forgery)
+1. **Kiểm tra Phân Giải DNS & Lọc Địa Chỉ Nội Bộ**:
+   - Thử nghiệm gửi các URL kiểm tra tới `/summarize` hoặc Image Downloaders (`card_generator.py`, `ai.py`):
+     - Loopback: `http://127.0.0.1:5000/`, `http://localhost/`, `http://[::1]/`
+     - Private IP: `http://192.168.1.1/`, `http://10.0.0.1/`
+     - Decimal IP: `http://2130706433` (tương đương `127.0.0.1`)
+     - Cloud Metadata: `http://169.254.169.254/latest/meta-data/`
+   - Kết quả mong đợi: `is_safe_http_url` phân giải qua `socket.getaddrinfo`, phát hiện IP nội bộ và trả về `False`, chặn tải nội dung ngay từ vòng ngoài.
+2. **Kiểm tra Giới Hạn Kích Thước Tải (RAM Guard)**:
+   - Thử tải luồng dữ liệu vượt quá 5MB. Kết quả: Ngắt kết nối sớm (Early Termination), bảo vệ bộ nhớ RAM Termux không bị tràn bộ nhớ (OOM).
+
+### Kịch Bản 7.4: Phòng Chống IDOR Kênh Máy Chủ (Cross-Guild Channel IDOR)
+1. **Kiểm tra Thiết Lập Kênh Khác Guild**:
+   - Gửi API `POST /api/guild/<guild_A>/welcome` với `channel_id` thuộc `<guild_B>`.
+   - Kết quả mong đợi: API trả về HTTP 400 Bad Request `{ok: false, error: "Channel does not belong to this server"}` nhờ cơ chế xác thực `_require_channel_in_guild`.
+2. **Kiểm tra Bắn Sự Kiện Welcome / Goodbye**:
+   - Sự kiện thành viên gia nhập máy chủ sử dụng `member.guild.get_channel(cid)`. Nếu kênh đã bị cấu hình sai hoặc trỏ sang máy chủ khác, bot sẽ bỏ qua an toàn, tuyệt đối không gửi tin nhắn rò rỉ sang kênh ngoài guild.
+
+### Kịch Bản 7.5: Kiểm Thử Đua Lệnh Kinh Tế (Race Condition & Concurrency)
+1. **Kiểm thử Nạp / Rút Tiền Đồng Thời (`/deposit`, `/withdraw`)**:
+   - Tạo 10 luồng bất đồng bộ gửi yêu cầu rút 100 coin từ tài khoản chỉ có 100 coin trong cùng một mili-giây.
+   - Kết quả mong đợi: Nhờ câu lệnh SQL nguyên tử `WHERE wallet >= ?` / `WHERE bank >= ?`, chính xác 1 luồng thành công (`rowcount == 1`) và 9 luồng thất bại (`rowcount == 0`), số dư cuối cùng là 0 coin, không bao giờ bị âm tiền.
+2. **Kiểm thử Deadlock Chuyển Tiền (`/pay`)**:
+   - Cho User A và User B chuyển tiền qua lại đồng thời trong 20 tác vụ song song.
+   - Kết quả mong đợi: Không xuất hiện lỗi `sqlite3.OperationalError: database is locked`, toàn bộ giao dịch được xử lý trơn tru trên một kết nối duy nhất (`single-connection transaction`).
+

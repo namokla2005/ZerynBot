@@ -56,3 +56,39 @@ ZerynBot V2 áp dụng mô hình kinh tế **2 tầng phân tách nghiêm ngặt
 | `economy_settings` | `guild_id`, `daily_amount`, `streak_bonus`, `starting_balance`, `currency_symbol`, `currency_name` | Cấu hình kinh tế máy chủ |
 | `economy_users` | `guild_id`, `user_id`, `wallet`, `bank`, `daily_streak`, `last_daily_at` | Số dư & chuỗi điểm danh thành viên |
 | `economy_shop` | `id`, `guild_id`, `role_id`, `name`, `price`, `stock` | Danh mục Role đăng bán trên Shop |
+
+---
+
+## ⚡ 4. Quy Chuẩn Concurrency & Giao Dịch Nguyên Tử (Atomic Transactions)
+
+Để loại trừ triệt để lỗi đua lệnh (Race Condition) và deadlock SQLite khi nhiều người dùng hoặc tiến trình thực hiện giao dịch cùng lúc:
+
+1. **Cập nhật có điều kiện nguyên tử (Atomic Conditional Updates)**:
+   - Tuyệt đối **không** dùng cơ chế "Kiểm tra số dư trong Python rồi mới trừ tiền" (Check-then-Act / TOCTOU).
+   - Mọi thao tác nạp, rút hoặc mua hàng phải dùng mệnh đề `WHERE` để kiểm tra điều kiện ngay cấp CSDL:
+     ```sql
+     -- Nạp tiền (Deposit)
+     UPDATE economy_users
+     SET wallet = wallet - ?, bank = bank + ?
+     WHERE guild_id = ? AND user_id = ? AND wallet >= ?;
+
+     -- Rút tiền (Withdraw)
+     UPDATE economy_users
+     SET bank = bank - ?, wallet = wallet + ?
+     WHERE guild_id = ? AND user_id = ? AND bank >= ?;
+
+     -- Mua vật phẩm có giới hạn kho (Shop Purchase)
+     UPDATE economy_shop
+     SET stock = stock - 1
+     WHERE id = ? AND guild_id = ? AND (stock = -1 OR stock > 0);
+     ```
+   - Sau khi thực thi lệnh `cursor.execute()`, kiểm tra `cursor.rowcount == 1`. Nếu `rowcount == 0`, giao dịch bị từ chối do số dư không đủ hoặc hàng đã hết, hoàn toàn an toàn và không bao giờ xảy ra số dư âm.
+
+2. **Giao dịch đơn kết nối triệt tiêu Deadlock (`async_transfer_money`)**:
+   - Khi chuyển tiền giữa 2 người dùng (`/pay`), **bắt buộc** thực hiện toàn bộ thao tác trong duy nhất 1 kết nối `aiosqlite.connect`:
+     - Khởi tạo người nhận qua `INSERT OR IGNORE INTO economy_users` ngay trên cùng connection trước khi trừ tiền.
+     - Trừ tiền người gửi bằng lệnh nguyên tử `WHERE wallet >= ?`.
+     - Cộng tiền người nhận.
+     - Commit transaction `await db.commit()`.
+   - Tuyệt đối không gọi các hàm trợ giúp mở kết nối con lồng nhau (nested connections) khi đang giữ lock transaction, đảm bảo thời gian giữ lock dưới 3ms và không bị lỗi `sqlite3.OperationalError: database is locked`.
+

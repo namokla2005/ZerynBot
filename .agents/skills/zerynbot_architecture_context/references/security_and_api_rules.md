@@ -67,3 +67,44 @@ Mọi API endpoint trong [`dashboard/api.py`](https://github.com/namokla2005/Zer
 
 * Các lệnh thực thi trong Web Terminal (`/admin/system/terminal`) chỉ được phép kích hoạt bởi `BOT_OWNER_ID`.
 * Khi gọi các lệnh khởi động lại (`python main.py --restart`), phải sử dụng `subprocess.Popen` ở chế độ **tách rời (detached process)** để Flask trả về HTTP 200 ngay lập tức, tránh bị nghẽn tiến trình gây lỗi HTTP 502 Bad Gateway.
+
+---
+
+## 5. Phòng Chống Tấn Công SSRF Thực Thụ (True DNS Resolution & Stream Guard)
+
+Khi hệ thống tải dữ liệu từ URL do người dùng cung cấp (như ảnh nền card, tóm tắt tin tức AI `/summarize`):
+* **Phân giải DNS thực (`socket.getaddrinfo`)**: Không chỉ kiểm tra chuỗi URL bề mặt (như `localhost` hay `127.0.0.1`), hàm `is_safe_http_url` bắt buộc phân giải tên miền thành địa chỉ IP thực tế trước khi kết nối.
+* **Chặn toàn diện các dải IP cấm**:
+  - Dải IP Loopback: `127.0.0.0/8`, `::1`.
+  - Dải IP Private RFC 1918: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`.
+  - Dải Link-Local & Cloud Metadata: `169.254.0.0/16`, `fe80::/10`.
+  - Kỹ thuật bypass IP thập phân (Decimal / Dword IP, e.g. `http://2130706433` ➔ tự động chuyển đổi và phát hiện IP nội bộ).
+* **Kiểm tra từng bước chuyển hướng (Hop-by-hop Redirect Inspection)**: Tắt tính năng tự động theo dõi chuyển hướng (`allow_redirects=False`) để thẩm định tính an toàn của từng URL trong chuỗi redirect.
+* **Giới hạn dung lượng tải luồng (Stream Guard)**: Đọc theo từng chunk với trần tối đa 5MB. Ngắt kết nối ngay nếu vượt quá giới hạn để bảo vệ bộ nhớ RAM Termux.
+
+---
+
+## 6. Phòng Chống Stored XSS trong Web Dashboard (DOM TextContent & Protocol Whitelist)
+
+* **Tuyệt đối không nối chuỗi vào `innerHTML`**: Trong JavaScript phía máy khách (như `embed_builder.js`), mọi dữ liệu cấu hình hoặc nội dung do người dùng nhập phải được gán vào phần tử DOM thông qua thuộc tính `.textContent` hoặc `document.createTextNode()`.
+* **Kiểm duyệt giao thức URL (Protocol Whitelisting)**: Thuộc tính liên kết (`href`) chỉ được phép chấp nhận các giao thức an toàn `http:` hoặc `https:`. Mọi giao thức nguy hiểm như `javascript:`, `data:`, `vbscript:` phải bị chặn và gỡ bỏ ngay lập tức.
+* **Nạp dữ liệu cấu hình an toàn**: Dữ liệu cấu hình phức tạp truyền từ Flask Jinja2 sang JavaScript phải được đóng gói trong thẻ `<script id="data" type="application/json">` và phân tích qua `JSON.parse(element.textContent)` để tránh lỗi injection khi render inline.
+
+---
+
+## 7. Phòng Chống IDOR & Rò Rỉ Kênh Máy Chủ (Cross-Guild Channel IDOR Defense)
+
+* **Phạm vi phân giải kênh trong Bot Event**: Khi xử lý sự kiện chào mừng/tạm biệt hoặc gửi thông báo máy chủ, **tuyệt đối không** sử dụng phương thức tìm kiếm kênh toàn cục `self.bot.get_channel(channel_id)`. Bắt buộc dùng `member.guild.get_channel(channel_id)` để đảm bảo kênh đích thực sự thuộc máy chủ đang diễn ra sự kiện, triệt tiêu nguy cơ rò rỉ dữ liệu hoặc gửi nhầm tin nhắn sang server khác.
+* **Kiểm tra quyền sở hữu kênh trên Dashboard API**: Mọi API nhận tham số `channel_id` (ví dụ: cài đặt kênh log, kênh welcome, kênh verify) phải gọi hàm xác thực `_require_channel_in_guild(guild_id, channel_id)` trước khi lưu vào cơ sở dữ liệu.
+
+---
+
+## 8. Quy Chuẩn Giao Dịch CSDL Nguyên Tử & Chống Deadlock SQLite
+
+* **Cập nhật có điều kiện nguyên tử (Atomic Conditional Updates)**: Trừ tiền ví, ngân hàng hoặc giảm số lượng vật phẩm phải sử dụng câu lệnh SQL điều kiện:
+  ```sql
+  UPDATE economy_users SET wallet = wallet - ? WHERE guild_id = ? AND user_id = ? AND wallet >= ?;
+  ```
+  Kiểm tra `cursor.rowcount == 1` để xác nhận thành công. Tuyệt đối không kiểm tra số dư trong RAM rồi mới thực thi lệnh ghi độc lập.
+* **Giao dịch đơn kết nối (Single-Connection Transactions)**: Tất cả các thao tác liên quan trong một quy trình giao dịch (như `/pay`) phải chia sẻ chung một kết nối `aiosqlite.connect`, thực thi `INSERT OR IGNORE` đối tượng nhận trên chính kết nối đó và gọi `commit()` duy nhất ở cuối để ngăn chặn SQLite lock tranh chấp giữa các luồng.
+

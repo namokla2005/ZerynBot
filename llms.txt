@@ -23,6 +23,7 @@
 - **DevOps & MCP Integration**: Model Context Protocol integration (`mcp_config.json`, `uvx mcp-server-sqlite`, and `scripts/termux_mcp.py` mapped to `main.py` CLI over Paramiko SSH port 8022 via LAN or Tailscale Mesh).
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
 - **AI Routing**: Groq Cloud (`qwen/qwen3.8-27b` default, `gpt-oss-20b`, `compound`), Google Gemini, and OpenRouter with Multimodal Vision and Admin Model Selector (`global_ai_model`).
+- **Security & Concurrency Defense**: SSRF defense-in-depth (`is_safe_http_url` with DNS resolution, private/loopback/decimal IP blocking, 5MB stream limit), Stored XSS immunity in Embed Builder (DOM `textContent`, `<script type="application/json">`), cross-guild IDOR isolation (`member.guild.get_channel()`), and atomic conditional SQL updates (`WHERE wallet >= ?`) with single-connection transactions preventing SQLite deadlocks.
 
 ## 20 Active Modules
 
