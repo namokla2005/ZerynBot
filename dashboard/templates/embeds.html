@@ -193,8 +193,9 @@
         <div class="embed-item-date">{{ embed.created_at }}</div>
       </div>
       <div class="embed-item-actions">
+        <script type="application/json" id="embed-payload-{{ embed.id }}">{{ embed.embed_data | tojson | safe }}</script>
         <button class="btn btn-secondary btn-sm"
-                onclick='loadEmbed({{ embed.embed_data | tojson }})'>
+                onclick='loadEmbedFromScript("embed-payload-{{ embed.id }}")'>
           <i class="bi bi-pencil"></i> {{ t('common.edit') }}
         </button>
         <button class="btn btn-danger btn-sm"

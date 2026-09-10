@@ -158,7 +158,11 @@ class Events(commands.Cog):
         if not channel_id:
             return
 
-        channel = self.bot.get_channel(int(channel_id))
+        try:
+            cid = int(channel_id)
+        except (ValueError, TypeError):
+            return
+        channel = member.guild.get_channel(cid)
         if not channel:
             return
 
@@ -228,7 +232,11 @@ class Events(commands.Cog):
         if not channel_id:
             return
 
-        channel = self.bot.get_channel(int(channel_id))
+        try:
+            cid = int(channel_id)
+        except (ValueError, TypeError):
+            return
+        channel = member.guild.get_channel(cid)
         if not channel:
             return
 

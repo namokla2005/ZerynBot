@@ -360,7 +360,7 @@ async def _fetch_url_article_content(url: str, max_chars: int = 4000) -> str | N
 
     def _safe(url_candidate: str) -> bool:
         if is_safe_http_url is None:
-            return True  # fallback nếu helper không import được — không chặn (vì đã biết)
+            return False  # Fail-closed
         return is_safe_http_url(url_candidate)
 
     # Bước 0: loại bỏ URL không an toàn ngay từ đầu

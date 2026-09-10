@@ -1927,19 +1927,30 @@ async def async_modify_wallet(guild_id: str, user_id: str, delta: int) -> dict:
 
 
 async def async_transfer_money(guild_id: str, from_user_id: str, to_user_id: str, amount: int) -> bool:
-    if amount <= 0:
+    if amount <= 0 or from_user_id == to_user_id:
         return False
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT wallet FROM economy_users WHERE guild_id = ? AND user_id = ?", (guild_id, from_user_id)) as cur:
-            sender = await cur.fetchone()
-            if not sender or sender["wallet"] < amount:
-                return False
-        
-        await db.execute("UPDATE economy_users SET wallet = wallet - ? WHERE guild_id = ? AND user_id = ?", (amount, guild_id, from_user_id))
-        # Ensure receiver exists
-        await async_get_economy_user(guild_id, to_user_id)
-        await db.execute("UPDATE economy_users SET wallet = wallet + ? WHERE guild_id = ? AND user_id = ?", (amount, guild_id, to_user_id))
+        # P2: Đảm bảo người nhận tồn tại trên CHÍNH KẾT NỐI NÀY để loại trừ hoàn toàn deadlock khóa ghi SQLite
+        await db.execute("""
+            INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, 50, 0, 0, 0)
+        """, (guild_id, to_user_id))
+
+        # Trừ ví người gửi nguyên tử với điều kiện wallet >= amount
+        cursor = await db.execute("""
+            UPDATE economy_users
+            SET wallet = wallet - ?
+            WHERE guild_id = ? AND user_id = ? AND wallet >= ?
+        """, (amount, guild_id, from_user_id, amount))
+        if cursor.rowcount == 0:
+            return False
+
+        # Cộng ví người nhận
+        await db.execute("""
+            UPDATE economy_users
+            SET wallet = wallet + ?
+            WHERE guild_id = ? AND user_id = ?
+        """, (amount, guild_id, to_user_id))
         await db.commit()
         return True
 
@@ -1959,30 +1970,43 @@ async def async_deposit_money(guild_id: str, user_id: str, amount_raw: str | int
     error_codes: 'invalid_amount', 'wallet_empty', 'not_enough_wallet', ''
     """
     user = await async_get_economy_user(guild_id, user_id)
-    wallet = user.get("wallet", 0)
-    
-    if isinstance(amount_raw, str) and amount_raw.lower() in ("all", "max"):
-        if wallet <= 0:
-            return False, 0, user, "wallet_empty"
-        amount = wallet
-    else:
+    is_all = isinstance(amount_raw, str) and amount_raw.lower() in ("all", "max")
+
+    if not is_all:
         try:
             amount = int(amount_raw)
         except (ValueError, TypeError):
             return False, 0, user, "invalid_amount"
         if amount <= 0:
             return False, 0, user, "invalid_amount"
-        if wallet < amount:
-            return False, 0, user, "not_enough_wallet"
-            
+
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
-        await db.execute("""
-            UPDATE economy_users
-            SET wallet = wallet - ?, bank = bank + ?
-            WHERE guild_id = ? AND user_id = ?
-        """, (amount, amount, guild_id, user_id))
+        db.row_factory = aiosqlite.Row
+        if is_all:
+            async with db.execute("SELECT wallet FROM economy_users WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)) as cur:
+                row = await cur.fetchone()
+                if not row or row["wallet"] <= 0:
+                    current = await async_get_economy_user(guild_id, user_id)
+                    return False, 0, current, "wallet_empty"
+                amount = row["wallet"]
+
+            cursor = await db.execute("""
+                UPDATE economy_users
+                SET wallet = 0, bank = bank + ?
+                WHERE guild_id = ? AND user_id = ? AND wallet = ?
+            """, (amount, guild_id, user_id, amount))
+        else:
+            cursor = await db.execute("""
+                UPDATE economy_users
+                SET wallet = wallet - ?, bank = bank + ?
+                WHERE guild_id = ? AND user_id = ? AND wallet >= ?
+            """, (amount, amount, guild_id, user_id, amount))
+
         await db.commit()
-        
+        if cursor.rowcount == 0:
+            current = await async_get_economy_user(guild_id, user_id)
+            return False, 0, current, "not_enough_wallet"
+
     updated = await async_get_economy_user(guild_id, user_id)
     return True, amount, updated, ""
 
@@ -1994,30 +2018,43 @@ async def async_withdraw_money(guild_id: str, user_id: str, amount_raw: str | in
     error_codes: 'invalid_amount', 'bank_empty', 'not_enough_bank', ''
     """
     user = await async_get_economy_user(guild_id, user_id)
-    bank = user.get("bank", 0)
-    
-    if isinstance(amount_raw, str) and amount_raw.lower() in ("all", "max"):
-        if bank <= 0:
-            return False, 0, user, "bank_empty"
-        amount = bank
-    else:
+    is_all = isinstance(amount_raw, str) and amount_raw.lower() in ("all", "max")
+
+    if not is_all:
         try:
             amount = int(amount_raw)
         except (ValueError, TypeError):
             return False, 0, user, "invalid_amount"
         if amount <= 0:
             return False, 0, user, "invalid_amount"
-        if bank < amount:
-            return False, 0, user, "not_enough_bank"
-            
+
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
-        await db.execute("""
-            UPDATE economy_users
-            SET bank = bank - ?, wallet = wallet + ?
-            WHERE guild_id = ? AND user_id = ?
-        """, (amount, amount, guild_id, user_id))
+        db.row_factory = aiosqlite.Row
+        if is_all:
+            async with db.execute("SELECT bank FROM economy_users WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)) as cur:
+                row = await cur.fetchone()
+                if not row or row["bank"] <= 0:
+                    current = await async_get_economy_user(guild_id, user_id)
+                    return False, 0, current, "bank_empty"
+                amount = row["bank"]
+
+            cursor = await db.execute("""
+                UPDATE economy_users
+                SET bank = 0, wallet = wallet + ?
+                WHERE guild_id = ? AND user_id = ? AND bank = ?
+            """, (amount, guild_id, user_id, amount))
+        else:
+            cursor = await db.execute("""
+                UPDATE economy_users
+                SET bank = bank - ?, wallet = wallet + ?
+                WHERE guild_id = ? AND user_id = ? AND bank >= ?
+            """, (amount, amount, guild_id, user_id, amount))
+
         await db.commit()
-        
+        if cursor.rowcount == 0:
+            current = await async_get_economy_user(guild_id, user_id)
+            return False, 0, current, "not_enough_bank"
+
     updated = await async_get_economy_user(guild_id, user_id)
     return True, amount, updated, ""
 
@@ -2032,17 +2069,40 @@ async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tupl
                 return False, "", "item_not_found", 0
             if item["stock"] == 0:
                 return False, "", "out_of_stock", item["price"]
-            
-            user = await async_get_economy_user(guild_id, user_id)
-            if user.get("bank", 0) < item["price"]:
-                return False, "", "not_enough_bank", item["price"]
-            
-            # Trừ tiền từ BANK và trừ stock nếu có giới hạn
-            await db.execute("UPDATE economy_users SET bank = bank - ? WHERE guild_id = ? AND user_id = ?", (item["price"], guild_id, user_id))
-            if item["stock"] > 0:
-                await db.execute("UPDATE economy_shop SET stock = stock - 1 WHERE id = ?", (item_id,))
-            await db.commit()
-            return True, item["role_id"], item["name"], item["price"]
+
+        price = item["price"]
+        # P2: Đảm bảo user tồn tại trên CHÍNH KẾT NỐI NÀY (tránh deadlock kết nối lồng)
+        await db.execute("""
+            INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, 50, 0, 0, 0)
+        """, (guild_id, user_id))
+
+        # Trừ tiền từ BANK có ràng buộc điều kiện bank >= price
+        cur_user = await db.execute("""
+            UPDATE economy_users
+            SET bank = bank - ?
+            WHERE guild_id = ? AND user_id = ? AND bank >= ?
+        """, (price, guild_id, user_id, price))
+        if cur_user.rowcount == 0:
+            return False, "", "not_enough_bank", price
+
+        # Nếu item có giới hạn tồn kho (stock > 0), trừ stock có điều kiện
+        if item["stock"] > 0:
+            cur_stock = await db.execute("""
+                UPDATE economy_shop
+                SET stock = stock - 1
+                WHERE id = ? AND guild_id = ? AND stock > 0
+            """, (item_id, guild_id))
+            if cur_stock.rowcount == 0:
+                # Hết hàng ngay tại thời điểm mua -> hoàn tiền lại vào bank
+                await db.execute("""
+                    UPDATE economy_users SET bank = bank + ? WHERE guild_id = ? AND user_id = ?
+                """, (price, guild_id, user_id))
+                await db.commit()
+                return False, "", "out_of_stock", price
+
+        await db.commit()
+        return True, item["role_id"], item["name"], price
 
 
 async def async_get_top_economy(guild_id: str, limit: int = 10) -> list:

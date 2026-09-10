@@ -5,8 +5,9 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import ipaddress
+import socket
 import time
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse, urljoin
 
 import requests
 import config
@@ -197,14 +198,42 @@ def invalidate_guild_channel_cache(guild_id: str) -> None:
 
 # ─── SSRF guard cho URL người dùng nhập (P1.8) ─────────────────────────────────
 
-_BLOCKED_HOSTNAMES = {"localhost", "localhost.localdomain", "metadata.google.internal"}
+_BLOCKED_HOSTNAMES = {
+    "localhost", "localhost.localdomain", "metadata.google.internal",
+    "host.docker.internal", "metadata", "instance-data"
+}
+
+_DNS_CACHE: dict[str, tuple[float, bool]] = {}
+_DNS_CACHE_TTL = 60.0  # cache kết quả DNS 60s để giảm tải cho Termux
+
+
+def _is_disallowed_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+def _cache_dns_result(host: str, is_safe: bool) -> None:
+    if len(_DNS_CACHE) > 500:
+        _DNS_CACHE.clear()
+    _DNS_CACHE[host] = (time.time(), is_safe)
 
 
 def is_safe_http_url(url: str) -> bool:
     """
     Chỉ cho phép URL http(s) trỏ ra Internet công cộng.
-    Chặn: scheme lạ, host trống, localhost, IP private/loopback/link-local/multicast
-    (literal). Không resolve DNS (giữ nhẹ cho Termux) — đủ chặn các payload phổ biến.
+    Chặn:
+    - Scheme không phải http hoặc https.
+    - Hostname rỗng, bị cấm (.local, .internal, .lan, localhost...).
+    - IP dạng số (decimal, octal) và IPv6 loopback.
+    - Phân giải DNS kiểm tra toàn bộ IP (IPv4 & IPv6): chặn dải private,
+      loopback, link-local (169.254.x), reserved, multicast.
+    - Có cơ chế cache kết quả DNS 60s để tiết kiệm tài nguyên mạng cho Termux.
     """
     if not url or not isinstance(url, str) or len(url) > 2048:
         return False
@@ -212,19 +241,153 @@ def is_safe_http_url(url: str) -> bool:
         parsed = urlparse(url.strip())
     except Exception:
         return False
-    if parsed.scheme.lower() not in ("http", "https"):
+
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
         return False
+
     host = (parsed.hostname or "").strip().lower()
-    if not host or host in _BLOCKED_HOSTNAMES or host.endswith(".local"):
+    if not host or host in _BLOCKED_HOSTNAMES or host.endswith((".local", ".internal", ".lan")):
         return False
-    # Nếu host là IP literal → kiểm tra dải IP
+
+    # Kiểm tra cache DNS
+    now = time.time()
+    cached = _DNS_CACHE.get(host)
+    if cached and (now - cached[0]) < _DNS_CACHE_TTL:
+        return cached[1]
+
+    # 1. Kiểm tra nếu host là IP literal (kể cả dạng số nguyên decimal)
     try:
-        ip = ipaddress.ip_address(host)
-        if (
-            ip.is_private or ip.is_loopback or ip.is_link_local
-            or ip.is_multicast or ip.is_reserved or ip.is_unspecified
-        ):
-            return False
+        if host.isdigit():
+            ip_obj = ipaddress.ip_address(int(host))
+            if _is_disallowed_ip(ip_obj):
+                _cache_dns_result(host, False)
+                return False
+        else:
+            ip_obj = ipaddress.ip_address(host)
+            if _is_disallowed_ip(ip_obj):
+                _cache_dns_result(host, False)
+                return False
     except ValueError:
-        pass  # hostname thường, không phải IP literal
+        pass  # Hostname thông thường dạng tên miền
+
+    # 2. Phân giải DNS thực tế để kiểm tra IP đích
+    port = parsed.port or (443 if scheme == "https" else 80)
+    try:
+        addr_info = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+        if not addr_info:
+            _cache_dns_result(host, False)
+            return False
+
+        for item in addr_info:
+            sockaddr = item[4]
+            ip_str = sockaddr[0]
+            try:
+                ip_obj = ipaddress.ip_address(ip_str)
+                if _is_disallowed_ip(ip_obj):
+                    _cache_dns_result(host, False)
+                    return False
+            except ValueError:
+                _cache_dns_result(host, False)
+                return False
+    except (socket.gaierror, socket.herror, TimeoutError):
+        _cache_dns_result(host, False)
+        return False
+    except Exception:
+        _cache_dns_result(host, False)
+        return False
+
+    _cache_dns_result(host, True)
     return True
+
+
+def safe_download_image(url: str, max_bytes: int = 5 * 1024 * 1024, timeout: float = 8.0) -> bytes | None:
+    """
+    Tải tài nguyên hình ảnh HTTP an toàn:
+    - Kiểm tra is_safe_http_url trước khi gửi
+    - Tắt allow_redirects tự động, tự kiểm tra URL ở MỌI chặng redirect (tối đa 3 hops)
+    - Đọc theo stream và ngắt nếu vượt quá max_bytes (chống DoS / cạn kiệt RAM Termux)
+    - Trả về bytes nếu hợp lệ, None nếu có lỗi / URL không an toàn / vượt kích thước
+    """
+    if not is_safe_http_url(url):
+        return None
+
+    current_url = url
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+    for _ in range(4):  # Tối đa 3 lần redirect
+        if not is_safe_http_url(current_url):
+            return None
+        try:
+            resp = requests.get(
+                current_url,
+                headers=headers,
+                timeout=timeout,
+                allow_redirects=False,
+                stream=True,
+            )
+            if resp.is_redirect or resp.status_code in (301, 302, 303, 307, 308):
+                location = resp.headers.get("Location")
+                if not location:
+                    return None
+                current_url = urljoin(current_url, location)
+                continue
+
+            if resp.status_code != 200:
+                return None
+
+            clength = resp.headers.get("Content-Length")
+            if clength and clength.isdigit() and int(clength) > max_bytes:
+                return None
+
+            content = bytearray()
+            for chunk in resp.iter_content(chunk_size=16384):
+                if chunk:
+                    content.extend(chunk)
+                    if len(content) > max_bytes:
+                        return None
+            return bytes(content)
+        except Exception:
+            return None
+
+    return None
+
+
+async def async_safe_download_image(url: str, max_bytes: int = 5 * 1024 * 1024, timeout: float = 8.0) -> bytes | None:
+    """Async variant cho Discord bot (aiohttp)."""
+    if not is_safe_http_url(url):
+        return None
+
+    import aiohttp
+    current_url = url
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    client_timeout = aiohttp.ClientTimeout(total=timeout)
+
+    try:
+        async with aiohttp.ClientSession(headers=headers, timeout=client_timeout) as session:
+            for _ in range(4):
+                if not is_safe_http_url(current_url):
+                    return None
+                async with session.get(current_url, allow_redirects=False) as resp:
+                    if resp.status in (301, 302, 303, 307, 308):
+                        location = resp.headers.get("Location")
+                        if not location:
+                            return None
+                        current_url = urljoin(current_url, location)
+                        continue
+                    if resp.status != 200:
+                        return None
+
+                    clength = resp.headers.get("Content-Length")
+                    if clength and clength.isdigit() and int(clength) > max_bytes:
+                        return None
+
+                    content = bytearray()
+                    async for chunk in resp.content.iter_chunked(16384):
+                        content.extend(chunk)
+                        if len(content) > max_bytes:
+                            return None
+                    return bytes(content)
+    except Exception:
+        return None
+    return None

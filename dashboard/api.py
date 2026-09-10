@@ -2,7 +2,7 @@
 api.py — REST JSON API endpoints for the dashboard.
 Imported as a Blueprint and registered in app.py.
 """
-import sys, os
+import sys, os, time, json
 _V2_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _V2_DIR)
 sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho card_generator, checks, etc.
@@ -18,11 +18,53 @@ api = Blueprint("api", __name__, url_prefix="/api")
 
 
 def _require_guild_access(guild_id: str):
-    """Return error response if user doesn't have access to this guild."""
+    """Xác thực quyền truy cập guild cho API.
+    Kiểm tra:
+    1. Đã đăng nhập Discord (session có user và access_token).
+    2. Tự động làm mới danh sách guild theo TTL (SESSION_GUILD_TTL).
+    3. User có quyền quản lý guild (MANAGE_GUILD / Administrator) và bot có trong guild.
+    4. Kiểm tra bot_admin_roles nếu server có cấu hình.
+    """
+    if "user" not in session or not session.get("user"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    token = session.get("access_token")
+    if not token:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    now = time.time()
+    fetched_at = session.get("guilds_fetched_at", 0) or 0
+    if now - fetched_at >= _auth.SESSION_GUILD_TTL:
+        try:
+            guilds = _auth.get_manageable_guilds(token)
+            session["guilds"] = guilds
+            session["guilds_fetched_at"] = now
+        except requests.HTTPError as e:
+            if getattr(e.response, "status_code", None) == 401:
+                session.clear()
+                return jsonify({"error": "Session expired, please login again"}), 401
+        except Exception:
+            pass
+
     guilds = session.get("guilds", [])
-    allowed = {g["id"] for g in guilds if g.get("bot_in_guild")}
-    if guild_id not in allowed:
-        return jsonify({"error": "Forbidden"}), 403
+    guild_info = next((g for g in guilds if str(g.get("id")) == str(guild_id)), None)
+    if not guild_info or not guild_info.get("bot_in_guild"):
+        return jsonify({"error": "Forbidden: No access to this server"}), 403
+
+    # Kiểm tra bot_admin_roles (nếu có cấu hình và user không phải Owner)
+    settings = db.get_guild_settings(guild_id)
+    admin_roles_str = settings.get("bot_admin_roles", "[]")
+    if admin_roles_str and not guild_info.get("owner"):
+        try:
+            admin_roles = json.loads(admin_roles_str)
+        except Exception:
+            admin_roles = []
+        if admin_roles:
+            user_id = str(session["user"]["id"])
+            member_roles = _auth.get_member_roles(guild_id, user_id)
+            if not any(r in admin_roles for r in member_roles):
+                return jsonify({"error": "Forbidden: Missing bot admin role"}), 403
+
     return None
 
 
@@ -44,6 +86,19 @@ def save_welcome(guild_id: str):
     if err:
         return err
     data = request.json or {}
+
+    # P0.4: Chống IDOR cài cắm kênh của server khác
+    welcome_cid = data.get("welcome_channel_id")
+    if welcome_cid and str(welcome_cid).strip():
+        err = _require_channel_in_guild(guild_id, str(welcome_cid).strip())
+        if err:
+            return err
+    goodbye_cid = data.get("goodbye_channel_id")
+    if goodbye_cid and str(goodbye_cid).strip():
+        err = _require_channel_in_guild(guild_id, str(goodbye_cid).strip())
+        if err:
+            return err
+
     allowed_fields = {
         "welcome_channel_id", "welcome_message", "welcome_use_embed",
         "welcome_embed_color", "welcome_embed_title",
@@ -94,9 +149,52 @@ def create_embed(guild_id: str):
     if err:
         return err
     data = request.json or {}
-    name = data.get("name", "Embed không tên")
+    name = str(data.get("name", "Embed không tên")).strip()[:100]
     embed_data = data.get("embed", {})
-    embed_id = db.save_embed(guild_id, name, embed_data)
+    if not isinstance(embed_data, dict):
+        return jsonify({"error": "Dữ liệu embed không hợp lệ"}), 400
+
+    clean_embed = {
+        "title": str(embed_data.get("title", ""))[:256],
+        "description": str(embed_data.get("description", ""))[:4096],
+        "color": str(embed_data.get("color", "#5865f2"))[:10],
+    }
+    url = embed_data.get("url")
+    if url and isinstance(url, str) and url.strip().startswith(("http://", "https://")):
+        clean_embed["url"] = url.strip()[:1024]
+
+    author = embed_data.get("author")
+    if isinstance(author, dict):
+        clean_embed["author"] = {"name": str(author.get("name", ""))[:256]}
+
+    footer = embed_data.get("footer")
+    if isinstance(footer, dict):
+        clean_embed["footer"] = {"text": str(footer.get("text", ""))[:2048]}
+        f_icon = footer.get("icon_url")
+        if f_icon and isinstance(f_icon, str) and f_icon.strip().startswith(("http://", "https://")):
+            clean_embed["footer"]["icon_url"] = f_icon.strip()[:1024]
+
+    for img_key in ("thumbnail", "image"):
+        img_val = embed_data.get(img_key)
+        if img_val and isinstance(img_val, str) and img_val.strip().startswith(("http://", "https://")):
+            clean_embed[img_key] = img_val.strip()[:1024]
+
+    raw_fields = embed_data.get("fields", [])
+    if isinstance(raw_fields, list):
+        clean_fields = []
+        for f in raw_fields[:25]:
+            if isinstance(f, dict):
+                f_name = str(f.get("name", "")).strip()[:256]
+                f_val = str(f.get("value", "")).strip()[:1024]
+                if f_name or f_val:
+                    clean_fields.append({
+                        "name": f_name or "—",
+                        "value": f_val or "—",
+                        "inline": bool(f.get("inline", False))
+                    })
+        clean_embed["fields"] = clean_fields
+
+    embed_id = db.save_embed(guild_id, name, clean_embed)
     return jsonify({"ok": True, "id": embed_id})
 
 
@@ -530,15 +628,9 @@ def send_test_card(guild_id: str):
             bg_url = settings.get(f"{card_type}_bg_url")
 
         if bg_url:
-            # P1.8: chống SSRF — chỉ tải URL http(s) trỏ ra Internet công cộng
-            if not _auth.is_safe_http_url(bg_url):
+            bg_bytes = _auth.safe_download_image(bg_url, max_bytes=5 * 1024 * 1024, timeout=8.0)
+            if bg_bytes is None and not _auth.is_safe_http_url(bg_url):
                 return jsonify({"error": "URL ảnh nền không hợp lệ (chỉ cho phép http/https công khai)."}), 400
-            try:
-                r = requests.get(bg_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
-                if r.status_code == 200:
-                    bg_bytes = r.content
-            except Exception:
-                pass
 
         try:
             try:

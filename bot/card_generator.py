@@ -72,30 +72,24 @@ def _get_pil_font(size: int, bold: bool = False):
         return ImageFont.load_default()
 
 
-# ─── Avatar download ───────────────────────────────────────────────────────────
+# ─── Avatar download (SSRF-protected) ──────────────────────────────────────────
 async def _download_avatar(url: str) -> bytes | None:
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    return await resp.read()
+        from dashboard.auth import async_safe_download_image
+        return await async_safe_download_image(url, max_bytes=5 * 1024 * 1024, timeout=8.0)
     except Exception as e:
         log.warning(f"[Card] Avatar download error: {e}")
-    return None
+        return None
 
 
 # Helper: download avatar synchronously (for use from Flask/api.py)
 def _download_avatar_sync(url: str) -> bytes | None:
     try:
-        import requests as _req
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        r = _req.get(url, headers=headers, timeout=8)
-        if r.status_code == 200:
-            return r.content
+        from dashboard.auth import safe_download_image
+        return safe_download_image(url, max_bytes=5 * 1024 * 1024, timeout=8.0)
     except Exception as e:
         log.warning(f"[Card] Avatar download (sync) error: {e}")
-    return None
+        return None
 
 
 # ─── Card renderer ─────────────────────────────────────────────────────────────

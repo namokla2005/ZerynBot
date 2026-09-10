@@ -55,13 +55,34 @@ function updatePreview() {
     if (nameEl) nameEl.textContent = authorName;
   }
 
+function isSafeWebUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const p = new URL(url.trim());
+    return p.protocol === 'http:' || p.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
   // Title
   const prevTitle = refs.prevTitle();
   if (prevTitle) {
-    prevTitle.textContent = title;
+    prevTitle.innerHTML = '';
     prevTitle.style.display = title ? 'block' : 'none';
-    if (titleUrl) {
-      prevTitle.innerHTML = `<a href="${titleUrl}" style="color:#00b0f4;text-decoration:none;">${title}</a>`;
+    if (title) {
+      if (titleUrl && isSafeWebUrl(titleUrl)) {
+        const a = document.createElement('a');
+        a.href = titleUrl.trim();
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.color = '#00b0f4';
+        a.style.textDecoration = 'none';
+        a.textContent = title;
+        prevTitle.appendChild(a);
+      } else {
+        prevTitle.textContent = title;
+      }
     }
   }
 
@@ -126,10 +147,18 @@ function renderPreviewFields() {
     if (!f.name && !f.value) return;
     const div = document.createElement('div');
     div.className = 'preview-field';
-    div.innerHTML = `
-      ${f.name  ? `<div class="preview-field-name">${f.name}</div>`  : ''}
-      ${f.value ? `<div class="preview-field-value">${f.value}</div>` : ''}
-    `;
+    if (f.name) {
+      const nameEl = document.createElement('div');
+      nameEl.className = 'preview-field-name';
+      nameEl.textContent = f.name;
+      div.appendChild(nameEl);
+    }
+    if (f.value) {
+      const valEl = document.createElement('div');
+      valEl.className = 'preview-field-value';
+      valEl.textContent = f.value;
+      div.appendChild(valEl);
+    }
     container.appendChild(div);
   });
 }
@@ -177,7 +206,12 @@ function removeField(idx) {
 }
 
 function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ─── Get current embed data ───────────────────────────────────────────────────
@@ -239,6 +273,17 @@ async function deleteEmbed(embedId) {
 }
 
 // ─── Load embed into builder ──────────────────────────────────────────────────
+function loadEmbedFromScript(scriptId) {
+  const el = document.getElementById(scriptId);
+  if (!el) return;
+  try {
+    const data = JSON.parse(el.textContent);
+    loadEmbed(data);
+  } catch {
+    showToast('❌ Lỗi khi đọc dữ liệu embed', 'error');
+  }
+}
+
 function loadEmbed(embedData) {
   try {
     const e = typeof embedData === 'string' ? JSON.parse(embedData) : embedData;
