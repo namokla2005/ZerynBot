@@ -379,10 +379,11 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
 
         queries = []
         if has_valid_uploader:
+            queries.append(f"ytsearch10:{clean_title} {uploader_clean}")
             queries.append(f"ytsearch10:{uploader_clean} songs")
+        else:
+            queries.append(f"ytsearch10:{clean_title}")
         queries.append(f"ytsearch10:{clean_title} radio mix")
-        uploader_str = f" {uploader_clean}" if has_valid_uploader else ""
-        queries.append(f"ytsearch10:{clean_title}{uploader_str}")
 
         ydl = _get_ydl_flat()
         for search_q in queries:
@@ -417,6 +418,9 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
                     # Chuẩn hóa URL YouTube nếu thiếu
                     if vid and not entry.get("webpage_url"):
                         entry["webpage_url"] = f"https://www.youtube.com/watch?v={vid}"
+
+                    # Đảm bảo không để lộ webpage URL dưới dạng stream URL
+                    entry.pop("stream_url", None)
 
                     return entry
             except Exception:
@@ -488,9 +492,16 @@ def _get_stream_url(info: dict) -> str | None:
         best_audio = max(valid_formats, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))
         return best_audio["url"]
 
-    # 6. Trực tiếp info.get("url") nếu hợp lệ
+    # 6. Trực tiếp info.get("url") nếu hợp lệ (CHỈ chấp nhận direct media stream, tuyệt đối không nhận webpage URL)
     direct_url = info.get("url")
-    if direct_url and direct_url.startswith("http") and not any(x in direct_url for x in ["storyboard", ".jpg", ".png", ".mhtml"]):
+    if (
+        direct_url
+        and direct_url.startswith("http")
+        and not any(x in direct_url.lower() for x in [
+            "storyboard", ".jpg", ".png", ".mhtml",
+            "youtube.com", "youtu.be", "soundcloud.com", "spotify.com"
+        ])
+    ):
         return direct_url
 
     return None
@@ -623,7 +634,13 @@ class Track:
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")
         self.url           = info.get("webpage_url") or info.get("url", "")
-        self.stream_url    = info.get("stream_url") or _get_stream_url(info)
+        # stream_url chỉ được nạp nếu đã trích xuất stream audio thực sự (từ _compact_song_info hoặc formats)
+        stream_url = info.get("stream_url")
+        if not stream_url and info.get("formats"):
+            stream_url = _get_stream_url(info)
+        if stream_url and any(domain in stream_url.lower() for domain in ("youtube.com", "youtu.be", "soundcloud.com", "spotify.com")):
+            stream_url = None
+        self.stream_url    = stream_url
         self.stream_expire = info.get("stream_expire") or (time.time() + (5.5 * 3600) if self.stream_url else 0)
         self.duration      = info.get("duration")
         self.uploader      = info.get("uploader") or info.get("channel") or "—"
@@ -662,6 +679,7 @@ class MusicPlayer:
         self._played_history : list[str] = [] # Lưu các bài đã phát để không bị lặp lại trong Autoplay
         self._played_history_set : set[str] = set()
         self.volume        = 1.0 # 100%
+        self._consecutive_errors = 0
         self.now_playing_msg : discord.Message | None = None
         self.start_time    : float = 0.0
         self.pause_start   : float = 0.0
@@ -748,6 +766,17 @@ class MusicPlayer:
             return
         if error:
             log.warning(f"[Music] Player error: {error}")
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= 3:
+                log.error(f"[Music] Gặp {self._consecutive_errors} lỗi phát nhạc liên tiếp, dừng autoplay để chống lặp.")
+                self._consecutive_errors = 0
+                self.autoplay = False
+                loop = self._get_loop()
+                asyncio.run_coroutine_threadsafe(self._on_queue_empty(), loop)
+                return
+        else:
+            self._consecutive_errors = 0
+
         if self.current:
             self._record_played(self.current.title)
         loop = self._get_loop()
@@ -792,9 +821,12 @@ class MusicPlayer:
                 curr_id,
             )
             if related_info:
+                # Đảm bảo stream_url luôn None để _play() giải mã stream audio đầy đủ
+                related_info.pop("stream_url", None)
                 bot_user = getattr(self.vc, "client", None)
                 requester = bot_user.user if (bot_user and hasattr(bot_user, "user")) else None
                 new_track = Track(related_info, requester=requester)
+                new_track.stream_url = None
                 if self.text_channel:
                     try:
                         await self.text_channel.send(
@@ -844,14 +876,26 @@ class MusicPlayer:
                 info = await extract_info(track.url or track.title)
                 if not info:
                     log.warning(f"[Music] Cannot get stream URL for '{track.title}'")
+                    self._consecutive_errors += 1
+                    if self._consecutive_errors >= 3:
+                        self._consecutive_errors = 0
+                        self.autoplay = False
+                        await self._on_queue_empty()
+                        return
                     self._dispatch_next()
                     return
-                track.stream_url    = _get_stream_url(info)
-                track.stream_expire = time.time() + (5.5 * 3600)
-                track.is_opus       = _get_stream_acodec(info, track.stream_url) == "opus"
+                track.stream_url    = info.get("stream_url") or _get_stream_url(info)
+                track.stream_expire = info.get("stream_expire") or (time.time() + (5.5 * 3600))
+                track.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, track.stream_url) == "opus")
 
             if not track.stream_url:
                 log.warning(f"[Music] Cannot resolve stream URL for '{track.title}'")
+                self._consecutive_errors += 1
+                if self._consecutive_errors >= 3:
+                    self._consecutive_errors = 0
+                    self.autoplay = False
+                    await self._on_queue_empty()
+                    return
                 if self.text_channel:
                     try:
                         s = await async_get_guild_settings(str(self.guild.id))
@@ -910,9 +954,16 @@ class MusicPlayer:
                     load_opus_library()
 
                 self.vc.play(source, after=self._after_play)
+                self._consecutive_errors = 0
                 log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus})")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
+                self._consecutive_errors += 1
+                if self._consecutive_errors >= 3:
+                    self._consecutive_errors = 0
+                    self.autoplay = False
+                    await self._on_queue_empty()
+                    return
                 if self.text_channel:
                     try:
                         s = await async_get_guild_settings(str(self.guild.id))
