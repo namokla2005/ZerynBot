@@ -337,23 +337,52 @@ def _extract_metadata_sync(query: str) -> dict | None:
         return None
 
 
-def _find_related_track_sync(current_title: str, current_uploader: str, history: list[str] | set[str] | None = None) -> dict | None:
+def _clean_song_title(t: str) -> str:
+    """Loại bỏ các hậu tố rác (Official MV, Lyrics, Remix,...) để so sánh tên bài hát chính xác."""
+    return re.sub(
+        r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio|lyrics",
+        "",
+        t,
+        flags=re.IGNORECASE
+    ).strip().lower()
+
+
+def _is_duplicate_song(t1: str, t2: str) -> bool:
+    """Nhận diện 2 bài hát có phải là một (kể cả khi khác tiền tố nghệ sĩ hoặc thêm hậu tố)."""
+    c1, c2 = _clean_song_title(t1), _clean_song_title(t2)
+    if not c1 or not c2:
+        return False
+    if c1 == c2:
+        return True
+    if len(c1) >= 6 and c1 in c2:
+        return True
+    if len(c2) >= 6 and c2 in c1:
+        return True
+    return False
+
+
+def _find_related_track_sync(current_title: str, current_uploader: str, history: list[str] | set[str] | None = None, current_id: str = "") -> dict | None:
     """Tìm bài hát liên quan / cùng thể loại khi bật chế độ Autoplay (< 1s)."""
     try:
         hist = history or set()
         clean_title = re.sub(
-            r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio",
+            r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio|lyrics",
             "",
             current_title,
             flags=re.IGNORECASE
         ).strip()
-        uploader_clean = re.sub(r"-\s*topic|vevo", "", current_uploader, flags=re.IGNORECASE).strip()
+        if not clean_title:
+            clean_title = current_title.strip()
 
-        # Dùng ytsearch5 để lấy kết quả nhanh hơn 2x so với ytsearch10
-        queries = [
-            f"ytsearch5:{clean_title} {uploader_clean}",
-            f"ytsearch5:{clean_title} related audio mix",
-        ]
+        uploader_clean = re.sub(r"-\s*topic|vevo", "", current_uploader or "", flags=re.IGNORECASE).strip()
+        has_valid_uploader = bool(uploader_clean and uploader_clean.lower() not in ("—", "unknown", "none", "various artists", "various"))
+
+        queries = []
+        if has_valid_uploader:
+            queries.append(f"ytsearch10:{uploader_clean} songs")
+        queries.append(f"ytsearch10:{clean_title} radio mix")
+        uploader_str = f" {uploader_clean}" if has_valid_uploader else ""
+        queries.append(f"ytsearch10:{clean_title}{uploader_str}")
 
         ydl = _get_ydl_flat()
         for search_q in queries:
@@ -370,15 +399,24 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
                     if not title:
                         continue
 
-                    title_lower = title.lower().strip()
-                    if hist and any(h and (h in title_lower or h == vid or (url and h in url)) for h in hist):
+                    # Bỏ qua bài hát hiện tại (trùng ID hoặc trùng tên bài)
+                    if current_id and vid == current_id:
                         continue
-                    if title_lower == current_title.lower().strip():
+                    if _is_duplicate_song(current_title, title):
+                        continue
+
+                    # Kiểm tra lịch sử phát (tránh lặp bài thông minh, chống false positive với từ ngắn)
+                    if any(h and (h == vid or (url and h in url) or _is_duplicate_song(h, title)) for h in hist):
                         continue
 
                     dur = entry.get("duration") or 0
-                    if dur > 0 and (dur < 30 or dur > 900):
+                    # Cho phép bài hát / DJ mix lên đến 4 tiếng (14400s), loại bỏ clip rác (< 30s)
+                    if dur > 0 and (dur < 30 or dur > 14400):
                         continue
+
+                    # Chuẩn hóa URL YouTube nếu thiếu
+                    if vid and not entry.get("webpage_url"):
+                        entry["webpage_url"] = f"https://www.youtube.com/watch?v={vid}"
 
                     return entry
             except Exception:
@@ -739,12 +777,19 @@ class MusicPlayer:
             await self._on_queue_empty()
             return
         last_track = self.current
+        curr_id = ""
+        if last_track.url:
+            m = re.search(r"(?:v=|\/|vi=)([0-9A-Za-z_-]{11})(?:[&?]|$|\/)", last_track.url)
+            if m:
+                curr_id = m.group(1)
+
         try:
             related_info = await asyncio.to_thread(
                 _find_related_track_sync,
                 last_track.title,
                 last_track.uploader,
-                self._played_history_set
+                self._played_history_set,
+                curr_id,
             )
             if related_info:
                 bot_user = getattr(self.vc, "client", None)
@@ -1552,6 +1597,12 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.no_song_playing"), ephemeral=True)
             return
         player.autoplay = not player.autoplay
+        if player.now_playing_msg:
+            try:
+                view = MusicControlView(player, s)
+                await player.now_playing_msg.edit(view=view)
+            except Exception:
+                pass
         key = "music.autoplay_on" if player.autoplay else "music.autoplay_off"
         await ctx.send(tr(s, key), ephemeral=True)
 
