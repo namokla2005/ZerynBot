@@ -794,6 +794,8 @@
   "music.loop_off_msg": "🔁 Loop mode **disabled**!",
   "music.loop_one_msg": "🔂 Single song **loop enabled**!",
   "music.loop_all_msg": "🔁 Entire queue **loop enabled**!",
+  "music.autoplay_on": "♾️ Le mode de lecture automatique a été **activé** !",
+  "music.autoplay_off": "♾️ Le mode de lecture automatique a été **désactivé** !",
   "music.replayed": "🔄 Replaying current song from start!",
   "music.empty_voice_left": "🔇 Voice channel empty, bot automatically disconnected!",
   "music.cannot_connect": "❌ Cannot connect to voice channel!",

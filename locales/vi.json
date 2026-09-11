@@ -794,6 +794,8 @@
   "music.loop_off_msg": "🔁 Đã **tắt** chế độ lặp lại!",
   "music.loop_one_msg": "🔂 Đã bật chế độ **lặp lại bài hiện tại**!",
   "music.loop_all_msg": "🔁 Đã bật chế độ **lặp lại toàn bộ hàng chờ**!",
+  "music.autoplay_on": "♾️ Đã **bật** chế độ tự động phát bài hát tương tự!",
+  "music.autoplay_off": "♾️ Đã **tắt** chế độ tự động phát bài hát tương tự!",
   "music.replayed": "🔄 Đã phát lại bài hát từ đầu!",
   "music.empty_voice_left": "🔇 Kênh voice trống, bot đã tự động rời kênh!",
   "music.cannot_connect": "❌ Không thể kết nối tới kênh voice!",

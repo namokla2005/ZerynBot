@@ -30,7 +30,7 @@ from database import async_get_guild_settings, async_get_song_cache, async_set_s
 from i18n import tr
 
 try:
-    from emojis import clean_title, e, embed_title, partial
+    from emojis import e, embed_title, partial
 except (ImportError, ModuleNotFoundError):
     from bot.emojis import e, embed_title, partial
 
@@ -128,10 +128,10 @@ async def lofi_autocomplete(
     interaction: discord.Interaction,
     current: str,
 ) -> list[app_commands.Choice[str]]:
-    """Gợi ý dropdown SomaFM / YouTube cho slash command /lofi."""
+    """Gợi ý dropdown YouTube / SomaFM cho slash command /lofi."""
     choices = [
-        app_commands.Choice(name="🎧 SomaFM Groove Salad (ổn định 24/7)", value="soma"),
         app_commands.Choice(name="📺 YouTube Lofi Girl (live stream)", value="youtube"),
+        app_commands.Choice(name="🎧 SomaFM Groove Salad (ổn định 24/7)", value="soma"),
     ]
     if current:
         choices = [c for c in choices if current.lower() in c.value.lower() or current.lower() in c.name.lower()]
@@ -189,21 +189,32 @@ def _fmt_duration(seconds) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
 
 
+_spotify_session: aiohttp.ClientSession | None = None
+
+
+async def _get_spotify_session() -> aiohttp.ClientSession:
+    """Tái sử dụng ClientSession cho Spotify resolve để giảm TCP handshake overhead."""
+    global _spotify_session
+    if _spotify_session is None or _spotify_session.closed:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        _spotify_session = aiohttp.ClientSession(headers=headers)
+    return _spotify_session
+
+
 async def _resolve_external_url(query: str) -> str:
     """Tự động phân giải link Spotify qua oEmbed API thành truy vấn tìm kiếm YouTube."""
     q_strip = query.strip()
     if "spotify.com/track" in q_strip or "spotify.link" in q_strip:
         try:
             oembed_url = f"https://open.spotify.com/oembed?url={q_strip}"
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            async with aiohttp.ClientSession(headers=headers) as session:
-                async with session.get(oembed_url, timeout=aiohttp.ClientTimeout(total=2)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        title = data.get("title")
-                        if title:
-                            log.info(f"[Music] Resolved Spotify URL '{q_strip}' -> '{title}'")
-                            return title
+            session = await _get_spotify_session()
+            async with session.get(oembed_url, timeout=aiohttp.ClientTimeout(total=2)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    title = data.get("title")
+                    if title:
+                        log.info(f"[Music] Resolved Spotify URL '{q_strip}' -> '{title}'")
+                        return title
         except Exception as e:
             log.debug(f"[Music] Spotify resolve error: {e}")
     return query
@@ -277,10 +288,10 @@ def _extract_metadata_sync(query: str) -> dict | None:
         return None
 
 
-def _find_related_track_sync(current_title: str, current_uploader: str, history: list[str] | None = None) -> dict | None:
+def _find_related_track_sync(current_title: str, current_uploader: str, history: list[str] | set[str] | None = None) -> dict | None:
     """Tìm bài hát liên quan / cùng thể loại khi bật chế độ Autoplay."""
     try:
-        hist = history or []
+        hist = history or set()
         # Chuẩn hóa title: loại bỏ các tag rác như [Official MV], (Remix), etc.
         clean_title = re.sub(
             r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio",
@@ -302,7 +313,7 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
                     info = ydl.extract_info(search_q, download=False)
                     if not info or "entries" not in info:
                         continue
-                    entries = [e for e in info.get("entries") if e]
+                    entries = [entry for entry in info.get("entries") if entry]
                     for entry in entries:
                         title = entry.get("title", "")
                         url = entry.get("webpage_url") or entry.get("url") or ""
@@ -311,10 +322,11 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
                         if not title:
                             continue
 
+                        title_lower = title.lower().strip()
                         # Không lặp lại bài hiện tại hoặc bài trong lịch sử
-                        if any(h and (h.lower() in title.lower() or h == vid or (url and h in url)) for h in hist):
+                        if hist and any(h and (h in title_lower or h == vid or (url and h in url)) for h in hist):
                             continue
-                        if title.lower().strip() == current_title.lower().strip():
+                        if title_lower == current_title.lower().strip():
                             continue
 
                         # Giới hạn thời lượng bài nhạc chuẩn (30s - 15 phút)
@@ -504,6 +516,7 @@ class MusicPlayer:
         self.loop_mode     = 0   # 0=off  1=loop-one  2=loop-all
         self.autoplay      = False # Autoplay: tự động tìm và phát bài tương tự khi hết hàng chờ
         self._played_history : list[str] = [] # Lưu các bài đã phát để không bị lặp lại trong Autoplay
+        self._played_history_set : set[str] = set()
         self.volume        = 1.0 # 100%
         self.now_playing_msg : discord.Message | None = None
         self.start_time    : float = 0.0
@@ -512,6 +525,23 @@ class MusicPlayer:
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
+
+    def _get_loop(self):
+        """Lấy event loop an toàn tại thời điểm gọi để tránh stale loop."""
+        try:
+            return self.vc.client.loop
+        except Exception:
+            return asyncio.get_event_loop()
+
+    def _record_played(self, title: str):
+        """Ghi nhận bài đã phát vào history và set hỗ trợ O(1) tra cứu."""
+        if not title:
+            return
+        self._played_history.append(title)
+        self._played_history_set.add(title.lower().strip())
+        if len(self._played_history) > 30:
+            removed = self._played_history.pop(0)
+            self._played_history_set.discard(removed.lower().strip())
 
     def get_elapsed(self) -> int:
         if not self.current or self.start_time <= 0:
@@ -573,11 +603,10 @@ class MusicPlayer:
         if error:
             log.warning(f"[Music] Player error: {error}")
         if self.current:
-            self._played_history.append(self.current.title)
-            if len(self._played_history) > 30:
-                self._played_history.pop(0)
+            self._record_played(self.current.title)
+        loop = self._get_loop()
         if self.loop_mode == 1 and self.current:
-            asyncio.run_coroutine_threadsafe(self._play(self.current), self.loop)
+            asyncio.run_coroutine_threadsafe(self._play(self.current), loop)
         elif self.loop_mode == 2 and self.current:
             self.queue.append(self.current)
             self._dispatch_next()
@@ -585,15 +614,16 @@ class MusicPlayer:
             self._dispatch_next()
 
     def _dispatch_next(self):
+        loop = self._get_loop()
         if self.queue:
             self._reset_inactivity_timer()
-            asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), self.loop)
+            asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), loop)
         elif self.autoplay and self.current:
             self._reset_inactivity_timer()
-            asyncio.run_coroutine_threadsafe(self._handle_autoplay(), self.loop)
+            asyncio.run_coroutine_threadsafe(self._handle_autoplay(), loop)
         else:
             self.current = None
-            asyncio.run_coroutine_threadsafe(self._on_queue_empty(), self.loop)
+            asyncio.run_coroutine_threadsafe(self._on_queue_empty(), loop)
 
     async def _handle_autoplay(self):
         """Tự động tìm kiếm và phát bài hát cùng thể loại khi bật Autoplay."""
@@ -606,7 +636,7 @@ class MusicPlayer:
                 _find_related_track_sync,
                 last_track.title,
                 last_track.uploader,
-                self._played_history
+                self._played_history_set
             )
             if related_info:
                 bot_user = getattr(self.vc, "client", None)
@@ -796,14 +826,16 @@ class MusicPlayer:
         self.loop_mode = 0
         self.autoplay  = False
         self._played_history.clear()
+        self._played_history_set.clear()
         if self._preload_task:
             self._preload_task.cancel()
-        if self.vc.is_playing() or self.vc.is_paused():
-            self.vc.stop()
-        try:
-            await self.vc.disconnect()
-        except Exception as e:
-            log.debug(f"[Music] voice disconnect error: {e}")
+        if self.vc and self.vc.is_connected():
+            if self.vc.is_playing() or self.vc.is_paused():
+                self.vc.stop()
+            try:
+                await self.vc.disconnect()
+            except Exception as e:
+                log.debug(f"[Music] voice disconnect error: {e}")
         if self.now_playing_msg:
             try:
                 await self.now_playing_msg.delete()
@@ -925,17 +957,17 @@ class MusicControlView(discord.ui.View):
         self.btn_skip.emoji = partial("zb_skip", "⏭️")
         self.btn_skip.style = discord.ButtonStyle.secondary
 
-        # 5. Nút Loop (Lặp lại - thay cho Yêu thích)
+        # 5. Nút Loop (Lặp lại)
         if player.loop_mode == 0:
-            self.btn_loop.label = "Lặp lại"
+            self.btn_loop.label = tr(self.settings, "music.btn_loop_off")
             self.btn_loop.emoji = partial("zb_loop", "🔁")
             self.btn_loop.style = discord.ButtonStyle.secondary
         elif player.loop_mode == 1:
-            self.btn_loop.label = "Lặp 1 bài"
+            self.btn_loop.label = tr(self.settings, "music.btn_loop_one")
             self.btn_loop.emoji = "🔂"
             self.btn_loop.style = discord.ButtonStyle.primary
         else:
-            self.btn_loop.label = "Lặp toàn bộ"
+            self.btn_loop.label = tr(self.settings, "music.btn_loop_all")
             self.btn_loop.emoji = partial("zb_loop", "🔁")
             self.btn_loop.style = discord.ButtonStyle.primary
 
@@ -1005,15 +1037,15 @@ class MusicControlView(discord.ui.View):
         await interaction.response.defer()
         self.player.loop_mode = (self.player.loop_mode + 1) % 3
         if self.player.loop_mode == 0:
-            button.label = "Lặp lại"
+            button.label = tr(self.settings, "music.btn_loop_off")
             button.emoji = partial("zb_loop", "🔁")
             button.style = discord.ButtonStyle.secondary
         elif self.player.loop_mode == 1:
-            button.label = "Lặp 1 bài"
+            button.label = tr(self.settings, "music.btn_loop_one")
             button.emoji = "🔂"
             button.style = discord.ButtonStyle.primary
         else:
-            button.label = "Lặp toàn bộ"
+            button.label = tr(self.settings, "music.btn_loop_all")
             button.emoji = partial("zb_loop", "🔁")
             button.style = discord.ButtonStyle.primary
 
@@ -1104,12 +1136,19 @@ class Music(commands.Cog, name="Music"):
         self.bot     = bot
         self._players: dict[int, MusicPlayer] = {}
         self._bg_tasks: set[asyncio.Task] = set()
+        self._empty_voice_tasks: dict[int, asyncio.Task] = {}
 
     def cog_unload(self):
         """Cancel tất cả background tasks khi cog bị unload."""
         for task in self._bg_tasks:
             task.cancel()
         self._bg_tasks.clear()
+        for task in self._empty_voice_tasks.values():
+            task.cancel()
+        self._empty_voice_tasks.clear()
+        global _spotify_session
+        if _spotify_session and not _spotify_session.closed:
+            asyncio.create_task(_spotify_session.close())
 
     # ── Helpers ────────────────────────────────────────────────────────────
     def _get(self, guild_id: int) -> MusicPlayer | None:
@@ -1176,26 +1215,41 @@ class Music(commands.Cog, name="Music"):
             return
         channel = player.vc.channel
         if any(not m.bot for m in channel.members):
+            task = self._empty_voice_tasks.pop(member.guild.id, None)
+            if task and not task.done():
+                task.cancel()
             return
-            
-        await asyncio.sleep(30)
-        
-        # Kiểm tra lại sau 30s
-        current_player = self._players.get(member.guild.id)
-        if current_player is not player:
+
+        existing_task = self._empty_voice_tasks.get(member.guild.id)
+        if existing_task and not existing_task.done():
             return
-            
-        if any(not m.bot for m in player.vc.channel.members):
-            return
-            
-        if player.text_channel:
-            try:
-                s = await async_get_guild_settings(str(member.guild.id))
-                await player.text_channel.send(tr(s, "music.empty_voice_left"))
-            except Exception:
-                pass
-        await player.stop()
-        self._drop(member.guild.id)
+
+        task = asyncio.create_task(self._handle_empty_voice(member.guild.id, player))
+        self._empty_voice_tasks[member.guild.id] = task
+
+    async def _handle_empty_voice(self, guild_id: int, player: MusicPlayer):
+        """Xử lý rời kênh khi phòng voice trống sau 30 giây (không block event loop)."""
+        try:
+            await asyncio.sleep(30)
+            current_player = self._players.get(guild_id)
+            if current_player is not player or not player.vc.is_connected():
+                return
+            if any(not m.bot for m in player.vc.channel.members):
+                return
+            if player.text_channel:
+                try:
+                    s = await async_get_guild_settings(str(guild_id))
+                    await player.text_channel.send(tr(s, "music.empty_voice_left"))
+                except Exception:
+                    pass
+            await player.stop()
+            self._drop(guild_id)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            log.debug(f"[Music] empty voice handler error: {e}")
+        finally:
+            self._empty_voice_tasks.pop(guild_id, None)
 
     # ── Basic commands ─────────────────────────────────────────────────────
     @commands.hybrid_command(name="join", description="Gọi bot vào kênh voice")
@@ -1339,6 +1393,7 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.vc.pause()
+        player.pause_start = time.time()
         await ctx.send(tr(s, "music.paused"), ephemeral=True)
 
     @commands.hybrid_command(name="resume", description="Tiếp tục phát nhạc")
@@ -1349,6 +1404,9 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.not_paused"))
             return
         player.vc.resume()
+        if player.pause_start > 0:
+            player.total_paused_time += time.time() - player.pause_start
+            player.pause_start = 0.0
         await ctx.send(tr(s, "music.resumed"), ephemeral=True)
 
     @commands.hybrid_command(name="loop", description="Bật/tắt chế độ lặp lại")
@@ -1370,8 +1428,8 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.no_song_playing"), ephemeral=True)
             return
         player.autoplay = not player.autoplay
-        status_text = "BẬT ♾️ (Sẽ tự động tìm bài tương tự khi hết hàng chờ)" if player.autoplay else "TẮT"
-        await ctx.send(f"♾️ Đã **{status_text}** chế độ Autoplay!", ephemeral=True)
+        key = "music.autoplay_on" if player.autoplay else "music.autoplay_off"
+        await ctx.send(tr(s, key), ephemeral=True)
 
     @commands.hybrid_command(name="queue", description="Xem hàng chờ nhạc")
     async def queue_cmd(self, ctx: commands.Context):
@@ -1403,17 +1461,17 @@ class Music(commands.Cog, name="Music"):
         player.skip()
         await ctx.send(tr(s, "music.replayed"), ephemeral=True)
 
-    @commands.hybrid_command(name="lofi", description="Phát nhạc Lofi 24/7 (mặc định SomaFM, ổn định)")
-    @app_commands.describe(source="Nguồn lofi (mặc định: soma — ổn định, không bị chặn)")
+    @commands.hybrid_command(name="lofi", description="Phát nhạc Lofi 24/7 (mặc định YouTube)")
+    @app_commands.describe(source="Nguồn lofi (mặc định: youtube — live stream Lofi Girl)")
     @app_commands.autocomplete(source=lofi_autocomplete)
     async def lofi(self, ctx: commands.Context, source: str = None):
         await ctx.defer()
         s = await async_get_guild_settings(str(ctx.guild.id))
-        src_key = source if source else "soma"
+        src_key = source if source else "youtube"
         if src_key not in LOFI_STREAMS:
             await ctx.send(tr(s, "music.invalid_source"))
             return
-        stream = LOFI_STREAMS.get(src_key, LOFI_STREAMS["soma"])
+        stream = LOFI_STREAMS.get(src_key, LOFI_STREAMS["youtube"])
 
         player = await self._ensure(ctx)
         if not player:

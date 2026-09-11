@@ -33,7 +33,7 @@ Trước khi đề xuất giải pháp hoặc viết code, AI phải soi chiếu
 - *Câu hỏi phản biện*:
   - Tính năng mới thuộc module nào trong **20 Modules tiêu chuẩn**?
   - Lệnh mới có làm thay đổi tổng số **103 lệnh** thuộc **17 danh mục** không? Đã lên kế hoạch đăng ký vào `_COMMANDS_DATA` trong `dashboard/app.py` chưa?
-  - Chuỗi hiển thị đã được quốc tế hóa qua `tr(settings, key)` hay đang hardcode tiếng Việt/tiếng Anh? Đã tính đến việc đồng bộ đủ **6 ngôn ngữ (1587 keys)** chưa?
+  - Chuỗi hiển thị đã được quốc tế hóa qua `tr(settings, key)` hay đang hardcode tiếng Việt/tiếng Anh? Đã tính đến việc đồng bộ đủ **6 ngôn ngữ (1589 keys)** chưa?
   - Đã bọc **Module Guard** (`async_is_module_enabled`) ở đầu hàm chưa?
 
 ### 2.4. Trải Nghiệm Người Dùng & Giới Hạn Discord (UX & Discord Constraints)
