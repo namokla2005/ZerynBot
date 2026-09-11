@@ -1422,6 +1422,11 @@ class Music(commands.Cog, name="Music"):
             await ctx.send(embed=embed)
         else:
             await player.add_and_play(track)
+            if ctx.interaction:
+                try:
+                    await ctx.interaction.delete_original_response()
+                except Exception as e:
+                    log.debug(f"[Music] delete_original_response error: {e}")
 
     @commands.hybrid_command(name="nowplaying", aliases=["np"], description="Xem bài hát đang phát và thanh tiến trình")
     async def nowplaying(self, ctx: commands.Context):
