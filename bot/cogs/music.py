@@ -610,10 +610,12 @@ class Track:
 
 # ─── Music Player (1 per guild) ────────────────────────────────────────────────
 class MusicPlayer:
-    def __init__(self, guild: discord.Guild, text_channel, vc: discord.VoiceClient):
+    def __init__(self, guild: discord.Guild, text_channel, vc: discord.VoiceClient, cog=None):
         self.guild         = guild
         self.text_channel  = text_channel
         self.vc            = vc
+        self.cog           = cog
+        self._manual_stopped = False
         self.loop          = asyncio.get_running_loop()
         self.queue         : list[Track] = []
         self.current       : Track | None = None
@@ -672,7 +674,7 @@ class MusicPlayer:
                 if self.text_channel:
                     try:
                         s = await async_get_guild_settings(str(self.guild.id))
-                        await self.text_channel.send(tr(s, "music.auto_leave_inactivity"))
+                        await self.text_channel.send(tr(s, "music.auto_leave_inactivity"), delete_after=60)
                     except Exception:
                         pass
                 await self.stop()
@@ -704,6 +706,8 @@ class MusicPlayer:
         self._preload_task = asyncio.create_task(self._preload_next())
 
     def _after_play(self, error=None):
+        if self._manual_stopped:
+            return
         if error:
             log.warning(f"[Music] Player error: {error}")
         if self.current:
@@ -773,14 +777,15 @@ class MusicPlayer:
                 pass
             self.now_playing_msg = None
 
-        if self.text_channel:
+        if self.text_channel and not self._manual_stopped:
             try:
                 s = await async_get_guild_settings(str(self.guild.id))
-                await self.text_channel.send(tr(s, "music.queue_empty"))
+                await self.text_channel.send(tr(s, "music.queue_empty"), delete_after=60)
             except Exception:
                 pass
 
-        self._start_inactivity_timer()
+        if not self._manual_stopped:
+            self._start_inactivity_timer()
 
     async def _play(self, track: Track):
         async with self._play_lock:
@@ -924,6 +929,7 @@ class MusicPlayer:
             self.vc.source.volume = self.volume
 
     async def stop(self):
+        self._manual_stopped = True
         self._reset_inactivity_timer()
         self.queue.clear()
         self.current   = None
@@ -946,6 +952,8 @@ class MusicPlayer:
             except Exception as e:
                 log.debug(f"[Music] delete NP message (stop) error: {e}")
         self.now_playing_msg = None
+        if self.cog:
+            self.cog._drop(self.guild.id)
 
 
 # ─── Embeds & Helpers ──────────────────────────────────────────────────────────
@@ -1103,7 +1111,14 @@ class MusicControlView(discord.ui.View):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
+        s = self.settings or await async_get_guild_settings(str(interaction.guild_id))
+        channel = self.player.text_channel or interaction.channel
         await self.player.stop()
+        if channel:
+            try:
+                await channel.send(tr(s, "music.stopped_left"), delete_after=60)
+            except Exception:
+                pass
 
     @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji=partial("zb_pause", "⏸️"), row=0)
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1299,7 +1314,7 @@ class Music(commands.Cog, name="Music"):
             return None
 
         log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
-        player = MusicPlayer(ctx.guild, ctx.channel, vc)
+        player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
         self._players[guild_id] = player
         return player
 
@@ -1343,7 +1358,7 @@ class Music(commands.Cog, name="Music"):
             if player.text_channel:
                 try:
                     s = await async_get_guild_settings(str(guild_id))
-                    await player.text_channel.send(tr(s, "music.empty_voice_left"))
+                    await player.text_channel.send(tr(s, "music.empty_voice_left"), delete_after=60)
                 except Exception:
                     pass
             await player.stop()
@@ -1482,7 +1497,7 @@ class Music(commands.Cog, name="Music"):
             return
         await player.stop()
         self._drop(ctx.guild.id)
-        await ctx.send(tr(s, "music.stopped_left"))
+        await ctx.send(tr(s, "music.stopped_left"), delete_after=60)
 
     @commands.hybrid_command(name="skip", description="Bỏ qua bài hát hiện tại")
     async def skip(self, ctx: commands.Context):
