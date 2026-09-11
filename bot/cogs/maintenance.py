@@ -8,6 +8,7 @@ Chỉ dọn các bảng tích luỹ theo thời gian (chính xác theo hiện tr
 - `automod_warnings`  → > 2 ngày (cảnh cáo chỉ có nghĩa trong 24h)
 - `fun_interactions`  → > 60 ngày
 - `reminders`         → > 30 ngày
+- `music_song_cache`  → > 7 ngày (tự động dọn dẹp cache bài hát)
 
 KHÔNG đụng `user_levels` / `economy_users` (dữ liệu member phải giữ nguyên).
 Dùng bảng `maintenance_jobs.job_key=='auto_prune'` để chống chạy lặp khi bot
@@ -26,6 +27,8 @@ from database import (
     async_get_maintenance_job,
     async_prune_old_data,
     async_set_maintenance_job,
+    async_vacuum_db,
+    async_wal_checkpoint,
 )
 
 logger = logging.getLogger("BotV2.Maintenance")
@@ -50,7 +53,7 @@ class Maintenance(commands.Cog):
             if last_run and (now - last_run) < 86400:
                 return
 
-            deleted = await async_prune_old_data()
+            deleted = await async_prune_old_data(song_cache_days=7)
             await async_set_maintenance_job("auto_prune", now)
 
             total = sum(deleted.values())
@@ -59,6 +62,8 @@ class Maintenance(commands.Cog):
                     "[Auto-Prune] Đã dọn %d dòng: %s", total,
                     ", ".join(f"{k}={v}" for k, v in deleted.items()),
                 )
+                await async_wal_checkpoint()
+                await async_vacuum_db()
         except Exception:
             logger.exception("[Auto-Prune] Lỗi khi dọn dữ liệu cũ")
 

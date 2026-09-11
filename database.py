@@ -2964,6 +2964,7 @@ async def async_prune_old_data(
     warnings_days: int = 2,
     interactions_days: int = 60,
     reminders_days: int = 30,
+    song_cache_days: int = 7,
 ) -> dict:
     """
     Dọn dữ liệu cũ để giữ DB gọn (chỉ ghi đúng các bảng tích luỹ theo thời gian):
@@ -2971,6 +2972,7 @@ async def async_prune_old_data(
     - automod_warnings : > warnings_days ngày (cảnh cáo chỉ có ý nghĩa trong 24h)
     - fun_interactions : > interactions_days ngày
     - reminders        : > reminders_days ngày (reminder đã cũ)
+    - music_song_cache : > song_cache_days ngày (mặc định 7 ngày)
     KHÔNG đụng user_levels / economy_users (dữ liệu member, phải giữ).
 
     Trả về dict {table: số dòng đã xoá}.
@@ -3006,15 +3008,6 @@ async def async_prune_old_data(
 
         try:
             await _delete(
-                "fun_interactions",
-                "created_at < datetime('now', ?) ",
-                (f"-{interactions_days} days",),
-            )
-        except Exception as exc:
-            logger.warning(f"[Prune] fun_interactions error: {exc}")
-
-        try:
-            await _delete(
                 "reminders",
                 "remind_at < datetime('now', ?) ",
                 (f"-{reminders_days} days",),
@@ -3022,4 +3015,24 @@ async def async_prune_old_data(
         except Exception as exc:
             logger.warning(f"[Prune] reminders error: {exc}")
 
+        try:
+            cutoff = time.time() - (song_cache_days * 86400)
+            await _delete(
+                "music_song_cache",
+                "created_at < ?",
+                (cutoff,),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] music_song_cache error: {exc}")
+
     return deleted
+
+
+async def async_vacuum_db() -> None:
+    """Chạy VACUUM để giải phóng hoàn toàn dung lượng đĩa vật lý cho SQLite."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=30.0) as db:
+            await db.execute("VACUUM")
+    except Exception as exc:
+        logger.warning(f"[Database] VACUUM error: {exc}")
+

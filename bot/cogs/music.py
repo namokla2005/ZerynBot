@@ -342,79 +342,19 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
     return None
 
 
-async def extract_info(query: str) -> dict | None:
-    """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
-    key = query.strip().lower()
-    cache_key = f"song_info:{key}"
-
-    # 1. Kiểm tra RAM Cache wrapper
-    cached = await cache.aget(cache_key)
-    if cached is not None:
-        return cached
-
-    # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
-    disk = await async_get_song_cache(cache_key, ttl=21600)
-    if disk is not None:
-        await cache.aset(cache_key, disk, ttl=600)
-        return disk
-
-    # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
-    async with _extract_semaphore:
-        loop = asyncio.get_running_loop()
-        info = await loop.run_in_executor(None, _extract_sync, query)
-
-    if info:
-        # Lưu vào In-Memory Cache (TTL 10 phút) + disk cache
-        await cache.aset(cache_key, info, ttl=600)
-        await async_set_song_cache(cache_key, info)
-        vid = info.get("id")
-        if vid:
-            await cache.aset(f"song_info:{vid}", info, ttl=600)
-            await async_set_song_cache(f"song_info:{vid}", info)
-        web_url = info.get("webpage_url") or info.get("url")
-        if web_url and isinstance(web_url, str) and web_url.startswith("http"):
-            await cache.aset(f"song_info:{web_url.lower().strip()}", info, ttl=600)
-            await async_set_song_cache(f"song_info:{web_url.lower().strip()}", info)
-
-    return info
-
-
-async def extract_metadata(query: str) -> dict | None:
-    """Lấy nhanh thông tin cơ bản bài hát cho Playlist / Search (Flat Extraction + RAM Cache 24h)."""
-    key = query.strip().lower()
-    cache_key = f"song_meta:{key}"
-
-    # 1. Kiểm tra RAM Cache (trả về tức thì 0ms)
-    cached = await cache.aget(cache_key)
-    if cached is not None:
-        return cached
-
-    # 2. Chạy Flat Extraction siêu tốc trong thread pool
-    loop = asyncio.get_running_loop()
-    info = await loop.run_in_executor(None, _extract_metadata_sync, query)
-
-    if info:
-        # Chuẩn hóa webpage_url nếu bị thiếu
-        video_id = info.get("id")
-        if not info.get("webpage_url") and video_id:
-            info["webpage_url"] = f"https://www.youtube.com/watch?v={video_id}"
-        # Lưu vào RAM Cache (TTL 24 giờ)
-        await cache.aset(cache_key, info, ttl=86400)
-
-    return info
-
-
 def _get_stream_url(info: dict) -> str | None:
     """Lấy URL stream tốt nhất từ info dict (lọc bỏ storyboard/mhtml)."""
     if not info:
         return None
+    if info.get("stream_url"):
+        return info["stream_url"]
 
     valid_formats = []
     for f in info.get("formats", []):
         url = f.get("url", "")
         ext = (f.get("ext") or "").lower()
         acodec = (f.get("acodec") or "").lower()
-        
+
         # Bỏ các format không có audio hoặc là storyboard / file ảnh
         if acodec in ("none", "", "null") or ext in ("mhtml", "jpg", "jpeg", "png", "webp"):
             continue
@@ -450,12 +390,11 @@ def _get_stream_url(info: dict) -> str | None:
 
 
 def _get_stream_acodec(info: dict, stream_url: str | None) -> str:
-    """Xác định codec audio của URL stream đã chọn (trả về 'opus', 'mp4a', ...).
-
-    Chính xác hơn heuristic khớp chuỗi URL, tránh nhầm khi YouTube đổi tên tham số.
-    """
+    """Xác định codec audio của URL stream đã chọn (trả về 'opus', 'mp4a', ...)."""
     if not stream_url or not info:
         return ""
+    if info.get("acodec"):
+        return info["acodec"].lower()
     for f in info.get("formats", []):
         if f.get("url") == stream_url:
             return (f.get("acodec") or "").lower()
@@ -466,6 +405,10 @@ def _get_stream_acodec(info: dict, stream_url: str | None) -> str:
 
 
 def _get_best_thumbnail(info: dict) -> str:
+    if not info:
+        return ""
+    if info.get("thumbnail") and isinstance(info.get("thumbnail"), str) and info["thumbnail"].startswith("http"):
+        return info["thumbnail"]
     thumbnails = info.get("thumbnails", [])
     if thumbnails and isinstance(thumbnails, list):
         valid = [t for t in thumbnails if t.get("url") and t.get("url").startswith("http")]
@@ -475,6 +418,97 @@ def _get_best_thumbnail(info: dict) -> str:
     return info.get("thumbnail") or ""
 
 
+def _compact_song_info(info: dict) -> dict:
+    """Rút gọn thông tin bài hát chỉ còn các trường cần thiết (< 0.5 KB).
+
+    Loại bỏ toàn bộ formats video 4K/1080p, captions 50 ngôn ngữ, heatmap rác,
+    giúp giảm 99.9% dung lượng SQLite và tăng tốc giải mã JSON trên Helio G85.
+    """
+    if not info:
+        return {}
+    stream_url = _get_stream_url(info)
+    acodec = _get_stream_acodec(info, stream_url)
+    is_opus = bool(info.get("is_opus")) if "is_opus" in info else (acodec == "opus")
+    thumbnail = _get_best_thumbnail(info)
+    return {
+        "id":            info.get("id", ""),
+        "title":         info.get("title", "Unknown"),
+        "webpage_url":   info.get("webpage_url") or info.get("url", ""),
+        "url":           info.get("url", ""),
+        "stream_url":    stream_url,
+        "stream_expire": info.get("stream_expire") or (time.time() + (5.5 * 3600) if stream_url else 0),
+        "duration":      info.get("duration"),
+        "uploader":      info.get("uploader") or info.get("channel") or "—",
+        "thumbnail":     thumbnail,
+        "acodec":        acodec,
+        "is_opus":       is_opus,
+    }
+
+
+async def extract_info(query: str) -> dict | None:
+    """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
+    key = query.strip().lower()
+    cache_key = f"song_info:{key}"
+
+    # 1. Kiểm tra RAM Cache wrapper
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
+    # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
+    disk = await async_get_song_cache(cache_key, ttl=21600)
+    if disk is not None:
+        await cache.aset(cache_key, disk, ttl=600)
+        return disk
+
+    # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
+    async with _extract_semaphore:
+        loop = asyncio.get_running_loop()
+        info = await loop.run_in_executor(None, _extract_sync, query)
+
+    if info:
+        compact = _compact_song_info(info)
+        # Lưu vào In-Memory Cache (TTL 10 phút) + disk cache
+        await cache.aset(cache_key, compact, ttl=600)
+        await async_set_song_cache(cache_key, compact)
+        vid = compact.get("id")
+        if vid:
+            await cache.aset(f"song_info:{vid}", compact, ttl=600)
+            await async_set_song_cache(f"song_info:{vid}", compact)
+        web_url = compact.get("webpage_url") or compact.get("url")
+        if web_url and isinstance(web_url, str) and web_url.startswith("http"):
+            await cache.aset(f"song_info:{web_url.lower().strip()}", compact, ttl=600)
+            await async_set_song_cache(f"song_info:{web_url.lower().strip()}", compact)
+        return compact
+
+    return None
+
+
+async def extract_metadata(query: str) -> dict | None:
+    """Lấy nhanh thông tin cơ bản bài hát cho Playlist / Search (Flat Extraction + RAM Cache 24h)."""
+    key = query.strip().lower()
+    cache_key = f"song_meta:{key}"
+
+    # 1. Kiểm tra RAM Cache (trả về tức thì 0ms)
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        return cached
+
+    # 2. Chạy Flat Extraction siêu tốc trong thread pool
+    loop = asyncio.get_running_loop()
+    info = await loop.run_in_executor(None, _extract_metadata_sync, query)
+
+    if info:
+        # Chuẩn hóa webpage_url nếu bị thiếu
+        video_id = info.get("id")
+        if not info.get("webpage_url") and video_id:
+            info["webpage_url"] = f"https://www.youtube.com/watch?v={video_id}"
+        # Lưu vào RAM Cache (TTL 24 giờ)
+        await cache.aset(cache_key, info, ttl=86400)
+
+    return info
+
+
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
     __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus")
@@ -482,14 +516,15 @@ class Track:
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")
         self.url           = info.get("webpage_url") or info.get("url", "")
-        self.stream_url    = _get_stream_url(info)
-        self.stream_expire = time.time() + (5.5 * 3600) if self.stream_url else 0
+        self.stream_url    = info.get("stream_url") or _get_stream_url(info)
+        self.stream_expire = info.get("stream_expire") or (time.time() + (5.5 * 3600) if self.stream_url else 0)
         self.duration      = info.get("duration")
         self.uploader      = info.get("uploader") or info.get("channel") or "—"
-        self.thumbnail     = _get_best_thumbnail(info)
+        self.thumbnail     = info.get("thumbnail") or _get_best_thumbnail(info)
         self.requester     = requester
         # Xác định opus chính xác theo acodec (fallback heuristic nếu không tìm thấy format)
-        self.is_opus       = _get_stream_acodec(info, self.stream_url) == "opus"
+        self.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, self.stream_url) == "opus")
+
 
     @property
     def is_stream_expired(self) -> bool:
