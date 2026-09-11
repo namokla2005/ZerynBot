@@ -153,9 +153,9 @@ async def lofi_autocomplete(
 
 _COOKIE_FILE = os.environ.get("YTDLP_COOKIEFILE", None)
 
-# Cấu hình yt-dlp tối ưu tốc độ & ưu tiên WebM Opus (giảm 90% CPU Helio G85)
+# Cấu hình yt-dlp tối ưu tốc độ & ưu tiên WebM Opus / Direct HTTP (tránh HLS m3u8 gây giật âm thanh trên SoundCloud)
 YDL_OPTS = {
-    "format": "bestaudio[ext=webm][acodec=opus]/bestaudio[abr<=160]/bestaudio/best",
+    "format": "bestaudio[ext=webm][acodec=opus]/bestaudio[protocol^=http][abr<=160]/bestaudio[protocol^=http]/bestaudio[abr<=160]/bestaudio/best",
     "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
@@ -389,7 +389,7 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
 
 
 def _get_stream_url(info: dict) -> str | None:
-    """Lấy URL stream tốt nhất từ info dict (lọc bỏ storyboard/mhtml)."""
+    """Lấy URL stream tốt nhất từ info dict (ưu tiên progressive HTTP trước HLS m3u8, lọc bỏ storyboard/mhtml)."""
     if not info:
         return None
     if info.get("stream_url"):
@@ -409,25 +409,48 @@ def _get_stream_url(info: dict) -> str | None:
         if url.startswith("http"):
             valid_formats.append(f)
 
-    # 1. Ưu tiên opus audio-only
+    def _is_hls(fmt: dict) -> bool:
+        proto = (fmt.get("protocol") or "").lower()
+        u = (fmt.get("url") or "").lower()
+        return "m3u8" in proto or ".m3u8" in u
+
+    # 1. Tối ưu nhất: Opus audio-only qua progressive HTTP (không phải HLS)
+    for f in valid_formats:
+        acodec = (f.get("acodec") or "").lower()
+        vcodec = (f.get("vcodec") or "").lower()
+        if acodec == "opus" and vcodec in ("none", "", "null") and not _is_hls(f):
+            return f["url"]
+
+    # 2. Ưu tiên cao: Audio-only bất kỳ (mp3, m4a, aac) qua progressive HTTP (chống HLS m3u8 làm méo nhịp / lúc nhanh lúc chậm)
+    for f in valid_formats:
+        vcodec = (f.get("vcodec") or "").lower()
+        if vcodec in ("none", "", "null") and not _is_hls(f):
+            return f["url"]
+
+    # 3. Fallback: Opus audio-only (kể cả HLS m3u8)
     for f in valid_formats:
         acodec = (f.get("acodec") or "").lower()
         vcodec = (f.get("vcodec") or "").lower()
         if acodec == "opus" and vcodec in ("none", "", "null"):
             return f["url"]
 
-    # 2. Ưu tiên audio-only bất kỳ (m4a, webm, mp3, aac)
+    # 4. Fallback: Audio-only bất kỳ (kể cả HLS m3u8)
     for f in valid_formats:
         vcodec = (f.get("vcodec") or "").lower()
         if vcodec in ("none", "", "null"):
             return f["url"]
 
-    # 3. Fallback: Lựa chọn luồng có audio bitrate (abr) tốt nhất
+    # 5. Fallback: Luồng có audio bitrate tốt nhất (ưu tiên progressive trước)
+    prog_formats = [f for f in valid_formats if not _is_hls(f)]
+    if prog_formats:
+        best_audio = max(prog_formats, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))
+        return best_audio["url"]
+
     if valid_formats:
         best_audio = max(valid_formats, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))
         return best_audio["url"]
 
-    # 4. Trực tiếp info.get("url") nếu hợp lệ
+    # 6. Trực tiếp info.get("url") nếu hợp lệ
     direct_url = info.get("url")
     if direct_url and direct_url.startswith("http") and not any(x in direct_url for x in ["storyboard", ".jpg", ".png", ".mhtml"]):
         return direct_url
@@ -439,11 +462,11 @@ def _get_stream_acodec(info: dict, stream_url: str | None) -> str:
     """Xác định codec audio của URL stream đã chọn (trả về 'opus', 'mp4a', ...)."""
     if not stream_url or not info:
         return ""
-    if info.get("acodec"):
-        return info["acodec"].lower()
     for f in info.get("formats", []):
         if f.get("url") == stream_url:
             return (f.get("acodec") or "").lower()
+    if info.get("acodec"):
+        return info["acodec"].lower()
     # Fallback: heuristic theo mimetype/URL
     if "mime=audio%2Fwebm" in stream_url or "audio/webm" in stream_url:
         return "opus"
