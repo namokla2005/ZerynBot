@@ -305,8 +305,8 @@ def main():
         print_status()
         sys.exit(0)
     elif "--test" in args or "test" in args:
-        run_system_test()
-        sys.exit(0)
+        success = run_system_test()
+        sys.exit(0 if success else 1)
     elif "--restart" in args or "restart" in args:
         stop_all()
         time.sleep(2)

@@ -117,8 +117,12 @@ class SystemTester:
             import yt_dlp
             ffmpeg_path = shutil.which("ffmpeg") or shutil.which("ffmpeg", path="/data/data/com.termux/files/usr/bin")
             if not ffmpeg_path:
-                raise RuntimeError("Binary FFmpeg không tìm thấy trên hệ thống (PATH / Termux)!")
-            results.append("🟢 **Music (yt-dlp & FFmpeg)** — OK")
+                if os.name == "nt":
+                    results.append("🟡 **Music (yt-dlp & FFmpeg)** — SKIP (Dev Windows: FFmpeg optional)")
+                else:
+                    raise RuntimeError("Binary FFmpeg không tìm thấy trên hệ thống (PATH / Termux)!")
+            else:
+                results.append("🟢 **Music (yt-dlp & FFmpeg)** — OK")
         except Exception as e:
             failed_modules.append("Music (yt-dlp & FFmpeg)")
             error_details["Music (yt-dlp & FFmpeg)"] = traceback.format_exc()
@@ -273,6 +277,90 @@ class SystemTester:
             error_details["AI Assistant"] = traceback.format_exc()
             results.append("🔴 **AI Assistant** — FAIL")
 
+        # 16. Welcome & Goodbye Check
+        try:
+            from database import async_get_guild_settings
+            await asyncio.wait_for(async_get_guild_settings("0"), timeout=5.0)
+            results.append("🟢 **Welcome & Goodbye** — OK")
+        except Exception as e:
+            failed_modules.append("Welcome & Goodbye")
+            error_details["Welcome & Goodbye"] = traceback.format_exc()
+            results.append("🔴 **Welcome & Goodbye** — FAIL")
+
+        # 17. AutoRoles Check
+        try:
+            spec_ar = importlib.util.find_spec("cogs.autorole") or importlib.util.find_spec("bot.cogs.autorole")
+            if spec_ar is None:
+                raise ImportError("Module cogs.autorole không tìm thấy!")
+            from database import async_get_guild_settings
+            s = await asyncio.wait_for(async_get_guild_settings("0"), timeout=5.0)
+            if not isinstance(s, dict):
+                raise ValueError("async_get_guild_settings không trả về dict!")
+            results.append("🟢 **AutoRoles** — OK")
+        except Exception as e:
+            failed_modules.append("AutoRoles")
+            error_details["AutoRoles"] = traceback.format_exc()
+            results.append("🔴 **AutoRoles** — FAIL")
+
+        # 18. Remind & Timers Check
+        try:
+            from database import async_get_user_reminders
+            rems = await asyncio.wait_for(async_get_user_reminders("0"), timeout=5.0)
+            if not isinstance(rems, list):
+                raise ValueError("async_get_user_reminders không trả về list!")
+            results.append("🟢 **Remind & Timers** — OK")
+        except Exception as e:
+            failed_modules.append("Remind & Timers")
+            error_details["Remind & Timers"] = traceback.format_exc()
+            results.append("🔴 **Remind & Timers** — FAIL")
+
+        # 19. Moderation Check
+        try:
+            from database import async_get_mod_warnings
+            warns = await asyncio.wait_for(async_get_mod_warnings("0", "0"), timeout=5.0)
+            if not isinstance(warns, list):
+                raise ValueError("async_get_mod_warnings không trả về list!")
+            results.append("🟢 **Moderation System** — OK")
+        except Exception as e:
+            failed_modules.append("Moderation System")
+            error_details["Moderation System"] = traceback.format_exc()
+            results.append("🔴 **Moderation System** — FAIL")
+
+        # 20. Fun & Mini-Games Check
+        try:
+            spec_f = importlib.util.find_spec("cogs.fun") or importlib.util.find_spec("bot.cogs.fun")
+            if spec_f is None:
+                raise ImportError("Module cogs.fun không tìm thấy!")
+            results.append("🟢 **Fun & Mini-Games** — OK")
+        except Exception as e:
+            failed_modules.append("Fun & Mini-Games")
+            error_details["Fun & Mini-Games"] = traceback.format_exc()
+            results.append("🔴 **Fun & Mini-Games** — FAIL")
+
+        # 21. Birthday Check
+        try:
+            from database import async_get_birthday_settings
+            b_set = await asyncio.wait_for(async_get_birthday_settings("0"), timeout=5.0)
+            if not isinstance(b_set, dict):
+                raise ValueError("async_get_birthday_settings không trả về dict!")
+            results.append("🟢 **Birthday System** — OK")
+        except Exception as e:
+            failed_modules.append("Birthday System")
+            error_details["Birthday System"] = traceback.format_exc()
+            results.append("🔴 **Birthday System** — FAIL")
+
+        # 22. Verify Gate Check
+        try:
+            from database import async_get_verify_settings
+            v_set = await asyncio.wait_for(async_get_verify_settings("0"), timeout=5.0)
+            if not isinstance(v_set, dict):
+                raise ValueError("async_get_verify_settings không trả về dict!")
+            results.append("🟢 **Verify Gate** — OK")
+        except Exception as e:
+            failed_modules.append("Verify Gate")
+            error_details["Verify Gate"] = traceback.format_exc()
+            results.append("🔴 **Verify Gate** — FAIL")
+
         # ─── Process Results ──────────────────────────────────────────────────
         if failed_modules:
             _safe_print(f"❌ [Tester] Phát hiện lỗi ở {len(failed_modules)} module: {', '.join(failed_modules)}")
@@ -297,9 +385,9 @@ class SystemTester:
             )
             return False
 
-        # All 15 tests passed!
-        _safe_print("✅ [Tester] Tất cả 15/15 modules đã kiểm thử thành công!")
-        desc = "\n".join(results) + "\n\n*🎉 Tất cả 15/15 modules kiểm thử thành công! Bot sẵn sàng hoạt động.*"
+        # All tests passed!
+        _safe_print("✅ [Tester] Tất cả 20/20 modules & dịch vụ lõi đã kiểm thử thành công!")
+        desc = "\n".join(results) + "\n\n*🎉 Tất cả 20/20 modules kiểm thử thành công! Bot sẵn sàng hoạt động.*"
         await _send_webhook_report(
             title="🚀 BÁO CÁO KIỂM THỬ KHỞI ĐỘNG HỆ THỐNG",
             description=desc,

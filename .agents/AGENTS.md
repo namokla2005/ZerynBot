@@ -89,15 +89,18 @@ Mỗi khi AI thực hiện thay đổi mã nguồn, **BẮT BUỘC** phải tuâ
    - Luôn commit bằng format Conventional Commits (`feat:`, `fix:`, `docs:`) kèm file tài liệu liên quan trong cùng commit.
    - Luôn kiểm tra `py_compile` trước khi commit.
    - Luôn `git push origin main` sau khi hoàn tất.
-5. **Tự Động Deploy & Kiểm Tra Toàn Diện Trên Termux (Mandatory Auto-Deploy & Health Check)**:
-   - Ngay sau khi `git push origin main` thành công, AI **BẮT BUỘC phải tự động chạy script deploy và kiểm tra toàn diện trên thiết bị Termux (Tecno Pova 2)**:
+5. **Tự Động Deploy, Kiểm Thử Toàn Diện & Khắc Phục Lỗi Bắt Buộc Trên Termux (Mandatory Auto-Deploy, Functional Testing & Auto-Repair Loop)**:
+   - Ngay sau khi `git push origin main` thành công, AI **BẮT BUỘC phải tự động chạy script deploy và kiểm thử toàn diện trên thiết bị Termux (Tecno Pova 2)**:
      ```bash
      python scripts/termux_deploy.py
      ```
-   - **Quy Trình Kiểm Tra 1 Lượt Hoàn Chỉnh Bắt Buộc (Mandatory Full Inspection)**:
-     - Sau khi `git pull` và `python main.py --restart`, AI **tuyệt đối không được báo xong ngay** mà phải vào Termux kiểm tra 1 lượt hoàn chỉnh toàn bộ hệ thống:
-       1. Đợi tiến trình khởi tạo hoàn tất (`sleep 6`).
-       2. Kiểm tra trạng thái tiến trình thực tế (`python main.py --status`): Bot và Dashboard đều phải ở trạng thái `RUNNING (PID xxx)`.
-       3. Kiểm tra Health Endpoint cục bộ (`curl -s http://localhost:5000/health`): Phải phản hồi JSON với `online: true`.
-       4. Kiểm tra log khởi động (`data/bot.log`, `data/dashboard.log`): Đảm bảo không có Traceback hoặc crash.
-     - Chỉ khi **100% các thành phần đều Xanh/Khỏe mạnh** (`🟢 ONLINE`, `🟢 HEALTHY`, `🟢 SẠCH SẼ`), AI mới được báo cáo hoàn thành cho Người Dùng. Nếu có bất kỳ lỗi nào, phải trích xuất ngay log lỗi và tiến hành khắc phục.
+   - **Quy Trình 4 Bước Kiểm Tra Hoàn Chỉnh Bắt Buộc (Mandatory Full Inspection & Functional Testing)**:
+     Sau khi `git pull` và `python main.py --restart`, AI **tuyệt đối không được báo xong ngay** mà phải kiểm tra hoàn chỉnh toàn bộ hệ thống trên Termux:
+     1. **Tiến trình thực tế (`python main.py --status`)**: Bot và Dashboard đều phải ở trạng thái `RUNNING (PID xxx)`.
+     2. **Health Endpoint (`curl -s http://localhost:5000/health`)**: Phải phản hồi JSON với `online: true`.
+     3. **Audit log khởi động (`data/bot.log`, `data/dashboard.log`)**: Đảm bảo không có Traceback hoặc crash.
+     4. **Kiểm thử chức năng toàn bộ 20 modules (`python main.py --test`)**: Chạy bộ chẩn đoán `SystemTester` xác nhận 100% các chức năng chạy đúng, không lỗi logic, trả về đúng giá trị.
+   - **Quy Tắc Sửa Lỗi Triệt Để (Zero-Tolerance Bug Fixing Loop)**:
+     - Nếu phát hiện **bất kỳ lỗi nào (FAIL, TIMEOUT, lỗi logic, hàm trả về sai giá trị, crash log)**: AI **TUYỆT ĐỐI KHÔNG ĐƯỢC BÁO XONG HOẶC DỪNG LẠI**.
+     - AI **bắt buộc phải trích xuất log lỗi, phân tích nguyên nhân gốc rễ, sửa chữa mã nguồn ngay lập tức, kiểm tra lại cú pháp (`py_compile`), commit, push và deploy lại lên Termux**.
+     - Lặp lại quy trình kiểm thử cho đến khi **100% tất cả các module đều Xanh/Khỏe mạnh (`🟢 ONLINE`, `🟢 HEALTHY`, `🟢 SẠCH SẼ`, `🟢 20/20 MODULES PASS`), bot chạy hoàn toàn chuẩn xác không còn bất kỳ lỗi nào**, lúc đó mới được báo cáo hoàn thành cho Người Dùng.

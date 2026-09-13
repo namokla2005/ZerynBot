@@ -119,18 +119,29 @@ def run_remote_deploy():
     print(f"   • Health Check:  {'🟢 HEALTHY' if dash_healthy else '🟡 PENDING / UNKNOWN'}")
     print(f"   • Log Audit:     {'🔴 CẢNH BÁO TRACEBACK' if has_traceback else '🟢 SẠCH SẼ (Không có traceback)'}")
 
-    if out_bot_log:
-        print("\n📜 Trích xuất log bot mới nhất:")
-        for line in out_bot_log.splitlines()[-4:]:
-            print(f"   {line}")
+    # 4. Comprehensive 20-Module Diagnostic Test on Termux (Kiểm thử chức năng & logic)
+    print("\n🧪 [4/4] Đang chạy kiểm thử toàn bộ 20 modules chức năng trên Termux (python main.py --test)...")
+    cmd_test = f"cd {cfg['bot_dir']} && python main.py --test"
+    _, stdout, stderr = client.exec_command(cmd_test, timeout=30.0)
+    out_test = stdout.read().decode("utf-8", errors="replace").strip()
+    err_test = stderr.read().decode("utf-8", errors="replace").strip()
+    test_exit_code = stdout.channel.recv_exit_status()
+
+    if out_test:
+        print(out_test)
+    if err_test and test_exit_code != 0:
+        print(f"⚠️ Test stderr: {err_test}")
+
+    test_passed = (test_exit_code == 0) and ("Tất cả" in out_test and "kiểm thử thành công" in out_test)
 
     client.close()
 
-    if not (bot_running and dash_running) or has_traceback:
-        print("\n⚠️ CẢNH BÁO: Hệ thống chưa đạt trạng thái hoàn hảo 100%!")
+    if not (bot_running and dash_running) or has_traceback or not test_passed:
+        print("\n❌ CẢNH BÁO: Phát hiện lỗi logic hoặc chức năng chưa đạt chuẩn 100% trên Termux!")
+        print("👉 AI BẮT BUỘC PHẢI TIẾP TỤC SỬA LỖI, KHÔNG ĐƯỢC BÁO HOÀN TẤT CHO NGƯỜI DÙNG.")
         return False
 
-    print("\n🎉 XÁC THỰC HOÀN TẤT: Toàn bộ hệ thống ZerynBot V2 trên Termux đã vượt qua kiểm tra và hoạt động 100% ổn định!")
+    print("\n🎉 XÁC THỰC HOÀN TẤT 100%: Tất cả tiến trình đều RUNNING, Health Check HEALTHY, và toàn bộ 20/20 modules chức năng đều PASS trên Termux!")
     return True
 
 if __name__ == "__main__":

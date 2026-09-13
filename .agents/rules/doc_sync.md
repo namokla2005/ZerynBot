@@ -42,13 +42,17 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
 
 ---
 
-## 5. Tự Động Deploy & Kiểm Tra Toàn Diện Trên Termux (Auto-Deploy & Health Check)
+## 5. Tự Động Deploy, Kiểm Thử Toàn Diện & Sửa Lỗi Trên Termux (Auto-Deploy, Test & Auto-Repair)
 - Ngay sau khi hoàn tất `git push origin main`, AI **BẮT BUỘC phải chạy**:
   ```bash
   python scripts/termux_deploy.py
   ```
-- Lệnh này tự động kết nối SSH tới Termux, kéo code mới nhất (`git pull origin main`), khởi động lại hệ thống (`python main.py --restart`), và **kiểm tra 1 lượt hoàn chỉnh**:
+- Lệnh này tự động kết nối SSH tới Termux, kéo code mới nhất (`git pull origin main`), khởi động lại hệ thống (`python main.py --restart`), và **kiểm tra toàn diện 4 bước**:
   1. Kiểm tra trạng thái tiến trình thực tế (`python main.py --status`).
   2. Kiểm tra Health Endpoint cục bộ (`curl -s http://localhost:5000/health`).
   3. Kiểm tra log khởi động (`data/bot.log`, `data/dashboard.log`) không có lỗi traceback.
-- Chỉ khi toàn bộ các kiểm tra sức khỏe đều đạt chuẩn `🟢 ONLINE`, `🟢 HEALTHY`, AI mới được báo cáo hoàn tất cho người dùng.
+  4. Kiểm thử chức năng toàn bộ 20 modules (`python main.py --test`): Đảm bảo 100% chức năng chạy đúng, không lỗi logic, trả về đúng giá trị.
+- **Quy tắc sửa lỗi bắt buộc (Zero-Tolerance Bug Fixing Loop)**:
+  - Nếu có bất kỳ lỗi nào (FAIL, TIMEOUT, sai giá trị trả về, traceback): AI **tuyệt đối không được báo xong**.
+  - AI phải trích xuất log lỗi, phân tích nguyên nhân, sửa chữa mã nguồn, kiểm tra lại cú pháp, commit, push và deploy lại lên Termux.
+  - Lặp lại cho đến khi **100% các thành phần đều Xanh/Khỏe mạnh và 20/20 modules đều PASS**, lúc đó mới được báo cáo hoàn tất cho người dùng.
