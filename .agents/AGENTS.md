@@ -89,10 +89,15 @@ Mỗi khi AI thực hiện thay đổi mã nguồn, **BẮT BUỘC** phải tuâ
    - Luôn commit bằng format Conventional Commits (`feat:`, `fix:`, `docs:`) kèm file tài liệu liên quan trong cùng commit.
    - Luôn kiểm tra `py_compile` trước khi commit.
    - Luôn `git push origin main` sau khi hoàn tất.
-5. **Tự Động Deploy Lên Termux & Khởi Động Lại (Mandatory Auto-Deploy)**:
-   - Ngay sau khi `git push origin main` thành công, AI **BẮT BUỘC phải tự động chạy deploy lên thiết bị Termux (Tecno Pova 2)**:
+5. **Tự Động Deploy & Kiểm Tra Toàn Diện Trên Termux (Mandatory Auto-Deploy & Health Check)**:
+   - Ngay sau khi `git push origin main` thành công, AI **BẮT BUỘC phải tự động chạy script deploy và kiểm tra toàn diện trên thiết bị Termux (Tecno Pova 2)**:
      ```bash
      python scripts/termux_deploy.py
      ```
-   - Lệnh này tự động kết nối SSH tới Termux, thực thi `git pull origin main` và `python main.py --restart` để cập nhật mã nguồn và khởi động lại Bot & Dashboard ngay lập tức.
-   - Báo cáo chi tiết kết quả pull & restart trong phản hồi cho người dùng.
+   - **Quy Trình Kiểm Tra 1 Lượt Hoàn Chỉnh Bắt Buộc (Mandatory Full Inspection)**:
+     - Sau khi `git pull` và `python main.py --restart`, AI **tuyệt đối không được báo xong ngay** mà phải vào Termux kiểm tra 1 lượt hoàn chỉnh toàn bộ hệ thống:
+       1. Đợi tiến trình khởi tạo hoàn tất (`sleep 6`).
+       2. Kiểm tra trạng thái tiến trình thực tế (`python main.py --status`): Bot và Dashboard đều phải ở trạng thái `RUNNING (PID xxx)`.
+       3. Kiểm tra Health Endpoint cục bộ (`curl -s http://localhost:5000/health`): Phải phản hồi JSON với `online: true`.
+       4. Kiểm tra log khởi động (`data/bot.log`, `data/dashboard.log`): Đảm bảo không có Traceback hoặc crash.
+     - Chỉ khi **100% các thành phần đều Xanh/Khỏe mạnh** (`🟢 ONLINE`, `🟢 HEALTHY`, `🟢 SẠCH SẼ`), AI mới được báo cáo hoàn thành cho Người Dùng. Nếu có bất kỳ lỗi nào, phải trích xuất ngay log lỗi và tiến hành khắc phục.

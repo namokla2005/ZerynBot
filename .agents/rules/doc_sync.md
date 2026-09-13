@@ -42,10 +42,13 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
 
 ---
 
-## 5. Tự Động Deploy Lên Termux & Khởi Động Lại (Auto-Deploy)
+## 5. Tự Động Deploy & Kiểm Tra Toàn Diện Trên Termux (Auto-Deploy & Health Check)
 - Ngay sau khi hoàn tất `git push origin main`, AI **BẮT BUỘC phải chạy**:
   ```bash
   python scripts/termux_deploy.py
   ```
-- Lệnh này tự động kết nối SSH tới Termux, kéo code mới nhất (`git pull origin main`) và khởi động lại toàn bộ hệ thống (`python main.py --restart`).
-- Báo cáo kết quả pull & restart cho người dùng.
+- Lệnh này tự động kết nối SSH tới Termux, kéo code mới nhất (`git pull origin main`), khởi động lại hệ thống (`python main.py --restart`), và **kiểm tra 1 lượt hoàn chỉnh**:
+  1. Kiểm tra trạng thái tiến trình thực tế (`python main.py --status`).
+  2. Kiểm tra Health Endpoint cục bộ (`curl -s http://localhost:5000/health`).
+  3. Kiểm tra log khởi động (`data/bot.log`, `data/dashboard.log`) không có lỗi traceback.
+- Chỉ khi toàn bộ các kiểm tra sức khỏe đều đạt chuẩn `🟢 ONLINE`, `🟢 HEALTHY`, AI mới được báo cáo hoàn tất cho người dùng.
