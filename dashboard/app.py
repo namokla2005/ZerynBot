@@ -354,6 +354,7 @@ def server_overview(guild_id: str):
     # Fetch channel names for top channels map
     channels = db.get_guild_channels(guild_id)
     channel_map = {str(c['channel_id']): c['channel_name'] for c in channels}
+    recent_events = db.get_recent_guild_events(guild_id, limit=15)
     
     return render_template("server.html",
         user=session["user"],
@@ -365,8 +366,17 @@ def server_overview(guild_id: str):
         guild_settings=db.get_guild_settings(guild_id),
         active_page="overview",
         raw_stats_json=json.dumps(raw_stats),
-        channel_map_json=json.dumps(channel_map)
+        channel_map_json=json.dumps(channel_map),
+        recent_events=recent_events,
     )
+
+
+@app.route("/api/guild/<guild_id>/recent_events")
+@guild_access_required
+def api_guild_recent_events(guild_id: str):
+    """API lấy tối đa 15 Recent Events gần nhất của server (định dạng JSON)."""
+    events = db.get_recent_guild_events(guild_id, limit=15)
+    return jsonify({"ok": True, "events": events})
 
 # ─── Context helpers ───────────────────────────────────────────────────────────
 
@@ -2320,6 +2330,102 @@ def _get_all_bot_guilds_detailed() -> list:
     return result
 
 
+_last_cpu_times = None
+
+def get_system_hardware_stats() -> dict:
+    """Đọc thông số CPU & RAM thời gian thực không phụ thuộc thư viện bên thứ 3 (hỗ trợ Linux/Termux /proc và Windows NT)."""
+    global _last_cpu_times
+    stats = {
+        "cpu_percent": 0.0,
+        "ram_percent": 0.0,
+        "ram_used_gb": 0.0,
+        "ram_total_gb": 0.0,
+    }
+    
+    # 1. RAM Telemetry
+    try:
+        if os.path.exists("/proc/meminfo"):
+            meminfo = {}
+            with open("/proc/meminfo", "r", encoding="utf-8") as f:
+                for line in f:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        k = parts[0].strip()
+                        v = parts[1].strip().split()[0]
+                        if v.isdigit():
+                            meminfo[k] = int(v)
+            total_kb = meminfo.get("MemTotal", 0)
+            avail_kb = meminfo.get("MemAvailable", meminfo.get("MemFree", 0) + meminfo.get("Buffers", 0) + meminfo.get("Cached", 0))
+            if total_kb > 0:
+                used_kb = total_kb - avail_kb
+                stats["ram_total_gb"] = round(total_kb / (1024 * 1024), 2)
+                stats["ram_used_gb"] = round(used_kb / (1024 * 1024), 2)
+                stats["ram_percent"] = round((used_kb / total_kb) * 100, 1)
+        elif os.name == "nt":
+            import ctypes
+            class MEMORYSTATUSEX(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", ctypes.c_ulong),
+                    ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong),
+                    ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong),
+                    ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong),
+                    ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+                ]
+            stat = MEMORYSTATUSEX()
+            stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+                total_b = stat.ullTotalPhys
+                avail_b = stat.ullAvailPhys
+                used_b = total_b - avail_b
+                stats["ram_total_gb"] = round(total_b / (1024**3), 2)
+                stats["ram_used_gb"] = round(used_b / (1024**3), 2)
+                stats["ram_percent"] = round(float(stat.dwMemoryLoad), 1)
+    except Exception as e:
+        print(f"[Telemetry] Error reading RAM: {e}")
+
+    # 2. CPU Telemetry
+    try:
+        if os.path.exists("/proc/stat"):
+            with open("/proc/stat", "r", encoding="utf-8") as f:
+                first_line = f.readline()
+            fields = [float(x) for x in first_line.strip().split()[1:]]
+            idle = fields[3] + (fields[4] if len(fields) > 4 else 0)
+            total = sum(fields)
+            if _last_cpu_times and _last_cpu_times.get("type") == "proc":
+                idle_delta = idle - _last_cpu_times["idle"]
+                total_delta = total - _last_cpu_times["total"]
+                if total_delta > 0:
+                    stats["cpu_percent"] = round(max(0.0, min(100.0, (1.0 - idle_delta / total_delta) * 100)), 1)
+            _last_cpu_times = {"type": "proc", "idle": idle, "total": total}
+        elif os.name == "nt":
+            import ctypes
+            class FILETIME(ctypes.Structure):
+                _fields_ = [("dwLowDateTime", ctypes.c_uint32), ("dwHighDateTime", ctypes.c_uint32)]
+            def to_int(ft):
+                return (ft.dwHighDateTime << 32) + ft.dwLowDateTime
+            idle_time, kernel_time, user_time = FILETIME(), FILETIME(), FILETIME()
+            if ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle_time), ctypes.byref(kernel_time), ctypes.byref(user_time)):
+                idle_i = to_int(idle_time)
+                kernel_i = to_int(kernel_time)
+                user_i = to_int(user_time)
+                total_i = kernel_i + user_i
+                if _last_cpu_times and _last_cpu_times.get("type") == "nt":
+                    idle_d = idle_i - _last_cpu_times["idle"]
+                    total_d = total_i - _last_cpu_times["total"]
+                    if total_d > 0:
+                        sys_pct = (1.0 - idle_d / total_d) * 100 if total_d > 0 else 0.0
+                        stats["cpu_percent"] = round(max(0.0, min(100.0, sys_pct)), 1)
+                _last_cpu_times = {"type": "nt", "idle": idle_i, "total": total_i}
+    except Exception as e:
+        print(f"[Telemetry] Error reading CPU: {e}")
+
+    return stats
+
+
 @app.route("/admin")
 @owner_required
 def admin_panel():
@@ -2328,6 +2434,8 @@ def admin_panel():
     blacklist_ids = {b["guild_id"] for b in blacklist}
     global_ai_key = db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
     global_ai_model = db.get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
+    telemetry = get_system_hardware_stats()
+    activity_logs = db.get_system_activity_logs(limit=50, days_ttl=7)
     return render_template(
         "admin.html",
         user=session["user"],
@@ -2339,7 +2447,25 @@ def admin_panel():
         total_blacklist=len(blacklist),
         global_ai_key=global_ai_key,
         global_ai_model=global_ai_model,
+        telemetry=telemetry,
+        activity_logs=activity_logs,
     )
+
+
+@app.route("/api/admin/telemetry")
+@owner_required
+def api_admin_telemetry():
+    """Trả về thông số % CPU, % RAM và dung lượng RAM hiện tại."""
+    stats = get_system_hardware_stats()
+    return jsonify({"ok": True, **stats})
+
+
+@app.route("/api/admin/activity_logs")
+@owner_required
+def api_admin_activity_logs():
+    """Trả về tối đa 50 log hoạt động gần nhất trong vòng 7 ngày (tự động xóa log > 7 ngày)."""
+    logs = db.get_system_activity_logs(limit=50, days_ttl=7)
+    return jsonify({"ok": True, "logs": logs})
 
 
 @app.route("/admin/ai_key", methods=["POST"])

@@ -380,6 +380,61 @@ class BotV2(commands.Bot):
             logger.debug(f"Failed to send error embed: {e}")
         logger.error(f"App command error: {error}", exc_info=error)
 
+    async def on_interaction(self, interaction: discord.Interaction):
+        """Ghi nhận sự kiện khi người dùng gọi slash command vào activity_logs."""
+        if interaction.type == discord.InteractionType.application_command:
+            try:
+                from database import async_log_activity
+                cmd_data = interaction.data or {}
+                cmd_name = f"/{cmd_data.get('name', 'command')}"
+                guild_id = str(interaction.guild_id) if interaction.guild_id else None
+                guild_name = interaction.guild.name if interaction.guild else None
+                user_id = str(interaction.user.id)
+                user_name = interaction.user.display_name or str(interaction.user)
+                avatar_url = str(interaction.user.display_avatar.url) if interaction.user.display_avatar else None
+                channel_name = getattr(interaction.channel, "name", None)
+
+                asyncio.create_task(async_log_activity(
+                    action=cmd_name,
+                    event_type="command",
+                    guild_id=guild_id,
+                    guild_name=guild_name,
+                    user_id=user_id,
+                    user_name=user_name,
+                    avatar_url=avatar_url,
+                    channel_name=channel_name,
+                    details=f"#{channel_name}" if channel_name else None,
+                ))
+            except Exception as e:
+                logger.debug(f"[Bot] on_interaction log error: {e}")
+        await super().on_interaction(interaction)
+
+    async def on_command_completion(self, ctx: commands.Context):
+        """Ghi nhận lệnh prefix nếu có vào activity_logs."""
+        try:
+            from database import async_log_activity
+            cmd_name = f"{ctx.prefix or '/'}{ctx.command.qualified_name}"
+            guild_id = str(ctx.guild.id) if ctx.guild else None
+            guild_name = ctx.guild.name if ctx.guild else None
+            user_id = str(ctx.author.id)
+            user_name = ctx.author.display_name or str(ctx.author)
+            avatar_url = str(ctx.author.display_avatar.url) if ctx.author.display_avatar else None
+            channel_name = getattr(ctx.channel, "name", None)
+
+            asyncio.create_task(async_log_activity(
+                action=cmd_name,
+                event_type="command",
+                guild_id=guild_id,
+                guild_name=guild_name,
+                user_id=user_id,
+                user_name=user_name,
+                avatar_url=avatar_url,
+                channel_name=channel_name,
+                details=f"#{channel_name}" if channel_name else None,
+            ))
+        except Exception as e:
+            logger.debug(f"[Bot] on_command_completion log error: {e}")
+
 
 bot = BotV2()
 

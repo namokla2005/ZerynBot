@@ -443,6 +443,23 @@ def init_db():
                 saved_overrides     TEXT DEFAULT '[]',
                 updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id     TEXT,
+                guild_name   TEXT,
+                user_id      TEXT,
+                user_name    TEXT,
+                avatar_url   TEXT,
+                channel_name TEXT,
+                event_type   TEXT NOT NULL,
+                action       TEXT NOT NULL,
+                details      TEXT,
+                created_at   REAL NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_activity_logs_guild ON activity_logs (guild_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs (created_at DESC);
         """)
         # Schema migration checks
         cursor = conn.cursor()
@@ -2965,6 +2982,7 @@ async def async_prune_old_data(
     interactions_days: int = 60,
     reminders_days: int = 30,
     song_cache_days: int = 7,
+    activity_days: int = 7,
 ) -> dict:
     """
     Dọn dữ liệu cũ để giữ DB gọn (chỉ ghi đúng các bảng tích luỹ theo thời gian):
@@ -2973,6 +2991,7 @@ async def async_prune_old_data(
     - fun_interactions : > interactions_days ngày
     - reminders        : > reminders_days ngày (reminder đã cũ)
     - music_song_cache : > song_cache_days ngày (mặc định 7 ngày)
+    - activity_logs    : > activity_days ngày (mặc định 7 ngày, phiên cũ biến mất)
     KHÔNG đụng user_levels / economy_users (dữ liệu member, phải giữ).
 
     Trả về dict {table: số dòng đã xoá}.
@@ -3025,6 +3044,16 @@ async def async_prune_old_data(
         except Exception as exc:
             logger.warning(f"[Prune] music_song_cache error: {exc}")
 
+        try:
+            activity_cutoff = time.time() - (activity_days * 86400)
+            await _delete(
+                "activity_logs",
+                "created_at < ?",
+                (activity_cutoff,),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] activity_logs error: {exc}")
+
     return deleted
 
 
@@ -3035,4 +3064,189 @@ async def async_vacuum_db() -> None:
             await db.execute("VACUUM")
     except Exception as exc:
         logger.warning(f"[Database] VACUUM error: {exc}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ─── MODULE: ACTIVITY LOGS & RECENT EVENTS (RETENTION 7 NGÀY) ─────────────────
+# ═════════════════════════════════════════════════════════════════════════════
+
+def log_activity(
+    action: str,
+    event_type: str = "command",
+    guild_id: str = None,
+    guild_name: str = None,
+    user_id: str = None,
+    user_name: str = None,
+    avatar_url: str = None,
+    channel_name: str = None,
+    details: str = None,
+) -> None:
+    """Sync — Ghi nhận 1 sự kiện vào bảng activity_logs."""
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+            conn.execute(
+                """
+                INSERT INTO activity_logs (
+                    guild_id, guild_name, user_id, user_name, avatar_url,
+                    channel_name, event_type, action, details, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(guild_id) if guild_id else None,
+                    guild_name,
+                    str(user_id) if user_id else None,
+                    user_name,
+                    avatar_url,
+                    channel_name,
+                    event_type,
+                    action,
+                    details,
+                    time.time()
+                )
+            )
+            conn.commit()
+    except Exception as e:
+        logger.debug(f"[Database] log_activity error: {e}")
+
+
+async def async_log_activity(
+    action: str,
+    event_type: str = "command",
+    guild_id: str = None,
+    guild_name: str = None,
+    user_id: str = None,
+    user_name: str = None,
+    avatar_url: str = None,
+    channel_name: str = None,
+    details: str = None,
+) -> None:
+    """Async — Ghi nhận 1 sự kiện vào bảng activity_logs (cho Discord Bot)."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            await db.execute(
+                """
+                INSERT INTO activity_logs (
+                    guild_id, guild_name, user_id, user_name, avatar_url,
+                    channel_name, event_type, action, details, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(guild_id) if guild_id else None,
+                    guild_name,
+                    str(user_id) if user_id else None,
+                    user_name,
+                    avatar_url,
+                    channel_name,
+                    event_type,
+                    action,
+                    details,
+                    time.time()
+                )
+            )
+            await db.commit()
+    except Exception as e:
+        logger.debug(f"[Database] async_log_activity error: {e}")
+
+
+def get_recent_guild_events(guild_id: str, limit: int = 15) -> list:
+    """Sync — Lấy tối đa 15 lệnh/sự kiện gần nhất của một server."""
+    if not guild_id:
+        return []
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT id, guild_id, guild_name, user_id, user_name, avatar_url,
+                       channel_name, event_type, action, details, created_at
+                FROM activity_logs
+                WHERE guild_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (str(guild_id), limit)
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.debug(f"[Database] get_recent_guild_events error: {e}")
+        return []
+
+
+async def async_get_recent_guild_events(guild_id: str, limit: int = 15) -> list:
+    """Async — Lấy tối đa 15 lệnh/sự kiện gần nhất của một server."""
+    if not guild_id:
+        return []
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT id, guild_id, guild_name, user_id, user_name, avatar_url,
+                       channel_name, event_type, action, details, created_at
+                FROM activity_logs
+                WHERE guild_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (str(guild_id), limit)
+            ) as cur:
+                rows = await cur.fetchall()
+                return [dict(r) for r in rows]
+    except Exception as e:
+        logger.debug(f"[Database] async_get_recent_guild_events error: {e}")
+        return []
+
+
+def get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> list:
+    """Sync — Lấy log hoạt động thời gian thực (tự động xóa bản ghi cũ hơn 7 ngày)."""
+    try:
+        cutoff = time.time() - (days_ttl * 86400)
+        with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+            # Tự động dọn rác các phiên cũ hơn 7 ngày
+            conn.execute("DELETE FROM activity_logs WHERE created_at < ?", (cutoff,))
+            conn.commit()
+
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT id, guild_id, guild_name, user_id, user_name, avatar_url,
+                       channel_name, event_type, action, details, created_at
+                FROM activity_logs
+                WHERE created_at >= ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (cutoff, limit)
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception as e:
+        logger.debug(f"[Database] get_system_activity_logs error: {e}")
+        return []
+
+
+async def async_get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> list:
+    """Async — Lấy log hoạt động thời gian thực (tự động xóa bản ghi cũ hơn 7 ngày)."""
+    try:
+        cutoff = time.time() - (days_ttl * 86400)
+        async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            await db.execute("DELETE FROM activity_logs WHERE created_at < ?", (cutoff,))
+            await db.commit()
+
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT id, guild_id, guild_name, user_id, user_name, avatar_url,
+                       channel_name, event_type, action, details, created_at
+                FROM activity_logs
+                WHERE created_at >= ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (cutoff, limit)
+            ) as cur:
+                rows = await cur.fetchall()
+                return [dict(r) for r in rows]
+    except Exception as e:
+        logger.debug(f"[Database] async_get_system_activity_logs error: {e}")
+        return []
 

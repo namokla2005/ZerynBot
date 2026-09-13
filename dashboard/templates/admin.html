@@ -181,6 +181,58 @@
       </div>
     </div>
 
+    <!-- ─── Hardware Telemetry Gauges (% CPU & RAM) ────────────────────────── -->
+    <div class="telemetry-grid">
+      <!-- CPU Radial Gauge -->
+      <div class="telemetry-card">
+        <div class="gauge-circle-wrap">
+          <svg class="gauge-circle-svg" viewBox="0 0 96 96">
+            <defs>
+              <linearGradient id="cpuGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="100%" stop-color="#7c6df8"/>
+              </linearGradient>
+            </defs>
+            <circle class="gauge-circle-bg" cx="48" cy="48" r="40"></circle>
+            <circle id="cpuCircleBar" class="gauge-circle-bar" cx="48" cy="48" r="40" style="stroke-dashoffset: calc(251.2px - (251.2px * {{ telemetry.cpu_percent | default(0) }} / 100));"></circle>
+          </svg>
+          <div class="gauge-circle-val" id="cpuPctLabel">{{ telemetry.cpu_percent | default(0) }}%</div>
+        </div>
+        <div class="telemetry-info">
+          <div class="telemetry-tag">
+            <i class="bi bi-cpu-fill" style="color:var(--accent);"></i>
+            <span>Processor Load</span>
+            <span class="status-indicator" style="margin-left:auto;"></span>
+          </div>
+          <div class="telemetry-num" id="cpuNumDisplay">{{ telemetry.cpu_percent | default(0) }}%</div>
+          <div class="telemetry-sub">Host CPU Utilization (Tự động cập nhật mỗi 5s)</div>
+        </div>
+      </div>
+
+      <!-- RAM Memory Meter -->
+      <div class="telemetry-card">
+        <div class="ram-bar-wrap">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="telemetry-tag">
+              <i class="bi bi-memory" style="color:var(--accent-cyan);"></i>
+              <span>Physical RAM</span>
+            </div>
+            <span class="bento-badge" id="ramPctBadge">{{ telemetry.ram_percent | default(0) }}%</span>
+          </div>
+          <div class="telemetry-num" style="margin:2px 0;">
+            <span id="ramUsedLabel">{{ telemetry.ram_used_gb | default(0) }}</span> / <span id="ramTotalLabel">{{ telemetry.ram_total_gb | default(0) }} GB</span>
+          </div>
+          <div class="ram-progress-track">
+            <div class="ram-progress-fill" id="ramProgressFill" style="width: {{ telemetry.ram_percent | default(0) }}%;"></div>
+          </div>
+          <div class="telemetry-sub" style="display:flex; justify-content:space-between; margin-top:2px;">
+            <span>Bộ nhớ RAM đang sử dụng</span>
+            <span id="ramFreeLabel">Còn trống: {{ ((telemetry.ram_total_gb | default(0)) - (telemetry.ram_used_gb | default(0))) | round(2) }} GB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="admin-tabs">
       <button class="admin-tab active" onclick="switchTab('servers',this)">
         <i class="bi bi-robot"></i> {{ t('admin.tab_active_servers') }}
@@ -191,6 +243,10 @@
         {% if total_blacklist > 0 %}
         <span style="background:rgba(240,71,71,.2);color:#f04747;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_blacklist }}</span>
         {% endif %}
+      </button>
+      <button class="admin-tab" onclick="switchTab('activity',this)">
+        <i class="bi bi-activity"></i> Real-Time Activity Log
+        <span style="background:rgba(124,109,248,0.2);color:#7c6df8;border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">7D TTL</span>
       </button>
       <button class="admin-tab" onclick="switchTab('ai_settings',this)">
         <i class="bi bi-cpu-fill"></i> Cấu Hình AI Toàn Cục
@@ -305,6 +361,100 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Panel: Real-Time Activity Log (7-Day TTL) -->
+    <div class="tab-panel" id="panel-activity">
+      <div class="activity-table-wrap">
+        <div class="activity-table-header">
+          <div>
+            <div class="server-table-title" style="font-size:1.1rem;">
+              <i class="bi bi-activity" style="color:var(--accent);"></i> Real-Time Activity Stream
+            </div>
+            <div style="font-size:0.82rem; color:var(--text-muted); margin-top:2px;">
+              Ghi nhận mọi lượt sử dụng lệnh và thao tác quản trị trên toàn hệ thống bot
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span class="activity-ttl-notice">
+              <i class="bi bi-shield-check"></i> Lưu 7 ngày gần nhất (Tự động dọn dẹp)
+            </span>
+            <span style="font-size:0.78rem; color:#10b981; display:inline-flex; align-items:center; gap:6px;">
+              <span class="status-indicator"></span> Trực tiếp
+            </span>
+            <button onclick="refreshActivityLogs()" class="btn-icon broadcast" style="padding:6px 12px; font-size:0.8rem; cursor:pointer;">
+              <i class="bi bi-arrow-clockwise"></i> Làm mới
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="activity-table" id="activityTable">
+            <thead>
+              <tr>
+                <th style="width:160px;">Thời Gian</th>
+                <th style="width:200px;">Máy Chủ (Guild)</th>
+                <th style="width:180px;">Người Dùng</th>
+                <th style="width:140px;">Hành Động</th>
+                <th>Lệnh / Chi Tiết</th>
+                <th style="width:110px; text-align:right;">Trạng Thái</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              {% if activity_logs and activity_logs | length > 0 %}
+                {% for log in activity_logs %}
+                <tr>
+                  <td style="font-family:monospace; font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">
+                    {{ log.created_at | string | truncate(19, True, '') }}
+                  </td>
+                  <td>
+                    <div style="font-weight:600; color:var(--text-primary);">{{ log.guild_name or ('Guild ' ~ log.guild_id) if log.guild_id else 'Toàn cục / DM' }}</div>
+                    {% if log.guild_id %}<div style="font-family:monospace; font-size:0.74rem; color:var(--text-muted);">{{ log.guild_id }}</div>{% endif %}
+                  </td>
+                  <td>
+                    <div style="font-weight:600; color:var(--text-primary);">{{ log.user_name or ('User ' ~ log.user_id) if log.user_id else 'Hệ thống' }}</div>
+                    {% if log.user_id %}<div style="font-family:monospace; font-size:0.74rem; color:var(--text-muted);">{{ log.user_id }}</div>{% endif %}
+                  </td>
+                  <td>
+                    {% set ev_type = log.event_type or log.action_type or 'command' %}
+                    {% if ev_type in ['slash_command', 'command'] %}
+                      <span class="activity-badge cmd"><i class="bi bi-slash-square"></i> Slash</span>
+                    {% elif ev_type == 'admin' %}
+                      <span class="activity-badge admin"><i class="bi bi-shield-lock"></i> Admin</span>
+                    {% else %}
+                      <span class="activity-badge system"><i class="bi bi-gear"></i> {{ ev_type }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% set cmd_name = log.action or log.command_name %}
+                    {% if cmd_name %}
+                      <span style="font-family:monospace; font-weight:700; color:#fff; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">/{{ cmd_name }}</span>
+                    {% endif %}
+                    {% if log.details %}
+                      <span style="font-size:0.8rem; color:var(--text-secondary); margin-left:6px;">{{ log.details }}</span>
+                    {% endif %}
+                  </td>
+                  <td style="text-align:right;">
+                    {% if log.status == 'success' %}
+                      <span class="event-badge-status success">✓ Thành công</span>
+                    {% else %}
+                      <span class="event-badge-status error">✕ Thất bại</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr id="emptyActivityRow">
+                  <td colspan="6" class="empty-tbl">
+                    <div class="empty-tbl-icon">⚡</div>
+                    <p>Chưa có log hoạt động nào trong 7 ngày gần nhất.</p>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -883,6 +1033,137 @@
     }
   }
 
+  // ─── Real-Time Telemetry & Activity Log Polling ───
+  async function pollAdminTelemetry() {
+    try {
+      const res = await fetch('/api/admin/telemetry');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.ok) return;
+
+      // Update CPU
+      const cpuPct = data.cpu_percent || 0;
+      const circleBar = document.getElementById('cpuCircleBar');
+      const cpuPctLabel = document.getElementById('cpuPctLabel');
+      const cpuNumDisplay = document.getElementById('cpuNumDisplay');
+      if (circleBar) {
+        const offset = 251.2 - (251.2 * cpuPct / 100);
+        circleBar.style.strokeDashoffset = offset + 'px';
+      }
+      if (cpuPctLabel) cpuPctLabel.textContent = cpuPct + '%';
+      if (cpuNumDisplay) cpuNumDisplay.textContent = cpuPct + '%';
+
+      // Update RAM
+      const ramPct = data.ram_percent || 0;
+      const ramProgressFill = document.getElementById('ramProgressFill');
+      const ramUsedLabel = document.getElementById('ramUsedLabel');
+      const ramTotalLabel = document.getElementById('ramTotalLabel');
+      const ramPctBadge = document.getElementById('ramPctBadge');
+      const ramFreeLabel = document.getElementById('ramFreeLabel');
+
+      if (ramProgressFill) ramProgressFill.style.width = ramPct + '%';
+      if (ramUsedLabel) ramUsedLabel.textContent = data.ram_used_gb || 0;
+      if (ramTotalLabel) ramTotalLabel.textContent = (data.ram_total_gb || 0) + ' GB';
+      if (ramPctBadge) ramPctBadge.textContent = ramPct + '%';
+      if (ramFreeLabel) {
+        const freeGb = Math.max(0, ((data.ram_total_gb || 0) - (data.ram_used_gb || 0))).toFixed(2);
+        ramFreeLabel.textContent = 'Còn trống: ' + freeGb + ' GB';
+      }
+    } catch (e) {
+      console.error("Telemetry polling error:", e);
+    }
+  }
+
+  async function refreshActivityLogs() {
+    try {
+      const res = await fetch('/api/admin/activity_logs');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.ok || !Array.isArray(data.logs)) return;
+
+      const tbody = document.getElementById('activityTableBody');
+      if (!tbody) return;
+
+      if (data.logs.length === 0) {
+        tbody.innerHTML = `
+          <tr id="emptyActivityRow">
+            <td colspan="6" class="empty-tbl">
+              <div class="empty-tbl-icon">⚡</div>
+              <p>Chưa có log hoạt động nào trong 7 ngày gần nhất.</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      for (const log of data.logs) {
+        const timeStr = (log.created_at || '').substring(0, 19);
+        const guildStr = log.guild_name || (log.guild_id ? 'Guild ' + log.guild_id : 'Toàn cục / DM');
+        const guildSub = log.guild_id ? `<div style="font-family:monospace; font-size:0.74rem; color:var(--text-muted);">${log.guild_id}</div>` : '';
+        const userStr = log.user_name || (log.user_id ? 'User ' + log.user_id : 'Hệ thống');
+        const userSub = log.user_id ? `<div style="font-family:monospace; font-size:0.74rem; color:var(--text-muted);">${log.user_id}</div>` : '';
+        
+        const evType = log.event_type || log.action_type || 'command';
+        let badgeClass = 'system';
+        let badgeIcon = 'bi-gear';
+        let badgeText = evType;
+        if (evType === 'slash_command' || evType === 'command') {
+          badgeClass = 'cmd';
+          badgeIcon = 'bi-slash-square';
+          badgeText = 'Slash';
+        } else if (evType === 'admin') {
+          badgeClass = 'admin';
+          badgeIcon = 'bi-shield-lock';
+          badgeText = 'Admin';
+        }
+
+        const cmdName = log.action || log.command_name;
+        const cmdHtml = cmdName ? `<span style="font-family:monospace; font-weight:700; color:#fff; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">/${cmdName}</span>` : '';
+        const detailHtml = log.details ? `<span style="font-size:0.8rem; color:var(--text-secondary); margin-left:6px;">${log.details}</span>` : '';
+        const statusHtml = log.status === 'success' 
+          ? '<span class="event-badge-status success">✓ Thành công</span>'
+          : '<span class="event-badge-status error">✕ Thất bại</span>';
+
+        html += `
+          <tr>
+            <td style="font-family:monospace; font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${timeStr}</td>
+            <td>
+              <div style="font-weight:600; color:var(--text-primary);">${guildStr}</div>
+              ${guildSub}
+            </td>
+            <td>
+              <div style="font-weight:600; color:var(--text-primary);">${userStr}</div>
+              ${userSub}
+            </td>
+            <td>
+              <span class="activity-badge ${badgeClass}"><i class="bi ${badgeIcon}"></i> ${badgeText}</span>
+            </td>
+            <td>
+              ${cmdHtml}
+              ${detailHtml}
+            </td>
+            <td style="text-align:right;">
+              ${statusHtml}
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html;
+    } catch (e) {
+      console.error("Activity logs polling error:", e);
+    }
+  }
+
+  // Start polling every 5 seconds
+  setInterval(pollAdminTelemetry, 5000);
+  setInterval(() => {
+    const actPanel = document.getElementById('panel-activity');
+    if (actPanel && actPanel.classList.contains('active')) {
+      refreshActivityLogs();
+    }
+  }, 5000);
+
   // Auto switch tab if URL has hash
   window.addEventListener('DOMContentLoaded', () => {
     const hash = window.location.hash.replace('#', '');
@@ -892,6 +1173,9 @@
     } else if (hash === 'terminal') {
       const btn = document.querySelector('button[onclick*="terminal"]');
       if (btn) switchTab('terminal', btn);
+    } else if (hash === 'activity') {
+      const btn = document.querySelector('button[onclick*="activity"]');
+      if (btn) switchTab('activity', btn);
     }
   });
 
