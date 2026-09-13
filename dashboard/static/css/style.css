@@ -1,45 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap');
 
-/* ─── CSS Variables (V10.0 — Midnight Obsidian & Bento Grid Theme) ────────── */
+/* ─── CSS Variables (V10.1 — Pastel Obsidian Glow / Hồng Obsidian Theme) ─── */
 :root {
-  --bg-body:        #060709;
-  --bg-sidebar:     rgba(10, 11, 16, 0.94);
-  --bg-card:        rgba(16, 17, 24, 0.78);
-  --bg-card2:       rgba(22, 24, 34, 0.88);
-  --bg-card-hover:  rgba(26, 28, 42, 0.92);
-  --bg-input:       rgba(12, 13, 19, 0.90);
-  --bg-hover:       rgba(255, 255, 255, 0.06);
-  --bg-active:      rgba(124, 109, 248, 0.16);
+  --bg-body:        #131217;
+  --bg-sidebar:     rgba(19, 18, 23, 0.94);
+  --bg-card:        rgba(25, 24, 34, 0.85);
+  --bg-card2:       rgba(35, 33, 46, 0.90);
+  --bg-card-hover:  rgba(38, 36, 50, 0.95);
+  --bg-input:       rgba(18, 17, 24, 0.85);
+  --bg-hover:       rgba(255, 255, 255, 0.08);
+  --bg-active:      rgba(244, 167, 187, 0.18);
   --border:         rgba(255, 255, 255, 0.08);
   --border-subtle:  rgba(255, 255, 255, 0.04);
-  --border-hover:   rgba(124, 109, 248, 0.45);
-  --border-focus:   #7c6df8;
+  --border-hover:   rgba(244, 167, 187, 0.35);
+  --border-focus:   #f4a7bb;
 
   /* Surface for modals, legal cards, login card */
-  --surface:        rgba(14, 15, 22, 0.98);
+  --surface:        rgba(25, 24, 34, 0.96);
 
-  /* Primary Accent: Electric Violet & Indigo (Midnight Obsidian) */
-  --accent:         #7c6df8;
-  --accent-hover:   #9285ff;
-  --accent-light:   rgba(124, 109, 248, 0.14);
-  --accent-glow:    rgba(124, 109, 248, 0.35);
+  /* Primary Accent: Sakura / Cherry Blossom Pink (Hồng Obsidian Nekotina Theme) */
+  --accent:         #f4a7bb;
+  --accent-hover:   #ffb8ca;
+  --accent-light:   rgba(244, 167, 187, 0.16);
+  --accent-glow:    rgba(244, 167, 187, 0.35);
+  --accent-purple:  #9d8df1;
+  --accent-blue:    #5865f2;
   --accent-cyan:    #38bdf8;
   --accent-cyan-bg: rgba(56, 189, 248, 0.12);
-  --accent-purple:  #a855f7;
-  --accent-blue:    #5865f2;
 
-  --success:        #10b981;
-  --success-bg:     rgba(16, 185, 129, 0.16);
-  --danger:         #f43f5e;
-  --danger-bg:      rgba(244, 63, 94, 0.16);
-  --warning:        #f59e0b;
-  --warning-bg:     rgba(245, 158, 11, 0.16);
+  --success:        #57f287;
+  --success-bg:     rgba(87, 242, 135, 0.18);
+  --danger:         #ed4245;
+  --danger-bg:      rgba(237, 66, 69, 0.18);
+  --warning:        #fee75c;
+  --warning-bg:     rgba(254, 231, 92, 0.18);
 
   /* High contrast text tokens */
   --text-primary:   #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted:     #64748b;
-  --text-disabled:  #475569;
+  --text-secondary: #a3a1b0;
+  --text-muted:     #6f6d7e;
+  --text-disabled:  #555364;
 
   --sidebar-width:  250px;
   --radius-sm:      8px;
@@ -47,9 +47,9 @@
   --radius-lg:      18px;
   --radius-xl:      24px;
   --radius-pill:    9999px;
-  --shadow:         0 20px 50px rgba(0, 0, 0, 0.7);
-  --shadow-sm:      0 8px 30px rgba(0, 0, 0, 0.45);
-  --shadow-glow:    0 0 40px rgba(124, 109, 248, 0.2);
+  --shadow:         0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-sm:      0 6px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow:    0 0 40px rgba(244, 167, 187, 0.35);
   --transition:     all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   --font-sans:      'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
 }
@@ -68,10 +68,10 @@ body {
   position: relative;
   background-color: var(--bg-body);
   background-image: 
-    radial-gradient(circle at 18% 12%, rgba(124, 109, 248, 0.10) 0%, transparent 45%),
-    radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 50% 55%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 80% 90%, rgba(124, 109, 248, 0.07) 0%, transparent 45%);
+    radial-gradient(circle at 15% 10%, rgba(244, 167, 187, 0.09) 0%, transparent 42%),
+    radial-gradient(circle at 85% 20%, rgba(157, 141, 241, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 50% 60%, rgba(88, 101, 242, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(244, 167, 187, 0.07) 0%, transparent 42%);
   background-attachment: fixed;
   line-height: 1.5;
 }
@@ -241,14 +241,14 @@ button { cursor: pointer; }
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(124, 109, 248, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(244, 167, 187, 0.4), transparent);
   opacity: 0;
   transition: var(--transition);
 }
 .stat-card:hover {
   border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(124, 109, 248, 0.16);
+  box-shadow: 0 12px 36px rgba(244, 167, 187, 0.18);
 }
 .stat-card:hover::after { opacity: 1; }
 .stat-icon {
@@ -258,7 +258,7 @@ button { cursor: pointer; }
 .stat-value { font-size: 1.85rem; font-weight: 800; line-height: 1; color: #fff; }
 .stat-label { font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; }
 
-/* ─── Bento Grid System (Midnight Obsidian V10.0) ─────────────────────────── */
+/* ─── Bento Grid System (Pastel Obsidian Glow) ───────────────────────────── */
 .bento-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -291,13 +291,13 @@ button { cursor: pointer; }
   position: absolute;
   top: 0; left: 10%; right: 10%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(244, 167, 187, 0.25), transparent);
   pointer-events: none;
 }
 .bento-card:hover {
   border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(124, 109, 248, 0.14);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(244, 167, 187, 0.18);
 }
 .bento-header {
   display: flex;
@@ -342,7 +342,7 @@ button { cursor: pointer; }
 .fast-card:hover {
   border-color: var(--accent);
   transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(124, 109, 248, 0.15);
+  box-shadow: 0 12px 32px rgba(244, 167, 187, 0.18);
 }
 .fast-card-icon { font-size: 1.6rem; margin-bottom: 4px; color: var(--accent); }
 .fast-card-title { font-size: 0.95rem; font-weight: 700; color: #fff; }
@@ -365,29 +365,29 @@ button { cursor: pointer; }
   flex-direction: column;
   gap: 8px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(124, 109, 248, 0.3) transparent;
+  scrollbar-color: rgba(244, 167, 187, 0.3) transparent;
 }
 .recent-events-container::-webkit-scrollbar { width: 5px; }
 .recent-events-container::-webkit-scrollbar-thumb {
-  background: rgba(124, 109, 248, 0.25);
+  background: rgba(244, 167, 187, 0.25);
   border-radius: 4px;
 }
 .recent-events-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 109, 248, 0.5);
+  background: rgba(244, 167, 187, 0.5);
 }
 .event-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: rgba(22, 24, 34, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(25, 23, 33, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   transition: var(--transition);
 }
 .event-item:hover {
-  background: rgba(28, 30, 44, 0.85);
-  border-color: rgba(124, 109, 248, 0.3);
+  background: rgba(33, 30, 44, 0.90);
+  border-color: rgba(244, 167, 187, 0.35);
   transform: translateX(2px);
 }
 .event-icon-badge {
@@ -397,11 +397,11 @@ button { cursor: pointer; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(124, 109, 248, 0.15);
+  background: rgba(244, 167, 187, 0.15);
   color: var(--accent);
   font-size: 0.95rem;
   flex-shrink: 0;
-  border: 1px solid rgba(124, 109, 248, 0.25);
+  border: 1px solid rgba(244, 167, 187, 0.25);
 }
 .event-info {
   flex: 1;
@@ -488,7 +488,7 @@ button { cursor: pointer; }
 }
 .telemetry-card:hover {
   border-color: var(--border-hover);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(124, 109, 248, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(244, 167, 187, 0.18);
 }
 .telemetry-card::before {
   content: "";
@@ -573,7 +573,7 @@ button { cursor: pointer; }
 .ram-progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #38bdf8, #7c6df8);
+  background: linear-gradient(90deg, #f4a7bb, #9d8df1);
   border-radius: 6px;
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }

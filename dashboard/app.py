@@ -2333,13 +2333,15 @@ def _get_all_bot_guilds_detailed() -> list:
 _last_cpu_times = None
 
 def get_system_hardware_stats() -> dict:
-    """Đọc thông số CPU & RAM thời gian thực không phụ thuộc thư viện bên thứ 3 (hỗ trợ Linux/Termux /proc và Windows NT)."""
-    global _last_cpu_times
+    """Đọc thông số RAM, Uptime và trạng thái hệ thống cho Termux Linux và Windows."""
+    import re
     stats = {
-        "cpu_percent": 0.0,
         "ram_percent": 0.0,
         "ram_used_gb": 0.0,
         "ram_total_gb": 0.0,
+        "uptime": "24/7 Active",
+        "host_platform": "Tecno Pova 2 • Termux ARM64" if os.name != "nt" else "Windows Host",
+        "status": "healthy"
     }
     
     # 1. RAM Telemetry
@@ -2387,41 +2389,20 @@ def get_system_hardware_stats() -> dict:
     except Exception as e:
         print(f"[Telemetry] Error reading RAM: {e}")
 
-    # 2. CPU Telemetry
+    # 2. Uptime Telemetry
     try:
-        if os.path.exists("/proc/stat"):
-            with open("/proc/stat", "r", encoding="utf-8") as f:
-                first_line = f.readline()
-            fields = [float(x) for x in first_line.strip().split()[1:]]
-            idle = fields[3] + (fields[4] if len(fields) > 4 else 0)
-            total = sum(fields)
-            if _last_cpu_times and _last_cpu_times.get("type") == "proc":
-                idle_delta = idle - _last_cpu_times["idle"]
-                total_delta = total - _last_cpu_times["total"]
-                if total_delta > 0:
-                    stats["cpu_percent"] = round(max(0.0, min(100.0, (1.0 - idle_delta / total_delta) * 100)), 1)
-            _last_cpu_times = {"type": "proc", "idle": idle, "total": total}
-        elif os.name == "nt":
-            import ctypes
-            class FILETIME(ctypes.Structure):
-                _fields_ = [("dwLowDateTime", ctypes.c_uint32), ("dwHighDateTime", ctypes.c_uint32)]
-            def to_int(ft):
-                return (ft.dwHighDateTime << 32) + ft.dwLowDateTime
-            idle_time, kernel_time, user_time = FILETIME(), FILETIME(), FILETIME()
-            if ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle_time), ctypes.byref(kernel_time), ctypes.byref(user_time)):
-                idle_i = to_int(idle_time)
-                kernel_i = to_int(kernel_time)
-                user_i = to_int(user_time)
-                total_i = kernel_i + user_i
-                if _last_cpu_times and _last_cpu_times.get("type") == "nt":
-                    idle_d = idle_i - _last_cpu_times["idle"]
-                    total_d = total_i - _last_cpu_times["total"]
-                    if total_d > 0:
-                        sys_pct = (1.0 - idle_d / total_d) * 100 if total_d > 0 else 0.0
-                        stats["cpu_percent"] = round(max(0.0, min(100.0, sys_pct)), 1)
-                _last_cpu_times = {"type": "nt", "idle": idle_i, "total": total_i}
+        if os.name != "nt":
+            res = subprocess.run(["uptime"], capture_output=True, text=True, timeout=2)
+            out = res.stdout.strip()
+            if "up " in out:
+                m = re.search(r"up\s+([^,]+,\s*[^,]+)", out)
+                if m:
+                    stats["uptime"] = m.group(1).replace("days", "ngày").replace("day", "ngày").strip()
+                else:
+                    part = out.split("up ")[1].split(",")[0].strip()
+                    stats["uptime"] = part.replace("days", "ngày").replace("day", "ngày")
     except Exception as e:
-        print(f"[Telemetry] Error reading CPU: {e}")
+        print(f"[Telemetry] Error reading Uptime: {e}")
 
     return stats
 

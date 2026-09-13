@@ -36,7 +36,7 @@
 {% if meta %}
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon" style="background: rgba(124,109,248,0.15); color: #7c6df8;">👥</div>
+    <div class="stat-icon" style="background: rgba(244,167,187,0.15); color: #f4a7bb;">👥</div>
     <div class="stat-value">{{ meta.get('member_count', '—') }}</div>
     <div class="stat-label">{{ t('dashboard.stat_members') }}</div>
   </div>
@@ -51,7 +51,7 @@
     <div class="stat-label">{{ t('dashboard.stat_total_modules') }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background: rgba(56,189,248,0.15); color: #38bdf8;">⚡</div>
+    <div class="stat-icon" style="background: rgba(157,141,241,0.15); color: #9d8df1;">⚡</div>
     <div class="stat-value">{{ recent_events | length if recent_events else 0 }}</div>
     <div class="stat-label">Recent Events (Max 15)</div>
   </div>
