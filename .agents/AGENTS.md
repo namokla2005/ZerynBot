@@ -89,3 +89,10 @@ Mỗi khi AI thực hiện thay đổi mã nguồn, **BẮT BUỘC** phải tuâ
    - Luôn commit bằng format Conventional Commits (`feat:`, `fix:`, `docs:`) kèm file tài liệu liên quan trong cùng commit.
    - Luôn kiểm tra `py_compile` trước khi commit.
    - Luôn `git push origin main` sau khi hoàn tất.
+5. **Tự Động Deploy Lên Termux & Khởi Động Lại (Mandatory Auto-Deploy)**:
+   - Ngay sau khi `git push origin main` thành công, AI **BẮT BUỘC phải tự động chạy deploy lên thiết bị Termux (Tecno Pova 2)**:
+     ```bash
+     python scripts/termux_deploy.py
+     ```
+   - Lệnh này tự động kết nối SSH tới Termux, thực thi `git pull origin main` và `python main.py --restart` để cập nhật mã nguồn và khởi động lại Bot & Dashboard ngay lập tức.
+   - Báo cáo chi tiết kết quả pull & restart trong phản hồi cho người dùng.

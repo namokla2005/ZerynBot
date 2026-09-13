@@ -39,3 +39,13 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
 - Luôn chạy kiểm tra syntax Python: `py_compile`.
 - Commit chung file code + file tài liệu trong **cùng 1 commit**.
 - Luôn `git push origin main` sau khi hoàn thành.
+
+---
+
+## 5. Tự Động Deploy Lên Termux & Khởi Động Lại (Auto-Deploy)
+- Ngay sau khi hoàn tất `git push origin main`, AI **BẮT BUỘC phải chạy**:
+  ```bash
+  python scripts/termux_deploy.py
+  ```
+- Lệnh này tự động kết nối SSH tới Termux, kéo code mới nhất (`git pull origin main`) và khởi động lại toàn bộ hệ thống (`python main.py --restart`).
+- Báo cáo kết quả pull & restart cho người dùng.
