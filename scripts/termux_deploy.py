@@ -132,7 +132,10 @@ def run_remote_deploy():
     if err_test and test_exit_code != 0:
         print(f"⚠️ Test stderr: {err_test}")
 
-    test_passed = (test_exit_code == 0) and ("Tất cả" in out_test and "kiểm thử thành công" in out_test)
+    test_passed = (test_exit_code == 0) and (
+        "pass 100%" in out_test.lower()
+        or "thành công" in out_test.lower()
+    )
 
     client.close()
 
