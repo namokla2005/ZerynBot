@@ -102,12 +102,15 @@
             </div>
             <div class="event-info">
               <div class="event-title-line">
-                <span class="event-cmd">/{{ ev.action or ev.command_name or 'command' }}</span>
+                {% set cmd = ev.action or ev.command_name or 'command' %}
+                <span class="event-cmd">{{ cmd if cmd.startswith('/') else '/' ~ cmd }}</span>
                 <span class="event-user">{{ ev.user_name or ev.user_id or 'Thành viên' }}</span>
               </div>
               <div class="event-meta-line">
-                <span class="event-time" title="{{ ev.created_at }}">
-                  {% if ev.created_at %}
+                <span class="event-time" title="{{ ev.created_at_formatted or ev.created_at }}">
+                  {% if ev.created_at_formatted %}
+                    {{ ev.created_at_formatted }}
+                  {% elif ev.created_at %}
                     {{ ev.created_at | string | truncate(19, True, '') }}
                   {% else %}
                     Gần đây

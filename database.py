@@ -3148,6 +3148,20 @@ async def async_log_activity(
         logger.debug(f"[Database] async_log_activity error: {e}")
 
 
+def _format_activity_rows(rows) -> list:
+    """Format row dicts with human-readable created_at_formatted."""
+    formatted = []
+    for r in rows:
+        d = dict(r)
+        ts = d.get("created_at")
+        if isinstance(ts, (int, float)):
+            d["created_at_formatted"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+        else:
+            d["created_at_formatted"] = str(ts or "")
+        formatted.append(d)
+    return formatted
+
+
 def get_recent_guild_events(guild_id: str, limit: int = 15) -> list:
     """Sync — Lấy tối đa 15 lệnh/sự kiện gần nhất của một server."""
     if not guild_id:
@@ -3166,7 +3180,7 @@ def get_recent_guild_events(guild_id: str, limit: int = 15) -> list:
                 """,
                 (str(guild_id), limit)
             ).fetchall()
-            return [dict(r) for r in rows]
+            return _format_activity_rows(rows)
     except Exception as e:
         logger.debug(f"[Database] get_recent_guild_events error: {e}")
         return []
@@ -3191,7 +3205,7 @@ async def async_get_recent_guild_events(guild_id: str, limit: int = 15) -> list:
                 (str(guild_id), limit)
             ) as cur:
                 rows = await cur.fetchall()
-                return [dict(r) for r in rows]
+                return _format_activity_rows(rows)
     except Exception as e:
         logger.debug(f"[Database] async_get_recent_guild_events error: {e}")
         return []
@@ -3218,7 +3232,7 @@ def get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> list:
                 """,
                 (cutoff, limit)
             ).fetchall()
-            return [dict(r) for r in rows]
+            return _format_activity_rows(rows)
     except Exception as e:
         logger.debug(f"[Database] get_system_activity_logs error: {e}")
         return []
@@ -3245,7 +3259,7 @@ async def async_get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> 
                 (cutoff, limit)
             ) as cur:
                 rows = await cur.fetchall()
-                return [dict(r) for r in rows]
+                return _format_activity_rows(rows)
     except Exception as e:
         logger.debug(f"[Database] async_get_system_activity_logs error: {e}")
         return []

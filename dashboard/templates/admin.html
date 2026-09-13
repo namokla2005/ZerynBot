@@ -375,7 +375,7 @@
             <span style="font-size:0.78rem; color:#10b981; display:inline-flex; align-items:center; gap:6px;">
               <span class="status-indicator"></span> Trực tiếp
             </span>
-            <button onclick="refreshActivityLogs()" class="btn-icon broadcast" style="padding:6px 12px; font-size:0.8rem; cursor:pointer;">
+            <button id="btnRefreshLogs" onclick="refreshActivityLogs(this)" class="btn-icon broadcast" style="padding:6px 14px; font-size:0.8rem; cursor:pointer;">
               <i class="bi bi-arrow-clockwise"></i> Làm mới
             </button>
           </div>
@@ -398,7 +398,7 @@
                 {% for log in activity_logs %}
                 <tr>
                   <td style="font-family:monospace; font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">
-                    {{ log.created_at | string | truncate(19, True, '') }}
+                    {{ log.created_at_formatted or (log.created_at | string | truncate(19, True, '')) }}
                   </td>
                   <td>
                     <div style="font-weight:600; color:var(--text-primary);">{{ log.guild_name or ('Guild ' ~ log.guild_id) if log.guild_id else 'Toàn cục / DM' }}</div>
@@ -421,18 +421,14 @@
                   <td>
                     {% set cmd_name = log.action or log.command_name %}
                     {% if cmd_name %}
-                      <span style="font-family:monospace; font-weight:700; color:#fff; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">/{{ cmd_name }}</span>
+                      <span style="font-family:monospace; font-weight:700; color:#fff; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">{{ cmd_name if cmd_name.startswith('/') else '/' ~ cmd_name }}</span>
                     {% endif %}
                     {% if log.details %}
                       <span style="font-size:0.8rem; color:var(--text-secondary); margin-left:6px;">{{ log.details }}</span>
                     {% endif %}
                   </td>
                   <td style="text-align:right;">
-                    {% if log.status == 'success' %}
-                      <span class="event-badge-status success">✓ Thành công</span>
-                    {% else %}
-                      <span class="event-badge-status error">✕ Thất bại</span>
-                    {% endif %}
+                    <span class="event-badge-status success">✓ Hoàn tất</span>
                   </td>
                 </tr>
                 {% endfor %}
@@ -1060,12 +1056,28 @@
     }
   }
 
-  async function refreshActivityLogs() {
+  function formatLogTime(val, formatted) {
+    if (formatted) return formatted;
+    if (!val) return '';
+    if (typeof val === 'number') {
+      const d = new Date(val * 1000);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    return String(val).substring(0, 19);
+  }
+
+  async function refreshActivityLogs(btn) {
+    const refreshBtn = btn || document.getElementById('btnRefreshLogs');
+    const icon = refreshBtn ? refreshBtn.querySelector('i') : null;
+    if (icon) icon.classList.add('spin-anim');
+    if (refreshBtn) refreshBtn.disabled = true;
+
     try {
       const res = await fetch('/api/admin/activity_logs');
-      if (!res.ok) return;
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      if (!data.ok || !Array.isArray(data.logs)) return;
+      if (!data.ok || !Array.isArray(data.logs)) throw new Error('Invalid payload');
 
       const tbody = document.getElementById('activityTableBody');
       if (!tbody) return;
@@ -1084,7 +1096,7 @@
 
       let html = '';
       for (const log of data.logs) {
-        const timeStr = (log.created_at || '').substring(0, 19);
+        const timeStr = formatLogTime(log.created_at, log.created_at_formatted);
         const guildStr = log.guild_name || (log.guild_id ? 'Guild ' + log.guild_id : 'Toàn cục / DM');
         const guildSub = log.guild_id ? `<div style="font-family:monospace; font-size:0.74rem; color:var(--text-muted);">${log.guild_id}</div>` : '';
         const userStr = log.user_name || (log.user_id ? 'User ' + log.user_id : 'Hệ thống');
@@ -1104,12 +1116,11 @@
           badgeText = 'Admin';
         }
 
-        const cmdName = log.action || log.command_name;
-        const cmdHtml = cmdName ? `<span style="font-family:monospace; font-weight:700; color:#fff; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">/${cmdName}</span>` : '';
+        let cmdName = log.action || log.command_name || '';
+        if (cmdName && !cmdName.startsWith('/')) cmdName = '/' + cmdName;
+        const cmdHtml = cmdName ? `<span style="font-family:monospace; font-weight:700; color:#fff; background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px;">${cmdName}</span>` : '';
         const detailHtml = log.details ? `<span style="font-size:0.8rem; color:var(--text-secondary); margin-left:6px;">${log.details}</span>` : '';
-        const statusHtml = log.status === 'success' 
-          ? '<span class="event-badge-status success">✓ Thành công</span>'
-          : '<span class="event-badge-status error">✕ Thất bại</span>';
+        const statusHtml = '<span class="event-badge-status success">✓ Hoàn tất</span>';
 
         html += `
           <tr>
@@ -1138,6 +1149,13 @@
       tbody.innerHTML = html;
     } catch (e) {
       console.error("Activity logs polling error:", e);
+    } finally {
+      if (icon) {
+        setTimeout(() => icon.classList.remove('spin-anim'), 400);
+      }
+      if (refreshBtn) {
+        setTimeout(() => { refreshBtn.disabled = false; }, 400);
+      }
     }
   }
 
