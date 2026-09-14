@@ -25,40 +25,44 @@ def _get_config():
         "bot_dir": os.environ.get("TERMUX_BOT_DIR", "~/ZerynBot"),
     }
 
-def _run_ssh(cmd: str, timeout: float = 10.0) -> str:
+def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     cfg = _get_config()
+    # 1. Thử kết nối mạng LAN nội bộ trước (khi ở nhà)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
     try:
         client.connect(
             hostname=cfg["host"],
             port=cfg["port"],
             username=cfg["user"],
             password=cfg["password"],
-            timeout=timeout,
-            banner_timeout=timeout,
-            auth_timeout=timeout,
+            timeout=2.5,
+            banner_timeout=2.5,
+            auth_timeout=2.5,
         )
         stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
         out = stdout.read().decode("utf-8", errors="replace")
         err = stderr.read().decode("utf-8", errors="replace")
         return out if out else err
-    except (socket.timeout, TimeoutError):
-        return (
-            f"❌ LỖI TIMEOUT: Không thể kết nối tới Termux tại {cfg['host']}:{cfg['port']}.\n"
-            f"Lưu ý: Nếu bạn đang ở trường còn điện thoại ở nhà, bạn cần dùng IP Tailscale (100.x.y.z) "
-            f"hoặc về nhà chung mạng Wi-Fi."
-        )
-    except paramiko.AuthenticationException:
-        return f"❌ LỖI XÁC THỰC: Mật khẩu hoặc người dùng '{cfg['user']}' không chính xác."
-    except Exception as e:
-        return f"❌ LỖI KẾT NỐI SSH ({type(e).__name__}): {e}"
+    except Exception:
+        pass
     finally:
         try:
             client.close()
         except Exception:
             pass
+
+    # 2. Tự động chuyển hướng qua Cloudflare Tunnel khi ở xa (ssh.zerynbot.id.vn)
+    try:
+        import subprocess
+        cf_host = os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn")
+        res = subprocess.run(
+            ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", cf_host, cmd],
+            capture_output=True, text=True, timeout=timeout
+        )
+        return res.stdout if res.stdout else res.stderr
+    except Exception as e:
+        return f"❌ LỖI KẾT NỐI (Cả LAN {cfg['host']} và Cloudflare Tunnel {os.environ.get('TERMUX_CF_HOST', 'ssh.zerynbot.id.vn')} đều thất bại): {e}"
 
 
 @server.tool(name="termux_test_connection", description="Kiểm tra kết nối SSH tới thiết bị Termux (Tecno Pova 2)")

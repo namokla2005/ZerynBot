@@ -1,5 +1,9 @@
 """
 termux_deploy.py — Tự động đồng bộ git pull và khởi động lại Bot trên thiết bị Termux (Tecno Pova 2).
+Hỗ trợ Dual-Mode thông minh:
+  1. Mạng nội bộ LAN (192.168.2.50:8022) khi ở nhà (siêu tốc 0.2s).
+  2. Cloudflare Tunnel (ssh.zerynbot.id.vn) khi ở xa / 4G (tự động chuyển đổi).
+
 Sử dụng: python scripts/termux_deploy.py
 """
 import os
@@ -7,6 +11,7 @@ import sys
 import time
 import json
 import socket
+import subprocess
 import paramiko
 
 try:
@@ -21,43 +26,91 @@ def get_config():
         "port": int(os.environ.get("TERMUX_PORT", "8022")),
         "user": os.environ.get("TERMUX_USER", "u0_a224"),
         "password": os.environ.get("TERMUX_PASSWORD", "nam123"),
+        "cf_host": os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn"),
         "bot_dir": os.environ.get("TERMUX_BOT_DIR", "~/ZerynBot"),
     }
 
+class RemoteExecutor:
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.mode = None
+        self.client = None
+
+    def connect(self) -> tuple[bool, str]:
+        t0 = time.time()
+        # 1. Thử kết nối LAN trực tiếp trước (nhanh nhất khi ở nhà)
+        try:
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(
+                hostname=self.cfg["host"],
+                port=self.cfg["port"],
+                username=self.cfg["user"],
+                password=self.cfg["password"],
+                timeout=3.0,
+                banner_timeout=3.0,
+                auth_timeout=3.0,
+            )
+            self.client = client
+            self.mode = "lan"
+            return True, f"Mạng LAN Wi-Fi ({self.cfg['host']}:{self.cfg['port']}) [{time.time() - t0:.2f}s]"
+        except Exception:
+            pass
+
+        # 2. Tự động chuyển hướng qua Cloudflare Tunnel nếu ở xa
+        try:
+            cf_h = self.cfg["cf_host"]
+            res = subprocess.run(
+                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", cf_h, "echo OK"],
+                capture_output=True, text=True, timeout=8.0
+            )
+            if res.returncode == 0 and "OK" in res.stdout:
+                self.mode = "cf"
+                return True, f"Cloudflare Tunnel ({cf_h}) [{time.time() - t0:.2f}s]"
+        except Exception:
+            pass
+
+        return False, f"Không thể kết nối qua cả LAN ({self.cfg['host']}) lẫn Cloudflare Tunnel ({self.cfg['cf_host']})"
+
+    def exec(self, cmd: str, timeout: float = 30.0) -> tuple[str, str, int]:
+        if self.mode == "lan":
+            stdin, stdout, stderr = self.client.exec_command(cmd, timeout=timeout)
+            out = stdout.read().decode("utf-8", errors="replace").strip()
+            err = stderr.read().decode("utf-8", errors="replace").strip()
+            code = stdout.channel.recv_exit_status()
+            return out, err, code
+        elif self.mode == "cf":
+            res = subprocess.run(
+                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", self.cfg["cf_host"], cmd],
+                capture_output=True, text=True, timeout=timeout
+            )
+            return res.stdout.strip(), res.stderr.strip(), res.returncode
+        return "", "Not connected", 1
+
+    def close(self):
+        if self.client:
+            try:
+                self.client.close()
+            except Exception:
+                pass
+
 def run_remote_deploy():
     cfg = get_config()
-    print(f"📡 Đang kết nối tới Termux tại {cfg['host']}:{cfg['port']} (user: {cfg['user']})...")
+    print("📡 Đang dò tìm và kết nối tới Termux (Hỗ trợ Dual-Mode LAN / Cloudflare)...")
     
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
-    t0 = time.time()
-    try:
-        client.connect(
-            hostname=cfg["host"],
-            port=cfg["port"],
-            username=cfg["user"],
-            password=cfg["password"],
-            timeout=8.0,
-            banner_timeout=8.0,
-            auth_timeout=8.0,
-        )
-    except (socket.timeout, TimeoutError):
-        print(f"❌ TIMEOUT: Không thể kết nối SSH tới {cfg['host']}:{cfg['port']}.")
-        print("💡 Gợi ý: Kiểm tra xem Termux đang chạy 'sshd' chưa, hoặc kiểm tra IP Tailscale / Wi-Fi.")
-        return False
-    except Exception as e:
-        print(f"❌ LỖI KẾT NỐI SSH ({type(e).__name__}): {e}")
+    executor = RemoteExecutor(cfg)
+    ok, info = executor.connect()
+    if not ok:
+        print(f"❌ LỖI KẾT NỐI: {info}")
+        print("💡 Gợi ý: Kiểm tra xem Termux đang chạy 'sshd' chưa, hoặc kiểm tra kết nối mạng / Cloudflare Tunnel.")
         return False
 
-    print(f"✅ Đã kết nối SSH thành công ({time.time() - t0:.2f}s)!")
-    
+    print(f"✅ Đã kết nối thành công qua kênh: {info}!\n")
+
     # 1. Git Pull
-    print("\n📥 [1/3] Đang kéo mã nguồn mới nhất: git pull origin main...")
+    print("📥 [1/3] Đang kéo mã nguồn mới nhất: git pull origin main...")
     cmd_pull = f"cd {cfg['bot_dir']} && git pull origin main"
-    _, stdout, stderr = client.exec_command(cmd_pull, timeout=25.0)
-    out_pull = stdout.read().decode("utf-8", errors="replace").strip()
-    err_pull = stderr.read().decode("utf-8", errors="replace").strip()
+    out_pull, err_pull, code_pull = executor.exec(cmd_pull, timeout=25.0)
     if out_pull:
         print(out_pull)
     if err_pull and "Already up to date" not in out_pull:
@@ -66,9 +119,7 @@ def run_remote_deploy():
     # 2. Restart Bot
     print("\n🔄 [2/3] Đang khởi động lại Bot & Dashboard: python main.py --restart...")
     cmd_restart = f"cd {cfg['bot_dir']} && python main.py --restart"
-    _, stdout, stderr = client.exec_command(cmd_restart, timeout=25.0)
-    out_restart = stdout.read().decode("utf-8", errors="replace").strip()
-    err_restart = stderr.read().decode("utf-8", errors="replace").strip()
+    out_restart, err_restart, code_restart = executor.exec(cmd_restart, timeout=25.0)
     if out_restart:
         print(out_restart)
     if err_restart:
@@ -81,8 +132,7 @@ def run_remote_deploy():
 
     # 3.1 Check process status via python main.py --status
     cmd_status = f"cd {cfg['bot_dir']} && python main.py --status"
-    _, stdout, stderr = client.exec_command(cmd_status, timeout=10.0)
-    out_status = stdout.read().decode("utf-8", errors="replace").strip()
+    out_status, _, _ = executor.exec(cmd_status, timeout=10.0)
     print("\n📊 1. Trạng thái tiến trình (main.py --status):")
     print(out_status)
 
@@ -91,8 +141,7 @@ def run_remote_deploy():
 
     # 3.2 Check Dashboard Health endpoint
     cmd_health = f"cd {cfg['bot_dir']} && curl -s -m 5 http://localhost:5000/health"
-    _, stdout, stderr = client.exec_command(cmd_health, timeout=10.0)
-    out_health = stdout.read().decode("utf-8", errors="replace").strip()
+    out_health, _, _ = executor.exec(cmd_health, timeout=10.0)
     print(f"\n🌐 2. Kiểm tra Health Endpoint (http://localhost:5000/health):")
     print(f"   Response: {out_health or '(không có phản hồi)'}")
     dash_healthy = False
@@ -104,12 +153,10 @@ def run_remote_deploy():
 
     # 3.3 Check latest logs for crashes / tracebacks
     cmd_logs = f"cd {cfg['bot_dir']} && tail -n 12 data/bot.log 2>/dev/null"
-    _, stdout, stderr = client.exec_command(cmd_logs, timeout=10.0)
-    out_bot_log = stdout.read().decode("utf-8", errors="replace").strip()
+    out_bot_log, _, _ = executor.exec(cmd_logs, timeout=10.0)
 
     cmd_dash_log = f"cd {cfg['bot_dir']} && tail -n 12 data/dashboard.log 2>/dev/null"
-    _, stdout, stderr = client.exec_command(cmd_dash_log, timeout=10.0)
-    out_dash_log = stdout.read().decode("utf-8", errors="replace").strip()
+    out_dash_log, _, _ = executor.exec(cmd_dash_log, timeout=10.0)
 
     has_traceback = "Traceback (most recent call last)" in out_bot_log or "Traceback (most recent call last)" in out_dash_log
     
@@ -122,10 +169,7 @@ def run_remote_deploy():
     # 4. Comprehensive 20-Module Diagnostic Test on Termux (Kiểm thử chức năng & logic)
     print("\n🧪 [4/4] Đang chạy kiểm thử toàn bộ 20 modules chức năng trên Termux (python main.py --test)...")
     cmd_test = f"cd {cfg['bot_dir']} && python main.py --test"
-    _, stdout, stderr = client.exec_command(cmd_test, timeout=30.0)
-    out_test = stdout.read().decode("utf-8", errors="replace").strip()
-    err_test = stderr.read().decode("utf-8", errors="replace").strip()
-    test_exit_code = stdout.channel.recv_exit_status()
+    out_test, err_test, test_exit_code = executor.exec(cmd_test, timeout=30.0)
 
     if out_test:
         print(out_test)
@@ -137,7 +181,7 @@ def run_remote_deploy():
         or "thành công" in out_test.lower()
     )
 
-    client.close()
+    executor.close()
 
     if not (bot_running and dash_running) or has_traceback or not test_passed:
         print("\n❌ CẢNH BÁO: Phát hiện lỗi logic hoặc chức năng chưa đạt chuẩn 100% trên Termux!")
@@ -150,4 +194,3 @@ def run_remote_deploy():
 if __name__ == "__main__":
     success = run_remote_deploy()
     sys.exit(0 if success else 1)
-
