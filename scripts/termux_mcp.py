@@ -9,6 +9,12 @@ import socket
 import paramiko
 from mcp.server.mcpserver import MCPServer
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 server = MCPServer(
     name="termux-manager",
     title="ZerynBot Termux SSH Manager",
@@ -18,12 +24,15 @@ server = MCPServer(
 
 def _get_config():
     return {
-        "host": os.environ.get("TERMUX_HOST", "192.168.2.50"),
+        "host": os.environ.get("TERMUX_HOST", "127.0.0.1"),
         "port": int(os.environ.get("TERMUX_PORT", "8022")),
-        "user": os.environ.get("TERMUX_USER", "u0_a224"),
-        "password": os.environ.get("TERMUX_PASSWORD", "nam123"),
+        "user": os.environ.get("TERMUX_USER", "termux"),
+        "password": os.environ.get("TERMUX_PASSWORD"),
+        "key_file": os.environ.get("TERMUX_KEY_FILE", os.path.expanduser("~/.ssh/id_ed25519")),
+        "cf_host": os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn"),
         "bot_dir": os.environ.get("TERMUX_BOT_DIR", "~/ZerynBot"),
     }
+
 
 def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     cfg = _get_config()
@@ -31,15 +40,20 @@ def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(
-            hostname=cfg["host"],
-            port=cfg["port"],
-            username=cfg["user"],
-            password=cfg["password"],
-            timeout=2.5,
-            banner_timeout=2.5,
-            auth_timeout=2.5,
-        )
+        conn_args = {
+            "hostname": cfg["host"],
+            "port": cfg["port"],
+            "username": cfg["user"],
+            "timeout": 2.5,
+            "banner_timeout": 2.5,
+            "auth_timeout": 2.5,
+        }
+        if cfg.get("password"):
+            conn_args["password"] = cfg["password"]
+        elif os.path.exists(cfg.get("key_file", "")):
+            conn_args["key_filename"] = cfg["key_file"]
+
+        client.connect(**conn_args)
         stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
         out = stdout.read().decode("utf-8", errors="replace")
         err = stderr.read().decode("utf-8", errors="replace")

@@ -523,3 +523,33 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 - **v2.0 (2026-07)**: 
   - Rewrite on discord.py v2 + Flask web dashboard.
   - Pure In-Memory RAM Cache replacing Redis for zero external dependencies on low-resource ARM devices.
+
+---
+
+## 13. Operational Security & Data Privacy Compliance
+
+### 1. Zero Leaked Credentials & SSH Hardening
+- **Zero Secrets in Git**: No hardcoded passwords, personal usernames, or internal IP addresses in repository files.
+- **SSH Key-Based Authentication**: Remote deployment and MCP management authenticate exclusively via ed25519 key (`~/.ssh/id_ed25519`) with fallback disabled.
+- **Dynamic Configuration**: Connection details are resolved via `.env` (gitignored) or external MCP client configuration (`mcp_config.json`).
+
+### 2. Network Isolation (Loopback Binding)
+- **Localhost Binding**: Flask & Waitress bind by default to `127.0.0.1:5000` via `DASHBOARD_HOST`, completely isolating the dashboard from the local Wi-Fi / LAN network.
+- **Zero Trust Ingress**: External access is strictly mediated through Cloudflare Tunnel (`cloudflared` routing to `localhost:5000`), enforcing TLS 1.3, DDoS protection, and OAuth2 session boundaries.
+
+### 3. On-Device File Hardening & Disaster Recovery
+- **Automated Linux Permissions**: `main.py` runs `_enforce_file_security()` on startup, applying `chmod 600` to `.env`, `data/bot.db*`, and log files, and `chmod 700` to `data/`.
+- **Physical Device Protection**: Termux operations on Android are secured by File-Based Encryption (FBE) and Android App Lock (Biometric/PIN).
+- **Emergency Token Revocation SOP**: In the event of device loss, token revocation is immediate via Discord Developer Portal (*Bot → Reset Token*), instantly severing gateway connections.
+- **Private Database Backups**: SQLite automated backup archives (`.zip`) are dispatched exclusively to the private Discord webhook `BACKUP_DB`.
+
+### 4. Message Content Intent & Privacy Protection (Data Minimization)
+- **Zero Message Storage**: ZerynBot does **NOT** store any message text, chat history, or user private messages in the database (`bot.db`).
+- **RAM-Only Ephemeral Processing**:
+  - `AutoMod`: Scans message content in volatile memory for prohibited regex patterns / invite links, then discards immediately.
+  - `Leveling`: Checks timestamps and increments numeric XP/Level counters without recording message contents.
+  - `Custom Commands`: Evaluates string triggers in-memory and outputs predefined responses.
+  - `AI Assistant`: Multi-turn conversational memory is held temporarily in volatile memory buffers with TTL expiration, never written to SQLite.
+- **Transparent Audit Logging**: Deleted or edited message events are dispatched directly as embeds to the server's dedicated moderation channel configured by guild administrators; no secondary copies are retained by the bot.
+- **Discord Developer Policy Alignment**: Full adherence to Discord's Developer Terms of Service, User Data Protection, and Limited Data Retention standards.
+

@@ -94,5 +94,6 @@ Khi gặp sự cố hỏng hóc CSDL:
 | `termux_run_command` | `<command>` | Chạy lệnh bash tùy chỉnh trong thư mục bot |
 
 ### 6.3 Kết Nối Xuyên Mạng (Khi Không Ở Chung Mạng Wi-Fi)
-- **Khi ở nhà**: Kết nối trực tiếp qua LAN IP `192.168.2.50:8022`.
-- **Khi ở ngoài (trường học, cafe, 4G)**: Cài đặt **Tailscale** trên điện thoại Tecno Pova 2 và Windows PC. Cập nhật `TERMUX_HOST` thành IP ảo cố định `100.x.y.z` trong `mcp_config.json` để duy trì kết nối mọi lúc mọi nơi.
+- **Khi ở nhà**: Kết nối trực tiếp qua LAN IP nội bộ (ví dụ: `192.168.x.x:8022`).
+- **Khi ở ngoài (trường học, cafe, 4G)**: Sử dụng **Cloudflare Zero Trust SSH Tunnel** (`TERMUX_CF_HOST`) hoặc **Tailscale** trên thiết bị và Windows PC. Cập nhật `TERMUX_HOST` thành IP ảo cố định `100.x.y.z` trong `mcp_config.json` để duy trì kết nối mọi lúc mọi nơi.
+

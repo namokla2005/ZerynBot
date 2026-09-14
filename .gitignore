@@ -38,4 +38,5 @@ assets/emojis/
 scripts/generate_emojis.py
 scripts/generate_all_emojis_v2.py
 scripts/generate_preview_grid.py
-scratch/
+scratch/
+.freebuff/

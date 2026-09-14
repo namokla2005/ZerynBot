@@ -79,6 +79,35 @@ def _is_pid_running(pid: int | None) -> bool:
         return False
 
 
+def _enforce_file_security():
+    """Tự động thiết lập quyền bảo mật tệp (chmod 600 / 700) trên Linux/Termux."""
+    if os.name == "nt":
+        return
+    
+    # 1. Đặt quyền thư mục data/ thành 700 (chỉ user Termux truy cập)
+    if os.path.exists(PID_DIR):
+        try:
+            os.chmod(PID_DIR, 0o700)
+        except OSError:
+            pass
+
+    # 2. Đặt quyền tệp nhạy cảm (.env, database, logs) thành 600 (chỉ user đọc/ghi)
+    sensitive_files = [
+        os.path.join(BASE_DIR, ".env"),
+        os.path.join(PID_DIR, "bot.db"),
+        os.path.join(PID_DIR, "bot.db-wal"),
+        os.path.join(PID_DIR, "bot.db-shm"),
+        os.path.join(PID_DIR, "bot.log"),
+        os.path.join(PID_DIR, "dashboard.log"),
+    ]
+    for filepath in sensitive_files:
+        if os.path.exists(filepath):
+            try:
+                os.chmod(filepath, 0o600)
+            except OSError:
+                pass
+
+
 def stop_all():
     print("[Main] Stopping all system services...")
     
@@ -139,41 +168,31 @@ def get_live_bot_pid() -> int | None:
                     return h_pid
         except Exception:
             pass
-
-    # 3. Quét tiến trình hệ thống (Linux / Termux fallback)
     if os.name != "nt":
         try:
-            res = subprocess.check_output("pgrep -f 'main.py --bot'", shell=True, text=True).strip().splitlines()
-            if not res:
-                res = subprocess.check_output("pgrep -f 'bot/bot.py'", shell=True, text=True).strip().splitlines()
-            for p in res:
-                if p.isdigit() and _is_pid_running(int(p)):
-                    live_pid = int(p)
-                    _write_pid(PID_BOT, live_pid)
-                    return live_pid
+            out = subprocess.check_output("pgrep -f 'main.py.*--bot' 2>/dev/null", shell=True, text=True).strip()
+            if out:
+                pids = [int(p) for p in out.splitlines() if int(p) != os.getpid()]
+                if pids:
+                    return pids[0]
         except Exception:
             pass
-
     return None
 
 
 def get_live_dash_pid() -> int | None:
-    """Tìm PID chính xác của Dashboard đang chạy."""
     pid = _read_pid(PID_DASH)
     if pid and _is_pid_running(pid):
         return pid
-
     if os.name != "nt":
         try:
-            res = subprocess.check_output("pgrep -f 'main.py --dashboard'", shell=True, text=True).strip().splitlines()
-            for p in res:
-                if p.isdigit() and _is_pid_running(int(p)):
-                    live_pid = int(p)
-                    _write_pid(PID_DASH, live_pid)
-                    return live_pid
+            out = subprocess.check_output("pgrep -f 'main.py.*--dashboard' 2>/dev/null", shell=True, text=True).strip()
+            if out:
+                pids = [int(p) for p in out.splitlines() if int(p) != os.getpid()]
+                if pids:
+                    return pids[0]
         except Exception:
             pass
-
     return None
 
 
@@ -191,6 +210,7 @@ def print_status():
 
 
 def run_only_bot():
+    _enforce_file_security()
     print("[Bot] Starting Bot Discord v2...")
     _write_pid(PID_BOT, os.getpid())
     try:
@@ -204,7 +224,10 @@ def run_only_bot():
 
 
 def run_only_dashboard():
-    print("[Dashboard] Starting at http://0.0.0.0:5000...")
+    _enforce_file_security()
+    dash_host = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
+    dash_port = int(os.environ.get("DASHBOARD_PORT", "5000"))
+    print(f"[Dashboard] Starting at http://{dash_host}:{dash_port}...")
     _write_pid(PID_DASH, os.getpid())
     init_db()
     try:
@@ -214,17 +237,18 @@ def run_only_dashboard():
         try:
             from waitress import serve
             print("[Dashboard] Serving with Waitress WSGI (4 threads)...")
-            serve(app, host="0.0.0.0", port=5000, threads=4)
+            serve(app, host=dash_host, port=dash_port, threads=4)
         except ImportError:
             print("[Dashboard] WARNING: 'waitress' chưa cài — chạy Flask dev server "
                   "(không khuyến nghị cho production). pip install waitress")
-            app.run(host="0.0.0.0", port=5000, debug=False)
+            app.run(host=dash_host, port=dash_port, debug=False)
     finally:
         _remove_pid(PID_DASH)
 
 
 def start_all():
     print("[Main] Starting full system ZerynBot V2...")
+    _enforce_file_security()
 
     if os.name != "nt":
         subprocess.run("termux-wake-lock 2>/dev/null", shell=True)

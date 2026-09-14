@@ -276,11 +276,11 @@ File cấu hình tại `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`:
       "command": "python",
       "args": ["d:\\Project\\Discord Bots\\v2\\scripts\\termux_mcp.py"],
       "env": {
-        "TERMUX_HOST": "192.168.2.50",
+        "TERMUX_HOST": "192.168.x.x",
         "TERMUX_PORT": "8022",
-        "TERMUX_USER": "u0_a224",
-        "TERMUX_PASS": "nam123",
-        "BOT_DIR": "~/zerynbot"
+        "TERMUX_USER": "your_termux_user",
+        "TERMUX_KEY_FILE": "~/.ssh/id_ed25519",
+        "BOT_DIR": "~/ZerynBot"
       }
     }
   }
@@ -298,7 +298,7 @@ File cấu hình tại `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`:
 | `termux_git_pull` | `git pull origin main` | Tự động cập nhật mã nguồn mới nhất từ GitHub |
 | `termux_run_command` | `<command>` | Thực thi lệnh bash tùy chỉnh trong thư mục bot |
 
-> 🌐 **Kết Nối Xuyên Mạng**: Khi ở trường học hoặc ngoài mạng Wi-Fi gia đình, cài đặt **Tailscale** trên điện thoại Tecno Pova 2 và máy tính Windows. Thay đổi `TERMUX_HOST` thành IP ảo cố định `100.x.y.z` trong `mcp_config.json` để duy trì kết nối điều khiển 24/7.
+> 🌐 **Kết Nối Xuyên Mạng An Toàn**: Khi ở ngoài mạng Wi-Fi gia đình, sử dụng **SSH Key-based authentication** kết hợp **Cloudflare Zero Trust Tunnel** (`ssh.yourdomain.vn`) hoặc **Tailscale** (`100.x.y.z`) để duy trì kết nối điều khiển an toàn, tuyệt đối không dùng mật khẩu tĩnh.
 
 ---
 

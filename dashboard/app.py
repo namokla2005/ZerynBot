@@ -3028,4 +3028,7 @@ def admin_system_restart():
 
 if __name__ == "__main__":
     db.init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    dash_host = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
+    dash_port = int(os.environ.get("DASHBOARD_PORT", "5000"))
+    app.run(host=dash_host, port=dash_port, debug=True)
+

@@ -1,7 +1,7 @@
 """
 termux_deploy.py — Tự động đồng bộ git pull và khởi động lại Bot trên thiết bị Termux (Tecno Pova 2).
 Hỗ trợ Dual-Mode thông minh:
-  1. Mạng nội bộ LAN (192.168.2.50:8022) khi ở nhà (siêu tốc 0.2s).
+  1. Mạng nội bộ LAN (TERMUX_HOST:8022) khi ở nhà (siêu tốc 0.2s).
   2. Cloudflare Tunnel (ssh.zerynbot.id.vn) khi ở xa / 4G (tự động chuyển đổi).
 
 Sử dụng: python scripts/termux_deploy.py
@@ -15,6 +15,12 @@ import subprocess
 import paramiko
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 except AttributeError:
@@ -22,13 +28,15 @@ except AttributeError:
 
 def get_config():
     return {
-        "host": os.environ.get("TERMUX_HOST", "192.168.2.50"),
+        "host": os.environ.get("TERMUX_HOST", "127.0.0.1"),
         "port": int(os.environ.get("TERMUX_PORT", "8022")),
-        "user": os.environ.get("TERMUX_USER", "u0_a224"),
-        "password": os.environ.get("TERMUX_PASSWORD", "nam123"),
+        "user": os.environ.get("TERMUX_USER", "termux"),
+        "password": os.environ.get("TERMUX_PASSWORD"),
+        "key_file": os.environ.get("TERMUX_KEY_FILE", os.path.expanduser("~/.ssh/id_ed25519")),
         "cf_host": os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn"),
         "bot_dir": os.environ.get("TERMUX_BOT_DIR", "~/ZerynBot"),
     }
+
 
 class RemoteExecutor:
     def __init__(self, cfg):
@@ -42,15 +50,20 @@ class RemoteExecutor:
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(
-                hostname=self.cfg["host"],
-                port=self.cfg["port"],
-                username=self.cfg["user"],
-                password=self.cfg["password"],
-                timeout=3.0,
-                banner_timeout=3.0,
-                auth_timeout=3.0,
-            )
+            conn_args = {
+                "hostname": self.cfg["host"],
+                "port": self.cfg["port"],
+                "username": self.cfg["user"],
+                "timeout": 3.0,
+                "banner_timeout": 3.0,
+                "auth_timeout": 3.0,
+            }
+            if self.cfg.get("password"):
+                conn_args["password"] = self.cfg["password"]
+            elif os.path.exists(self.cfg.get("key_file", "")):
+                conn_args["key_filename"] = self.cfg["key_file"]
+
+            client.connect(**conn_args)
             self.client = client
             self.mode = "lan"
             return True, f"Mạng LAN Wi-Fi ({self.cfg['host']}:{self.cfg['port']}) [{time.time() - t0:.2f}s]"
