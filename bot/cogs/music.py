@@ -558,8 +558,12 @@ async def extract_info(query: str) -> dict | None:
     # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
     disk = await async_get_song_cache(cache_key, ttl=21600)
     if disk is not None:
-        await cache.aset(cache_key, disk, ttl=600)
-        return disk
+        exp = disk.get("stream_expire")
+        if exp and float(exp) <= (time.time() + 30):
+            disk = None
+        else:
+            await cache.aset(cache_key, disk, ttl=600)
+            return disk
 
     # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
     async with _extract_semaphore:
@@ -568,17 +572,18 @@ async def extract_info(query: str) -> dict | None:
 
     if info:
         compact = _compact_song_info(info)
+        exp_ts = compact.get("stream_expire")
         # Lưu vào In-Memory Cache (TTL 10 phút) + disk cache
         await cache.aset(cache_key, compact, ttl=600)
-        await async_set_song_cache(cache_key, compact)
+        await async_set_song_cache(cache_key, compact, exp_ts)
         vid = compact.get("id")
         if vid:
             await cache.aset(f"song_info:{vid}", compact, ttl=600)
-            await async_set_song_cache(f"song_info:{vid}", compact)
+            await async_set_song_cache(f"song_info:{vid}", compact, exp_ts)
         web_url = compact.get("webpage_url") or compact.get("url")
         if web_url and isinstance(web_url, str) and web_url.startswith("http"):
             await cache.aset(f"song_info:{web_url.lower().strip()}", compact, ttl=600)
-            await async_set_song_cache(f"song_info:{web_url.lower().strip()}", compact)
+            await async_set_song_cache(f"song_info:{web_url.lower().strip()}", compact, exp_ts)
         return compact
 
     return None
@@ -873,6 +878,26 @@ class MusicPlayer:
         if not self._manual_stopped:
             self._start_inactivity_timer()
 
+    async def _report_play_failure(self, track: Track, reason_key: str = "music.cannot_decode"):
+        """Báo cáo lỗi phát bài hát lên text channel và chuyển sang bài kế tiếp một cách an toàn."""
+        self._consecutive_errors += 1
+        if self._consecutive_errors >= 3:
+            self._consecutive_errors = 0
+            self.autoplay = False
+            await self._on_queue_empty()
+            return
+
+        if self.text_channel:
+            try:
+                s = await async_get_guild_settings(str(self.guild.id))
+                await self.text_channel.send(
+                    tr(s, reason_key, title=track.title),
+                    delete_after=8,
+                )
+            except Exception as e:
+                log.debug(f"[Music] report_play_failure send error: {e}")
+        self._dispatch_next()
+
     async def _play(self, track: Track, seek_offset: int = 0):
         async with self._play_lock:
             if not self.vc or not self.vc.is_connected():
@@ -886,13 +911,7 @@ class MusicPlayer:
                 info = await extract_info(track.url or track.title)
                 if not info:
                     log.warning(f"[Music] Cannot get stream URL for '{track.title}'")
-                    self._consecutive_errors += 1
-                    if self._consecutive_errors >= 3:
-                        self._consecutive_errors = 0
-                        self.autoplay = False
-                        await self._on_queue_empty()
-                        return
-                    self._dispatch_next()
+                    await self._report_play_failure(track)
                     return
                 track.stream_url    = info.get("stream_url") or _get_stream_url(info)
                 track.stream_expire = _extract_stream_expire(track.stream_url, info)
@@ -900,22 +919,7 @@ class MusicPlayer:
 
             if not track.stream_url:
                 log.warning(f"[Music] Cannot resolve stream URL for '{track.title}'")
-                self._consecutive_errors += 1
-                if self._consecutive_errors >= 3:
-                    self._consecutive_errors = 0
-                    self.autoplay = False
-                    await self._on_queue_empty()
-                    return
-                if self.text_channel:
-                    try:
-                        s = await async_get_guild_settings(str(self.guild.id))
-                        await self.text_channel.send(
-                            tr(s, "music.cannot_decode", title=track.title),
-                            delete_after=8,
-                        )
-                    except Exception as e:
-                        log.debug(f"[Music] cannot_decode send error: {e}")
-                self._dispatch_next()
+                await self._report_play_failure(track)
                 return
 
             self.current = track
@@ -979,22 +983,7 @@ class MusicPlayer:
                 log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus}, seek={seek_offset}s)")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
-                self._consecutive_errors += 1
-                if self._consecutive_errors >= 3:
-                    self._consecutive_errors = 0
-                    self.autoplay = False
-                    await self._on_queue_empty()
-                    return
-                if self.text_channel:
-                    try:
-                        s = await async_get_guild_settings(str(self.guild.id))
-                        await self.text_channel.send(
-                            tr(s, "music.cannot_decode", title=track.title),
-                            delete_after=8,
-                        )
-                    except Exception as e:
-                        log.debug(f"[Music] cannot_decode send error: {e}")
-                self._dispatch_next()
+                await self._report_play_failure(track)
                 return
 
             # Gửi embed Now Playing
@@ -1015,11 +1004,13 @@ class MusicPlayer:
         s = await async_get_guild_settings(str(self.guild.id))
         view  = MusicControlView(self, s)
         elapsed = self.get_elapsed()
-        embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s)
+        is_opus_copy = bool(self.vc and self.vc.source and not isinstance(self.vc.source, discord.PCMVolumeTransformer))
+        embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s, is_opus_copy=is_opus_copy)
         try:
             self.now_playing_msg = await self.text_channel.send(embed=embed, view=view)
         except Exception as e:
             log.error(f"[Music] NP embed error: {e}")
+
 
     # ── Public API ─────────────────────────────────────────────────────────
     async def add_and_play(self, track: Track):
@@ -1045,6 +1036,22 @@ class MusicPlayer:
         self.volume = max(0.01, min(1.5, volume))
         if self.vc and self.vc.source and isinstance(self.vc.source, discord.PCMVolumeTransformer):
             self.vc.source.volume = self.volume
+        if self.now_playing_msg:
+            asyncio.create_task(self.update_now_playing())
+
+    async def update_now_playing(self):
+        """Cập nhật embed Now Playing khi trạng thái thay đổi (volume/pause/autoplay)."""
+        if not self.now_playing_msg or not self.current:
+            return
+        try:
+            s = await async_get_guild_settings(str(self.guild.id))
+            elapsed = self.get_elapsed()
+            is_opus_copy = bool(self.vc and self.vc.source and not isinstance(self.vc.source, discord.PCMVolumeTransformer))
+            embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s, is_opus_copy=is_opus_copy)
+            view = MusicControlView(self, s)
+            await self.now_playing_msg.edit(embed=embed, view=view)
+        except Exception as e:
+            log.debug(f"[Music] update_now_playing error: {e}")
 
     async def stop(self):
         self._manual_stopped = True
@@ -1119,7 +1126,7 @@ def _format_queue_duration(queue: list, current_track: Track = None) -> str:
     return f"{s}s"
 
 
-def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.0, elapsed_sec: int = 0, settings: dict = None) -> discord.Embed:
+def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.0, elapsed_sec: int = 0, settings: dict = None, is_opus_copy: bool = False) -> discord.Embed:
     """Tạo Embed Now Playing chuẩn phong cách Wave Music (Compact card, right thumbnail, bold bar)."""
     s = settings or {}
     vol_percent = int(volume * 100)
@@ -1149,6 +1156,9 @@ def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.
     # Đặt thumbnail ở góc phải trên cùng thay vì ảnh to choáng màn hình
     if track.thumbnail:
         embed.set_thumbnail(url=track.thumbnail)
+
+    if is_opus_copy and volume != 1.0:
+        embed.set_footer(text=f"ℹ️ {tr(s, 'music.vol_applies_next')}")
 
     return embed
 
@@ -1703,7 +1713,11 @@ class Music(commands.Cog, name="Music"):
             return
 
         player.set_volume(level / 100.0)
-        await ctx.send(tr(s, "music.volume_changed", vol=level))
+        is_delayed = bool(player.vc and player.vc.source and not isinstance(player.vc.source, discord.PCMVolumeTransformer))
+        if is_delayed and level != 100:
+            await ctx.send(f"{tr(s, 'music.volume_changed', vol=level)}\n*ℹ️ {tr(s, 'music.vol_applies_next')}*")
+        else:
+            await ctx.send(tr(s, "music.volume_changed", vol=level))
 
     @commands.hybrid_command(name="shuffle", description="Xáo trộn ngẫu nhiên thứ tự bài hát trong hàng chờ")
     async def shuffle(self, ctx: commands.Context):

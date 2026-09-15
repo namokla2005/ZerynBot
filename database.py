@@ -1292,7 +1292,7 @@ async def async_get_playlist_by_name(guild_id: str, name: str) -> Optional[Dict]
 
 # ─── Song info disk cache (giảm thời gian re-extract sau khi restart) ─────────
 async def async_get_song_cache(cache_key: str, ttl: int = 21600) -> Optional[Any]:
-    """Trả về info dict đã lưu (JSON) nếu chưa quá TTL, ngược lại None."""
+    """Trả về info dict đã lưu (JSON) nếu chưa quá TTL và stream chưa hết hạn, ngược lại None."""
     try:
         async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
             async with db.execute(
@@ -1305,14 +1305,22 @@ async def async_get_song_cache(cache_key: str, ttl: int = 21600) -> Optional[Any
         payload, created_at = row
         if created_at and (time.time() - float(created_at)) > ttl:
             return None
-        return json.loads(payload)
+        data = json.loads(payload)
+        # Kiểm tra stream_expire động: nếu stream URL đã hết hạn hoặc sắp chết (< 30s) -> bỏ qua cache
+        if isinstance(data, dict):
+            exp = data.get("stream_expire")
+            if exp and float(exp) <= (time.time() + 30):
+                return None
+        return data
     except Exception:
         return None
 
 
-async def async_set_song_cache(cache_key: str, info: Any) -> None:
-    """Lưu info dict vào disk cache (JSON), dùng cho lần chạy sau / sau restart."""
+async def async_set_song_cache(cache_key: str, info: Any, expire_ts: Optional[float] = None) -> None:
+    """Lưu info dict vào disk cache (JSON), hỗ trợ expire_ts tùy chọn."""
     try:
+        if isinstance(info, dict) and expire_ts:
+            info["stream_expire"] = float(expire_ts)
         async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
             await db.execute(
                 "INSERT INTO music_song_cache (cache_key, payload, created_at) VALUES (?, ?, ?) "

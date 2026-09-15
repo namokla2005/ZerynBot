@@ -1602,5 +1602,6 @@
   "music.jump_invalid": "Vị trí không hợp lệ! Hàng chờ hiện có {max} bài (chọn từ 1 đến {max}).",
   "music.jumped": "⏭️ Đã nhảy tới bài **[{title}]({url})**.",
   "music.search_select_placeholder": "Chọn bài hát bạn muốn phát...",
-  "music.search_timeout": "⏱️ Đã hết thời gian lựa chọn bài hát."
+  "music.search_timeout": "⏱️ Đã hết thời gian lựa chọn bài hát.",
+  "music.vol_applies_next": "Âm lượng mới sẽ áp dụng từ bài tiếp theo"
 }

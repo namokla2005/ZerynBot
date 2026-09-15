@@ -1602,5 +1602,6 @@
   "music.jump_invalid": "无效位置！当前队列有 {max} 首歌曲（请选 1 至 {max}）。",
   "music.jumped": "⏭️ 已跳转至 **[{title}]({url})**。",
   "music.search_select_placeholder": "选择你要播放的歌曲...",
-  "music.search_timeout": "⏱️ 搜索选择已超时。"
+  "music.search_timeout": "⏱️ 搜索选择已超时。",
+  "music.vol_applies_next": "新音量将从下一首曲目开始生效"
 }

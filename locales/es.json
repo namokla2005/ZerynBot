@@ -1602,5 +1602,6 @@
   "music.jump_invalid": "¡Posición no válida! La cola tiene {max} canción(es) (elige de 1 a {max}).",
   "music.jumped": "⏭️ Saltado a la canción **[{title}]({url})**.",
   "music.search_select_placeholder": "Selecciona una canción para reproducir...",
-  "music.search_timeout": "⏱️ Tiempo de selección agotado."
+  "music.search_timeout": "⏱️ Tiempo de selección agotado.",
+  "music.vol_applies_next": "El nuevo volumen se aplicará a partir de la siguiente pista"
 }

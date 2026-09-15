@@ -18,7 +18,7 @@
 - **Web Dashboard**: Flask 3.x with Jinja2 templates, Discord OAuth2 authentication (`https://zerynbot.id.vn/callback`).
 - **Database**: SQLite in WAL mode (`data/bot.db`) with `PRAGMA busy_timeout = 15000` and automated 24h `.zip` backups routed to private `BACKUP_DB` webhook.
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`cache.py`) with thread-safe/async-safe TTL eviction.
-- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1604 keys per file.
+- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1605 keys per file.
 - **Audio Pipeline**: `yt-dlp` (`player_client: ["android", "web"]`, thread-local persistent sessions, `-rw_timeout 10000000`) + `FFmpegOpusAudio` with single-thread optimization (`-threads 1 -fflags +genpts -af aresample=async=1:first_pts=0`), dual-tier caching (RAM Cache + SQLite disk cache `music_song_cache` with real expire timestamps, <0.8s playback start), 403 stream auto-recovery, batch concurrent playlist loading, Music | 2 compact player card UI, progress bar, 5 interactive buttons, `/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`, and `/nowplaying`.
 - **DevOps & MCP Integration**: Model Context Protocol integration (`mcp_config.json`, `uvx mcp-server-sqlite`, and `scripts/termux_mcp.py` mapped to `main.py` CLI over Paramiko SSH port 8022 via LAN or Tailscale Mesh).
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
