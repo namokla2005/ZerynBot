@@ -27,6 +27,7 @@ FFMPEG_BEFORE = (
     "-reconnect 1 "
     "-reconnect_streamed 1 "
     "-reconnect_delay_max 2 "
+    "-rw_timeout 10000000 "  # 10s socket timeout chống treo vĩnh viễn khi mạng drop
     "-fflags +genpts "
     "-probesize 512K "
     "-analyzeduration 500000 "
@@ -40,38 +41,18 @@ FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1 -af aresample=async=1:first_pts=0"
 > - **yt-dlp player_client**: Luôn sử dụng `["android", "web"]`. Tuyệt đối **KHÔNG dùng client `tv`** vì YouTube trả lỗi `The page needs to be reloaded` khiến toàn bộ video & stream thất bại.
 > - Tuyệt đối không dùng các cờ không tương thích trên Termux như `-reconnect_at_eof` hoặc cờ `-headers` không được escape chuỗi đúng chuẩn.
 
-### 2.3 Cơ Chế Bộ Nhớ Đệm 2 Tầng (Dual-Tier Cache) & Trích Xuất Song Song
+### 2.3 Cơ Chế Bộ Nhớ Đệm 2 Tầng & Thread-Safe Worker Pool
+- **Thread-Safety (`threading.local`)**: Mỗi worker thread sở hữu instance `YoutubeDL` độc lập, triệt tiêu hoàn toàn race condition trong khi vẫn giữ nguyên HTTP connection pool.
 - **Tầng 1 (In-Memory RAM Cache - `cache.py`)**: Lưu trữ thông tin bài hát trong RAM (TTL 10 phút).
-- **Tầng 2 (SQLite Disk Cache - `music_song_cache`)**: Lưu `payload` JSON trích xuất từ yt-dlp vào CSDL SQLite (`async_get_song_cache` / `async_set_song_cache`) với **TTL 6 giờ**. Khi bot khởi động lại (restart), không cần tốn 2-4 giây trích xuất lại metadata từ YouTube mà phát ngay lập tức (< 0.5s).
-- **Trích xuất song song (Concurrent Extraction)**: Khi người dùng gõ `/play`, bot khởi chạy đồng thời tác vụ kết nối kênh voice (`_ensure_voice_client`) và tác vụ trích xuất metadata (`extract_info`), giúp giảm 50% tổng thời gian chờ phát bài đầu tiên.
+- **Tầng 2 (SQLite Disk Cache - `music_song_cache`)**: Lưu `payload` JSON trích xuất từ yt-dlp vào CSDL SQLite (`async_get_song_cache` / `async_set_song_cache`) với **TTL 6 giờ** (hoặc timestamp `expire` thực tế trích từ URL). Khi bot khởi động lại (restart), không cần tốn 2-4 giây trích xuất lại metadata từ YouTube mà phát ngay lập tức (< 0.5s).
+- **Trích xuất song song (Concurrent Extraction)**: Khi người dùng gõ `/play`, bot khởi chạy đồng thời tác vụ kết nối kênh voice (`_ensure_voice_client`) và tác vụ trích xuất metadata (`extract_info`), giúp giảm 50% tổng thời gian chờ phát bài đầu tiên. Tải playlist chạy nền theo batch 3 bài hát song song.
+- **Tự cứu luồng phát 403 (Auto-Recovery)**: Khi URL stream hết hạn giữa chừng, bot tự động xóa cache stream URL, trích xuất lại URL mới và tiếp tục phát ngay tại vị trí cũ (`-ss <elapsed>`).
 
 ---
 
 ## 🧩 3. Cơ Chế Nạp Thư Viện `libopus` Động
 
-Trên Android Termux và một số bản phân phối Linux, `discord.py` không thể tự động tìm thấy file `libopus.so`. Hàm `load_opus_library()` giải quyết vấn đề này:
-
-```python
-def load_opus_library():
-    if discord.opus.is_loaded():
-        return
-    opus_paths = [
-        "/data/data/com.termux/files/usr/lib/libopus.so",  # Termux Android
-        "libopus.so.0",                                   # Linux tiêu chuẩn
-        "/usr/lib/x86_64-linux-gnu/libopus.so.0",
-        "/usr/lib/aarch64-linux-gnu/libopus.so.0",
-        "libopus-0.x64.dll",                              # Windows 64-bit
-        "libopus-0.x86.dll",                              # Windows 32-bit
-        "libopus.dylib"                                   # macOS
-    ]
-    for path in opus_paths:
-        try:
-            discord.opus.load_opus(path)
-            if discord.opus.is_loaded():
-                return
-        except Exception:
-            continue
-```
+Trên Android Termux và một số bản phân phối Linux, `discord.py` không thể tự động tìm thấy file `libopus.so`. Hàm `load_opus_library()` được gom tại `bot/bot.py` và tái sử dụng ở mọi nơi.
 
 ---
 
@@ -97,17 +78,17 @@ vc.play(source, after=lambda e: self.bot.loop.call_soon_threadsafe(self.next_eve
 Để tránh tràn RAM trên thiết bị 4GB RAM, hệ thống giới hạn tối đa 6 máy chủ phát nhạc cùng lúc. Nếu server thứ 7 yêu cầu, bot sẽ thông báo lịch sự máy chủ bận.
 
 ### 4.3 Tự Động Rời Kênh Khi Không Hoạt Động (3 Phút Auto-Disconnect)
-Khi danh sách bài hát hết hoặc tất cả thành viên rời khỏi phòng Voice, khởi động bộ đếm 180s. Nếu không có bài mới sau 180s, bot tự động disconnect để trả lại tài nguyên.
+Khi danh sách bài hát hết hoặc tất cả thành viên rời khỏi phòng Voice, khởi động bộ đếm 180s. Nếu không có bài mới sau 180s, bot tự động disconnect để trả lại tài nguyên. Nếu chính bot bị ngắt kết nối (kick/disconnect khỏi voice), `on_voice_state_update` sẽ lập tức cleanup player ngay lập tức.
 
 ---
 
-## 🎨 5. Giao Diện Player Card (Music | 2 Compact Style)
+## 🎨 5. Giao Diện & Lệnh Điều Khiển Nhạc
 
-- **Layout**: Embed nhỏ gọn, ảnh thumbnail bài hát nằm bên phải (`embed.set_thumbnail`).
-- **Thanh tiến trình (Progress Bar)**: Render động dạng `🔘▬▬▬▬▬▬▬▬ 01:23 / 03:45`.
-- **5 Nút bấm điều khiển (`MusicControlView`)**:
-  - ⏯️ **Tạm dừng / Tiếp tục** (Pause / Resume)
-  - ⏭️ **Bỏ qua** (Skip)
-  - 🔁 **Lặp lại** (Loop: Off ➔ Single ➔ Queue)
-  - 🔀 **Xáo trộn** (Shuffle)
-  - ⏹️ **Dừng & Rời phòng** (Stop)
+- **Player Card**: Embed nhỏ gọn, ảnh thumbnail bên phải, thanh tiến trình `🔘▬▬▬▬▬▬▬▬ 01:23 / 03:45`, 5 nút điều khiển (`Pause/Resume`, `Skip`, `Loop`, `Shuffle`, `Stop`).
+- **Lệnh tương tác nâng cao**:
+  - `/seek <position>`: Tua tới mốc thời gian cụ thể (hỗ trợ `1:30` hoặc `90`).
+  - `/search <query>`: Tìm kiếm tương tác với menu Select 5 kết quả hàng đầu.
+  - `/remove <position>`: Xóa bài hát bất kỳ trong hàng đợi.
+  - `/clearqueue` (aliases: `cq`, `qclear`): Xóa toàn bộ hàng đợi.
+  - `/jump <position>`: Nhảy ngay tới vị trí chỉ định trong hàng đợi.
+  - Thống kê bài hát yêu thích: Ghi nhận số lượt nghe vào CSDL qua `async_increment_stat`.

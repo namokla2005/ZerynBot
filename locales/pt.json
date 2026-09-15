@@ -1587,5 +1587,20 @@
   "verify.log_removed": "Removido",
   "verify.button_success": "Verificação bem-sucedida, parabéns",
   "nav.verify": "Portão de Verificação",
-  "dashboard.verify_desc": "Verifica membros antes de entrar (anti-raid, anti-nuke)"
+  "dashboard.verify_desc": "Verifica membros antes de entrar (anti-raid, anti-nuke)",
+  "cmd.seek.desc": "Avançar/retroceder para uma posição na música (ex: 1:30 ou 90)",
+  "music.seek_invalid": "Tempo inválido! Insira no formato `mm:ss` ou segundos (ex: `1:30`, `90`).",
+  "music.seek_live_err": "Não é possível avançar em uma transmissão ao vivo!",
+  "music.seek_range_err": "O tempo ({target}) excede a duração da música ({duration})!",
+  "music.seek_success": "⏩ Música avançada para `{time}`.",
+  "cmd.remove.desc": "Remover uma música da fila pela posição",
+  "music.remove_invalid": "Posição inválida! A fila tem {max} música(s) (escolha de 1 a {max}).",
+  "music.removed_from_queue": "🗑️ Removido **[{title}]({url})** da fila.",
+  "cmd.clearqueue.desc": "Limpar todas as músicas da fila (mantém a atual)",
+  "music.queue_cleared": "🧹 Limpas **{count}** música(s) da fila.",
+  "cmd.jump.desc": "Pular diretamente para uma música específica na fila",
+  "music.jump_invalid": "Posição inválida! A fila tem {max} música(s) (escolha de 1 a {max}).",
+  "music.jumped": "⏭️ Pulou para a música **[{title}]({url})**.",
+  "music.search_select_placeholder": "Selecione uma música para tocar...",
+  "music.search_timeout": "⏱️ Tempo limite de seleção esgotado."
 }

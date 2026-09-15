@@ -61,11 +61,11 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
 
 3. **Bước 3: Bổ sung Từ Điển Đa Ngôn Ngữ (`locales/*.json`)**:
    - Bổ sung bộ key mới vào **TOÀN BỘ 6 TỆP** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1589 keys/file**).
+   - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1604 keys/file**).
    - Chạy script kiểm tra: `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
 
 4. **Bước 4: Đồng bộ Dashboard Command Registry**:
-   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `dashboard/app.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **103 lệnh** thuộc **17 danh mục**).
+   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `dashboard/app.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **107 lệnh** thuộc **17 danh mục**).
 
 5. **Bước 5: Đồng bộ Tài liệu Kiến trúc**:
    - Cập nhật số lượng lệnh và chức năng mới trong `ARCHITECTURE.md`, `README.md`, `llms.txt`.
@@ -76,7 +76,7 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
 ## 🛠️ Công Cụ & Script Tự Động Đi Kèm
 
 - 🚀 **[`assets/validate_all.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/validate_all.py)**: Bộ kiểm thử toàn diện 1-click (i18n parity, syntax py_compile, registry lệnh, docs consistency).
-- 🌐 **[`assets/validate_i18n.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/validate_i18n.py)**: Script kiểm thử tự động đồng bộ key i18n (1589 keys).
+- 🌐 **[`assets/validate_i18n.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/validate_i18n.py)**: Script kiểm thử tự động đồng bộ key i18n (1604 keys).
 - 🗄️ **[`assets/check_db_schema.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/check_db_schema.py)**: Kiểm tra cấu trúc CSDL SQLite và tính an toàn của các câu lệnh Migration.
 - 🧩 **[`assets/cog_template.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/cog_template.py)**: Code mẫu Cog chuẩn cho Discord Bot.
 - 🌐 **[`assets/endpoint_template.py`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/skills/zerynbot_architecture_context/assets/endpoint_template.py)**: Code mẫu Route & AJAX API cho Flask Dashboard.

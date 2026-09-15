@@ -1303,6 +1303,33 @@ _COMMANDS_DATA = [
                     "desc": "1. **Bài hát A** — `3:45`<br>2. **Bài hát B** — `4:02`<br>... và 10 bài hát khác."
                 }
             },
+            {
+                "name": "seek", "emoji": "⏩",
+                "desc": "Tua đến vị trí chỉ định trong bài hát (VD: 1:30 hoặc 90)",
+                "usage": "/seek [vị_trí]", "example": "/seek 1:30",
+                "args": [{"name": "position", "type": "Text", "required": True, "desc": "Vị trí thời gian cần tua (VD: 1:30 hoặc 90)"}],
+                "preview": {"type": "text", "text": "⏩ Đã tua bài hát đến `01:30`."}
+            },
+            {
+                "name": "remove", "emoji": "🗑️",
+                "desc": "Xóa một bài hát khỏi hàng chờ theo vị trí",
+                "usage": "/remove [vị_trí]", "example": "/remove 2",
+                "args": [{"name": "position", "type": "Number", "required": True, "desc": "Số thứ tự của bài hát trong hàng chờ"}],
+                "preview": {"type": "text", "text": "🗑️ Đã xóa bài hát khỏi hàng chờ."}
+            },
+            {
+                "name": "clearqueue", "emoji": "🧹",
+                "desc": "Xóa sạch toàn bộ bài hát trong hàng chờ (giữ bài đang phát)",
+                "usage": "/clearqueue", "example": "/clearqueue", "args": [],
+                "preview": {"type": "text", "text": "🧹 Đã xóa sạch 5 bài hát trong hàng chờ."}
+            },
+            {
+                "name": "jump", "emoji": "⏭️",
+                "desc": "Nhảy ngay tới bài hát chỉ định trong hàng chờ",
+                "usage": "/jump [vị_trí]", "example": "/jump 3",
+                "args": [{"name": "position", "type": "Number", "required": True, "desc": "Số thứ tự của bài hát muốn nhảy tới"}],
+                "preview": {"type": "text", "text": "⏭️ Đã nhảy tới bài hát chỉ định."}
+            },
         ]
     },
     {

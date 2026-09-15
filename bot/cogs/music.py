@@ -38,71 +38,26 @@ except (ImportError, ModuleNotFoundError):
 log = logging.getLogger("BotV2.Music")
 
 # ─── Opus Library Discovery (Termux / Linux / Windows / macOS) ───────────────
-def load_opus_library() -> bool:
-    """Tự động phát hiện và nạp libopus cho Termux, Linux, Windows, macOS."""
-    if discord.opus.is_loaded():
-        return True
-
-    opus_candidates = [
-        # 1. Android Termux
-        "/data/data/com.termux/files/usr/lib/libopus.so",
-        "/data/data/com.termux/files/usr/lib/libopus.so.0",
-        "/data/data/com.termux/files/usr/lib/libopus.so.0.8.0",
-        # 2. Linux chuẩn & ARM Linux
-        "libopus.so.0",
-        "libopus.so",
-        "/usr/lib/libopus.so.0",
-        "/usr/lib/libopus.so",
-        "/usr/lib/aarch64-linux-gnu/libopus.so.0",
-        "/usr/lib/aarch64-linux-gnu/libopus.so",
-        "/usr/lib/x86_64-linux-gnu/libopus.so.0",
-        "/usr/lib/x86_64-linux-gnu/libopus.so",
-        "/usr/lib/arm-linux-gnueabihf/libopus.so.0",
-        "/usr/local/lib/libopus.so.0",
-        "/usr/local/lib/libopus.so",
-        # 3. macOS
-        "/opt/homebrew/lib/libopus.dylib",
-        "/usr/local/lib/libopus.dylib",
-        "libopus.dylib",
-        # 4. Windows
-        "libopus-0.x86_64.dll",
-        "libopus-0.x86.dll",
-        "opus.dll",
-    ]
-
-    for candidate in opus_candidates:
-        try:
-            discord.opus.load_opus(candidate)
-            if discord.opus.is_loaded():
-                log.info(f"[Opus] Loaded Opus library successfully from: {candidate}")
-                return True
-        except Exception:
-            log.debug("[Opus] Candidate load failed: %s", candidate)
-            continue
-
+try:
+    from bot.bot import load_opus_library
+except ImportError:
     try:
-        import ctypes.util
-        lib = ctypes.util.find_library("opus")
-        if lib:
-            discord.opus.load_opus(lib)
-            if discord.opus.is_loaded():
-                log.info(f"[Opus] Loaded Opus library via ctypes: {lib}")
-                return True
-    except Exception:
-        pass
-
-    log.warning("[Opus] libopus not found. Voice playback may require libopus installed (e.g. 'pkg install libopus' on Termux).")
-    return False
+        from bot import load_opus_library
+    except ImportError:
+        def load_opus_library() -> bool:
+            return discord.opus.is_loaded()
 
 load_opus_library()
 
 # ─── FFmpeg options tối ưu cho ARM (Đồng bộ PTS chống giật & lệch tốc độ) ─────
+#   -rw_timeout 10000000     : Chặn treo đọc I/O FFmpeg khi chuyển đổi Wifi/4G hoặc mạng di động kém (10s)
 #   -fflags +genpts          : Sinh PTS khi stream thiếu/nhảy timestamp → chống "lúc nhanh lúc chậm"
 #   -probesize 512K / -analyzeduration 500000 : An toàn hơn 128K/250000 (tránh nhận sai demuxer
 #                             cho luồng AAC/m4a), vẫn nhanh hơn nhiều so với 1M/1000000 ban đầu.
 FFMPEG_BEFORE = (
     "-loglevel error "
     "-nostdin "
+    "-rw_timeout 10000000 "
     "-reconnect 1 "
     "-reconnect_streamed 1 "
     "-reconnect_on_network_error 1 "
@@ -203,30 +158,26 @@ if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
 
 _extract_semaphore = asyncio.Semaphore(4)
 
-# Singleton persistent sessions để tái sử dụng connection pool (tăng tốc 2.5x)
-_ydl_instance: yt_dlp.YoutubeDL | None = None
-_ydl_flat_instance: yt_dlp.YoutubeDL | None = None
-_ydl_lock = threading.Lock()
+# Thread-local persistent sessions để tái sử dụng connection pool theo luồng (100% thread-safe)
+_thread_local = threading.local()
 
 
 def _get_ydl() -> yt_dlp.YoutubeDL:
-    """Singleton YoutubeDL instance (tái sử dụng connection pool, giảm latency)."""
-    global _ydl_instance
-    if _ydl_instance is None:
-        with _ydl_lock:
-            if _ydl_instance is None:
-                _ydl_instance = yt_dlp.YoutubeDL(YDL_OPTS)
-    return _ydl_instance
+    """Thread-local YoutubeDL instance (tái sử dụng connection pool theo từng luồng, 100% thread-safe)."""
+    ydl = getattr(_thread_local, "ydl", None)
+    if ydl is None:
+        ydl = yt_dlp.YoutubeDL(YDL_OPTS)
+        _thread_local.ydl = ydl
+    return ydl
 
 
 def _get_ydl_flat() -> yt_dlp.YoutubeDL:
-    """Singleton Flat-Extraction YoutubeDL instance (< 1s metadata)."""
-    global _ydl_flat_instance
-    if _ydl_flat_instance is None:
-        with _ydl_lock:
-            if _ydl_flat_instance is None:
-                _ydl_flat_instance = yt_dlp.YoutubeDL(YDL_OPTS_FLAT)
-    return _ydl_flat_instance
+    """Thread-local Flat-Extraction YoutubeDL instance (< 1s metadata)."""
+    ydl = getattr(_thread_local, "ydl_flat", None)
+    if ydl is None:
+        ydl = yt_dlp.YoutubeDL(YDL_OPTS_FLAT)
+        _thread_local.ydl_flat = ydl
+    return ydl
 
 
 
@@ -337,14 +288,15 @@ def _extract_metadata_sync(query: str) -> dict | None:
         return None
 
 
-def _clean_song_title(t: str) -> str:
+def _clean_song_title(t: str, lowercase: bool = True) -> str:
     """Loại bỏ các hậu tố rác (Official MV, Lyrics, Remix,...) để so sánh tên bài hát chính xác."""
-    return re.sub(
+    cleaned = re.sub(
         r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio|lyrics",
         "",
         t,
         flags=re.IGNORECASE
-    ).strip().lower()
+    ).strip()
+    return cleaned.lower() if lowercase else cleaned
 
 
 def _is_duplicate_song(t1: str, t2: str) -> bool:
@@ -365,12 +317,7 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
     """Tìm bài hát liên quan / cùng thể loại khi bật chế độ Autoplay (< 1s)."""
     try:
         hist = history or set()
-        clean_title = re.sub(
-            r"\[.*?\]|\(.*?\)|official\s*music\s*video|official\s*video|official\s*audio|lyrics\s*video|mv|audio|lyrics",
-            "",
-            current_title,
-            flags=re.IGNORECASE
-        ).strip()
+        clean_title = _clean_song_title(current_title, lowercase=False)
         if not clean_title:
             clean_title = current_title.strip()
 
@@ -536,6 +483,40 @@ def _get_best_thumbnail(info: dict) -> str:
     return info.get("thumbnail") or ""
 
 
+def _extract_stream_expire(stream_url: str | None, info: dict) -> float:
+    """Trích xuất expire timestamp thật từ format/info yt-dlp hoặc query parameter của stream URL."""
+    if not stream_url:
+        return 0.0
+    # 1. Trực tiếp từ trường expire của info
+    if info.get("stream_expire"):
+        try:
+            return float(info["stream_expire"])
+        except (ValueError, TypeError):
+            pass
+    if info.get("expire"):
+        try:
+            return float(info["expire"])
+        except (ValueError, TypeError):
+            pass
+    # 2. Kiểm tra formats array
+    if info.get("formats"):
+        for fmt in info["formats"]:
+            if fmt.get("url") == stream_url and fmt.get("expire"):
+                try:
+                    return float(fmt["expire"])
+                except (ValueError, TypeError):
+                    pass
+    # 3. Regex param ?expire=... từ stream_url (chuẩn của Google video / YouTube stream CDN)
+    m = re.search(r"[?&]expire=(\d+)", stream_url)
+    if m:
+        try:
+            return float(m.group(1))
+        except (ValueError, TypeError):
+            pass
+    # 4. Fallback: 5.5 giờ nếu có stream_url
+    return time.time() + (5.5 * 3600)
+
+
 def _compact_song_info(info: dict) -> dict:
     """Rút gọn thông tin bài hát chỉ còn các trường cần thiết (< 0.5 KB).
 
@@ -548,13 +529,14 @@ def _compact_song_info(info: dict) -> dict:
     acodec = _get_stream_acodec(info, stream_url)
     is_opus = bool(info.get("is_opus")) if "is_opus" in info else (acodec == "opus")
     thumbnail = _get_best_thumbnail(info)
+    stream_expire = _extract_stream_expire(stream_url, info)
     return {
         "id":            info.get("id", ""),
         "title":         info.get("title", "Unknown"),
         "webpage_url":   info.get("webpage_url") or info.get("url", ""),
         "url":           info.get("url", ""),
         "stream_url":    stream_url,
-        "stream_expire": info.get("stream_expire") or (time.time() + (5.5 * 3600) if stream_url else 0),
+        "stream_expire": stream_expire,
         "duration":      info.get("duration"),
         "uploader":      info.get("uploader") or info.get("channel") or "—",
         "thumbnail":     thumbnail,
@@ -612,9 +594,10 @@ async def extract_metadata(query: str) -> dict | None:
     if cached is not None:
         return cached
 
-    # 2. Chạy Flat Extraction siêu tốc trong thread pool
-    loop = asyncio.get_running_loop()
-    info = await loop.run_in_executor(None, _extract_metadata_sync, query)
+    # 2. Chạy Flat Extraction siêu tốc trong thread pool có semaphore bảo vệ chống quá tải
+    async with _extract_semaphore:
+        loop = asyncio.get_running_loop()
+        info = await loop.run_in_executor(None, _extract_metadata_sync, query)
 
     if info:
         # Chuẩn hóa webpage_url nếu bị thiếu
@@ -629,7 +612,7 @@ async def extract_metadata(query: str) -> dict | None:
 
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
-    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus")
+    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus", "recovery_attempts")
 
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")
@@ -641,13 +624,14 @@ class Track:
         if stream_url and any(domain in stream_url.lower() for domain in ("youtube.com", "youtu.be", "soundcloud.com", "spotify.com")):
             stream_url = None
         self.stream_url    = stream_url
-        self.stream_expire = info.get("stream_expire") or (time.time() + (5.5 * 3600) if self.stream_url else 0)
+        self.stream_expire = _extract_stream_expire(self.stream_url, info)
         self.duration      = info.get("duration")
         self.uploader      = info.get("uploader") or info.get("channel") or "—"
         self.thumbnail     = info.get("thumbnail") or _get_best_thumbnail(info)
         self.requester     = requester
         # Xác định opus chính xác theo acodec (fallback heuristic nếu không tìm thấy format)
         self.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, self.stream_url) == "opus")
+        self.recovery_attempts = 0
 
 
     @property
@@ -684,6 +668,7 @@ class MusicPlayer:
         self.start_time    : float = 0.0
         self.pause_start   : float = 0.0
         self.total_paused_time : float = 0.0
+        self._skipped      : bool = False
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
@@ -748,7 +733,7 @@ class MusicPlayer:
             info = await extract_info(nxt.url or nxt.title)
             if info:
                 nxt.stream_url    = _get_stream_url(info)
-                nxt.stream_expire = time.time() + (5.5 * 3600)
+                nxt.stream_expire = _extract_stream_expire(nxt.stream_url, info)
                 nxt.is_opus       = _get_stream_acodec(info, nxt.stream_url) == "opus"
         except Exception as e:
             log.debug(f"[Music] Preload error: {e}")
@@ -764,6 +749,29 @@ class MusicPlayer:
     def _after_play(self, error=None):
         if self._manual_stopped:
             return
+
+        loop = self._get_loop()
+        elapsed = self.get_elapsed()
+
+        # 403 / Premature disconnect auto-recovery
+        # Nếu bài hát đứt đoạn giữa chừng do URL YouTube hết hạn (403) hoặc rớt mạng TCP
+        is_premature = (
+            not self._skipped
+            and self.current
+            and self.current.duration
+            and self.current.duration > 30
+            and elapsed < (self.current.duration - 15)
+        )
+        if (error or is_premature) and self.current and getattr(self.current, "recovery_attempts", 0) < 1 and not self._skipped:
+            self.current.recovery_attempts += 1
+            log.warning(
+                f"[Music] Bài hát '{self.current.title}' đứt kết nối tại {elapsed}s (error={error}, premature={is_premature}). "
+                f"Đang tự động làm mới URL và phát tiếp từ {elapsed}s..."
+            )
+            self.current.stream_url = None
+            asyncio.run_coroutine_threadsafe(self._play(self.current, seek_offset=elapsed), loop)
+            return
+
         if error:
             log.warning(f"[Music] Player error: {error}")
             self._consecutive_errors += 1
@@ -771,7 +779,6 @@ class MusicPlayer:
                 log.error(f"[Music] Gặp {self._consecutive_errors} lỗi phát nhạc liên tiếp, dừng autoplay để chống lặp.")
                 self._consecutive_errors = 0
                 self.autoplay = False
-                loop = self._get_loop()
                 asyncio.run_coroutine_threadsafe(self._on_queue_empty(), loop)
                 return
         else:
@@ -779,10 +786,12 @@ class MusicPlayer:
 
         if self.current:
             self._record_played(self.current.title)
-        loop = self._get_loop()
+
         if self.loop_mode == 1 and self.current:
+            self.current.recovery_attempts = 0
             asyncio.run_coroutine_threadsafe(self._play(self.current), loop)
         elif self.loop_mode == 2 and self.current:
+            self.current.recovery_attempts = 0
             self.queue.append(self.current)
             self._dispatch_next()
         else:
@@ -864,12 +873,13 @@ class MusicPlayer:
         if not self._manual_stopped:
             self._start_inactivity_timer()
 
-    async def _play(self, track: Track):
+    async def _play(self, track: Track, seek_offset: int = 0):
         async with self._play_lock:
             if not self.vc or not self.vc.is_connected():
                 return
 
             self._reset_inactivity_timer()
+            self._skipped = False
 
             # Lấy stream URL tươi mới nếu chưa có hoặc URL đã hết hạn (sau 5.5h)
             if not track.stream_url or track.is_stream_expired:
@@ -885,7 +895,7 @@ class MusicPlayer:
                     self._dispatch_next()
                     return
                 track.stream_url    = info.get("stream_url") or _get_stream_url(info)
-                track.stream_expire = info.get("stream_expire") or (time.time() + (5.5 * 3600))
+                track.stream_expire = _extract_stream_expire(track.stream_url, info)
                 track.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, track.stream_url) == "opus")
 
             if not track.stream_url:
@@ -909,9 +919,16 @@ class MusicPlayer:
                 return
 
             self.current = track
-            self.start_time = time.time()
+            self.start_time = time.time() - seek_offset
             self.pause_start = 0.0
             self.total_paused_time = 0.0
+
+            # Ghi nhận thống kê bài hát được phát vào DB
+            try:
+                from database import async_increment_stat
+                asyncio.create_task(async_increment_stat(str(self.guild.id), "music_play", track.title[:80]))
+            except Exception as stat_err:
+                log.debug(f"[Music] Increment stat error: {stat_err}")
 
             # Tự động chọn Opus copy mode nếu stream gốc là Opus WebM (giảm 90% CPU)
             # Dùng track.is_opus (đã xác định theo acodec), fallback heuristic URL.
@@ -929,12 +946,16 @@ class MusicPlayer:
 
             source = None
             _t_ffmpeg = time.time()
+            before_opts = FFMPEG_BEFORE
+            if seek_offset > 0:
+                before_opts = f"-ss {seek_offset} " + FFMPEG_BEFORE
+
             try:
                 if is_opus and self.volume == 1.0:
                     try:
                         source = discord.FFmpegOpusAudio(
                             track.stream_url,
-                            before_options=FFMPEG_BEFORE,
+                            before_options=before_opts,
                             options=FFMPEG_OPTS_COPY,
                         )
                     except Exception as opus_err:
@@ -944,7 +965,7 @@ class MusicPlayer:
                 if source is None:
                     source = discord.FFmpegPCMAudio(
                         track.stream_url,
-                        before_options=FFMPEG_BEFORE,
+                        before_options=before_opts,
                         options=FFMPEG_OPTS_ENCODE,
                     )
                     if self.volume != 1.0:
@@ -955,7 +976,7 @@ class MusicPlayer:
 
                 self.vc.play(source, after=self._after_play)
                 self._consecutive_errors = 0
-                log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus})")
+                log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus}, seek={seek_offset}s)")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
                 self._consecutive_errors += 1
@@ -1012,6 +1033,7 @@ class MusicPlayer:
             await self._play(track)
 
     def skip(self):
+        self._skipped = True
         if self.vc.is_playing() or self.vc.is_paused():
             self.vc.stop()
 
@@ -1345,6 +1367,106 @@ class RemoveSongView(discord.ui.View):
                 pass
 
 
+def _parse_time_str(time_str: str) -> int | None:
+    """Chuyển chuỗi thời gian (VD: '1:30', '02:45', '90', '1h20m') thành số giây."""
+    s = time_str.strip().lower()
+    if s.isdigit():
+        return int(s)
+    if ":" in s:
+        parts = s.split(":")
+        try:
+            if len(parts) == 2:
+                return int(parts[0]) * 60 + int(parts[1])
+            elif len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        except ValueError:
+            return None
+    return None
+
+
+class SearchSelect(discord.ui.Select):
+    def __init__(self, results: list[dict], requester: discord.Member, player: MusicPlayer, settings: dict):
+        self.results = results
+        self.requester = requester
+        self.player = player
+        self.settings = settings
+
+        options = []
+        for i, item in enumerate(results[:5], 1):
+            title = (item.get("title") or "Unknown")[:85]
+            uploader = item.get("uploader") or item.get("channel") or "Unknown"
+            dur = _fmt_duration(item.get("duration"))
+            options.append(discord.SelectOption(
+                label=f"{i}. {title}"[:100],
+                value=str(i - 1),
+                description=f"{dur} • {uploader}"[:100],
+                emoji="🎵"
+            ))
+
+        super().__init__(
+            placeholder=tr(settings, "music.search_select_placeholder"),
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.requester.id:
+            return await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
+
+        await interaction.response.defer()
+        idx = int(self.values[0])
+        chosen = self.results[idx]
+        query = chosen.get("webpage_url") or chosen.get("url") or chosen.get("title")
+        info = await extract_info(query)
+        if not info:
+            return await interaction.followup.send(tr(self.settings, "music.not_found", query=query), ephemeral=True)
+
+        track = Track(info, requester=self.requester)
+        if self.player.vc.is_playing() or self.player.vc.is_paused() or self.player.current:
+            self.player.queue.append(track)
+            embed = discord.Embed(
+                title=embed_title("zb_play", tr(self.settings, "music.added_to_queue")),
+                description=f"**[{track.title}]({track.url})**",
+                color=0x3B82F6,
+            )
+            embed.add_field(name=tr(self.settings, "music.duration_field"),  value=f"`{track.duration_str}`", inline=True)
+            embed.add_field(name=tr(self.settings, "music.position_field"),  value=f"`#{len(self.player.queue)}`", inline=True)
+            embed.add_field(name=tr(self.settings, "music.requester_field"), value=self.requester.mention, inline=True)
+            if track.thumbnail:
+                embed.set_thumbnail(url=track.thumbnail)
+            await interaction.followup.send(embed=embed)
+        else:
+            await self.player.add_and_play(track)
+            await interaction.followup.send(f"▶️ **{track.title}** (`{track.duration_str}`)", ephemeral=True)
+
+        # Disable selection sau khi đã chọn
+        for child in self.view.children:
+            child.disabled = True
+        try:
+            await interaction.message.edit(view=self.view)
+        except Exception:
+            pass
+        self.view.stop()
+
+
+class SearchSelectView(discord.ui.View):
+    def __init__(self, results: list[dict], requester: discord.Member, player: MusicPlayer, settings: dict):
+        super().__init__(timeout=60)
+        self.message = None
+        self.settings = settings
+        self.add_item(SearchSelect(results, requester, player, settings))
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(content=tr(self.settings, "music.search_timeout"), view=self)
+            except Exception:
+                pass
+
+
 # ─── Cog ───────────────────────────────────────────────────────────────────────
 class Music(commands.Cog, name="Music"):
     def __init__(self, bot: commands.Bot):
@@ -1422,7 +1544,17 @@ class Music(commands.Cog, name="Music"):
         before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        """Tự rời kênh sau 30s nếu không còn thành viên thực nào trong kênh voice."""
+        """Xử lý sự kiện voice channel, dọn dẹp tức thì khi bot bị kick hoặc phòng trống."""
+        # 1. Dọn dẹp tức thì nếu chính bot bị ngắt kết nối voice (bị kick hoặc disconnect)
+        if self.bot.user and member.id == self.bot.user.id:
+            if before.channel and after.channel is None:
+                log.info(f"[Music] Bot bị ngắt kết nối khỏi kênh voice tại guild {member.guild.id}. Dọn dẹp player tức thì.")
+                player = self._players.get(member.guild.id)
+                if player:
+                    await player.stop()
+                    self._drop(member.guild.id)
+            return
+
         if member.bot:
             return
         player = self._players.get(member.guild.id)
@@ -1721,6 +1853,128 @@ class Music(commands.Cog, name="Music"):
             await player.add_and_play(track)
             await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_yt_success", name=stream['name']))
 
+    # ── Queue & Navigation Management ──────────────────────────────────────
+    @commands.hybrid_command(name="seek", description="Tua đến vị trí chỉ định trong bài hát (VD: 1:30 hoặc 90)")
+    @app_commands.describe(position="Vị trí thời gian muốn tua tới (VD: 1:30 hoặc 90)")
+    async def seek_cmd(self, ctx: commands.Context, position: str):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = self._get(ctx.guild.id)
+        if not player or not player.current or not (player.vc and player.vc.is_connected()):
+            await ctx.send(tr(s, "music.no_song_playing"), ephemeral=True)
+            return
+
+        curr = player.current
+        if curr.duration is None or curr.duration <= 0:
+            await ctx.send(tr(s, "music.seek_live_err"), ephemeral=True)
+            return
+
+        target_sec = _parse_time_str(position)
+        if target_sec is None or target_sec < 0:
+            await ctx.send(tr(s, "music.seek_invalid"), ephemeral=True)
+            return
+
+        if target_sec >= curr.duration:
+            await ctx.send(
+                tr(s, "music.seek_range_err", target=_fmt_duration(target_sec), duration=curr.duration_str),
+                ephemeral=True,
+            )
+            return
+
+        await ctx.defer()
+        await player._play(curr, seek_offset=target_sec)
+        await ctx.send(tr(s, "music.seek_success", time=_fmt_duration(target_sec)))
+
+    @commands.hybrid_command(name="search", description="Tìm kiếm bài hát và chọn từ top 5 kết quả")
+    @app_commands.describe(query="Tên bài hát cần tìm kiếm")
+    async def search_cmd(self, ctx: commands.Context, *, query: str):
+        await ctx.defer()
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = await self._ensure(ctx)
+        if not player:
+            return
+
+        clean_q = clean_youtube_query(query)
+        if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
+            clean_q = f"ytsearch5:{clean_q}"
+        elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch5:"):
+            clean_q = clean_q.replace("ytsearch:", "ytsearch5:", 1)
+
+        async with _extract_semaphore:
+            loop = asyncio.get_running_loop()
+            info = await loop.run_in_executor(None, lambda: _get_ydl_flat().extract_info(clean_q, download=False))
+
+        if not info or "entries" not in info or not info.get("entries"):
+            await ctx.send(tr(s, "music.not_found", query=query))
+            return
+
+        entries = [e for e in info.get("entries") if e][:5]
+        if not entries:
+            await ctx.send(tr(s, "music.not_found", query=query))
+            return
+
+        view = SearchSelectView(entries, ctx.author, player, s)
+        desc = ""
+        for i, item in enumerate(entries, 1):
+            title = item.get("title", "Unknown")
+            dur = _fmt_duration(item.get("duration"))
+            uploader = item.get("uploader") or item.get("channel") or "Unknown"
+            desc += f"`{i}.` **{title}** `[{dur}]` — *{uploader}*\n"
+
+        embed = discord.Embed(
+            title=f"🔍 Kết quả tìm kiếm: {query[:60]}",
+            description=desc,
+            color=0x5865F2,
+        )
+        embed.set_footer(text="Chọn bài hát từ menu bên dưới (hết hạn sau 60s)")
+        msg = await ctx.send(embed=embed, view=view)
+        view.message = msg
+
+    @commands.hybrid_command(name="remove", description="Xóa một bài hát khỏi hàng chờ theo vị trí")
+    @app_commands.describe(position="Vị trí của bài hát trong hàng chờ (bắt đầu từ 1)")
+    async def remove_cmd(self, ctx: commands.Context, position: int):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = self._get(ctx.guild.id)
+        if not player or not player.queue:
+            await ctx.send(tr(s, "music.queue_empty_msg"), ephemeral=True)
+            return
+
+        if position < 1 or position > len(player.queue):
+            await ctx.send(tr(s, "music.remove_invalid", max=len(player.queue)), ephemeral=True)
+            return
+
+        removed = player.queue.pop(position - 1)
+        await ctx.send(tr(s, "music.removed_from_queue", title=removed.title, url=removed.url))
+
+    @commands.hybrid_command(name="clearqueue", aliases=["cq", "qclear"], description="Xóa sạch toàn bộ bài hát trong hàng chờ")
+    async def clearqueue_cmd(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = self._get(ctx.guild.id)
+        if not player or not player.queue:
+            await ctx.send(tr(s, "music.queue_empty_msg"), ephemeral=True)
+            return
+
+        cnt = len(player.queue)
+        player.queue.clear()
+        await ctx.send(tr(s, "music.queue_cleared", count=cnt))
+
+    @commands.hybrid_command(name="jump", description="Nhảy ngay tới bài hát chỉ định trong hàng chờ")
+    @app_commands.describe(position="Vị trí bài hát muốn nhảy tới (bắt đầu từ 1)")
+    async def jump_cmd(self, ctx: commands.Context, position: int):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        player = self._get(ctx.guild.id)
+        if not player or not player.queue:
+            await ctx.send(tr(s, "music.queue_empty_msg"), ephemeral=True)
+            return
+
+        if position < 1 or position > len(player.queue):
+            await ctx.send(tr(s, "music.jump_invalid", max=len(player.queue)), ephemeral=True)
+            return
+
+        target_track = player.queue[position - 1]
+        player.queue = player.queue[position - 1:]
+        player.skip()
+        await ctx.send(tr(s, "music.jumped", title=target_track.title, url=target_track.url))
+
     # ── Playlist commands ──────────────────────────────────────────────────
     @commands.hybrid_group(name="playlist", description="Quản lý playlist nhạc")
     async def playlist_group(self, ctx: commands.Context):
@@ -1775,20 +2029,33 @@ class Music(commands.Cog, name="Music"):
         await ctx.send(tr(s, "music.pl_added_song", title=song_title, name=name))
 
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
-        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ (giới hạn MAX_BG_LOAD bài)."""
-        for t in tracks[:MAX_BG_LOAD]:
-            query = t.get("webpage_url") or t.get("title", "")
-            try:
-                info = await extract_info(query)
-                if info:
-                    track = Track(info, requester=requester)
+        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ theo batch 3 bài song song (bảo vệ RAM/CPU)."""
+        batch_size = 3
+        slice_tracks = tracks[:MAX_BG_LOAD]
+        for i in range(0, len(slice_tracks), batch_size):
+            if player._manual_stopped or not player.vc or not player.vc.is_connected():
+                break
+            chunk = slice_tracks[i:i + batch_size]
+
+            async def _load_one(t_data):
+                query = t_data.get("webpage_url") or t_data.get("title", "")
+                try:
+                    info = await extract_info(query)
+                    if info:
+                        return Track(info, requester=requester)
+                except Exception as e:
+                    log.warning(f"[Music] Background load track error: {e}")
+                return None
+
+            batch_results = await asyncio.gather(*[_load_one(t) for t in chunk])
+            for trk in batch_results:
+                if trk:
                     if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
-                        await player.add_and_play(track)
+                        await player.add_and_play(trk)
                     else:
-                        player.queue.append(track)
-            except Exception as e:
-                log.warning(f"[Music] Background load track error: {e}")
-            await asyncio.sleep(0.2)
+                        player.queue.append(trk)
+            await asyncio.sleep(0.3)
+
         if len(tracks) > MAX_BG_LOAD:
             log.info(f"[Music] Playlist background load: chỉ nạp {MAX_BG_LOAD}/{len(tracks)} bài (giới hạn bảo vệ)")
 

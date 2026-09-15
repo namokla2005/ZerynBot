@@ -1587,5 +1587,20 @@
   "verify.log_removed": "Retiré",
   "verify.button_success": "Vérification réussie, félicitations",
   "nav.verify": "Porte de Vérification",
-  "dashboard.verify_desc": "Vérifie les membres avant l'entrée (anti-raid, anti-nuke)"
+  "dashboard.verify_desc": "Vérifie les membres avant l'entrée (anti-raid, anti-nuke)",
+  "cmd.seek.desc": "Avancer/reculer à une position dans le morceau (ex: 1:30 ou 90)",
+  "music.seek_invalid": "Temps invalide ! Veuillez saisir le format `mm:ss` ou secondes (ex: `1:30`, `90`).",
+  "music.seek_live_err": "Impossible d'avancer dans un flux en direct !",
+  "music.seek_range_err": "Le temps ({target}) dépasse la durée du morceau ({duration}) !",
+  "music.seek_success": "⏩ Morceau avancé à `{time}`.",
+  "cmd.remove.desc": "Supprimer un morceau de la file d'attente par position",
+  "music.remove_invalid": "Position invalide ! La file contient {max} morceau(x) (choisissez de 1 à {max}).",
+  "music.removed_from_queue": "🗑️ **[{title}]({url})** supprimé de la file d'attente.",
+  "cmd.clearqueue.desc": "Vider tous les morceaux de la file (conserve le morceau actuel)",
+  "music.queue_cleared": "🧹 **{count}** morceau(x) supprimé(s) de la file.",
+  "cmd.jump.desc": "Passer directement à un morceau spécifique dans la file",
+  "music.jump_invalid": "Position invalide ! La file contient {max} morceau(x) (choisissez de 1 à {max}).",
+  "music.jumped": "⏭️ Passé au morceau **[{title}]({url})**.",
+  "music.search_select_placeholder": "Choisissez un morceau à lire...",
+  "music.search_timeout": "⏱️ Délai de sélection dépassé."
 }

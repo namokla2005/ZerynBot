@@ -1587,5 +1587,20 @@
   "verify.log_removed": "Removed",
   "verify.button_success": "Verification successful, congratulations",
   "nav.verify": "Verify Gate",
-  "dashboard.verify_desc": "Verify members before they join (anti-raid, anti-nuke)"
+  "dashboard.verify_desc": "Verify members before they join (anti-raid, anti-nuke)",
+  "cmd.seek.desc": "Seek to a specific position in the current track (e.g. 1:30 or 90)",
+  "music.seek_invalid": "Invalid seek time! Please provide format `mm:ss` or seconds (e.g. `1:30`, `90`).",
+  "music.seek_live_err": "Cannot seek on a live stream!",
+  "music.seek_range_err": "Seek time ({target}) exceeds track duration ({duration})!",
+  "music.seek_success": "⏩ Seeked current track to `{time}`.",
+  "cmd.remove.desc": "Remove a track from the queue by position",
+  "music.remove_invalid": "Invalid position! The queue currently has {max} track(s) (choose 1 to {max}).",
+  "music.removed_from_queue": "🗑️ Removed **[{title}]({url})** from the queue.",
+  "cmd.clearqueue.desc": "Clear all tracks in the queue (keeps currently playing)",
+  "music.queue_cleared": "🧹 Cleared **{count}** track(s) from the queue.",
+  "cmd.jump.desc": "Jump directly to a specific track in the queue",
+  "music.jump_invalid": "Invalid position! The queue currently has {max} track(s) (choose 1 to {max}).",
+  "music.jumped": "⏭️ Jumped to track **[{title}]({url})**.",
+  "music.search_select_placeholder": "Select a song you want to play...",
+  "music.search_timeout": "⏱️ Search selection timed out."
 }

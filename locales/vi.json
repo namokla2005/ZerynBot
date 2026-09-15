@@ -1587,5 +1587,20 @@
   "verify.log_removed": "Đã gỡ",
   "verify.button_success": "Xác thực thành công, chúc mừng",
   "nav.verify": "Verify Gate",
-  "dashboard.verify_desc": "Xác thực thành viên trước khi vào server (chống raid, chống nuke)"
+  "dashboard.verify_desc": "Xác thực thành viên trước khi vào server (chống raid, chống nuke)",
+  "cmd.seek.desc": "Tua đến vị trí chỉ định trong bài hát (VD: 1:30 hoặc 90)",
+  "music.seek_invalid": "Thời gian tua không hợp lệ! Vui lòng nhập định dạng `mm:ss` hoặc số giây (VD: `1:30`, `90`).",
+  "music.seek_live_err": "Không thể tua thời gian trên luồng phát trực tiếp (Live stream)!",
+  "music.seek_range_err": "Thời gian tua ({target}) vượt quá tổng thời lượng bài hát ({duration})!",
+  "music.seek_success": "⏩ Đã tua bài hát đến `{time}`.",
+  "cmd.remove.desc": "Xóa một bài hát khỏi hàng chờ theo vị trí",
+  "music.remove_invalid": "Vị trí không hợp lệ! Hàng chờ hiện có {max} bài (chọn từ 1 đến {max}).",
+  "music.removed_from_queue": "🗑️ Đã xóa bài **[{title}]({url})** khỏi hàng chờ.",
+  "cmd.clearqueue.desc": "Xóa sạch toàn bộ bài hát trong hàng chờ (giữ bài đang phát)",
+  "music.queue_cleared": "🧹 Đã xóa sạch **{count}** bài hát trong hàng chờ.",
+  "cmd.jump.desc": "Nhảy ngay tới bài hát chỉ định trong hàng chờ",
+  "music.jump_invalid": "Vị trí không hợp lệ! Hàng chờ hiện có {max} bài (chọn từ 1 đến {max}).",
+  "music.jumped": "⏭️ Đã nhảy tới bài **[{title}]({url})**.",
+  "music.search_select_placeholder": "Chọn bài hát bạn muốn phát...",
+  "music.search_timeout": "⏱️ Đã hết thời gian lựa chọn bài hát."
 }

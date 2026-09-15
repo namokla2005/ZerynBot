@@ -1587,5 +1587,20 @@
   "verify.log_removed": "已移除",
   "verify.button_success": "验证成功，恭喜",
   "nav.verify": "验证门禁",
-  "dashboard.verify_desc": "进入服务器前验证成员（防突袭、防轰炸）"
+  "dashboard.verify_desc": "进入服务器前验证成员（防突袭、防轰炸）",
+  "cmd.seek.desc": "快进/后退到歌曲指定时间（例如 1:30 或 90）",
+  "music.seek_invalid": "无效的跳转时间！请输入 `分:秒` 或秒数（例如 `1:30`，`90`）。",
+  "music.seek_live_err": "无法在直播流中调整播放进度！",
+  "music.seek_range_err": "跳转时间 ({target}) 超出歌曲总时长 ({duration})！",
+  "music.seek_success": "⏩ 已快进至 `{time}`。",
+  "cmd.remove.desc": "从播放队列中移除指定位置的歌曲",
+  "music.remove_invalid": "无效位置！当前队列有 {max} 首歌曲（请选 1 至 {max}）。",
+  "music.removed_from_queue": "🗑️ 已从队列中移除 **[{title}]({url})**。",
+  "cmd.clearqueue.desc": "清空播放队列中的所有歌曲（保留正在播放的歌曲）",
+  "music.queue_cleared": "🧹 已清空队列中的 **{count}** 首歌曲。",
+  "cmd.jump.desc": "直接跳转播放队列中的指定歌曲",
+  "music.jump_invalid": "无效位置！当前队列有 {max} 首歌曲（请选 1 至 {max}）。",
+  "music.jumped": "⏭️ 已跳转至 **[{title}]({url})**。",
+  "music.search_select_placeholder": "选择你要播放的歌曲...",
+  "music.search_timeout": "⏱️ 搜索选择已超时。"
 }

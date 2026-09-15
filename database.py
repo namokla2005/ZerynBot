@@ -1051,6 +1051,35 @@ def get_guild_stats(guild_id: str, days: int = 7) -> list:
         """, (guild_id, start_date))
         return [_row_to_dict(row) for row in cur.fetchall()]
 
+def get_top_played_songs(guild_id: str, limit: int = 10) -> list[dict]:
+    """Lấy danh sách các bài hát được nghe nhiều nhất trong server (Dashboard sync)."""
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute("""
+            SELECT event_label as title, SUM(count) as play_count
+            FROM guild_stats
+            WHERE guild_id = ? AND event_type = 'music_play'
+            GROUP BY event_label
+            ORDER BY play_count DESC
+            LIMIT ?
+        """, (guild_id, limit))
+        return [_row_to_dict(row) for row in cur.fetchall()]
+
+async def async_get_top_played_songs(guild_id: str, limit: int = 10) -> list[dict]:
+    """Lấy danh sách các bài hát được nghe nhiều nhất trong server (Bot async)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT event_label as title, SUM(count) as play_count
+            FROM guild_stats
+            WHERE guild_id = ? AND event_type = 'music_play'
+            GROUP BY event_label
+            ORDER BY play_count DESC
+            LIMIT ?
+        """, (guild_id, limit)) as cur:
+            rows = await cur.fetchall()
+            return [_row_to_dict(row) for row in rows]
+
 async def async_is_module_enabled(guild_id: str, module_name: str) -> bool:
     # Đọc cả dict modules (đã được cache ở get_guild_modules / set_module) để tận dụng
     # cache key "modules:{guild_id}" dùng chung giữa sync (dashboard) và async (bot).

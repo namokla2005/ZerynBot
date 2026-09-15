@@ -27,7 +27,6 @@ def _get_config():
         "host": os.environ.get("TERMUX_HOST", "127.0.0.1"),
         "port": int(os.environ.get("TERMUX_PORT", "8022")),
         "user": os.environ.get("TERMUX_USER", "termux"),
-        "password": os.environ.get("TERMUX_PASSWORD"),
         "key_file": os.environ.get("TERMUX_KEY_FILE", os.path.expanduser("~/.ssh/id_ed25519")),
         "cf_host": os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn"),
         "bot_dir": os.environ.get("TERMUX_BOT_DIR", "~/ZerynBot"),
@@ -36,7 +35,7 @@ def _get_config():
 
 def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     cfg = _get_config()
-    # 1. Thử kết nối mạng LAN nội bộ trước (khi ở nhà)
+    # 1. Thử kết nối mạng LAN nội bộ trước (khi ở nhà) bằng SSH Key
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
@@ -47,11 +46,11 @@ def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
             "timeout": 2.5,
             "banner_timeout": 2.5,
             "auth_timeout": 2.5,
+            "look_for_keys": True,
         }
-        if cfg.get("password"):
-            conn_args["password"] = cfg["password"]
-        elif os.path.exists(cfg.get("key_file", "")):
+        if os.path.exists(cfg.get("key_file", "")):
             conn_args["key_filename"] = cfg["key_file"]
+
 
         client.connect(**conn_args)
         stdin, stdout, stderr = client.exec_command(cmd, timeout=timeout)
