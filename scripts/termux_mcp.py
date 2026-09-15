@@ -71,9 +71,11 @@ def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
         cf_host = os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn")
         res = subprocess.run(
             ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", cf_host, cmd],
-            capture_output=True, text=True, timeout=timeout
+            capture_output=True, timeout=timeout
         )
-        return res.stdout if res.stdout else res.stderr
+        out = res.stdout.decode("utf-8", errors="replace").strip() if res.stdout else ""
+        err = res.stderr.decode("utf-8", errors="replace").strip() if res.stderr else ""
+        return out if out else err
     except Exception as e:
         return f"❌ LỖI KẾT NỐI (Cả LAN {cfg['host']} và Cloudflare Tunnel {os.environ.get('TERMUX_CF_HOST', 'ssh.zerynbot.id.vn')} đều thất bại): {e}"
 

@@ -93,9 +93,11 @@ class RemoteExecutor:
         elif self.mode == "cf":
             res = subprocess.run(
                 ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", self.cfg["cf_host"], cmd],
-                capture_output=True, text=True, timeout=timeout
+                capture_output=True, timeout=timeout
             )
-            return res.stdout.strip(), res.stderr.strip(), res.returncode
+            out = res.stdout.decode("utf-8", errors="replace").strip() if res.stdout else ""
+            err = res.stderr.decode("utf-8", errors="replace").strip() if res.stderr else ""
+            return out, err, res.returncode
         return "", "Not connected", 1
 
     def close(self):
