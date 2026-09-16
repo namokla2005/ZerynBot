@@ -463,22 +463,26 @@ class Automod(commands.Cog):
         nuke_actions = settings.get("nuke_actions") or ["channel_delete", "role_delete", "guild_update"]
 
         actor = await self._find_nuke_actor(guild)
-        desc = f"💥 Phát hiện **{count} object** bị xoá trong 10 giây (kênh/vai trò)."
 
-        if actor:
-            desc += f"\n**Thủ phạm:** {actor.mention} (`{actor.id}`)"
+        # Tránh false-positive: Nếu do bot xoá (tempvoice, verify clean) hoặc không tìm thấy thủ phạm
+        if not actor or actor.bot:
+            logger.info(f"[AutoMod] Bỏ qua anti-nuke cho guild {guild.name} ({guild_id}): actor={actor} (bot hoặc không xác định)")
+            return
+
+        desc = f"💥 Phát hiện **{count} object** bị xoá trong 10 giây (kênh/vai trò)."
+        desc += f"\n**Thủ phạm:** {actor.mention} (`{actor.id}`)"
+        try:
+            await guild.ban(actor, reason=f"Anti-Nuke: mass {'/'.join(nuke_actions)}", delete_message_seconds=0)
+            desc += "\n**Hành động:** ⛔ Đã ban."
+        except discord.Forbidden:
             try:
-                await guild.ban(actor, reason=f"Anti-Nuke: mass {'/'.join(nuke_actions)}", delete_message_seconds=0)
-                desc += "\n**Hành động:** ⛔ Đã ban."
+                await actor.timeout(timedelta(hours=24), reason="Anti-Nuke: mass deletion")
+                desc += "\n**Hành động:** ⏰ Đã timeout 24h (thiếu quyền ban)."
             except discord.Forbidden:
-                try:
-                    await actor.timeout(timedelta(hours=24), reason="Anti-Nuke: mass deletion")
-                    desc += "\n**Hành động:** ⏰ Đã timeout 24h (thiếu quyền ban)."
-                except discord.Forbidden:
-                    desc += "\n**Hành động:** ⚠️ Thiếu quyền ban/timeout."
-            except Exception as exc:
-                logger.warning(f"[AutoMod] nuke ban error: {exc}")
-                desc += "\n**Hành động:** ⚠️ Lỗi khi ban."
+                desc += "\n**Hành động:** ⚠️ Thiếu quyền ban/timeout."
+        except Exception as exc:
+            logger.warning(f"[AutoMod] nuke ban error: {exc}")
+            desc += "\n**Hành động:** ⚠️ Lỗi khi ban."
 
         # Bảo vệ: chuyển sang lockdown để chặn thiệt hại tiếp
         if guild_id not in self.raid_locked_guilds:
@@ -498,7 +502,7 @@ class Automod(commands.Cog):
         for action in (discord.AuditLogAction.channel_delete, discord.AuditLogAction.role_delete):
             try:
                 async for entry in guild.audit_logs(limit=5, action=action):
-                    if entry.user and not entry.user.bot and entry.created_at and \
+                    if entry.user and entry.created_at and \
                        (now - entry.created_at).total_seconds() < 30:
                         return entry.user
             except discord.Forbidden:

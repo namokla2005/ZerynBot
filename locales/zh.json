@@ -1603,5 +1603,7 @@
   "music.jumped": "⏭️ 已跳转至 **[{title}]({url})**。",
   "music.search_select_placeholder": "选择你要播放的歌曲...",
   "music.search_timeout": "⏱️ 搜索选择已超时。",
-  "music.vol_applies_next": "新音量将从下一首曲目开始生效"
+  "music.vol_applies_next": "新音量将从下一首曲目开始生效",
+  "music.top_empty": "本周暂无歌曲播放数据。",
+  "music.top_title": "本周热门播放榜"
 }

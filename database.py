@@ -326,6 +326,19 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_inventory_lookup ON user_inventory (guild_id, user_id);
 
+            CREATE TABLE IF NOT EXISTS economy_transactions (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id        TEXT NOT NULL,
+                user_id         TEXT NOT NULL,
+                kind            TEXT NOT NULL,
+                amount          INTEGER NOT NULL,
+                counterparty    TEXT,
+                note            TEXT,
+                created_at      REAL NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_econ_tx ON economy_transactions (guild_id, user_id, created_at DESC);
+
             CREATE TABLE IF NOT EXISTS tempvoice_settings (
                 guild_id            TEXT PRIMARY KEY,
                 enabled             INTEGER DEFAULT 0,
@@ -1079,6 +1092,51 @@ async def async_get_top_played_songs(guild_id: str, limit: int = 10) -> list[dic
         """, (guild_id, limit)) as cur:
             rows = await cur.fetchall()
             return [_row_to_dict(row) for row in rows]
+
+
+def get_top_music(guild_id: str, since_ts: float = 0, limit: int = 10) -> list[dict]:
+    """Lấy danh sách các bài hát nghe nhiều nhất (Sync - Dashboard)."""
+    import datetime
+    query = """
+        SELECT event_label, SUM(count) as plays
+        FROM guild_stats
+        WHERE guild_id = ? AND event_type IN ('music', 'music_play')
+    """
+    params: list = [guild_id]
+    if since_ts > 0:
+        start_date = datetime.datetime.fromtimestamp(since_ts, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:00:00")
+        query += " AND date_hour >= ?"
+        params.append(start_date)
+    query += " GROUP BY event_label ORDER BY plays DESC LIMIT ?"
+    params.append(limit)
+
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(query, tuple(params))
+        return [_row_to_dict(r) for r in cur.fetchall()]
+
+
+async def async_get_top_music(guild_id: str, since_ts: float = 0, limit: int = 10) -> list[dict]:
+    """Lấy danh sách các bài hát nghe nhiều nhất (Async - Bot /topmusic)."""
+    import datetime
+    query = """
+        SELECT event_label, SUM(count) as plays
+        FROM guild_stats
+        WHERE guild_id = ? AND event_type IN ('music', 'music_play')
+    """
+    params: list = [guild_id]
+    if since_ts > 0:
+        start_date = datetime.datetime.fromtimestamp(since_ts, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:00:00")
+        query += " AND date_hour >= ?"
+        params.append(start_date)
+    query += " GROUP BY event_label ORDER BY plays DESC LIMIT ?"
+    params.append(limit)
+
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(query, tuple(params)) as cur:
+            rows = await cur.fetchall()
+            return [_row_to_dict(r) for r in rows]
 
 async def async_is_module_enabled(guild_id: str, module_name: str) -> bool:
     # Đọc cả dict modules (đã được cache ở get_guild_modules / set_module) để tận dụng
@@ -1980,6 +2038,63 @@ async def async_modify_wallet(guild_id: str, user_id: str, delta: int) -> dict:
     return await async_get_economy_user(guild_id, user_id)
 
 
+async def async_place_bet(guild_id: str, user_id: str, amount: int) -> bool:
+    """Trừ tiền cược NGUYÊN TỬ: chỉ thành công nếu wallet >= amount.
+    Chặn 2 lệnh cược đồng thời vượt số dư ví."""
+    if amount <= 0:
+        return False
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        await db.execute("""
+            INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, 50, 0, 0, 0)
+        """, (guild_id, user_id))
+        cursor = await db.execute("""
+            UPDATE economy_users
+            SET wallet = wallet - ?
+            WHERE guild_id = ? AND user_id = ? AND wallet >= ?
+        """, (amount, guild_id, user_id, amount))
+        if cursor.rowcount > 0:
+            now = time.time()
+            await db.execute("""
+                INSERT INTO economy_transactions (guild_id, user_id, kind, amount, created_at)
+                VALUES (?, ?, 'bet', ?, ?)
+            """, (guild_id, user_id, -amount, now))
+            await db.commit()
+            return True
+        return False
+
+
+async def async_log_transaction(guild_id: str, user_id: str, kind: str, amount: int, counterparty: Optional[str] = None, note: Optional[str] = None) -> None:
+    """Ghi nhận một giao dịch vào nhật ký tài chính economy_transactions."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+            await db.execute("""
+                INSERT INTO economy_transactions (guild_id, user_id, kind, amount, counterparty, note, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (guild_id, user_id, kind, amount, counterparty, note, time.time()))
+            await db.commit()
+    except Exception as exc:
+        logger.debug(f"[EconomyTx] log transaction error: {exc}")
+
+
+async def async_get_user_transactions(guild_id: str, user_id: str, limit: int = 20) -> list:
+    """Lấy danh sách các giao dịch gần đây của người dùng."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("""
+                SELECT * FROM economy_transactions
+                WHERE guild_id = ? AND user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (guild_id, user_id, limit)) as cur:
+                rows = await cur.fetchall()
+                return [_row_to_dict(r) for r in rows]
+    except Exception as exc:
+        logger.debug(f"[EconomyTx] get transactions error: {exc}")
+        return []
+
+
 async def async_transfer_money(guild_id: str, from_user_id: str, to_user_id: str, amount: int) -> bool:
     if amount <= 0 or from_user_id == to_user_id:
         return False
@@ -2005,6 +2120,18 @@ async def async_transfer_money(guild_id: str, from_user_id: str, to_user_id: str
             SET wallet = wallet + ?
             WHERE guild_id = ? AND user_id = ?
         """, (amount, guild_id, to_user_id))
+
+        # Ghi transaction log cho cả người gửi và người nhận trên cùng transaction
+        now = time.time()
+        await db.execute("""
+            INSERT INTO economy_transactions (guild_id, user_id, kind, amount, counterparty, created_at)
+            VALUES (?, ?, 'transfer_out', ?, ?, ?)
+        """, (guild_id, from_user_id, -amount, to_user_id, now))
+        await db.execute("""
+            INSERT INTO economy_transactions (guild_id, user_id, kind, amount, counterparty, created_at)
+            VALUES (?, ?, 'transfer_in', ?, ?, ?)
+        """, (guild_id, to_user_id, amount, from_user_id, now))
+
         await db.commit()
         return True
 

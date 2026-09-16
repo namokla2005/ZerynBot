@@ -1603,5 +1603,7 @@
   "music.jumped": "⏭️ Đã nhảy tới bài **[{title}]({url})**.",
   "music.search_select_placeholder": "Chọn bài hát bạn muốn phát...",
   "music.search_timeout": "⏱️ Đã hết thời gian lựa chọn bài hát.",
-  "music.vol_applies_next": "Âm lượng mới sẽ áp dụng từ bài tiếp theo"
+  "music.vol_applies_next": "Âm lượng mới sẽ áp dụng từ bài tiếp theo",
+  "music.top_empty": "Chưa có dữ liệu bài hát nào được phát trong tuần này.",
+  "music.top_title": "Top Nhạc Nghe Nhiều Nhất Tuần"
 }

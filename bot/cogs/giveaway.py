@@ -323,7 +323,7 @@ class Giveaway(commands.Cog):
         else:
             await channel.send(tr(s, "giveaway.ended_empty", prize=gw['prize'], url=msg.jump_url))
 
-    @tasks.loop(seconds=15)
+    @tasks.loop(seconds=30)
     async def giveaway_loop(self):
         active_gws = await async_get_active_giveaways()
         now = time.time()

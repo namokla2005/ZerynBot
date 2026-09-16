@@ -89,17 +89,35 @@ def get_bot_guilds() -> list:
         return []
     return resp.json()
 
+_MEMBER_ROLES_TTL = 60.0
+_member_roles_cache: dict = {}  # (guild_id, user_id) -> (timestamp, list_of_roles)
+
 def get_member_roles(guild_id: str, user_id: str) -> list:
-    """Fetch member's role IDs from a guild using the bot token."""
-    resp = requests.get(
-        f"{config.DISCORD_API_BASE}/guilds/{guild_id}/members/{user_id}",
-        headers={"Authorization": f"Bot {config.TOKEN}"},
-        timeout=10,
-    )
-    if not resp.ok:
-        return []
-    data = resp.json()
-    return data.get("roles", [])
+    """Fetch member's role IDs from a guild using the bot token (cached 60s)."""
+    global _member_roles_cache
+    now = time.time()
+    cache_key = (str(guild_id), str(user_id))
+    cached = _member_roles_cache.get(cache_key)
+    if cached and now - cached[0] < _MEMBER_ROLES_TTL:
+        return cached[1]
+
+    if len(_member_roles_cache) > 500:
+        _member_roles_cache = {k: v for k, v in _member_roles_cache.items() if now - v[0] < _MEMBER_ROLES_TTL}
+
+    try:
+        resp = requests.get(
+            f"{config.DISCORD_API_BASE}/guilds/{guild_id}/members/{user_id}",
+            headers={"Authorization": f"Bot {config.TOKEN}"},
+            timeout=5,
+        )
+        if not resp.ok:
+            return cached[1] if cached else []
+        data = resp.json()
+        roles = data.get("roles", [])
+        _member_roles_cache[cache_key] = (now, roles)
+        return roles
+    except Exception:
+        return cached[1] if cached else []
 
 
 def get_manageable_guilds(access_token: str) -> list:

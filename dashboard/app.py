@@ -1330,6 +1330,15 @@ _COMMANDS_DATA = [
                 "args": [{"name": "position", "type": "Number", "required": True, "desc": "Số thứ tự của bài hát muốn nhảy tới"}],
                 "preview": {"type": "text", "text": "⏭️ Đã nhảy tới bài hát chỉ định."}
             },
+            {
+                "name": "topmusic", "emoji": "🏆",
+                "desc": "Bảng xếp hạng các bài hát được nghe nhiều nhất trong server",
+                "usage": "/topmusic", "example": "/topmusic", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "🏆 Top Bài Hát Nghe Nhiều Nhất",
+                    "desc": "🥇 **Bài hát A** — **45** lần nghe<br>🥈 **Bài hát B** — **32** lần nghe<br>🥉 **Bài hát C** — **18** lần nghe"
+                }
+            },
         ]
     },
     {
@@ -2327,6 +2336,24 @@ def owner_required(f):
     return decorated
 
 
+def stepup_required(f):
+    """Decorator: yêu cầu xác thực mật khẩu cấp cao (Step-Up Auth) trong vòng 15 phút."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        admin_pass = getattr(config, "ADMIN_PASSWORD", None)
+        if admin_pass:
+            until = session.get("stepup_auth_until", 0)
+            if _time.time() > until:
+                return jsonify({
+                    "ok": False,
+                    "error": "stepup_required",
+                    "message": "🔒 Yêu cầu xác thực mật khẩu quản trị cấp cao để thực hiện thao tác này."
+                }), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
 def _get_all_bot_guilds_detailed() -> list:
     """Lấy danh sách tất cả server bot đang có mặt, kèm thông tin chi tiết."""
     try:
@@ -2840,9 +2867,30 @@ def admin_broadcast():
 
 # ─── System / Terminal Control Routes ──────────────────────────────────────────
 
+@app.route("/admin/system/stepup", methods=["POST"])
+@limiter.limit("5/minute")
+@owner_required
+def admin_system_stepup():
+    """Xác thực mật khẩu cấp cao (Step-Up Auth), mở khóa 15 phút."""
+    data = request.get_json(silent=True) or request.form or {}
+    password = data.get("password", "")
+    admin_pass = getattr(config, "ADMIN_PASSWORD", None)
+
+    if not admin_pass:
+        session["stepup_auth_until"] = _time.time() + 900
+        return jsonify({"ok": True, "message": "Step-Up auth granted (no password configured)"}), 200
+
+    if secrets.compare_digest(str(password), str(admin_pass)):
+        session["stepup_auth_until"] = _time.time() + 900
+        return jsonify({"ok": True, "message": "✅ Xác thực thành công! Quyền quản trị mở trong 15 phút."}), 200
+
+    return jsonify({"ok": False, "message": "❌ Mật khẩu quản trị không chính xác!"}), 403
+
+
 @app.route("/admin/system/terminal", methods=["POST"])
 @limiter.limit("30/minute")
 @owner_required
+@stepup_required
 def admin_system_terminal():
     """Chạy lệnh shell terminal trực tiếp trên máy chủ host (Termux / Linux / Windows)."""
     data = request.get_json(silent=True) or request.form or {}
@@ -3002,6 +3050,7 @@ def admin_system_terminal():
 @app.route("/admin/system/git-pull", methods=["POST"])
 @limiter.limit("5/minute")
 @owner_required
+@stepup_required
 def admin_system_git_pull():
     """Cập nhật code mới nhất từ Git (git pull)."""
     try:
@@ -3034,6 +3083,7 @@ def admin_system_git_pull():
 @app.route("/admin/system/restart", methods=["POST"])
 @limiter.limit("10/minute")
 @owner_required
+@stepup_required
 def admin_system_restart():
     """Khởi động lại toàn bộ hệ thống Bot & Dashboard."""
     try:

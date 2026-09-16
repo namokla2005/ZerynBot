@@ -711,6 +711,25 @@
   </div>
 </div>
 
+<!-- Modal: Step-Up Auth -->
+<div class="modal-overlay" id="stepupModal">
+  <div class="modal-box">
+    <div class="modal-title" style="color:#FEE75C;"><i class="bi bi-shield-lock-fill"></i> Xác Thực Quản Trị Cấp Cao</div>
+    <p class="modal-subtitle">Thao tác này yêu cầu mật khẩu quản trị viên (hiệu lực trong 15 phút).</p>
+    
+    <div class="modal-field">
+      <label class="modal-label">Mật khẩu Admin</label>
+      <input type="password" id="stepupPasswordInput" class="modal-input" placeholder="Nhập mật khẩu quản trị..." autocomplete="current-password" onkeydown="if(event.key==='Enter') submitStepUpAuth()">
+      <div id="stepupError" style="color:#ed4245;font-size:0.85rem;margin-top:6px;display:none;"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" onclick="closeStepUpModal()"><i class="bi bi-x-lg"></i> {{ t('admin.btn_cancel') }}</button>
+      <button type="button" class="btn-confirm-broadcast" style="background:#FEE75C;color:#000;" onclick="submitStepUpAuth()"><i class="bi bi-unlock-fill"></i> Mở khóa</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // Guild name map (safe JS object)
   const guildNames = {
@@ -904,9 +923,17 @@
           throw new Error(`Máy chủ trả về HTTP ${res.status}. Vui lòng kiểm tra lại dịch vụ Flask Dashboard.`);
         }
       }
-      return res.json();
+      const data = await res.json();
+      if (res.status === 401 && data.error === 'stepup_required') {
+        const term = document.getElementById('terminalOutput');
+        if (term.lastChild) term.removeChild(term.lastChild);
+        promptStepUpAuth(() => sendTerminalCommand(command));
+        return null;
+      }
+      return data;
     })
     .then(data => {
+      if (!data) return;
       const term = document.getElementById('terminalOutput');
       if (term.lastChild) term.removeChild(term.lastChild);
 
@@ -929,6 +956,56 @@
       if (term.lastChild) term.removeChild(term.lastChild);
       appendTerminalOutput(command, err.message || ('API Error: ' + err), true);
     });
+  }
+
+  let _stepupPendingCallback = null;
+
+  function promptStepUpAuth(callback) {
+    _stepupPendingCallback = callback;
+    document.getElementById('stepupPasswordInput').value = '';
+    document.getElementById('stepupError').style.display = 'none';
+    document.getElementById('stepupModal').classList.add('active');
+    setTimeout(() => {
+      document.getElementById('stepupPasswordInput').focus();
+    }, 100);
+  }
+
+  function closeStepUpModal() {
+    document.getElementById('stepupModal').classList.remove('active');
+    _stepupPendingCallback = null;
+  }
+
+  async function submitStepUpAuth() {
+    const pwd = document.getElementById('stepupPasswordInput').value;
+    const errEl = document.getElementById('stepupError');
+    if (!pwd) {
+      errEl.textContent = 'Vui lòng nhập mật khẩu quản trị!';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      const res = await fetch('/admin/system/stepup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        closeStepUpModal();
+        if (typeof _stepupPendingCallback === 'function') {
+          const cb = _stepupPendingCallback;
+          _stepupPendingCallback = null;
+          cb();
+        }
+      } else {
+        errEl.textContent = data.message || 'Mật khẩu không chính xác!';
+        errEl.style.display = 'block';
+      }
+    } catch (e) {
+      errEl.textContent = 'Lỗi kết nối máy chủ: ' + e;
+      errEl.style.display = 'block';
+    }
   }
 
   function handleTerminalKeyDown(e) {
@@ -1183,7 +1260,7 @@
     }
   });
 
-  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); closeInviteModal(); } });
+  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); closeInviteModal(); closeStepUpModal(); } });
 </script>
 <style>
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

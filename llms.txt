@@ -18,7 +18,7 @@
 - **Web Dashboard**: Flask 3.x with Jinja2 templates, Discord OAuth2 authentication (`https://zerynbot.id.vn/callback`).
 - **Database**: SQLite in WAL mode (`data/bot.db`) with `PRAGMA busy_timeout = 15000` and automated 24h `.zip` backups routed to private `BACKUP_DB` webhook.
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`cache.py`) with thread-safe/async-safe TTL eviction.
-- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1605 keys per file.
+- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1607 keys per file.
 - **Audio Pipeline**: `yt-dlp` (`player_client: ["android", "web"]`, thread-local persistent sessions, `-rw_timeout 10000000`) + `FFmpegOpusAudio` with single-thread optimization (`-threads 1 -fflags +genpts -af aresample=async=1:first_pts=0`), dual-tier caching (RAM Cache + SQLite disk cache `music_song_cache` with real expire timestamps, <0.8s playback start), 403 stream auto-recovery, batch concurrent playlist loading, Music | 2 compact player card UI, progress bar, 5 interactive buttons, `/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`, and `/nowplaying`.
 - **DevOps & MCP Integration**: Model Context Protocol integration (`mcp_config.json`, `uvx mcp-server-sqlite`, and `scripts/termux_mcp.py` mapped to `main.py` CLI over Paramiko SSH port 8022 via LAN or Tailscale Mesh).
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
@@ -42,7 +42,7 @@
 13. **tempvoice**: Join-to-Create voice hubs with in-chat button controls (Lock, Limit, Rename, Kick) and auto-deletion.
 14. **customcommands**: Custom command triggers and auto-responders with variable replacements (`{user}`, `{server}`, `{members}`).
 15. **ai**: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini, OpenRouter AI assistant (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona, Vision support, DuckDuckGo web search, SSRF guard).
-16. **remind**: Scheduled smart reminders and timers (`/remindme`, `/reminders`, `/delreminder`) with 15s background watchdog.
+16. **remind**: Scheduled smart reminders and timers (`/remindme`, `/reminders`, `/delreminder`) with 30s background watchdog.
 17. **moderation**: Comprehensive moderation suite (`/kick`, `/ban`, `/unban`, `/timeout`, `/untimeout`, `/warn`, `/warnings`, `/delwarn`, `/clear`, `/slowmode`, `/lock`, `/unlock`).
 18. **fun**: Anime GIF social interactions (10 actions via nekos.best: `/hug`, `/pat`, `/kiss`, `/slap`, `/feed`, `/cuddle`, `/poke`, `/highfive`, `/cry`, `/dance`), love compatibility `/ship`, interactive proposal `/marry`, `/divorce`, `/profile`.
 19. **birthday**: Member birthday tracking (`/birthday set`, `/birthday check`, `/birthday list`, `/birthday remove`), automated 00:00 midnight celebration embeds, temporary 24h Birthday VIP role, and bank coins/XP bonuses.
@@ -56,8 +56,8 @@
 - `cache.py`: In-memory thread-safe caching.
 - `i18n.py`: O(1) RAM translation engine.
 - `bot/bot.py`: Main Discord bot entry point.
-- `bot/cogs/`: 24 functional cogs containing 107 total commands across 17 categories.
+- `bot/cogs/`: 24 functional cogs containing 108 total commands across 17 categories.
 - `dashboard/app.py`: Web dashboard routes and `_COMMANDS_DATA` central registry.
 - `dashboard/api.py`: AJAX JSON endpoints for real-time dashboard updates.
 - `scripts/termux_mcp.py`: MCP Server for remote Termux SSH operations and automated diagnostics.
-- `locales/`: 6 locale dictionary files (1604 keys each).
+- `locales/`: 6 locale dictionary files (1607 keys each).

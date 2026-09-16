@@ -427,12 +427,26 @@ class SystemTester:
             assert ok is False, "Transfer to self should have been rejected"
             asserts += 1
 
+            # 9. Test atomic betting & transactions
+            from database import async_place_bet, async_get_user_transactions
+            bet_ok = await async_place_bet(tg, u_alice, 50)
+            assert bet_ok is True, "Atomic place bet 50 failed"
+            asserts += 1
+
+            bet_fail = await async_place_bet(tg, u_alice, 999999)
+            assert bet_fail is False, "Atomic place bet overspend should have been rejected"
+            asserts += 1
+
+            txs = await async_get_user_transactions(tg, u_alice, limit=5)
+            assert len(txs) >= 1, "Expected at least 1 transaction record for Alice"
+            asserts += 1
+
             # Clean up
             async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
                 await db.execute("DELETE FROM economy_users WHERE guild_id = ?", (tg,))
                 await db.commit()
 
-            return asserts, "Wallet, Bank, Pay & Overspend defenses verified"
+            return asserts, "Wallet, Bank, Pay, Bet & Overspend defenses verified"
 
         # ─── 7. Mini-Games & Blackjack Engine Logic ───────────────────────────
         async def suite_blackjack():
@@ -509,14 +523,14 @@ class SystemTester:
             assert not missing_langs, f"Missing language files: {missing_langs}"
             asserts += 1
 
-            # 2. Check 100% key parity (1605 keys)
+            # 2. Check 100% key parity (1607 keys)
             key_counts = {lang: len(keys) for lang, keys in i18n.translations.items()}
             base_count = len(i18n.translations[DEFAULT_LANG])
-            assert base_count == 1605, f"Expected 1605 keys in default '{DEFAULT_LANG}', found {base_count}"
+            assert base_count == 1607, f"Expected 1607 keys in default '{DEFAULT_LANG}', found {base_count}"
             asserts += 1
 
             for lang, count in key_counts.items():
-                assert count == 1605, f"Locale '{lang}' has {count} keys, expected exactly 1605 keys"
+                assert count == 1607, f"Locale '{lang}' has {count} keys, expected exactly 1607 keys"
                 asserts += 1
 
             # 3. Test keyword interpolation
@@ -530,7 +544,7 @@ class SystemTester:
             assert "{vol}" not in res_en, f"Unformatted placeholder found in 'en': {res_en}"
             asserts += 2
 
-            return asserts, "6/6 locales synchronized at exactly 1605 keys, interpolation OK"
+            return asserts, "6/6 locales synchronized at exactly 1607 keys, interpolation OK"
 
         # ─── 10. Pillow Dynamic Card Image Generator ──────────────────────────
         async def suite_pillow():

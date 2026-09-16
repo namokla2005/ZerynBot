@@ -26,8 +26,9 @@ import yt_dlp
 from discord import app_commands
 from discord.ext import commands
 
+from datetime import datetime, timezone
 from cache import cache
-from database import async_get_guild_settings, async_get_song_cache, async_set_song_cache
+from database import async_get_guild_settings, async_get_song_cache, async_set_song_cache, async_increment_stat, async_get_top_music
 from i18n import tr
 
 try:
@@ -985,6 +986,12 @@ class MusicPlayer:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
                 await self._report_play_failure(track)
                 return
+
+            if seek_offset == 0:
+                try:
+                    await async_increment_stat(str(self.guild.id), "music", f"{track.video_id}|{track.title[:80]}", 1)
+                except Exception as stat_err:
+                    log.debug(f"[Music] Failed to record music stat: {stat_err}")
 
             # Gửi embed Now Playing
             await self._send_now_playing()
@@ -2198,6 +2205,31 @@ class Music(commands.Cog, name="Music"):
         player.loop_mode = (player.loop_mode + 1) % 3
         loop_msgs = [tr(s, "music.loop_off"), tr(s, "music.loop_one"), tr(s, "music.loop_all")]
         await ctx.send(loop_msgs[player.loop_mode])
+
+    @commands.hybrid_command(name="topmusic", description="Bảng xếp hạng bài hát được nghe nhiều nhất trong server")
+    async def topmusic(self, ctx: commands.Context):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        top_songs = await async_get_top_music(str(ctx.guild.id), limit=10)
+        if not top_songs:
+            return await ctx.send(tr(s, "music.top_empty"))
+
+        desc = ""
+        medals = ["🥇", "🥈", "🥉"]
+        for idx, item in enumerate(top_songs):
+            rank = medals[idx] if idx < 3 else f"`#{idx+1:2}`"
+            parts = item["target"].split("|", 1)
+            title = parts[1] if len(parts) > 1 else parts[0]
+            count = item["count"]
+            desc += f"{rank} **{title}** — **{count:,}** lần nghe\n"
+
+        embed = discord.Embed(
+            title=embed_title("zb_music", tr(s, "music.top_title")),
+            description=desc,
+            color=0x5865F2,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(text=tr(s, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: commands.Bot):

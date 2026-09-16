@@ -1603,5 +1603,7 @@
   "music.jumped": "⏭️ Saltado a la canción **[{title}]({url})**.",
   "music.search_select_placeholder": "Selecciona una canción para reproducir...",
   "music.search_timeout": "⏱️ Tiempo de selección agotado.",
-  "music.vol_applies_next": "El nuevo volumen se aplicará a partir de la siguiente pista"
+  "music.vol_applies_next": "El nuevo volumen se aplicará a partir de la siguiente pista",
+  "music.top_empty": "No hay datos de reproducción de canciones esta semana.",
+  "music.top_title": "Canciones Más Reproducidas de la Semana"
 }

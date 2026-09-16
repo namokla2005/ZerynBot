@@ -597,10 +597,12 @@ class AI(commands.Cog):
 
         # Rate-limiting per user
         rate_key = f"ai_rate:{message.guild.id}:{message.author.id}"
-        calls = await cache.aget(rate_key) or 0
-        if calls >= ai_s.get("rate_limit", 5):
+        calls = int(await cache.aget(rate_key) or 0)
+        if calls >= int(ai_s.get("rate_limit", 5)):
             s = await async_get_guild_settings(str(message.guild.id))
             await message.reply(tr(s, "ai.rate_limited"), delete_after=5)
+            return
+        await cache.aset(rate_key, calls + 1, ttl=60)
         # Check for image attachments in the message
         image_url = None
         if message.attachments:

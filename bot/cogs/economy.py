@@ -19,7 +19,8 @@ from database import (
     async_get_economy_shop, async_buy_shop_item, async_get_top_economy,
     async_get_inventory, async_get_inventory_item, async_add_inventory_item,
     async_sell_inventory_item, async_sell_all_inventory,
-    async_get_economy_cooldown, async_set_economy_cooldown
+    async_get_economy_cooldown, async_set_economy_cooldown,
+    async_place_bet, async_log_transaction
 )
 from i18n import tr
 try:
@@ -115,15 +116,18 @@ class BlackjackView(discord.ui.View):
         if result == "win":
             payout = self.bet * 2
             await async_modify_wallet(str(self.ctx.guild.id), str(self.ctx.author.id), payout)
+            await async_log_transaction(str(self.ctx.guild.id), str(self.ctx.author.id), "win", payout, "blackjack win")
             status = tr(self.settings, "economy.bj_win", amount=self.bet, sym=sym)
             color = 0x57F287
         elif result == "blackjack":
             payout = int(self.bet * 2.5)
             await async_modify_wallet(str(self.ctx.guild.id), str(self.ctx.author.id), payout)
+            await async_log_transaction(str(self.ctx.guild.id), str(self.ctx.author.id), "win", payout, "blackjack 21")
             status = tr(self.settings, "economy.bj_blackjack", amount=int(self.bet * 1.5), sym=sym)
             color = 0xFEE75C
         elif result == "tie":
             await async_modify_wallet(str(self.ctx.guild.id), str(self.ctx.author.id), self.bet)
+            await async_log_transaction(str(self.ctx.guild.id), str(self.ctx.author.id), "refund", self.bet, "blackjack tie")
             status = tr(self.settings, "economy.bj_tie", sym=sym)
             color = 0x95A5A6
         elif result == "bust":
@@ -176,7 +180,17 @@ class BlackjackView(discord.ui.View):
 
     async def on_timeout(self):
         if not self.is_finished:
-            await self.finish_game("lose")
+            # Auto-stand fairness: dealer draws until >= 17, then compare hands
+            while calc_hand(self.dealer_hand) < 17:
+                self.dealer_hand.append(self.deck.pop())
+            pval = calc_hand(self.player_hand)
+            dval = calc_hand(self.dealer_hand)
+            if dval > 21 or pval > dval:
+                await self.finish_game("win")
+            elif dval > pval:
+                await self.finish_game("lose")
+            else:
+                await self.finish_game("tie")
 
 
 # ─── Economy Cog ───────────────────────────────────────────────────────────────
@@ -341,6 +355,7 @@ class Economy(commands.Cog):
         
         sym = get_sym(eco_s)
         await async_claim_daily(str(ctx.guild.id), str(ctx.author.id), total_reward, new_streak)
+        await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "daily", total_reward, f"daily streak {new_streak}")
         
         embed = discord.Embed(
             title=embed_title("zb_coin", tr(s, "economy.daily_title")),
@@ -515,13 +530,9 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
 
-        user_data = await async_get_economy_user(str(ctx.guild.id), str(ctx.author.id))
-        if user_data.get("wallet", 0) < bet:
+        if not await async_place_bet(str(ctx.guild.id), str(ctx.author.id), bet):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
             return
-
-        # Trừ tiền cược
-        await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), -bet)
 
         result = random.choice(["heads", "tails"])
         res_name = tr(s, "economy.cf_heads") if result == "heads" else tr(s, "economy.cf_tails")
@@ -530,6 +541,7 @@ class Economy(commands.Cog):
         if is_win:
             win_amount = bet * 2
             await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), win_amount)
+            await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "win", win_amount, "coinflip win")
             embed = discord.Embed(
                 title=embed_title("zb_coinflip", tr(s, "economy.cf_win_title")),
                 description=tr(s, "economy.cf_win_desc", res=res_name, amount=bet, sym=sym),
@@ -559,13 +571,9 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
 
-        user_data = await async_get_economy_user(str(ctx.guild.id), str(ctx.author.id))
-        if user_data.get("wallet", 0) < bet:
+        if not await async_place_bet(str(ctx.guild.id), str(ctx.author.id), bet):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
             return
-
-        # Trừ tiền cược
-        await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), -bet)
 
         icons = ["🍒", "🍋", "🍇", "💎", "7️⃣"]
         r1, r2, r3 = random.choice(icons), random.choice(icons), random.choice(icons)
@@ -589,6 +597,7 @@ class Economy(commands.Cog):
             payout = bet * multiplier
             profit = payout - bet
             await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), payout)
+            await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "win", payout, f"slots win x{multiplier}")
             embed = discord.Embed(
                 title=embed_title("zb_slots", tr(s, "economy.slots_win_title")),
                 description=f"{slot_display}\n\n{tr(s, 'economy.slots_win_desc', mult=multiplier, amount=profit, sym=sym)}",
@@ -618,13 +627,9 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
 
-        user_data = await async_get_economy_user(str(ctx.guild.id), str(ctx.author.id))
-        if user_data.get("wallet", 0) < bet:
+        if not await async_place_bet(str(ctx.guild.id), str(ctx.author.id), bet):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
             return
-
-        # Trừ tiền cược
-        await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), -bet)
 
         view = BlackjackView(self, ctx, bet, s)
         
@@ -782,6 +787,7 @@ class Economy(commands.Cog):
         total_pay = base_pay + bonus_pay
 
         await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), total_pay)
+        await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "work", total_pay, f"work: {job['name']}")
         await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work", now)
 
         desc = tr(s, "economy.work_desc", user=ctx.author.mention, job=job["name"], amount=base_pay, sym=sym)

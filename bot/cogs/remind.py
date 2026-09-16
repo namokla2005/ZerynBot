@@ -85,9 +85,9 @@ class Remind(commands.Cog):
             await ctx.send(tr(s, "remind.module_disabled"), ephemeral=True)
             raise commands.CommandError("Remind module is disabled")
 
-    @tasks.loop(seconds=15)
+    @tasks.loop(seconds=30)
     async def reminder_task(self):
-        """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 15 giây."""
+        """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 30 giây."""
         try:
             now_ts = int(_time.time())
             due_reminders = await async_get_due_reminders(now_ts)
