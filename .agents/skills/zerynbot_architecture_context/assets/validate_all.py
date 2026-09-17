@@ -85,9 +85,9 @@ else:
 # ─── 3. KIỂM TRA COMMANDS DATA REGISTRY ──────────────────────────────────────
 print("\n[3/4] 📋 Đang kiểm tra danh mục lệnh (_COMMANDS_DATA)...")
 try:
-    CMD_FILE = os.path.join(REPO_ROOT, "bot", "commands_data.py")
+    CMD_FILE = os.path.join(REPO_ROOT, "commands_data.py")
     if not os.path.exists(CMD_FILE):
-        CMD_FILE = APP_PY_PATH
+        CMD_FILE = os.path.join(REPO_ROOT, "bot", "commands_data.py")
     with open(CMD_FILE, "r", encoding="utf-8") as f:
         app_code = f.read()
     tree = ast.parse(app_code)

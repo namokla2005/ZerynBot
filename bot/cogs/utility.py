@@ -403,7 +403,7 @@ class Utility(commands.Cog):
         ws_ping = round(self.bot.latency * 1000)
 
         if command:
-            from bot.commands_data import get_command_data
+            from commands_data import get_command_data
             cmd_data = get_command_data(command)
             if not cmd_data:
                 err_msg = tr(settings, "help.cmd_not_found", cmd=command)
@@ -519,7 +519,7 @@ class Utility(commands.Cog):
 
     @help_cmd.autocomplete("command")
     async def help_autocomplete(self, interaction: discord.Interaction, current: str) -> list[discord.app_commands.Choice[str]]:
-        from bot.commands_data import ALL_COMMAND_NAMES
+        from commands_data import ALL_COMMAND_NAMES
         curr = (current or "").strip().lower().lstrip("/")
         matches = []
         for name in ALL_COMMAND_NAMES:

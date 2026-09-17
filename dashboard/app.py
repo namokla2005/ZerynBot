@@ -747,7 +747,7 @@ def server_modules(guild_id: str):
 
 # ─── Commands data registry ────────────────────────────────────────────────────
 
-from bot.commands_data import _COMMANDS_DATA
+from commands_data import _COMMANDS_DATA
 
 @app.route("/dashboard/<guild_id>/commands")
 @guild_access_required
