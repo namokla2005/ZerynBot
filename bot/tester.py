@@ -523,14 +523,14 @@ class SystemTester:
             assert not missing_langs, f"Missing language files: {missing_langs}"
             asserts += 1
 
-            # 2. Check 100% key parity (1607 keys)
+            # 2. Check 100% key parity (1618 keys)
             key_counts = {lang: len(keys) for lang, keys in i18n.translations.items()}
             base_count = len(i18n.translations[DEFAULT_LANG])
-            assert base_count == 1607, f"Expected 1607 keys in default '{DEFAULT_LANG}', found {base_count}"
+            assert base_count == 1618, f"Expected 1618 keys in default '{DEFAULT_LANG}', found {base_count}"
             asserts += 1
 
             for lang, count in key_counts.items():
-                assert count == 1607, f"Locale '{lang}' has {count} keys, expected exactly 1607 keys"
+                assert count == 1618, f"Locale '{lang}' has {count} keys, expected exactly 1618 keys"
                 asserts += 1
 
             # 3. Test keyword interpolation
@@ -544,7 +544,7 @@ class SystemTester:
             assert "{vol}" not in res_en, f"Unformatted placeholder found in 'en': {res_en}"
             asserts += 2
 
-            return asserts, "6/6 locales synchronized at exactly 1607 keys, interpolation OK"
+            return asserts, "6/6 locales synchronized at exactly 1618 keys, interpolation OK"
 
         # ─── 10. Pillow Dynamic Card Image Generator ──────────────────────────
         async def suite_pillow():

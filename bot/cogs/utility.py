@@ -28,7 +28,10 @@ class DeleteHelpButton(discord.ui.Button):
         self.settings = settings
 
     async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.author_id and not interaction.user.guild_permissions.manage_messages:
+        has_manage = False
+        if interaction.guild and hasattr(interaction.user, "guild_permissions"):
+            has_manage = interaction.user.guild_permissions.manage_messages
+        if interaction.user.id != self.author_id and not has_manage:
             return await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
         try:
             await interaction.message.delete()
@@ -134,6 +137,12 @@ class HelpSelect(discord.ui.Select):
                 emoji=partial("zb_cat_customcmd", "⚡"),
                 value="customcmd"
             ),
+            discord.SelectOption(
+                label=tr(settings, "help.cat_verify_label"),
+                description=tr(settings, "help.cat_verify_desc")[:100],
+                emoji=partial("zb_verified", "🛡️"),
+                value="verify"
+            ),
         ]
         super().__init__(
             placeholder=tr(settings, "help.placeholder"),
@@ -166,7 +175,8 @@ class HelpSelect(discord.ui.Select):
             "giveaway": 0xE91E63,
             "tickets": 0x2ECC71,
             "birthday": 0xFF7675,
-            "customcmd": 0x9B59B6
+            "customcmd": 0x9B59B6,
+            "verify": 0x57F287,
         }
 
         embed = discord.Embed(
@@ -187,9 +197,11 @@ class HelpSelect(discord.ui.Select):
 
         def get_modules_display():
             return (
-                f"{e('zb_cat_ai')} `AI` • {e('zb_cat_economy')} `Kinh Tế` • {e('zb_cat_music')} `Âm Nhạc`\n"
-                f"{e('zb_cat_moderation')} `Quản Trị` • {e('zb_cat_automod')} `Bảo Vệ` • {e('zb_cat_leveling')} `Leveling`\n"
-                f"{e('zb_cat_voice')} `Phòng Thoại` • {e('zb_cat_utility')} `Tiện Ích` • {e('zb_cat_giveaway')} `Giveaway`"
+                f"{e('zb_cat_ai')} `AI` • {e('zb_cat_economy')} `Economy` • {e('zb_cat_music')} `Music` • {e('zb_cat_moderation')} `Moderation`\n"
+                f"{e('zb_cat_automod')} `AutoMod` • {e('zb_cat_leveling')} `Leveling` • {e('zb_cat_voice')} `TempVoice` • {e('zb_cat_utility')} `Utility`\n"
+                f"{e('zb_cat_giveaway')} `Giveaway` • {e('zb_cat_tickets')} `Tickets` • {e('zb_cat_birthday')} `Birthday` • {e('zb_verified')} `Verify Gate`\n"
+                f"{e('zb_cat_info')} `Info` • {e('zb_cat_fun')} `Fun` • {e('zb_cat_customcmd')} `CustomCmd` • {e('zb_logger')} `Logger`\n"
+                f"{e('zb_welcome')} `Welcome` • {e('zb_autorole')} `AutoRoles` • {e('zb_reactionroles')} `ReactionRoles` • {e('zb_remind')} `Remind`"
             )
 
         if val == "home":
@@ -231,10 +243,12 @@ class HelpSelect(discord.ui.Select):
                 "tickets": "ticket",
                 "birthday": "birthday",
                 "customcmd": "customcmd",
+                "verify": "verify",
             }
             prefix = cat_key_map.get(val, val)
             raw_title = tr(self.settings, f"help.cat_{prefix}_title")
-            embed.title = embed_title(f"zb_cat_{val}", raw_title)
+            emoji_key = "zb_verified" if val == "verify" else f"zb_cat_{val}"
+            embed.title = embed_title(emoji_key, raw_title)
             raw_cmds = tr(self.settings, f"help.cat_{prefix}_cmds")
             embed.description = raw_cmds.replace("🪙", e("zb_coin")).replace("💰", e("zb_bank"))
 
@@ -383,15 +397,86 @@ class Utility(commands.Cog):
 
     # ─── help ──────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="help", description="Trung tâm hỗ trợ và hướng dẫn toàn bộ lệnh của Zeryn Bot")
-    async def help_cmd(self, ctx: commands.Context):
+    @discord.app_commands.describe(command="Tên lệnh cần tra cứu chi tiết (VD: play, coinflip, ban, verify...)")
+    async def help_cmd(self, ctx: commands.Context, *, command: str = None):
         settings = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
         ws_ping = round(self.bot.latency * 1000)
 
+        if command:
+            from bot.commands_data import get_command_data
+            cmd_data = get_command_data(command)
+            if not cmd_data:
+                err_msg = tr(settings, "help.cmd_not_found", cmd=command)
+                return await ctx.send(err_msg, ephemeral=True)
+
+            cmd_name = cmd_data["name"]
+            embed = discord.Embed(
+                title=tr(settings, "help.cmd_detail_title", cmd=cmd_name),
+                description=cmd_data.get("desc", ""),
+                color=0x5865F2,
+                timestamp=datetime.now(timezone.utc),
+            )
+            if self.bot.user and self.bot.user.display_avatar:
+                embed.set_author(
+                    name="Zeryn Bot • Command Guide",
+                    icon_url=self.bot.user.display_avatar.url,
+                    url="https://zerynbot.id.vn/commands"
+                )
+
+            usage = cmd_data.get("usage", f"/{cmd_name}")
+            embed.add_field(
+                name=tr(settings, "help.cmd_usage_field"),
+                value=f"`{usage}`",
+                inline=False
+            )
+
+            example = cmd_data.get("example", f"/{cmd_name}")
+            embed.add_field(
+                name=tr(settings, "help.cmd_example_field"),
+                value=f"`{example}`",
+                inline=False
+            )
+
+            if cmd_data.get("args"):
+                args_lines = []
+                for a in cmd_data["args"]:
+                    req_str = "bắt buộc" if a.get("required") else "tùy chọn"
+                    type_str = a.get("type", "Text")
+                    args_lines.append(f"• `{a['name']}` ({type_str}, {req_str}): {a.get('desc', '')}")
+                embed.add_field(
+                    name=tr(settings, "help.cmd_params_field"),
+                    value="\n".join(args_lines),
+                    inline=False
+                )
+
+            if cmd_data.get("perm"):
+                embed.add_field(
+                    name=tr(settings, "help.cmd_perm_field"),
+                    value=f"`{cmd_data['perm']}`",
+                    inline=False
+                )
+
+            embed.set_footer(
+                text=tr(settings, "common.requested_by", user=ctx.author.display_name),
+                icon_url=ctx.author.display_avatar.url,
+            )
+
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label=tr(settings, "help.btn_dashboard") if tr(settings, "help.btn_dashboard") != "help.btn_dashboard" else "Dashboard",
+                style=discord.ButtonStyle.link,
+                url="https://zerynbot.id.vn/commands",
+                emoji="🌐"
+            ))
+            return await ctx.send(embed=embed, view=view)
+
         def get_modules_display():
             return (
-                f"{e('zb_cat_ai')} `AI` • {e('zb_cat_economy')} `Kinh Tế` • {e('zb_cat_music')} `Âm Nhạc`\n"
-                f"{e('zb_cat_moderation')} `Quản Trị` • {e('zb_cat_automod')} `Bảo Vệ` • {e('zb_cat_leveling')} `Leveling`\n"
-                f"{e('zb_cat_voice')} `Phòng Thoại` • {e('zb_cat_utility')} `Tiện Ích` • {e('zb_cat_giveaway')} `Giveaway`"
+                f"{e('zb_cat_ai')} `AI` • {e('zb_cat_economy')} `Economy` • {e('zb_cat_music')} `Music` • {e('zb_cat_moderation')} `Moderation`\n"
+                f"{e('zb_cat_automod')} `AutoMod` • {e('zb_cat_leveling')} `Leveling` • {e('zb_cat_voice')} `TempVoice` • {e('zb_cat_utility')} `Utility`\n"
+                f"{e('zb_cat_giveaway')} `Giveaway` • {e('zb_cat_tickets')} `Tickets` • {e('zb_cat_birthday')} `Birthday` • {e('zb_verified')} `Verify Gate`\n"
+                f"{e('zb_cat_info')} `Info` • {e('zb_cat_fun')} `Fun` • {e('zb_cat_customcmd')} `CustomCmd` • {e('zb_logger')} `Logger`\n"
+                f"{e('zb_welcome')} `Welcome` • {e('zb_autorole')} `AutoRoles` • {e('zb_reactionroles')} `ReactionRoles` • {e('zb_remind')} `Remind`"
             )
 
         raw_desc = tr(settings, "help.description")
@@ -431,6 +516,18 @@ class Utility(commands.Cog):
 
         view = HelpView(self.bot, ctx, settings)
         view.message = await ctx.send(embed=embed, view=view)
+
+    @help_cmd.autocomplete("command")
+    async def help_autocomplete(self, interaction: discord.Interaction, current: str) -> list[discord.app_commands.Choice[str]]:
+        from bot.commands_data import ALL_COMMAND_NAMES
+        curr = (current or "").strip().lower().lstrip("/")
+        matches = []
+        for name in ALL_COMMAND_NAMES:
+            if not curr or curr in name.lower():
+                matches.append(discord.app_commands.Choice(name=f"/{name}", value=name))
+            if len(matches) >= 25:
+                break
+        return matches
 
     # ─── poll ──────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="poll", description="Tạo một cuộc bình chọn nhanh")

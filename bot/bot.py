@@ -163,6 +163,7 @@ class BotV2(commands.Bot):
 
         # Rate limit state
         self.last_used = defaultdict(float)
+        self.start_time = time.time()
 
     async def _cleanup_cooldowns(self):
         """Dọn entry cooldown cũ hơn 60 giây mỗi 5 phút."""
