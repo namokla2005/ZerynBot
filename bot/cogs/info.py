@@ -153,8 +153,16 @@ class Info(commands.Cog):
             discord.Status.idle:      tr(s, "info.status_idle"),
             discord.Status.dnd:       tr(s, "info.status_dnd"),
             discord.Status.offline:   tr(s, "info.status_offline"),
-            discord.Status.streaming: "🟣 Streaming",
         }
+        is_streaming = any(
+            isinstance(act, discord.Streaming) or getattr(act, "type", None) == discord.ActivityType.streaming
+            for act in getattr(member, "activities", [])
+        )
+        if is_streaming:
+            status_text = "🟣 Streaming"
+        else:
+            member_status = getattr(member, "status", discord.Status.offline)
+            status_text = status_map.get(member_status, tr(s, "info.status_offline"))
 
         # Calculate join position
         join_pos = "N/A"
@@ -189,8 +197,7 @@ class Info(commands.Cog):
             inline=True,
         )
         embed.add_field(name="📍 Thứ tự gia nhập", value=f"**{join_pos}**", inline=True)
-        member_status = getattr(member, "status", discord.Status.offline)
-        embed.add_field(name=tr(s, "info.status_field"), value=status_map.get(member_status, tr(s, "info.status_offline")), inline=True)
+        embed.add_field(name=tr(s, "info.status_field"), value=status_text, inline=True)
         embed.add_field(name="👑 Vai trò cao nhất", value=top_role, inline=True)
         embed.add_field(name=tr(s, "info.badges_field"), value=" • ".join(badges) if badges else tr(s, "info.no_badges"), inline=False)
         embed.add_field(name=f"{tr(s, 'info.roles_field')} ({len(roles)})", value=roles_str, inline=False)
