@@ -34,18 +34,18 @@ FFMPEG_BEFORE = (
     '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
 )
 FFMPEG_OPTS_COPY = "-vn -sn -c:a copy -threads 1"
-FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1 -af aresample=async=1:first_pts=0"
+FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 ```
 
 > [!WARNING]
-> - **yt-dlp player_client**: Luôn sử dụng `["android", "web"]`. Tuyệt đối **KHÔNG dùng client `tv`** vì YouTube trả lỗi `The page needs to be reloaded` khiến toàn bộ video & stream thất bại.
-> - Tuyệt đối không dùng các cờ không tương thích trên Termux như `-reconnect_at_eof` hoặc cờ `-headers` không được escape chuỗi đúng chuẩn.
+> - **yt-dlp player_client**: Luôn sử dụng `["android"]`. Tuyệt đối **KHÔNG dùng client `web`** vì trên Termux (không có JS runtime/cookies) sẽ gây lỗi bot verification (*"Sign in to confirm you're not a bot"*). Tuyệt đối **KHÔNG dùng client `tv`** vì YouTube trả lỗi `The page needs to be reloaded`.
+> - **FFmpeg aresample**: Tuyệt đối không dùng `-af aresample=async=1` vì `async=1` giới hạn tốc độ bù drift về 1 sample/giây, khiến âm thanh bị co dãn cao độ/tốc độ (lúc nhanh lúc chậm) suốt 1 phút đầu.
 
 ### 2.3 Cơ Chế Bộ Nhớ Đệm 2 Tầng & Thread-Safe Worker Pool
 - **Thread-Safety (`threading.local`)**: Mỗi worker thread sở hữu instance `YoutubeDL` độc lập, triệt tiêu hoàn toàn race condition trong khi vẫn giữ nguyên HTTP connection pool.
 - **Tầng 1 (In-Memory RAM Cache - `cache.py`)**: Lưu trữ thông tin bài hát trong RAM (TTL 10 phút).
 - **Tầng 2 (SQLite Disk Cache - `music_song_cache`)**: Lưu `payload` JSON trích xuất từ yt-dlp vào CSDL SQLite (`async_get_song_cache` / `async_set_song_cache`) với **TTL 6 giờ** (hoặc timestamp `expire` thực tế trích từ URL). Khi bot khởi động lại (restart), không cần tốn 2-4 giây trích xuất lại metadata từ YouTube mà phát ngay lập tức (< 0.5s).
-- **Trích xuất song song (Concurrent Extraction)**: Khi người dùng gõ `/play`, bot khởi chạy đồng thời tác vụ kết nối kênh voice (`_ensure_voice_client`) và tác vụ trích xuất metadata (`extract_info`), giúp giảm 50% tổng thời gian chờ phát bài đầu tiên. Tải playlist chạy nền theo batch 3 bài hát song song.
+- **Trích xuất song song & Khả năng chịu lỗi Playlist**: Khi người dùng gõ `/play`, bot khởi chạy đồng thời tác vụ kết nối voice và trích xuất metadata. Khi chạy `/playlist play`, bot tự động tìm bài đầu tiên khả dụng để phát ngay, nạp các bài còn lại ở background task theo batch 2 bài kèm fallback qua tiêu đề bài hát nếu link hỏng.
 - **Tự cứu luồng phát 403 (Auto-Recovery)**: Khi URL stream hết hạn giữa chừng, bot tự động xóa cache stream URL, trích xuất lại URL mới và tiếp tục phát ngay tại vị trí cũ (`-ss <elapsed>`).
 
 ---

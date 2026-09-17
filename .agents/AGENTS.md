@@ -58,10 +58,10 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
   - **Ví (Wallet)**: Tiền mặt dùng để chuyển khoản `/pay`, chơi mini-games (`/coinflip`, `/slots`, `/blackjack`). Mini-games chỉ cược bằng tiền Ví.
   - **Ngân hàng (Bank)**: Nơi giữ an toàn tài sản và thanh toán mua sắm Role trong Cửa hàng Server (`/shop`, `/buy`). Hỗ trợ nạp `/deposit` và rút `/withdraw` linh hoạt (hỗ trợ từ khóa `all`/`max`).
 - **Hệ thống Phát Nhạc (Audio Engine)**:
-  - **Trích xuất song song & Thread-Safety**: Trích xuất đa luồng an toàn qua `threading.local` cho `YoutubeDL`, semaphore tối đa 4 extraction đồng thời. `extract_info` chạy đồng thời với `_ensure` kết nối voice channel (`asyncio.create_task`), cắt giảm 50% độ trễ khởi động. Tải playlist nền xử lý song song theo batch 3 bài hát.
+  - **Trích xuất song song & Thread-Safety**: Trích xuất đa luồng an toàn qua `threading.local` cho `YoutubeDL`, semaphore tối đa 4 extraction đồng thời. `extract_info` chạy đồng thời với `_ensure` kết nối voice channel (`asyncio.create_task`), cắt giảm 50% độ trễ khởi động. Tải playlist nền xử lý theo batch 2 bài hát kèm fallback tìm theo tên bài hát nếu URL bị lỗi.
   - **Tự cứu luồng phát (Auto-Recovery)**: Bắt lỗi 403 Forbidden / URL stream hết hạn để re-extract tự động và tiếp tục phát ngay tại vị trí cũ (`-ss <elapsed>`).
   - **Cache 2 tầng**: In-Memory RAM Cache (`cache.py`) + SQLite disk cache (`music_song_cache` với TTL 6 giờ, lưu timestamp hết hạn thực tế).
-  - **Tối ưu FFmpeg & yt-dlp**: Cờ FFmpeg `-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000 -af aresample=async=1:first_pts=0` (chống lệch nhịp PTS và chống treo vô tận khi mất mạng), client yt-dlp `["android", "web"]`.
+  - **Tối ưu FFmpeg & yt-dlp**: Cờ FFmpeg `-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000` (triệt tiêu 100% hiện tượng co dãn tốc độ/cao độ và chống treo vô tận khi mất mạng), client yt-dlp `["android"]` (miễn nhiễm lỗi bot verification của client `web`).
   - **Quản lý Hàng Đợi & Thống Kê**: Hỗ trợ tua nhạc `/seek`, tìm kiếm chọn bài `/search`, quản lý hàng đợi `/remove`, `/clearqueue`, `/jump` và ghi nhận bài hát nghe nhiều nhất vào CSDL.
 - **Hạ Tầng Tác Nghiệp MCP (Model Context Protocol)**:
   - **Cấu hình chuẩn tại**: `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`.

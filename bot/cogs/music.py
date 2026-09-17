@@ -71,9 +71,8 @@ FFMPEG_BEFORE = (
 )
 #   -c:a copy                  : Chỉ cho nhánh copy luồng Opus WebM (không resample)
 FFMPEG_OPTS_COPY   = "-vn -sn -c:a copy -threads 1"
-#   -af aresample=async=1:first_pts=0 : Chống drift PTS chính hiệu (encode lại sang Opus 48k).
-#   KHÔNG thêm -af vào FFMPEG_OPTS_COPY (xung đột với -c:a copy).
-FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1 -af aresample=async=1:first_pts=0"
+#   -vn -sn -threads 1         : Nhánh encode lại sang Opus 48k (không resample làm biến dạng tốc độ/cao độ).
+FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
 MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet/phone 4-6GB, 10+ server)
 MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU)
@@ -117,11 +116,11 @@ YDL_OPTS = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
-    "socket_timeout": 3,
+    "socket_timeout": 5,
     "extractor_args": {
         "youtube": {
-            # Dùng client "android" kết hợp fallback "web" — tương thích 100% video & live stream.
-            "player_client": ["android", "web"],
+            # Dùng client "android" thuần túy — tương thích 100% video/live stream, không bị bot verification như client "web".
+            "player_client": ["android"],
             "player_skip": ["configs", "webpage"],
         }
     },
@@ -142,10 +141,10 @@ YDL_OPTS_FLAT = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
-    "socket_timeout": 2,
+    "socket_timeout": 5,
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "web"],
+            "player_client": ["android"],
             "player_skip": ["configs", "webpage"],
         }
     },
@@ -2050,8 +2049,8 @@ class Music(commands.Cog, name="Music"):
         await ctx.send(tr(s, "music.pl_added_song", title=song_title, name=name))
 
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
-        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ theo batch 3 bài song song (bảo vệ RAM/CPU)."""
-        batch_size = 3
+        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ theo batch 2 bài (bảo vệ RAM/CPU & tránh rate-limit)."""
+        batch_size = 2
         slice_tracks = tracks[:MAX_BG_LOAD]
         for i in range(0, len(slice_tracks), batch_size):
             if player._manual_stopped or not player.vc or not player.vc.is_connected():
@@ -2059,13 +2058,20 @@ class Music(commands.Cog, name="Music"):
             chunk = slice_tracks[i:i + batch_size]
 
             async def _load_one(t_data):
-                query = t_data.get("webpage_url") or t_data.get("title", "")
+                url_q = t_data.get("webpage_url") or ""
+                title_q = t_data.get("title") or ""
+                primary = url_q or title_q
+                info = None
                 try:
-                    info = await extract_info(query)
+                    if primary:
+                        info = await extract_info(primary)
+                    # Nếu URL thất bại hoặc đổi ID, fallback tìm theo title
+                    if not info and title_q and primary != title_q:
+                        info = await extract_info(title_q)
                     if info:
                         return Track(info, requester=requester)
                 except Exception as e:
-                    log.warning(f"[Music] Background load track error: {e}")
+                    log.warning(f"[Music] Background load track error ({primary}): {e}")
                 return None
 
             batch_results = await asyncio.gather(*[_load_one(t) for t in chunk])
@@ -2075,7 +2081,7 @@ class Music(commands.Cog, name="Music"):
                         await player.add_and_play(trk)
                     else:
                         player.queue.append(trk)
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.4)
 
         if len(tracks) > MAX_BG_LOAD:
             log.info(f"[Music] Playlist background load: chỉ nạp {MAX_BG_LOAD}/{len(tracks)} bài (giới hạn bảo vệ)")
@@ -2097,29 +2103,39 @@ class Music(commands.Cog, name="Music"):
         tracks = pl["tracks"]
         msg = await ctx.send(tr(s, "music.pl_loading_first", name=name))
         
-        # 1. Phát bài đầu tiên ngay lập tức (không chờ cả playlist)
-        first_track_data = tracks[0]
-        first_query = first_track_data.get("webpage_url") or first_track_data.get("title", "")
-        first_info = await extract_info(first_query)
-        
-        if first_info:
-            first_track = Track(first_info, requester=ctx.author)
+        # 1. Tìm và phát bài hát đầu tiên tải thành công ngay lập tức
+        first_track = None
+        start_index = 0
+        for idx, t_data in enumerate(tracks):
+            url_q = t_data.get("webpage_url") or ""
+            title_q = t_data.get("title") or ""
+            primary = url_q or title_q
+            info = None
+            if primary:
+                info = await extract_info(primary)
+            if not info and title_q and primary != title_q:
+                info = await extract_info(title_q)
+            if info:
+                first_track = Track(info, requester=ctx.author)
+                start_index = idx
+                break
+
+        if first_track:
             if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
                 await player.add_and_play(first_track)
             else:
                 player.queue.append(first_track)
-            if len(tracks) > 1:
-                await msg.edit(content=tr(s, "music.pl_loading_bg", cnt=len(tracks) - 1, name=name))
+            
+            remaining = tracks[start_index + 1:]
+            if remaining:
+                await msg.edit(content=tr(s, "music.pl_loading_bg", cnt=len(remaining), name=name))
+                task = asyncio.create_task(self._load_playlist_background(player, remaining, ctx.author))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
             else:
-                await msg.edit(content=tr(s, "music.pl_loaded", cnt=len(tracks), name=name))
+                await msg.edit(content=tr(s, "music.pl_loaded", cnt=1, name=name))
         else:
             await msg.edit(content=tr(s, "music.pl_fail_first", name=name))
-
-        # 2. Nạp ngầm các bài còn lại ở background task
-        if len(tracks) > 1:
-            task = asyncio.create_task(self._load_playlist_background(player, tracks[1:], ctx.author))
-            self._bg_tasks.add(task)
-            task.add_done_callback(self._bg_tasks.discard)
 
     @playlist_group.command(name="show", description="Xem danh sách bài trong playlist")
     @app_commands.describe(name="Tên của playlist")

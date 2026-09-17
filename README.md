@@ -79,7 +79,7 @@
   - `⏭️ Bỏ qua`: Chuyển ngay sang bài tiếp theo.
   - `🔁 Lặp lại`: 3 chế độ thông minh (`Lặp lại: Tắt` ➔ `🔂 Lặp 1 bài` ➔ `🔁 Lặp toàn bộ`).
 - **Lệnh `/nowplaying` (`/np`)**: Tra cứu thông tin bài hát và vị trí phát theo thời gian thực.
-- **Tối ưu hóa âm thanh ARM & yt-dlp**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ tối ưu `-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000 -af aresample=async=1:first_pts=0` triệt tiêu giật lag âm thanh và chống drift PTS. Client yt-dlp chuẩn `["android", "web"]` khắc phục triệt để lỗi YouTube *"The page needs to be reloaded"*.
+- **Tối ưu hóa âm thanh ARM & yt-dlp**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ tối ưu `-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000` triệt tiêu giật lag âm thanh và triệt tiêu 100% hiện tượng co dãn tốc độ/cao độ. Client yt-dlp chuẩn `["android"]` khắc phục triệt để lỗi YouTube *"The page needs to be reloaded"* và lỗi bot verification của client `web`.
 - **Bộ nhớ đệm 2 tầng (Dual-tier Cache)**: Kết hợp In-Memory RAM Cache (`cache.py`) và SQLite Disk Cache (`music_song_cache` với TTL 6 giờ). Khởi động phát lại tức thì (< 0.5s) ngay cả sau khi bot khởi động lại.
 - **Trích xuất song song (Concurrent Extraction)**: Khởi chạy đồng thời kết nối Voice Channel và trích xuất luồng audio (`extract_info`), giảm 50% độ trễ khởi động bài hát ban đầu.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.

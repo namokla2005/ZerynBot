@@ -408,7 +408,6 @@ class BotV2(commands.Bot):
                 ))
             except Exception as e:
                 logger.debug(f"[Bot] on_interaction log error: {e}")
-        await super().on_interaction(interaction)
 
     async def on_command_completion(self, ctx: commands.Context):
         """Ghi nhận lệnh prefix nếu có vào activity_logs."""

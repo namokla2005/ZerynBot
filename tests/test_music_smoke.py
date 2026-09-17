@@ -40,8 +40,9 @@ def test_ffmpeg_probe_reduced():
 
 def test_ffmpeg_anti_drift_encode():
     M = _import()
-    # Nhánh encode lại (không copy) phải có aresample async để bù lệch PTS
-    assert "aresample=async=1" in M.FFMPEG_OPTS_ENCODE, M.FFMPEG_OPTS_ENCODE
+    # Nhánh encode lại (không copy) dùng single-thread, không resample làm biến dạng tốc độ/cao độ
+    assert "-vn -sn -threads 1" in M.FFMPEG_OPTS_ENCODE, M.FFMPEG_OPTS_ENCODE
+    assert "aresample" not in M.FFMPEG_OPTS_ENCODE, M.FFMPEG_OPTS_ENCODE
     # Nhánh copy Opus WebM KHÔNG được có -af (xung đột với -c:a copy)
     assert "-af" not in M.FFMPEG_OPTS_COPY, M.FFMPEG_OPTS_COPY
 
