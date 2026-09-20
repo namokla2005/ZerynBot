@@ -821,7 +821,7 @@
   "music.pl_del_title": "🗑️ Xóa Playlist",
   "music.pl_del_footer": "Thao tác này không thể hoàn tác.",
   "music.pl_song_not_found": "❌ Không tìm thấy bài hát trong playlist!",
-  "music.pl_loading_first": "⏳ Đang tải bài đầu tiên từ playlist **{name}**...",
+  "music.pl_loading_first": "⏳ Đang tải playlist **{name}**...",
   "music.pl_loading_bg": "📥 Đang nạp ngầm {cnt} bài còn lại của playlist **{name}**...",
   "music.pl_fail_first": "❌ Không thể tải bài hát đầu tiên trong playlist **{name}**!",
   "music.pl_footer": "Playlist của {user}",

@@ -821,7 +821,7 @@
   "music.pl_del_title": "🗑️ Delete Playlist",
   "music.pl_del_footer": "This action cannot be undone.",
   "music.pl_song_not_found": "❌ Song not found in playlist!",
-  "music.pl_loading_first": "⏳ Chargement de la première piste de la playlist **{name}**...",
+  "music.pl_loading_first": "⏳ Chargement de la playlist **{name}**...",
   "music.pl_loading_bg": "📥 Chargement en arrière-plan des {cnt} chansons restantes de **{name}**...",
   "music.pl_fail_first": "❌ Impossible de charger la première piste de la playlist **{name}** !",
   "music.pl_footer": "Playlist by {user}",

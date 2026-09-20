@@ -2052,6 +2052,7 @@ class Music(commands.Cog, name="Music"):
         """Nạp ngầm các bài còn lại từ playlist vào hàng chờ theo batch 2 bài (bảo vệ RAM/CPU & tránh rate-limit)."""
         batch_size = 2
         slice_tracks = tracks[:MAX_BG_LOAD]
+        added_any = False
         for i in range(0, len(slice_tracks), batch_size):
             if player._manual_stopped or not player.vc or not player.vc.is_connected():
                 break
@@ -2081,7 +2082,14 @@ class Music(commands.Cog, name="Music"):
                         await player.add_and_play(trk)
                     else:
                         player.queue.append(trk)
+                    added_any = True
             await asyncio.sleep(0.4)
+
+        if added_any:
+            try:
+                await player.update_now_playing()
+            except Exception:
+                pass
 
         if len(tracks) > MAX_BG_LOAD:
             log.info(f"[Music] Playlist background load: chỉ nạp {MAX_BG_LOAD}/{len(tracks)} bài (giới hạn bảo vệ)")
@@ -2126,14 +2134,17 @@ class Music(commands.Cog, name="Music"):
             else:
                 player.queue.append(first_track)
             
+            # Xóa tin nhắn tạm "Đang tải playlist..." ngay khi phát bài đầu tiên
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+
             remaining = tracks[start_index + 1:]
             if remaining:
-                await msg.edit(content=tr(s, "music.pl_loading_bg", cnt=len(remaining), name=name))
                 task = asyncio.create_task(self._load_playlist_background(player, remaining, ctx.author))
                 self._bg_tasks.add(task)
                 task.add_done_callback(self._bg_tasks.discard)
-            else:
-                await msg.edit(content=tr(s, "music.pl_loaded", cnt=1, name=name))
         else:
             await msg.edit(content=tr(s, "music.pl_fail_first", name=name))
 

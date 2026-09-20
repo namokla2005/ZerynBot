@@ -821,7 +821,7 @@
   "music.pl_del_title": "🗑️ Delete Playlist",
   "music.pl_del_footer": "This action cannot be undone.",
   "music.pl_song_not_found": "❌ Song not found in playlist!",
-  "music.pl_loading_first": "⏳ 正在从播放列表 **{name}** 加载第一首歌曲...",
+  "music.pl_loading_first": "⏳ 正在加载播放列表 **{name}**...",
   "music.pl_loading_bg": "📥 正在后台加载播放列表 **{name}** 的剩余 {cnt} 首歌曲...",
   "music.pl_fail_first": "❌ 无法加载播放列表 **{name}** 中的第一首歌曲！",
   "music.pl_footer": "Playlist by {user}",
