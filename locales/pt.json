@@ -1127,7 +1127,7 @@
   "landing.guide3_desc": "Junte-se ao nosso servidor do Discord para obter ajuda a qualquer momento.",
   "landing.footer_tagline": "Sua adorável companheira tudo em um para o Discord.",
   "help.stats_title": "📊 Runtime Statistics",
-  "help.stats_val": "• **Prefix:** / (Slash Commands) or !\n• **Languages:** 6 International (/lang)\n• **Latency:** {ping}ms | **Uptime:** {uptime}",
+  "help.stats_val": "• **Como usar:** Slash (`/play`) ou mencione o bot (`@Bot play`)\n• **Idiomas:** 6 Internacionais (/lang)\n• **Latência:** {ping}ms | **Uptime:** {uptime}",
   "help.btn_dashboard": "Web Dashboard",
   "help.btn_support": "Support Server",
   "help.btn_invite": "Add Bot",
@@ -1616,5 +1616,7 @@
   "help.cmd_example_field": "💡 Exemplo",
   "help.cmd_aliases_field": "🔗 Apelidos (Aliases)",
   "help.cmd_params_field": "⚙️ Parâmetros",
-  "help.cmd_perm_field": "🔒 Permissão Necessária"
+  "help.cmd_perm_field": "🔒 Permissão Necessária",
+  "admin.stepup_not_set_title": "⚠️ A autenticação reforçada não está ativada",
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD não está definido no .env, então Terminal Web / Git Pull / Reiniciar estão protegidos apenas pela sua sessão. Defina ADMIN_PASSWORD no .env e reinicie o painel."
 }

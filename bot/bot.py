@@ -3,6 +3,7 @@ bot.py — Discord Bot v2 entry point.
 Uses discord.py app_commands (slash commands) as primary interface.
 """
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -155,7 +156,10 @@ intents.presences = True
 class BotV2(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix=commands.when_mentioned_or("/"),
+            # P0: chỉ nhận tiền tố @mention. Trước đây dùng "/" nên mọi lệnh hybrid
+            # gọi được bằng tin nhắn thường ("/verify disable") — đường đi vòng qua
+            # `app_commands.default_permissions` (Discord chỉ chặn ở tầng slash UI).
+            command_prefix=commands.when_mentioned,
             intents=intents,
             help_command=None,
             case_insensitive=True,
@@ -284,6 +288,36 @@ class BotV2(commands.Bot):
 
         self.tree.interaction_check = global_cooldown_check
         self.tree.on_error = self.on_app_command_error
+
+        # ─── Global Cooldown cho đường PREFIX (@Bot <lệnh>) ─────
+        # Trước đây chỉ slash bị giới hạn 3s; thêm check này để 2 đường có cùng
+        # luật. `bot.can_run` cũng được hybrid gọi trên đường slash (với baton
+        # Context) nên phải bỏ qua khi ctx.interaction is not None, nếu không sẽ
+        # tự chặn chính lệnh slash vừa được tree.interaction_check cho phép.
+        async def prefix_cooldown_check(ctx: commands.Context) -> bool:
+            if ctx.author.id == config.BOT_OWNER_ID:
+                return True
+            if getattr(ctx, "interaction", None) is not None:
+                return True  # đã được tree.interaction_check xử lý
+
+            now = time.time()
+            user_id = ctx.author.id
+            elapsed = now - self.last_used[user_id]
+            if elapsed < config.GLOBAL_COOLDOWN:
+                remaining = int(config.GLOBAL_COOLDOWN - elapsed)
+                try:
+                    await ctx.send(
+                        f"⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.",
+                        delete_after=5,
+                    )
+                except Exception:
+                    pass
+                return False
+
+            self.last_used[user_id] = now
+            return True
+
+        self.add_check(prefix_cooldown_check)
         # ────────────────────────────────────────────────────────
 
         cogs_dir = os.path.join(os.path.dirname(__file__), "cogs")
@@ -296,18 +330,71 @@ class BotV2(commands.Bot):
                 except Exception as exc:
                     logger.error(f"❌  Failed {ext}: {exc}")
 
-        # Tự động đồng bộ Slash Commands khi khởi động
+        # ─── Đồng bộ Slash Commands (chỉ khi thật cần) ─────────────
+        # Sync global mỗi lần khởi động là request nặng + dễ bị Discord rate-limit,
+        # mà watchdog có thể restart vài lần/ngày. Ta băm tập lệnh hiện tại và chỉ
+        # sync khi fingerprint THAY ĐỔI (thêm/xoá/sửa lệnh), hoặc khi chạy
+        # `python main.py --sync` (ép buộc), hoặc khi chưa có fingerprint trong DB.
         try:
+            force_sync = any(str(a).lower() in ("--sync", "sync") for a in sys.argv[1:])
+            fingerprint = self._commands_fingerprint()
+            stored = await self._get_stored_sync_fingerprint()
+            need_sync = force_sync or stored != fingerprint
+
+            # Dev guild luôn sync tức thì (không tốn rate-limit) để test nhanh.
             if config.DEV_GUILD_ID:
                 guild_obj = discord.Object(id=config.DEV_GUILD_ID)
                 self.tree.copy_global_to(guild=guild_obj)
                 synced_dev = await self.tree.sync(guild=guild_obj)
                 logger.info(f"⚡  Synced {len(synced_dev)} commands to dev guild (instant)")
 
-            synced_global = await self.tree.sync()
-            logger.info(f"🌐  Synced {len(synced_global)} slash commands globally with Discord API!")
+            if need_sync:
+                synced_global = await self.tree.sync()
+                await self._store_sync_fingerprint(fingerprint)
+                reason = "ép buộc (--sync)" if force_sync else "phát hiện lệnh thay đổi"
+                logger.info(
+                    f"🌐  Synced {len(synced_global)} slash commands globally ({reason})."
+                )
+            else:
+                logger.info(
+                    "🌐  Bỏ qua sync global: tập lệnh không đổi so với lần trước "
+                    "(dùng `python main.py --sync` để ép buộc)."
+                )
         except Exception as exc:
             logger.error(f"❌  Failed to sync slash commands on startup: {exc}")
+
+    def _commands_fingerprint(self) -> str:
+        """Băm cấu trúc tập lệnh slash hiện tại (tên/params/lựa chọn)."""
+        try:
+            payload = [
+                cmd.to_dict(self.tree) for cmd in sorted(self.tree.get_commands(), key=lambda c: c.name)
+            ]
+            blob = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+        except Exception as exc:
+            logger.debug(f"[Sync] fingerprint build error: {exc}")
+            blob = ""
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+    async def _get_stored_sync_fingerprint(self) -> str:
+        """Đọc fingerprint đã lưu (chạy DB sync trong thread pool)."""
+        def _read():
+            try:
+                from database import get_global_setting
+                return get_global_setting("cmd_sync_fingerprint") or ""
+            except Exception as exc:
+                logger.debug(f"[Sync] read fingerprint error: {exc}")
+                return ""
+        return await asyncio.get_running_loop().run_in_executor(None, _read)
+
+    async def _store_sync_fingerprint(self, fingerprint: str) -> None:
+        """Lưu fingerprint mới (chạy DB sync trong thread pool)."""
+        def _write():
+            try:
+                from database import set_global_setting
+                set_global_setting("cmd_sync_fingerprint", fingerprint)
+            except Exception as exc:
+                logger.debug(f"[Sync] store fingerprint error: {exc}")
+        await asyncio.get_running_loop().run_in_executor(None, _write)
 
     async def on_ready(self):
         if not hasattr(self, "_ready_once"):
@@ -332,7 +419,15 @@ class BotV2(commands.Bot):
     async def on_command_error(self, ctx: commands.Context, error: Exception):
         if isinstance(error, commands.CommandNotFound):
             return
-        
+
+        # Lệnh hybrid gọi bằng slash: lỗi check bị discord.py bọc trong
+        # `HybridCommandError` (xem hybrid.py::HybridAppCommand._invoke_with_namespace)
+        # nên phải bóc lớp vỏ để xử lý như check lỗi bình thường.
+        if isinstance(error, commands.HybridCommandError):
+            inner = getattr(error, "original", None) or error.__cause__
+            if isinstance(inner, (commands.CheckFailure, discord.app_commands.CheckFailure)):
+                error = inner
+
         s = {}
         if ctx.guild:
             try:
@@ -347,10 +442,24 @@ class BotV2(commands.Bot):
         elif isinstance(error, commands.BotMissingPermissions):
             msg = tr(s, "common.bot_missing_permission")
             return await ctx.send(msg, ephemeral=True)
-        elif isinstance(error, commands.CheckFailure):
-            return  # Handled by cog checks
+        elif isinstance(error, (commands.CheckFailure, discord.app_commands.CheckFailure)):
+            # P0 FIX: trước đây `return` im lặng → người dùng chỉ thấy "interaction
+            # failed". Giờ gửi rõ lý do từ chối (ephemeral cho đường slash).
+            msg = self._check_failure_message(str(error), s)
+            try:
+                await ctx.send(msg, ephemeral=True)
+            except Exception as e:
+                logger.debug(f"Failed to send check failure message: {e}")
+            return
 
         logger.error(f"Command error in {ctx.command}: {error}", exc_info=error)
+
+    @staticmethod
+    def _check_failure_message(raw: str, s: dict) -> str:
+        """Lấy thông báo từ chối: dùng message của check, fallback về i18n."""
+        if not raw or "check functions for command" in raw:
+            return tr(s, "common.no_permission")
+        return raw
 
     async def on_app_command_error(
         self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError
@@ -369,7 +478,8 @@ class BotV2(commands.Bot):
         elif isinstance(error, discord.app_commands.BotMissingPermissions):
             msg = tr(s, "common.bot_missing_permission")
         elif isinstance(error, discord.app_commands.CheckFailure):
-            return
+            # P0 FIX: không "return" im lặng nữa — người dùng phải biết vì sao bị chặn.
+            msg = self._check_failure_message(str(error), s)
 
         embed = discord.Embed(description=msg, color=config.COLOR_ERROR)
         try:
@@ -379,6 +489,11 @@ class BotV2(commands.Bot):
                 await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as e:
             logger.debug(f"Failed to send error embed: {e}")
+
+        if isinstance(error, discord.app_commands.CheckFailure):
+            # Bị chặn quyền là chuyện bình thường — không log ở mức ERROR.
+            logger.info(f"App command denied: {interaction.command} | {error}")
+            return
         logger.error(f"App command error: {error}", exc_info=error)
 
     async def on_interaction(self, interaction: discord.Interaction):

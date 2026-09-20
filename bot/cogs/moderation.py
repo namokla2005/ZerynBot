@@ -240,7 +240,12 @@ class Moderation(commands.Cog):
             )
         lines = []
         for w in warns[:15]:
-            lines.append(f"`#{w['id']}` — {w['reason'][:60]} (<t:{int(datetime.fromisoformat(w['created_at']).timestamp())}:R>)")
+            # `created_at` lưu dạng ISO UTC naive → phải gắn tzinfo=UTC trước khi
+            # .timestamp(), nếu không sẽ bị lệch theo múi giờ local của máy host.
+            _created = datetime.fromisoformat(str(w["created_at"]))
+            if _created.tzinfo is None:
+                _created = _created.replace(tzinfo=timezone.utc)
+            lines.append(f"`#{w['id']}` — {w['reason'][:60]} (<t:{int(_created.timestamp())}:R>)")
         embed = discord.Embed(
             title=embed_title("zb_warn", tr(s, "mod.warnings_title", user=target.display_name, total=len(warns))),
             description="\n".join(lines),

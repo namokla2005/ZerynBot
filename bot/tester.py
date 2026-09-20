@@ -523,14 +523,26 @@ class SystemTester:
             assert not missing_langs, f"Missing language files: {missing_langs}"
             asserts += 1
 
-            # 2. Check 100% key parity (1618 keys)
+            # 2. Check 100% key parity giữa các locale.
+            # KHÔNG hardcode số key nữa: con số 1618 cứng làm suite đỏ mỗi khi thêm
+            # một key i18n hợp lệ (vd: admin.stepup_not_set_*). Điều cần kiểm là MỌI
+            # locale có ĐÚNG CÙNG tập key với locale mặc định.
             key_counts = {lang: len(keys) for lang, keys in i18n.translations.items()}
             base_count = len(i18n.translations[DEFAULT_LANG])
-            assert base_count == 1618, f"Expected 1618 keys in default '{DEFAULT_LANG}', found {base_count}"
+            assert base_count > 0, f"Default locale '{DEFAULT_LANG}' rỗng!"
             asserts += 1
 
             for lang, count in key_counts.items():
-                assert count == 1618, f"Locale '{lang}' has {count} keys, expected exactly 1618 keys"
+                assert count == base_count, (
+                    f"Locale '{lang}' có {count} keys, lệch so với '{DEFAULT_LANG}' ({base_count}) "
+                    "→ thiếu/thừa key i18n."
+                )
+                asserts += 1
+
+            base_keys = set(i18n.translations[DEFAULT_LANG].keys())
+            for lang, keys in i18n.translations.items():
+                diff = base_keys.symmetric_difference(set(keys.keys()))
+                assert not diff, f"Locale '{lang}' lệch key so với '{DEFAULT_LANG}': {sorted(diff)[:10]}"
                 asserts += 1
 
             # 3. Test keyword interpolation
@@ -544,7 +556,7 @@ class SystemTester:
             assert "{vol}" not in res_en, f"Unformatted placeholder found in 'en': {res_en}"
             asserts += 2
 
-            return asserts, "6/6 locales synchronized at exactly 1618 keys, interpolation OK"
+            return asserts, f"6/6 locales synchronized ({base_count} keys), interpolation OK"
 
         # ─── 10. Pillow Dynamic Card Image Generator ──────────────────────────
         async def suite_pillow():

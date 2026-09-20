@@ -12,31 +12,86 @@ import importlib
 
 import pytest
 
-from conftest import login, set_csrf_token, authed_client, MOCK_GUILD_ID
+# Test dashboard cần flask (+ flask-limiter). Trên Termux bot đã có sẵn hai gói này;
+# trên máy dev thiếu thì BỎ QUA cả file thay vì báo 16 lỗi ModuleNotFoundError.
+pytest.importorskip("flask", reason="Dashboard tests cần flask — bỏ qua khi chưa cài")
+pytest.importorskip("flask_limiter", reason="Dashboard tests cần flask-limiter")
+
+from conftest import login, set_csrf_token, authed_client, MOCK_GUILD_ID, MOCK_USER_ID
 
 
 # ─── P0.1 · Secret key fail-closed ────────────────────────────────────────────
+# (đã chuyển sang tests/test_config_security.py để chạy được cả khi thiếu flask)
 
-def test_secret_key_no_static_default(monkeypatch):
-    monkeypatch.delenv("FLASK_SECRET_KEY", raising=False)
+
+# ─── P0.4 · Step-Up Auth cho Web Terminal / git-pull / restart ────────────────
+
+@pytest.fixture()
+def as_owner(monkeypatch):
+    """Ép session mock trở thành đúng chủ bot (độc lập với .env của máy dev)."""
     import config
-    importlib.reload(config)
-    assert config.FLASK_SECRET_KEY not in (
-        "", "dev-secret-key-change-me", "change_this_to_a_random_secret_key_32chars"
+
+    monkeypatch.setattr(config, "BOT_OWNER_ID", int(MOCK_USER_ID))
+    return config
+
+
+def test_stepup_disabled_when_no_admin_password(client, temp_db, as_owner, monkeypatch):
+    """Chưa đặt ADMIN_PASSWORD → step-up không chặn (dashboard hiện banner cảnh báo).
+
+    Gửi lệnh RỖNG nên không có gì được thực thi trong shell.
+    """
+    monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", "")
+    token = authed_client(client)
+    resp = client.post(
+        "/admin/system/terminal",
+        json={"command": ""},
+        headers={"X-CSRF-Token": token},
     )
-    first = config.FLASK_SECRET_KEY
-    importlib.reload(config)
-    assert config.FLASK_SECRET_KEY != first  # ngẫu nhiên mỗi lần khởi động
-    assert len(first) >= 32
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is False  # bị chặn vì lệnh rỗng, không phải vì step-up
 
 
-def test_secret_key_env_respected(monkeypatch):
-    monkeypatch.setenv("FLASK_SECRET_KEY", "my-super-secret-key-1234567890abcdef")
-    import config
-    importlib.reload(config)
-    assert config.FLASK_SECRET_KEY == "my-super-secret-key-1234567890abcdef"
-    monkeypatch.delenv("FLASK_SECRET_KEY", raising=False)
-    importlib.reload(config)
+def test_stepup_blocks_critical_routes_when_configured(client, temp_db, as_owner, monkeypatch):
+    """Đã đặt ADMIN_PASSWORD → Web Terminal/git-pull/restart phải đòi xác thực."""
+    monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", "super-secret-admin-pass")
+    token = authed_client(client)
+
+    for path, payload in (
+        ("/admin/system/terminal", {"command": ""}),
+        ("/admin/system/git-pull", {}),
+        ("/admin/system/restart", {}),
+    ):
+        resp = client.post(path, json=payload, headers={"X-CSRF-Token": token})
+        assert resp.status_code == 401, f"{path} không yêu cầu step-up!"
+        assert resp.get_json()["error"] == "stepup_required"
+
+
+def test_stepup_wrong_password_rejected_then_correct_accepted(client, temp_db, as_owner, monkeypatch):
+    monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", "super-secret-admin-pass")
+    token = authed_client(client)
+
+    bad = client.post(
+        "/admin/system/stepup",
+        json={"password": "sai-mat-khau"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert bad.status_code == 403
+
+    good = client.post(
+        "/admin/system/stepup",
+        json={"password": "super-secret-admin-pass"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert good.status_code == 200
+    assert good.get_json()["ok"] is True
+
+    # Sau khi step-up thành công, Web Terminal không còn trả 401 nữa.
+    resp = client.post(
+        "/admin/system/terminal",
+        json={"command": ""},
+        headers={"X-CSRF-Token": token},
+    )
+    assert resp.status_code == 200
 
 
 # ─── P0.2 · OAuth state bắt buộc ──────────────────────────────────────────────

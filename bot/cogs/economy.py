@@ -3,8 +3,10 @@ Cog: Economy & Mini-Games (v2)
 Features: Daily streak, Wallet/Bank balance, Transfers, Coinflip, Slots, Interactive Blackjack, Server Role Shop.
 Optimized for ARM / Termux with pure async database transactions.
 """
-import sys, os, time, random, asyncio
+import sys, os, time, random, asyncio, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+log = logging.getLogger("BotV2.Economy")
 
 import discord
 from discord.ext import commands
@@ -16,10 +18,11 @@ from database import (
     async_get_economy_settings, async_get_economy_user,
     async_claim_daily, async_modify_wallet, async_transfer_money,
     async_deposit_money, async_withdraw_money,
-    async_get_economy_shop, async_buy_shop_item, async_get_top_economy,
+    async_get_economy_shop, async_buy_shop_item, async_refund_shop_purchase, async_get_top_economy,
     async_get_inventory, async_get_inventory_item, async_add_inventory_item,
     async_sell_inventory_item, async_sell_all_inventory,
     async_get_economy_cooldown, async_set_economy_cooldown,
+    async_claim_economy_cooldown,
     async_place_bet, async_log_transaction
 )
 from i18n import tr
@@ -332,7 +335,7 @@ class Economy(commands.Cog):
         last_daily = user_data.get("last_daily_at", 0)
         now = time.time()
         cooldown = 86400  # 24 giờ
-        
+
         if now - last_daily < cooldown:
             remaining = int(cooldown - (now - last_daily))
             hours = remaining // 3600
@@ -347,6 +350,10 @@ class Economy(commands.Cog):
         else:
             new_streak = 1
 
+        # Biến kiểm tra ở trên chỉ là "hiển thị" — điều kiện thật nằm trong DB
+        # (chống 2 tin nhắn điểm danh gần như đồng thời cùng được cộng tiền).
+        daily_cutoff = now - cooldown
+
         base_reward = eco_s.get("daily_amount", 100)
         streak_bonus = (new_streak - 1) * eco_s.get("streak_bonus", 20)
         # Bonus ngày 7 x2
@@ -354,7 +361,13 @@ class Economy(commands.Cog):
         total_reward = (base_reward + streak_bonus) * multiplier
         
         sym = get_sym(eco_s)
-        await async_claim_daily(str(ctx.guild.id), str(ctx.author.id), total_reward, new_streak)
+        claimed = await async_claim_daily(
+            str(ctx.guild.id), str(ctx.author.id), total_reward, new_streak,
+            cutoff=daily_cutoff, now=now,
+        )
+        if claimed is None:
+            await ctx.send(tr(s, "economy.daily_cooldown", hours=0, mins=0), ephemeral=True)
+            return
         await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "daily", total_reward, f"daily streak {new_streak}")
         
         embed = discord.Embed(
@@ -700,15 +713,25 @@ class Economy(commands.Cog):
                 await ctx.send(tr(s, "economy.buy_need_bank", price=price, bank=user_data.get("bank", 0), sym=sym), ephemeral=True)
             return
 
-        # Cấp role cho user
+        # Cấp role cho user — nếu KHÔNG gán được thì phải hoàn tiền, nếu không
+        # người dùng mất tiền mà không nhận được gì (đã trừ bank + stock ở trên).
         if role_id:
             role = ctx.guild.get_role(int(role_id))
-            if role:
-                try:
-                    await ctx.author.add_roles(role, reason="Mua role từ Economy Shop")
-                except Exception as e:
-                    await ctx.send(tr(s, "economy.role_assign_error", role=role.name), ephemeral=True)
-                    return
+            if role is None:
+                await async_refund_shop_purchase(
+                    str(ctx.guild.id), str(ctx.author.id), info, price, item_id
+                )
+                await ctx.send(tr(s, "economy.role_not_found"), ephemeral=True)
+                return
+            try:
+                await ctx.author.add_roles(role, reason="Mua role từ Economy Shop")
+            except Exception as e:
+                log.warning(f"[Economy] add_roles failed for {ctx.author.id}: {e}")
+                await async_refund_shop_purchase(
+                    str(ctx.guild.id), str(ctx.author.id), info, price, item_id
+                )
+                await ctx.send(tr(s, "economy.role_assign_error", role=role.name), ephemeral=True)
+                return
 
         await ctx.send(tr(s, "economy.buy_success", item=info, sym=sym))
 
@@ -780,6 +803,15 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.work_cooldown", minutes=mins, seconds=secs), ephemeral=True)
             return
 
+        # Giữ slot NGUYÊN TỬ trong DB — hai lệnh gửi cùng lúc chỉ 1 lệnh chạy được.
+        if not await async_claim_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work", cooldown, now):
+            # Request khác vừa chiếm slot → tính lại thời gian chờ từ DB
+            # (khối if phía trên có thể đã bị bỏ qua nên mins/secs chưa được gán).
+            current = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work")
+            rem = max(0, int(cooldown - (time.time() - current)))
+            await ctx.send(tr(s, "economy.work_cooldown", minutes=rem // 60, seconds=rem % 60), ephemeral=True)
+            return
+
         job = random.choice(WORK_JOBS)
         base_pay = random.randint(job["min"], job["max"])
         is_bonus = random.random() < 0.10  # 10% cơ hội thưởng
@@ -788,8 +820,6 @@ class Economy(commands.Cog):
 
         await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), total_pay)
         await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "work", total_pay, f"work: {job['name']}")
-        await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "work", now)
-
         desc = tr(s, "economy.work_desc", user=ctx.author.mention, job=job["name"], amount=base_pay, sym=sym)
         if is_bonus:
             desc += tr(s, "economy.work_bonus", bonus=bonus_pay, sym=sym)
@@ -821,6 +851,13 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.fish_cooldown", minutes=mins, seconds=secs), ephemeral=True)
             return
 
+        # Giữ slot nguyên tử (xem ghi chú ở lệnh /work).
+        if not await async_claim_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "fish", cooldown, now):
+            current = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "fish")
+            rem = max(0, int(cooldown - (time.time() - current)))
+            await ctx.send(tr(s, "economy.fish_cooldown", minutes=rem // 60, seconds=rem % 60), ephemeral=True)
+            return
+
         weights = [it["weight"] for it in FISH_ITEMS]
         caught = random.choices(FISH_ITEMS, weights=weights, k=1)[0]
 
@@ -829,8 +866,6 @@ class Economy(commands.Cog):
             caught["id"], caught["name"], caught["type"],
             caught["rarity"], 1, caught["price"]
         )
-        await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "fish", now)
-
         rarity_text = tr(s, f"economy.rarity_{caught['rarity']}")
         embed = discord.Embed(
             title=embed_title("zb_fish", tr(s, "economy.fish_title")),
@@ -859,6 +894,13 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.hunt_cooldown", minutes=mins, seconds=secs), ephemeral=True)
             return
 
+        # Giữ slot nguyên tử (xem ghi chú ở lệnh /work).
+        if not await async_claim_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "hunt", cooldown, now):
+            current = await async_get_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "hunt")
+            rem = max(0, int(cooldown - (time.time() - current)))
+            await ctx.send(tr(s, "economy.hunt_cooldown", minutes=rem // 60, seconds=rem % 60), ephemeral=True)
+            return
+
         weights = [it["weight"] for it in HUNT_ITEMS]
         hunted = random.choices(HUNT_ITEMS, weights=weights, k=1)[0]
 
@@ -867,8 +909,6 @@ class Economy(commands.Cog):
             hunted["id"], hunted["name"], hunted["type"],
             hunted["rarity"], 1, hunted["price"]
         )
-        await async_set_economy_cooldown(str(ctx.guild.id), str(ctx.author.id), "hunt", now)
-
         rarity_text = tr(s, f"economy.rarity_{hunted['rarity']}")
         embed = discord.Embed(
             title=embed_title("zb_hunt", tr(s, "economy.hunt_title")),

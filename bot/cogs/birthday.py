@@ -113,9 +113,10 @@ class Birthday(commands.Cog):
 
         date_str = f"{bday['day']:02d}/{bday['month']:02d}"
         if bday.get("year"):
-            age = now.year - bday["year"]
-            if bday_this_year.year > now.year:
-                age = now.year - bday["year"]
+            # Tuổi thật: nếu sinh nhật năm nay CHƯA tới thì phải trừ 1
+            # (trước đây 2 nhánh if/else giống hệt nhau nên luôn báo dư 1 tuổi).
+            had_birthday_this_year = (now.month, now.day) >= (bday["month"], bday["day"])
+            age = now.year - bday["year"] - (0 if had_birthday_this_year else 1)
             date_str += f"/{bday['year']}"
         else:
             age = None
@@ -184,18 +185,30 @@ class Birthday(commands.Cog):
     # ─── Midnight Birthday Loop ─────────────────────────────────────────
     @tasks.loop(hours=1)
     async def birthday_loop(self):
-        """Check for birthdays every hour. Send congratulations at midnight (UTC)."""
+        """Check for birthdays every hour. Send congratulations at midnight (UTC).
+
+        Lưu ý: loop chạy mỗi giờ nên trong khung 0h UTC nó có thể chạy nhiều lần.
+        Vì vậy mỗi guild/ngày chỉ được xử lý MỘT lần — chống tặng coin/XP/VIP trùng
+        (trước đây có thể gửi lặp vài chục lần trong cùng một buổi tối).
+        """
         now = datetime.now(timezone.utc)
         # Only run at midnight hour (0:xx UTC)
         if now.hour != 0:
             return
 
+        today_key = now.strftime("%Y-%m-%d")
         today_birthdays = await async_get_birthdays_today(now.day, now.month)
         if not today_birthdays:
             return
 
+        from database import async_get_maintenance_job, async_set_maintenance_job
+
         for guild in self.bot.guilds:
             try:
+                # Đã chạy cho guild này trong ngày hôm nay? → bỏ qua.
+                if await async_get_maintenance_job(f"birthday:{guild.id}:{today_key}"):
+                    continue
+
                 enabled = await async_is_module_enabled(str(guild.id), "birthday")
                 if not enabled:
                     continue
@@ -277,6 +290,9 @@ class Birthday(commands.Cog):
                                 )
                             except Exception as e:
                                 logger.warning(f"[Birthday] Failed to add VIP role: {e}")
+
+                # Đánh dấu đã xử lý xong cho guild trong ngày → không tặng lại.
+                await async_set_maintenance_job(f"birthday:{guild.id}:{today_key}")
 
             except Exception as e:
                 logger.error(f"[Birthday] Error processing guild {guild.id}: {e}")

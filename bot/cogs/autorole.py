@@ -35,6 +35,7 @@ class AutoRole(commands.Cog, name="AutoRole"):
 
     @autorole.command(name="show", description="Xem cấu hình Auto Roles hiện tại")
     @app_commands.default_permissions(manage_roles=True)
+    @checks.is_bot_admin()
     async def show(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         settings = await async_get_guild_settings(guild_id)

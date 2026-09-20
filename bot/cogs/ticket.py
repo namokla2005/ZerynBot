@@ -171,7 +171,9 @@ class Ticket(commands.Cog, name="Tickets"):
                 tr(settings, "ticket.created_success", ch=ticket_channel.mention), ephemeral=True
             )
             
-            self.bot.dispatch('ticket_action', guild, member, tr(settings, "ticket.action_open"), channel_name)
+            # P2: dùng key ổn định ("open") thay vì chuỗi đã dịch để thống kê không
+            # phụ thuộc ngôn ngữ (xem stats.py::on_ticket_action).
+            self.bot.dispatch('ticket_action', guild, member, "open", channel_name)
 
         # ─── Ticket Close Button Click ────────────────────────────────────────
         elif custom_id == "ticket:close":
@@ -211,7 +213,7 @@ class Ticket(commands.Cog, name="Tickets"):
                 tr(settings, "ticket.closing_notice")
             )
             
-            self.bot.dispatch('ticket_action', guild, member, tr(settings, "ticket.action_close"), channel.name)
+            self.bot.dispatch('ticket_action', guild, member, "close", channel.name)
             
             await asyncio.sleep(5)
             try:

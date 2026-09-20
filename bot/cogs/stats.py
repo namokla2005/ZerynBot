@@ -71,21 +71,48 @@ class Stats(commands.Cog):
         key = (guild_id, "member", "leave")
         self._stat_buffer[key] = self._stat_buffer.get(key, 0) + 1
 
+    @staticmethod
+    def _classify(action_type: str, keys: set, legacy: dict) -> str:
+        """Ưu tiên KEY ổn định ("warn"/"timeout"/"open"/"close").
+
+        Các bản automod/ticket cũ dispatch chuỗi đã dịch ("Cảnh báo", "Timeout 5 phút",
+        "禁言", "Mở", ...) nên vẫn chấp nhận chúng làm fallback để biểu đồ không mất
+        dữ liệu trong giai đoạn chuyển tiếp.
+        """
+        text = str(action_type or "")
+        low = text.strip().lower()
+        if low in keys:
+            return low
+        for label, needles in legacy.items():
+            if any(n.lower() in low for n in needles):
+                return label
+        return "other"
+
     @commands.Cog.listener()
     async def on_automod_action(self, guild: discord.Guild, user: discord.Member, action_type: str, reason: str, jump_url: str = None):
         guild_id = str(guild.id)
-        is_warn = "Cảnh báo" in action_type or "Warn" in action_type or "Warning" in action_type
-        is_timeout = "Timeout" in action_type or "Aislamiento" in action_type or "Castigo" in action_type or "Exclusion" in action_type or "禁言" in action_type
-        action_label = "warn" if is_warn else ("timeout" if is_timeout else "other")
+        action_label = self._classify(
+            action_type,
+            {"warn", "timeout"},
+            {
+                "warn": ["cảnh báo", "warn"],
+                "timeout": ["timeout", "aislamiento", "castigo", "exclusion", "禁言", "timeout"],
+            },
+        )
         key = (guild_id, "automod", action_label)
         self._stat_buffer[key] = self._stat_buffer.get(key, 0) + 1
 
     @commands.Cog.listener()
     async def on_ticket_action(self, guild: discord.Guild, user: discord.Member, action_type: str, ticket_name: str):
         guild_id = str(guild.id)
-        is_open = "Mở" in action_type or "Open" in action_type or "Created" in action_type
-        is_close = "Đóng" in action_type or "Close" in action_type or "Deleted" in action_type
-        action_label = "open" if is_open else ("close" if is_close else "other")
+        action_label = self._classify(
+            action_type,
+            {"open", "close"},
+            {
+                "open": ["mở", "open", "created"],
+                "close": ["đóng", "close", "deleted"],
+            },
+        )
         key = (guild_id, "ticket", action_label)
         self._stat_buffer[key] = self._stat_buffer.get(key, 0) + 1
 

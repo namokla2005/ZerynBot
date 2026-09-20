@@ -85,54 +85,115 @@ class LimitVoiceModal(discord.ui.Modal):
 
 
 class TempVoiceControlView(discord.ui.View):
-    def __init__(self, channel: discord.VoiceChannel, owner: discord.Member, settings: dict):
+    """Bảng điều khiển kênh voice tạm — view bền vững (persistent), không giữ state.
+
+    Trước đây view giữ `channel`/`owner` trong instance và KHÔNG được đăng ký với
+    `bot.add_view`, nên sau mỗi lần restart (kể cả watchdog tự restart khi mất mạng)
+    các nút trên bảng điều khiển trở thành "interaction failed".
+
+    Giờ kênh + chủ phòng được tra từ DB theo người bấm, nhờ vậy nút sống qua restart.
+    """
+
+    def __init__(self):
         super().__init__(timeout=None)
-        self.channel = channel
-        self.owner = owner
-        self.settings = settings
-        
-        # Set dynamic localized labels for buttons
+
+    @staticmethod
+    async def _resolve(interaction: discord.Interaction):
+        """Trả về (channel, owner_id, settings); channel=None nếu không hợp lệ."""
+        settings = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else {}
+
+        channel = None
+        voice_state = getattr(interaction.user, "voice", None)
+        if voice_state and voice_state.channel:
+            channel = voice_state.channel
+        elif isinstance(interaction.channel, discord.VoiceChannel):
+            channel = interaction.channel
+
+        if channel is None:
+            await interaction.response.send_message(
+                tr(settings, "tempvoice.must_be_in_voice"), ephemeral=True
+            )
+            return None, None, settings
+
+        active = await async_get_active_temp_channel(str(channel.id))
+        if not active:
+            await interaction.response.send_message(
+                tr(settings, "tempvoice.not_owner"), ephemeral=True
+            )
+            return None, None, settings
+
+        return channel, str(active.get("owner_id") or ""), settings
+
+    async def _authorize(self, interaction: discord.Interaction, owner_id: str, settings: dict) -> bool:
+        """Chỉ chủ phòng (hoặc Admin) được dùng nút."""
+        if owner_id == str(interaction.user.id):
+            return True
+        perms = getattr(interaction.user, "guild_permissions", None)
+        if perms and perms.administrator:
+            return True
+        await interaction.response.send_message(
+            tr(settings, "tempvoice.not_owner"), ephemeral=True
+        )
+        return False
+
+    def _localize(self, settings: dict):
+        """Gán nhãn nút theo ngôn ngữ server tại thời điểm bấm."""
         self.toggle_lock.label = tr(settings, "tempvoice.btn_lock_toggle")
         self.set_limit.label = tr(settings, "tempvoice.btn_limit")
         self.rename.label = tr(settings, "tempvoice.btn_rename")
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.owner.id and not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(tr(self.settings, "tempvoice.not_owner"), ephemeral=True)
-            return False
-        return True
+        return True  # phân quyền chi tiết trong từng nút (theo DB, không theo state)
 
     @discord.ui.button(label="Lock / Unlock", style=discord.ButtonStyle.primary, emoji=partial("zb_lock", "🔒"), custom_id="tv_lock")
     async def toggle_lock(self, interaction: discord.Interaction, button: discord.ui.Button):
-        guild = self.channel.guild
-        overwrites = self.channel.overwrites_for(guild.default_role)
+        channel, owner_id, s = await self._resolve(interaction)
+        if channel is None:
+            return
+        if not await self._authorize(interaction, owner_id, s):
+            return
+
+        guild = channel.guild
+        owner = guild.get_member(int(owner_id)) if owner_id.isdigit() else None
+
+        overwrites = channel.overwrites_for(guild.default_role)
         is_currently_locked = (overwrites.connect is False)
 
         new_lock = not is_currently_locked
         overwrites.connect = None if not new_lock else False
-        
-        # Luôn cho phép owner kết nối
-        owner_ov = self.channel.overwrites_for(self.owner)
-        owner_ov.connect = True
-        
-        await self.channel.set_permissions(guild.default_role, overwrite=overwrites)
-        await self.channel.set_permissions(self.owner, overwrite=owner_ov)
-        await async_update_temp_channel_lock(str(self.channel.id), 1 if new_lock else 0)
+        await channel.set_permissions(guild.default_role, overwrite=overwrites)
 
-        msg = tr(self.settings, "tempvoice.locked") if new_lock else tr(self.settings, "tempvoice.unlocked")
+        # Luôn cho phép owner kết nối (kể cả sau restart, owner lấy từ DB)
+        if owner is not None:
+            owner_ov = channel.overwrites_for(owner)
+            owner_ov.connect = True
+            await channel.set_permissions(owner, overwrite=owner_ov)
+
+        await async_update_temp_channel_lock(str(channel.id), 1 if new_lock else 0)
+
+        self._localize(s)
+        msg = tr(s, "tempvoice.locked") if new_lock else tr(s, "tempvoice.unlocked")
         button.emoji = "🔓" if new_lock else partial("zb_lock", "🔒")
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(msg, ephemeral=True)
 
     @discord.ui.button(label="Limit", style=discord.ButtonStyle.secondary, emoji="👥", custom_id="tv_limit")
     async def set_limit(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = LimitVoiceModal(self.channel, self.settings)
-        await interaction.response.send_modal(modal)
+        channel, owner_id, s = await self._resolve(interaction)
+        if channel is None:
+            return
+        if not await self._authorize(interaction, owner_id, s):
+            return
+        await interaction.response.send_modal(LimitVoiceModal(channel, s))
 
     @discord.ui.button(label="Rename", style=discord.ButtonStyle.secondary, emoji="✏️", custom_id="tv_rename")
     async def rename(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = RenameVoiceModal(self.channel, self.settings)
-        await interaction.response.send_modal(modal)
+        channel, owner_id, s = await self._resolve(interaction)
+        if channel is None:
+            return
+        if not await self._authorize(interaction, owner_id, s):
+            return
+        await interaction.response.send_modal(RenameVoiceModal(channel, s))
 
 
 class TempVoice(commands.Cog):
@@ -199,7 +260,8 @@ class TempVoice(commands.Cog):
                     timestamp=datetime.now(timezone.utc)
                 )
                 embed.set_footer(text=tr(s, "tempvoice.panel_footer"))
-                view = TempVoiceControlView(new_voice, member, s)
+                view = TempVoiceControlView()
+                view._localize(s)
                 try:
                     await new_voice.send(embed=embed, view=view)
                 except Exception:
@@ -298,4 +360,7 @@ class TempVoice(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
+    # Đăng ký view bền vững: bắt buộc để nút trên bảng điều khiển hoạt động sau
+    # khi bot restart (discord.py định tuyến component theo custom_id đã đăng ký).
+    bot.add_view(TempVoiceControlView())
     await bot.add_cog(TempVoice(bot))

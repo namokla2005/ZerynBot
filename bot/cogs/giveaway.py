@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
+import checks
 import config
 
 from database import (
@@ -180,8 +181,10 @@ class Giveaway(commands.Cog):
     def cog_unload(self):
         self.giveaway_loop.cancel()
 
+    # P0: check phải nằm trên từng lệnh con (group không truyền check xuống con).
     @commands.hybrid_group(name="giveaway", description="Quản lý Giveaway trên máy chủ")
-    @commands.has_permissions(manage_guild=True)
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.manage_guild_only()
     async def giveaway(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
             s = await async_get_guild_settings(str(ctx.guild.id))
@@ -194,6 +197,8 @@ class Giveaway(commands.Cog):
         prize="Tên phần thưởng",
         role="Vai trò yêu cầu để tham gia (tùy chọn)"
     )
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.manage_guild_only()
     async def g_start(self, ctx: commands.Context, duration: str, winners: int, prize: str, role: discord.Role = None):
         guild_id = str(ctx.guild.id)
         s = await async_get_guild_settings(guild_id)
@@ -246,6 +251,8 @@ class Giveaway(commands.Cog):
 
     @giveaway.command(name="end", description="Kết thúc sớm một Giveaway")
     @app_commands.describe(message_id="ID của tin nhắn Giveaway")
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.manage_guild_only()
     async def g_end(self, ctx: commands.Context, message_id: str):
         s = await async_get_guild_settings(str(ctx.guild.id))
         gw = await async_get_giveaway(message_id)
@@ -260,6 +267,8 @@ class Giveaway(commands.Cog):
 
     @giveaway.command(name="reroll", description="Chọn lại người thắng mới cho Giveaway đã kết thúc")
     @app_commands.describe(message_id="ID của tin nhắn Giveaway")
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.manage_guild_only()
     async def g_reroll(self, ctx: commands.Context, message_id: str):
         s = await async_get_guild_settings(str(ctx.guild.id))
         gw = await async_get_giveaway(message_id)

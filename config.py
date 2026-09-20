@@ -49,6 +49,22 @@ if _secret in _INSECURE_DEFAULT_KEYS:
     )
 FLASK_SECRET_KEY: str = _secret
 
+# P0.4 (security): mật khẩu cho Step-Up Auth của các route nguy hiểm trong /admin
+# (Web Terminal, git-pull, restart). TRƯỚC ĐÂY biến này không tồn tại → các route
+# đó chỉ còn 1 lớp bảo vệ là session owner (7 ngày). Để rỗng = tắt step-up
+# (dashboard sẽ hiện banner cảnh báo); đặt chuỗi ngẫu nhiên trong .env để bật.
+ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "").strip()
+
+# Cảnh báo rõ lúc khởi động nếu chưa đặt — tránh "im lặng giả an toàn".
+if not ADMIN_PASSWORD:
+    import warnings as _warnings
+
+    _warnings.warn(
+        "[SECURITY] ADMIN_PASSWORD chưa được đặt — Web Terminal / git-pull / restart "
+        "trong /admin sẽ KHÔNG yêu cầu xác thực cấp cao. Hãy đặt ADMIN_PASSWORD trong .env.",
+        stacklevel=2,
+    )
+
 DASHBOARD_URL: str    = os.getenv("DASHBOARD_URL", "http://localhost:5000")
 REDIRECT_URI: str     = os.getenv("REDIRECT_URI", "http://localhost:5000/callback")
 

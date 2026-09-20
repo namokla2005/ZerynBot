@@ -168,6 +168,30 @@
     </div>
 
     <div class="section-header" style="margin-top:24px;">
+      <div class="section-title">🏆 {{ t('music.top_title') }}</div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      {% if top_songs %}
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for song in top_songs %}
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+          <span style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ song.title }}">
+            {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}#{{ loop.index }}{% endif %}
+            {{ song.title.split('|')[-1] }}
+          </span>
+          <span class="badge badge-success" style="background:rgba(88,101,242,0.15); color:#5865f2; padding:4px 10px; border-radius:12px; font-size:0.72rem; font-weight:600; white-space:nowrap;">
+            {{ song.play_count }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--text-muted); font-size:0.85rem; margin:0;">{{ t('music.top_empty') }}</p>
+      {% endif %}
+    </div>
+
+    <div class="section-header" style="margin-top:24px;">
       <div class="section-title">🛠️ {{ t('music.system_status') }}</div>
     </div>
 

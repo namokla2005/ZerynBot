@@ -1,5 +1,5 @@
 """
-Cog: Utility (v2) — Prefix commands: ping, membercount, help
+Cog: Utility (v2) — Commands: ping, membercount, help (slash + @mention prefix)
 """
 import sys, os, time, random
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))

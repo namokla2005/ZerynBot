@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1618%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1620%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-20%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="20 Modules">
   <img src="https://img.shields.io/badge/Commands-108%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="108 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
@@ -19,7 +19,7 @@
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1618 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1620 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -202,6 +202,7 @@ DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
 BOT_OWNER_ID=your_discord_user_id
 FLASK_SECRET_KEY=your_random_secret_key
+ADMIN_PASSWORD=your_stepup_password
 DASHBOARD_URL=http://localhost:5000
 REDIRECT_URI=http://localhost:5000/callback
 WEBHOOK_LOG_URL=https://discord.com/api/webhooks/...
@@ -215,6 +216,16 @@ GEMINI_API_KEY=optional_ai_key_here
 > (vd: `python -c "import secrets; print(secrets.token_hex(32))"`). Nếu để trống hoặc
 > giữ giá trị mẫu, hệ thống sẽ tự sinh key ngẫu nhiên mỗi lần khởi động — an toàn
 > nhưng mọi phiên đăng nhập sẽ bị reset sau mỗi lần restart dashboard.
+>
+> 🔒 **`ADMIN_PASSWORD`** là mật khẩu **Step-Up Auth** cho các thao tác nguy hiểm trên
+> trang `/admin`: **Web Terminal**, **Git Pull**, **Restart**. Sinh bằng
+> `python -c "import secrets; print(secrets.token_urlsafe(24))"`. Nếu để trống,
+> dashboard vẫn chạy nhưng sẽ hiện **banner cảnh báo** và ba thao tác trên chỉ còn
+> 1 lớp bảo vệ là phiên đăng nhập Discord.
+
+> 💬 **Cách gọi lệnh**: bot dùng **Slash Command** (`/play`) là chính. Đường prefix
+> duy nhất còn hỗ trợ là **@mention bot**, ví dụ `@ZerynBot play lofi` — tiền tố `/`
+> đã bị bỏ để tránh vô tình gọi lệnh bằng tin nhắn thường.
 
 ### 2.5. Bật Privileged Gateway Intents (Bắt buộc)
 

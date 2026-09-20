@@ -1,6 +1,6 @@
 """
 lang.py — Language Cog for ZerynBot V2.
-Provides hybrid command /lang (slash + prefix) to set per-guild bot language.
+Provides hybrid command /lang (slash + @mention prefix) to set per-guild bot language.
 
 Supported languages: vi, en, zh, es, pt, fr
 Required permission: Manage Server (or Bot Owner)

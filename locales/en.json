@@ -1127,7 +1127,7 @@
   "landing.guide3_desc": "Join our official Discord support server to get help anytime.",
   "landing.footer_tagline": "Your adorable all-in-one companion for Discord communities.",
   "help.stats_title": "📊 Runtime Statistics",
-  "help.stats_val": "• **Prefix:** / (Slash Commands) or !\n• **Languages:** 6 International (/lang)\n• **Latency:** {ping}ms | **Uptime:** {uptime}",
+  "help.stats_val": "• **How to use:** Slash (`/play`) or mention the bot (`@Bot play`)\n• **Languages:** 6 International (/lang)\n• **Latency:** {ping}ms | **Uptime:** {uptime}",
   "help.btn_dashboard": "Web Dashboard",
   "help.btn_support": "Support Server",
   "help.btn_invite": "Add Bot",
@@ -1616,5 +1616,7 @@
   "help.cmd_example_field": "💡 Example",
   "help.cmd_aliases_field": "🔗 Aliases",
   "help.cmd_params_field": "⚙️ Parameters",
-  "help.cmd_perm_field": "🔒 Required Permission"
+  "help.cmd_perm_field": "🔒 Required Permission",
+  "admin.stepup_not_set_title": "⚠️ Step-Up Auth is not enabled",
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD is not set in .env, so Web Terminal / Git Pull / Restart are protected only by your login session. Set ADMIN_PASSWORD in .env and restart the dashboard."
 }

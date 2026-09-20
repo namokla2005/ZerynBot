@@ -1127,7 +1127,7 @@
   "landing.guide3_desc": "Cộng đồng và đội ngũ quản trị luôn sẵn sàng giải đáp mọi thắc mắc.",
   "landing.footer_tagline": "Người bạn đồng hành bot Discord đáng yêu & đa năng bậc nhất.",
   "help.stats_title": "📊 Thông Số Hoạt Động",
-  "help.stats_val": "• **Prefix:** / (Slash Commands) hoặc !\n• **Ngôn ngữ:** 6 Quốc Gia (/lang)\n• **Độ trễ:** {ping}ms | **Uptime:** {uptime}",
+  "help.stats_val": "• **Cách gọi:** Slash (`/play`) hoặc @mention bot (`@Bot play`)\n• **Ngôn ngữ:** 6 Quốc Gia (/lang)\n• **Độ trễ:** {ping}ms | **Uptime:** {uptime}",
   "help.btn_dashboard": "Web Dashboard",
   "help.btn_support": "Server Hỗ Trợ",
   "help.btn_invite": "Thêm Bot",
@@ -1616,5 +1616,7 @@
   "help.cmd_example_field": "💡 Ví dụ sử dụng",
   "help.cmd_aliases_field": "🔗 Bí danh (Aliases)",
   "help.cmd_params_field": "⚙️ Tham số",
-  "help.cmd_perm_field": "🔒 Quyền hạn yêu cầu"
+  "help.cmd_perm_field": "🔒 Quyền hạn yêu cầu",
+  "admin.stepup_not_set_title": "⚠️ Chưa bật xác thực cấp cao (Step-Up Auth)",
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD chưa được đặt trong .env, nên Web Terminal / Git Pull / Restart chỉ còn 1 lớp bảo vệ là phiên đăng nhập. Hãy đặt ADMIN_PASSWORD trong .env rồi khởi động lại dashboard."
 }

@@ -9,6 +9,7 @@ log = logging.getLogger("BotV2.Leveling")
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
+import checks
 import config
 
 from database import (
@@ -313,8 +314,11 @@ class Leveling(commands.Cog):
         embed.description = desc
         await ctx.send(embed=embed)
 
+    # P0: check phải nằm trên TỪNG lệnh con — discord.py không cho lệnh con thừa
+    # hưởng check của group (core.py::can_run chỉ duyệt `self.checks`).
     @commands.hybrid_group(name="xp", description="Quản lý XP người dùng")
-    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    @checks.admin_only()
     async def xp(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
             s = await async_get_guild_settings(str(ctx.guild.id))
@@ -322,6 +326,8 @@ class Leveling(commands.Cog):
 
     @xp.command(name="add", description="Cộng thêm XP thưởng cho một người dùng")
     @app_commands.describe(member="Người dùng", amount="Số lượng XP cần cộng thêm")
+    @app_commands.default_permissions(administrator=True)
+    @checks.admin_only()
     async def xp_add(self, ctx: commands.Context, member: discord.Member, amount: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         if amount <= 0:
@@ -337,6 +343,8 @@ class Leveling(commands.Cog):
 
     @xp.command(name="set", description="Thiết lập XP cho một người dùng")
     @app_commands.describe(member="Người dùng", amount="Số lượng XP mới")
+    @app_commands.default_permissions(administrator=True)
+    @checks.admin_only()
     async def xp_set(self, ctx: commands.Context, member: discord.Member, amount: int):
         s = await async_get_guild_settings(str(ctx.guild.id))
         if amount < 0:
@@ -350,6 +358,8 @@ class Leveling(commands.Cog):
 
     @xp.command(name="reset", description="Khôi phục XP của một người dùng về 0")
     @app_commands.describe(member="Người dùng")
+    @app_commands.default_permissions(administrator=True)
+    @checks.admin_only()
     async def xp_reset(self, ctx: commands.Context, member: discord.Member):
         s = await async_get_guild_settings(str(ctx.guild.id))
         guild_id = str(ctx.guild.id)

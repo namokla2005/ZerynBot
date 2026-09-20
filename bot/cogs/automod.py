@@ -151,13 +151,22 @@ class Automod(commands.Cog):
                 except discord.Forbidden:
                     pass  # User has DMs disabled
                     
-                self.bot.dispatch('automod_action', guild, member, "Cảnh báo", reason, message.jump_url)
+                # P2: dispatch KEY ổn định ("warn") thay vì chuỗi đã dịch — trước đây
+                # stats.py phải đoán ngôn ngữ ("Cảnh báo"/"Warn"/"禁言"...) nên thêm
+                # locale mới là biểu đồ thống kê vỡ.
+                self.bot.dispatch('automod_action', guild, member, "warn", reason, message.jump_url)
             except discord.Forbidden:
                 pass
         else:
             # 2nd or more time: Timeout
+            # Parse AN TOÀN trước khối try: nếu `timeout_duration_minutes` bị đặt thành
+            # chuỗi rác thì `timeout_mins` sẽ không được gán, và khối log bên dưới
+            # (dùng f"Timeout {timeout_mins} phút") sẽ nổ NameError.
             try:
                 timeout_mins = int(settings.get("timeout_duration_minutes", 5) or 5)
+            except (TypeError, ValueError):
+                timeout_mins = 5
+            try:
                 until = discord.utils.utcnow() + timedelta(minutes=timeout_mins)
                 await member.timeout(until, reason=f"Automod: {reason}")
                 
@@ -185,7 +194,7 @@ class Automod(commands.Cog):
                 except Exception:
                     pass
                 
-                self.bot.dispatch('automod_action', guild, member, f"Timeout {timeout_mins} phút", reason, message.jump_url)
+                self.bot.dispatch('automod_action', guild, member, "timeout", reason, message.jump_url)
             except discord.Forbidden:
                 pass
             except Exception as e:
@@ -273,8 +282,21 @@ class Automod(commands.Cog):
             domains = URL_PATTERN.findall(content)
             
             violation_reason = None
+            blacklist = settings.get("blacklist_links", [])
             for domain in domains:
                 domain_lower = domain.lower()
+
+                # 3.0 Blacklist của server — ưu tiên CAO NHẤT.
+                # Trước đây `blacklist_links` được dashboard lưu nhưng chưa bao giờ
+                # dùng để chặn: domain bị cấm vẫn qua được nếu nằm trong whitelist
+                # hoặc trong danh sách global-safe.
+                for b_link in blacklist:
+                    b_domain = str(b_link).lower().replace("https://", "").replace("http://", "").split("/")[0].strip()
+                    if b_domain and (domain_lower == b_domain or domain_lower.endswith(f".{b_domain}")):
+                        violation_reason = f"Gửi link nằm trong Blacklist: {domain}"
+                        break
+                if violation_reason:
+                    break
 
                 # 3a. Check Whitelist (User + Global)
                 is_whitelisted = False
@@ -450,23 +472,37 @@ class Automod(commands.Cog):
         cache.append((now, kind))
         self.nuke_cache[guild_id] = [(t, k) for t, k in cache if now - t <= 10]
 
-        threshold = 3  # xoá >= 3 object trong 10 giây
+        # Ngưỡng 5 object/10 giây: 3 là quá nhạy với server có automod/tempvoice
+        # tự dọn kênh (từng gây lockdown oan).
+        threshold = int(settings.get("nuke_threshold", 5) or 5)
         if len(self.nuke_cache[guild_id]) >= threshold:
             last = self.nuke_last_handled.get(guild_id, 0)
             if now - last < 20:  # cooldown bảo vệ để không lặp hành động
                 return
             self.nuke_last_handled[guild_id] = now
-            await self._handle_nuke(guild, settings, len(self.nuke_cache[guild_id]))
+            kinds = {k for _, k in self.nuke_cache[guild_id]}
+            await self._handle_nuke(guild, settings, len(self.nuke_cache[guild_id]), kinds)
 
-    async def _handle_nuke(self, guild: discord.Guild, settings: dict, count: int):
+    async def _handle_nuke(self, guild: discord.Guild, settings: dict, count: int, kinds: set = None):
         guild_id = str(guild.id)
         nuke_actions = settings.get("nuke_actions") or ["channel_delete", "role_delete", "guild_update"]
 
-        actor = await self._find_nuke_actor(guild)
+        actor = await self._find_nuke_actor(guild, kinds)
 
         # Tránh false-positive: Nếu do bot xoá (tempvoice, verify clean) hoặc không tìm thấy thủ phạm
         if not actor or actor.bot:
             logger.info(f"[AutoMod] Bỏ qua anti-nuke cho guild {guild.name} ({guild_id}): actor={actor} (bot hoặc không xác định)")
+            return
+
+        # Miễn trừ chủ server / Admin / role trong `bot_admin_roles`: những người này
+        # dọn kênh hợp lệ — ban họ sẽ phá server (và không thể hoàn tác dễ dàng).
+        if await self._is_nuke_actor_exempt(guild, actor, settings):
+            logger.info(f"[AutoMod] Anti-nuke: {actor} ({actor.id}) thuộc nhóm được miễn trừ — chỉ ghi log.")
+            await self._log_automod(
+                guild_id, settings, "Anti-Nuke (miễn trừ)",
+                f"🔍 **{count} object** bị xoá trong 10 giây bởi {actor.mention} (`{actor.id}`) — "
+                "người này thuộc nhóm quản trị được miễn trừ nên KHÔNG bị xử lý."
+            )
             return
 
         desc = f"💥 Phát hiện **{count} object** bị xoá trong 10 giây (kênh/vai trò)."
@@ -496,14 +532,46 @@ class Automod(commands.Cog):
 
         await self._log_automod(guild_id, settings, "Anti-Nuke", desc)
 
-    async def _find_nuke_actor(self, guild: discord.Guild) -> discord.User | None:
-        """Tìm người xoá gần nhất từ audit log (kênh/vai trò)."""
+    async def _is_nuke_actor_exempt(self, guild: discord.Guild, actor, settings: dict) -> bool:
+        """Chủ server / Administrator / role trong `bot_admin_roles` → không xử lý."""
+        if actor.id == guild.owner_id:
+            return True
+
+        member = guild.get_member(actor.id) if hasattr(guild, "get_member") else None
+        if member is None:
+            return False
+
+        if member.guild_permissions.administrator:
+            return True
+
+        try:
+            admin_roles = set(json.loads(settings.get("bot_admin_roles") or "[]"))
+        except Exception:
+            admin_roles = set()
+        if admin_roles:
+            allowed = {str(r) for r in admin_roles}
+            if allowed & {str(r.id) for r in member.roles}:
+                return True
+        return False
+
+    async def _find_nuke_actor(self, guild: discord.Guild, kinds: set = None) -> discord.User | None:
+        """Tìm người xoá gần nhất từ audit log, CHỈ với loại object vừa bị xoá.
+
+        Trước đây hàm này luôn thử cả `channel_delete` lẫn `role_delete` với cửa sổ
+        30 giây, nên một lần xoá kênh hợp lệ của admin có thể bị gán cho bất kỳ
+        ai vừa xoá role trong 30 giây trước đó.
+        """
         now = discord.utils.utcnow()
-        for action in (discord.AuditLogAction.channel_delete, discord.AuditLogAction.role_delete):
+        mapping = {
+            "channel_delete": discord.AuditLogAction.channel_delete,
+            "role_delete": discord.AuditLogAction.role_delete,
+        }
+        actions = [mapping[k] for k in (kinds or mapping.keys()) if k in mapping]
+        for action in actions:
             try:
-                async for entry in guild.audit_logs(limit=5, action=action):
+                async for entry in guild.audit_logs(limit=10, action=action):
                     if entry.user and entry.created_at and \
-                       (now - entry.created_at).total_seconds() < 30:
+                       (now - entry.created_at).total_seconds() < 10:
                         return entry.user
             except discord.Forbidden:
                 continue
@@ -541,6 +609,8 @@ class Automod(commands.Cog):
         pass
 
     @automods.command(name="show", description="Xem cấu hình Automods hiện tại")
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.is_bot_admin()
     async def show(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         is_active = await async_is_module_enabled(guild_id, "automods")
@@ -614,6 +684,8 @@ class Automod(commands.Cog):
         await ctx.send(embed=embed)
 
     @automods.command(name="raidlock", description="Khoá server (lockdown) để chặn raid/nuke")
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.is_bot_admin()
     async def raidlock(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         settings = await async_get_automod_settings(guild_id)
@@ -628,6 +700,8 @@ class Automod(commands.Cog):
         await ctx.send("🔒 Đã chuyển server sang **lockdown** (chặn @everyone gửi tin). Dùng `/automods raidunlock` để mở lại.", ephemeral=True)
 
     @automods.command(name="raidunlock", description="Mở khóa server sau lockdown, khôi phục overwrites")
+    @app_commands.default_permissions(manage_guild=True)
+    @checks.is_bot_admin()
     async def raidunlock(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         settings = await async_get_automod_settings(guild_id)

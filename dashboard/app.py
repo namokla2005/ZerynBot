@@ -12,6 +12,7 @@ except AttributeError:
     pass
 
 import secrets
+import shlex
 import time as _time
 from datetime import timedelta
 from functools import wraps
@@ -776,6 +777,8 @@ def server_music(guild_id: str):
 
     has_ffmpeg = shutil.which("ffmpeg") is not None
     playlists = db.get_playlists(guild_id)
+    # Top bài hát được nghe nhiều nhất (nguồn: guild_stats event_type='music_play')
+    top_songs = db.get_top_played_songs(guild_id, limit=10)
     
     grouped_playlists = {}
     for pl in playlists:
@@ -790,6 +793,7 @@ def server_music(guild_id: str):
         has_davey=has_davey,
         has_ffmpeg=has_ffmpeg,
         grouped_playlists=grouped_playlists,
+        top_songs=top_songs,
     ))
 
 
@@ -1202,8 +1206,11 @@ def owner_required(f):
 
 
 def stepup_required(f):
-    """Decorator: yêu cầu xác thực mật khẩu cấp cao (Step-Up Auth) trong vòng 15 phút."""
-    from functools import wraps
+    """Decorator: yêu cầu xác thực mật khẩu cấp cao (Step-Up Auth) trong vòng 15 phút.
+
+    P0.4: chỉ có hiệu lực khi `ADMIN_PASSWORD` được đặt trong .env. Nếu chưa đặt,
+    dashboard hiển thị banner cảnh báo trên /admin (xem `admin_password_set`).
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
         admin_pass = getattr(config, "ADMIN_PASSWORD", None)
@@ -1217,6 +1224,26 @@ def stepup_required(f):
                 }), 401
         return f(*args, **kwargs)
     return decorated
+
+
+def _audit_admin_action(action: str, event_type: str = "admin_action", details: str = None) -> None:
+    """Ghi mọi thao tác quản trị cấp cao vào activity_logs (audit trail).
+
+    Trước đây Web Terminal / git-pull / restart không để lại dấu vết nào — nếu
+    session owner bị lạm dụng thì không cách nào biết ai đã chạy gì.
+    """
+    try:
+        user = session.get("user") or {}
+        db.log_activity(
+            action=str(action)[:250],
+            event_type=event_type,
+            user_id=str(user.get("id") or "") or None,
+            user_name=user.get("username") or user.get("global_name") or None,
+            avatar_url=session.get("avatar"),
+            details=(str(details)[:500] if details else None),
+        )
+    except Exception as exc:  # audit log không bao giờ được làm hỏng request
+        print(f"[Admin] audit log error: {exc}")
 
 
 def _get_all_bot_guilds_detailed() -> list:
@@ -1349,6 +1376,7 @@ def admin_panel():
         global_ai_model=global_ai_model,
         telemetry=telemetry,
         activity_logs=activity_logs,
+        admin_password_set=bool(config.ADMIN_PASSWORD),
     )
 
 
@@ -1743,12 +1771,15 @@ def admin_system_stepup():
 
     if not admin_pass:
         session["stepup_auth_until"] = _time.time() + 900
+        _audit_admin_action("stepup (chưa cấu hình ADMIN_PASSWORD)", "admin_stepup", "no password configured")
         return jsonify({"ok": True, "message": "Step-Up auth granted (no password configured)"}), 200
 
     if secrets.compare_digest(str(password), str(admin_pass)):
         session["stepup_auth_until"] = _time.time() + 900
+        _audit_admin_action("stepup thành công", "admin_stepup", "session mở 15 phút")
         return jsonify({"ok": True, "message": "✅ Xác thực thành công! Quyền quản trị mở trong 15 phút."}), 200
 
+    _audit_admin_action("stepup thất bại", "admin_stepup", "sai mật khẩu")
     return jsonify({"ok": False, "message": "❌ Mật khẩu quản trị không chính xác!"}), 403
 
 
@@ -1763,6 +1794,9 @@ def admin_system_terminal():
 
     if not command:
         return jsonify({"ok": False, "output": "⚠️ Lệnh không được để trống!", "returncode": 1}), 200
+
+    # Audit trail: ghi lại mọi lệnh được đẩy vào shell của điện thoại/máy chủ.
+    _audit_admin_action(f"$ {command}", "admin_terminal")
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     current_cwd = session.get("term_cwd")
@@ -1886,6 +1920,9 @@ def admin_system_terminal():
         if not output.strip():
             output = "(Lệnh đã thực thi thành công, không có output trả về)"
 
+        if res.returncode not in (0, None):
+            _audit_admin_action(f"$ {command}", "admin_terminal", f"exit={res.returncode}")
+
         return jsonify({
             "ok": True,
             "command": command,
@@ -1894,6 +1931,7 @@ def admin_system_terminal():
             "returncode": res.returncode
         }), 200
     except subprocess.TimeoutExpired:
+        _audit_admin_action(f"$ {command}", "admin_terminal", "timeout 30s")
         return jsonify({
             "ok": False,
             "command": command,
@@ -1903,6 +1941,7 @@ def admin_system_terminal():
         }), 200
     except Exception as e:
         err_msg = str(e)
+        _audit_admin_action(f"$ {command}", "admin_terminal", f"error: {err_msg[:200]}")
         return jsonify({
             "ok": False,
             "command": command,
@@ -1917,12 +1956,24 @@ def admin_system_terminal():
 @owner_required
 @stepup_required
 def admin_system_git_pull():
-    """Cập nhật code mới nhất từ Git (git pull)."""
+    """Cập nhật code mới nhất từ Git (git fetch + reset --hard).
+
+    P0.5: trước khi `reset --hard`, cất mọi thay đổi cục bộ vào `git stash` để
+    không xoá trắng chỉnh sửa trên điện thoại. Khôi phục bằng `git stash pop`.
+    """
     try:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         exec_shell = None if os.name == "nt" else (shutil.which("bash") or shutil.which("sh"))
+        stash_label = f"pre-pull-{int(_time.time())}"
+        pull_cmd = (
+            "git fetch origin main && "
+            f"git stash push -m {shlex.quote(stash_label)} ; "
+            "git reset --hard origin/main && "
+            "git stash list --pretty=%gd\\ %s | head -n 5"
+        )
+        _audit_admin_action("git pull", "admin_git_pull", stash_label)
         res = subprocess.run(
-            "git fetch origin main && git reset --hard origin/main",
+            pull_cmd,
             shell=True,
             executable=exec_shell,
             capture_output=True,
@@ -1936,9 +1987,13 @@ def admin_system_git_pull():
         if res.stderr:
             output += ("\n" if output else "") + res.stderr.replace("\r\n", "\n")
 
+        note = (
+            f"\n\nℹ️ Thay đổi cục bộ (nếu có) đã được cất vào stash: {stash_label}\n"
+            "   Khôi phục bằng lệnh: git stash pop"
+        )
         return jsonify({
             "ok": True,
-            "output": output or "Git pull thành công!",
+            "output": (output or "Git pull thành công!") + note,
             "returncode": res.returncode
         }), 200
     except Exception as e:
@@ -1960,6 +2015,7 @@ def admin_system_restart():
         else:
             subprocess.Popen([sys.executable, main_py, "--restart"], cwd=base_dir, start_new_session=True)
 
+        _audit_admin_action("restart hệ thống", "admin_restart")
         return jsonify({
             "ok": True,
             "message": "🔄 Đã gửi lệnh khởi động lại hệ thống! Bot và Dashboard đang khởi động lại..."
@@ -1972,5 +2028,10 @@ if __name__ == "__main__":
     db.init_db()
     dash_host = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
     dash_port = int(os.environ.get("DASHBOARD_PORT", "5000"))
-    app.run(host=dash_host, port=dash_port, debug=True)
+    # P0.5: KHÔNG bật debug=True mặc định. Werkzeug debugger cho phép chạy code
+    # tùy ý qua HTTP nếu bị lộ — chỉ bật khi thật sự cần gỡ lỗi cục bộ.
+    _debug = os.environ.get("FLASK_DEBUG", "").strip().lower() in ("1", "true", "yes")
+    if _debug:
+        print("[SECURITY] FLASK_DEBUG=1 — Werkzeug debugger đang BẬT. Không dùng khi mở ra Internet!")
+    app.run(host=dash_host, port=dash_port, debug=_debug)
 

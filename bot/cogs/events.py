@@ -10,6 +10,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import io
+import time
 import discord
 from discord.ext import commands
 from datetime import datetime, timezone
@@ -54,13 +55,25 @@ def fmt(template: str, member: discord.Member) -> str:
 class Events(commands.Cog):
     """Sự kiện: chào mừng, tạm biệt, cache dữ liệu server."""
 
+    # Cache channels/roles là dữ liệu nặng (mỗi guild có thể vài chục kênh/role).
+    # Trước đây `on_ready` chạy lại TOÀN BỘ cho mọi guild mỗi lần ready — mà
+    # discord.py bắn on_ready lại sau MỖI lần reconnect, nên mất mạng vài lần là
+    # hàng trăm lượt ghi SQLite vô ích trên điện thoại.
+    FULL_CACHE_TTL = 6 * 3600      # 6 giờ
+    CHANNEL_REFRESH_DEBOUNCE = 10  # giây: gộp nhiều event liên tiếp
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._last_full_cache: dict = {}
+        self._last_channel_refresh: dict = {}
+        self._last_role_refresh: dict = {}
 
     # ─── Cache on startup ──────────────────────────────────────────────────────
     @commands.Cog.listener()
     async def on_ready(self):
         for guild in self.bot.guilds:
+            # TTL bên trong sẽ tự chuyển sang chế độ chỉ cập nhật meta nếu guild
+            # vừa được cache đầy đủ < 6 giờ trước (trường hợp reconnect).
             await self._cache_guild(guild)
 
     @commands.Cog.listener()
@@ -89,26 +102,80 @@ class Events(commands.Cog):
                 pass
             await guild.leave()
             return
-        await self._cache_guild(guild)
+        await self._cache_guild(guild, force=True)  # guild mới → cache đầy đủ ngay
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):
         await async_remove_guild(str(guild.id))
+        self._last_full_cache.pop(str(guild.id), None)
 
     @commands.Cog.listener()
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
-        await self._cache_guild(after)
+        # Chỉ meta (tên/icon/số member) thay đổi ở event này — không cần ghi lại
+        # toàn bộ channels/roles.
+        await self._cache_guild(after, meta_only=True)
 
-    async def _cache_guild(self, guild: discord.Guild):
-        icon_url = str(guild.icon.url) if guild.icon else None
-        await async_cache_guild(str(guild.id), guild.name, icon_url, guild.member_count)
-        channels = [
+    # ─── Channel / Role events → cache lại đúng phần vừa đổi ─────────────────
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):
+        await self._refresh_channels(channel.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
+        await self._refresh_channels(channel.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+        await self._refresh_channels(after.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_role_create(self, role: discord.Role):
+        await self._refresh_roles(role.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_role_delete(self, role: discord.Role):
+        await self._refresh_roles(role.guild)
+
+    @commands.Cog.listener()
+    async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
+        await self._refresh_roles(after.guild)
+
+    async def _refresh_channels(self, guild: discord.Guild) -> None:
+        """Cache lại danh sách kênh (debounce 10s/guild để tránh ghi dồn dập)."""
+        guild_id = str(guild.id)
+        now = time.time()
+        if now - self._last_channel_refresh.get(guild_id, 0) < self.CHANNEL_REFRESH_DEBOUNCE:
+            return
+        self._last_channel_refresh[guild_id] = now
+        try:
+            await async_cache_channels(guild_id, self._serialize_channels(guild))
+        except Exception as e:
+            import logging
+            logging.getLogger("BotV2").warning(f"[Events] Channel cache refresh error: {e}")
+
+    async def _refresh_roles(self, guild: discord.Guild) -> None:
+        """Cache lại danh sách role (debounce 10s/guild)."""
+        guild_id = str(guild.id)
+        now = time.time()
+        if now - self._last_role_refresh.get(guild_id, 0) < self.CHANNEL_REFRESH_DEBOUNCE:
+            return
+        self._last_role_refresh[guild_id] = now
+        try:
+            await async_cache_roles(guild_id, self._serialize_roles(guild))
+        except Exception as e:
+            import logging
+            logging.getLogger("BotV2").warning(f"[Events] Role cache refresh error: {e}")
+
+    @staticmethod
+    def _serialize_channels(guild: discord.Guild) -> list:
+        return [
             {"id": str(ch.id), "name": ch.name, "type": ch.type.value}
             for ch in guild.channels
         ]
-        await async_cache_channels(str(guild.id), channels)
 
-        roles = [
+    @staticmethod
+    def _serialize_roles(guild: discord.Guild) -> list:
+        return [
             {
                 "id": str(r.id),
                 "name": r.name,
@@ -117,7 +184,32 @@ class Events(commands.Cog):
             }
             for r in guild.roles
         ]
-        await async_cache_roles(str(guild.id), roles)
+
+    async def _cache_guild(
+        self,
+        guild: discord.Guild,
+        *,
+        force: bool = False,
+        meta_only: bool = False,
+    ) -> None:
+        """Ghi cache guild. `meta_only` chỉ cập nhật bảng guild_meta."""
+        guild_id = str(guild.id)
+        now = time.time()
+
+        if not meta_only and not force:
+            # Đã cache đầy đủ gần đây (vd: reconnect) → chỉ cập nhật meta.
+            if now - self._last_full_cache.get(guild_id, 0) < self.FULL_CACHE_TTL:
+                meta_only = True
+
+        icon_url = str(guild.icon.url) if guild.icon else None
+        await async_cache_guild(guild_id, guild.name, icon_url, guild.member_count)
+
+        if meta_only:
+            return
+
+        await async_cache_channels(guild_id, self._serialize_channels(guild))
+        await async_cache_roles(guild_id, self._serialize_roles(guild))
+        self._last_full_cache[guild_id] = now
 
     # ─── Welcome ───────────────────────────────────────────────────────────────
     @commands.Cog.listener()

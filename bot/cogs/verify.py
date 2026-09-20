@@ -24,6 +24,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+import checks
 from database import (
     async_get_verify_settings,
     async_is_module_enabled,
@@ -202,8 +203,12 @@ class Verify(commands.Cog, name="Verify"):
         return True
 
     # ─── Group /verify ───────────────────────────────────────────────────────
+    # P0: check PHẢI gắn trên từng lệnh con — discord.py không cho lệnh con thừa
+    # hưởng check của group (core.py::Command.can_run chỉ duyệt `self.checks`),
+    # nên trước đây bất kỳ ai cũng gọi được `/verify disable` hay `@Bot verify ...`.
     @commands.hybrid_group(name="verify", description="Cấu hình Verify Gate (Xác thực thành viên)")
     @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_group(self, ctx: commands.Context):
         """Group lệnh cấu hình Verify."""
         if ctx.invoked_subcommand is None:
@@ -211,6 +216,8 @@ class Verify(commands.Cog, name="Verify"):
 
     # ─── /verify status ──────────────────────────────────────────────────────
     @verify_group.command(name="status", description="Xem trạng thái Verify Gate")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_status(self, ctx: commands.Context):
         await self._show_status(ctx)
 
@@ -277,6 +284,8 @@ class Verify(commands.Cog, name="Verify"):
 
     # ─── /verify enable ──────────────────────────────────────────────────────
     @verify_group.command(name="enable", description="BẬT Verify Gate (hard gate — chỉ thấy kênh xác thực)")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_enable(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
@@ -325,6 +334,8 @@ class Verify(commands.Cog, name="Verify"):
 
     # ─── /verify disable ─────────────────────────────────────────────────────
     @verify_group.command(name="disable", description="TẮT Verify Gate và khôi phục overrides")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_disable(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
@@ -359,6 +370,8 @@ class Verify(commands.Cog, name="Verify"):
     # ─── /verify channel ─────────────────────────────────────────────────────
     @verify_group.command(name="channel", description="Đặt kênh xác thực (nơi gửi nút bấm)")
     @app_commands.describe(channel="Kênh dùng làm kênh xác thực")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         guild_id = str(ctx.guild.id)
         cid = str(channel.id) if channel else None
@@ -371,6 +384,8 @@ class Verify(commands.Cog, name="Verify"):
     # ─── /verify role ────────────────────────────────────────────────────────
     @verify_group.command(name="role", description="Đặt vai trò thành viên đã xác thực")
     @app_commands.describe(role="Vai trò được gán sau khi bấm nút xác thực")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_role(self, ctx: commands.Context, role: discord.Role = None):
         guild_id = str(ctx.guild.id)
         rid = str(role.id) if role else None
@@ -383,6 +398,8 @@ class Verify(commands.Cog, name="Verify"):
     # ─── /verify pending ─────────────────────────────────────────────────────
     @verify_group.command(name="pending", description="Đặt vai trò chờ (pending) cho thành viên mới")
     @app_commands.describe(role="Vai trò đại diện cho thành viên chưa xác thực")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_pending(self, ctx: commands.Context, role: discord.Role = None):
         guild_id = str(ctx.guild.id)
         rid = str(role.id) if role else None
@@ -396,6 +413,8 @@ class Verify(commands.Cog, name="Verify"):
     @verify_group.command(name="hide", description="Bật/tắt chế độ ẩn kênh (hard gate)")
     @app_commands.rename(state="che_do")
     @app_commands.describe(state="Bật (hard — chỉ thấy kênh xác thực) hoặc Tắt (soft)")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_hide(self, ctx: commands.Context, state: str):
         val = state.strip().lower()
         hide = val in ("on", "bật", "true", "1", "yes")
@@ -414,6 +433,8 @@ class Verify(commands.Cog, name="Verify"):
     # ─── /verify text ────────────────────────────────────────────────────────
     @verify_group.command(name="text", description="Đặt nội dung thông điệp xác thực")
     @app_commands.describe(content="Nội dung (hỗ trợ {server})")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_text(self, ctx: commands.Context, content: str):
         await async_upsert_verify_settings(str(ctx.guild.id), verify_text=content)
         await ctx.send("✅ Đã đặt nội dung xác thực.", ephemeral=True)
@@ -421,12 +442,16 @@ class Verify(commands.Cog, name="Verify"):
     # ─── /verify button ──────────────────────────────────────────────────────
     @verify_group.command(name="button", description="Đặt nhãn nút xác thực")
     @app_commands.describe(label="Chữ hiển thị trên nút")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_button(self, ctx: commands.Context, label: str):
         await async_upsert_verify_settings(str(ctx.guild.id), button_label=label)
         await ctx.send(f"✅ Đã đặt nhãn nút: **{label}**", ephemeral=True)
 
     # ─── /verify panel ───────────────────────────────────────────────────────
     @verify_group.command(name="panel", description="Gửi bảng xác thực (nút bấm) vào kênh xác thực")
+    @app_commands.default_permissions(manage_roles=True)
+    @checks.manage_roles_only()
     async def verify_panel(self, ctx: commands.Context):
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)

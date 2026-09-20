@@ -1127,7 +1127,7 @@
   "landing.guide3_desc": "加入官方 Discord 社区，随时获取协助。",
   "landing.footer_tagline": "您最贴心可爱的 Discord 全能动漫伴侣。",
   "help.stats_title": "📊 运行状态",
-  "help.stats_val": "• **前缀:** / (斜杠指令) 或 !\n• **语言:** 6 种国际语言 (/lang)\n• **延迟:** {ping}ms | **在线时长:** {uptime}",
+  "help.stats_val": "• **使用方式:** 斜杠指令 (`/play`) 或 @提及机器人 (`@Bot play`)\n• **语言:** 6 种国际语言 (/lang)\n• **延迟:** {ping}ms | **在线时长:** {uptime}",
   "help.btn_dashboard": "网页控制台",
   "help.btn_support": "官方支持服务器",
   "help.btn_invite": "邀请机器人",
@@ -1616,5 +1616,7 @@
   "help.cmd_example_field": "💡 使用示例",
   "help.cmd_aliases_field": "🔗 别名 (Aliases)",
   "help.cmd_params_field": "⚙️ 参数列表",
-  "help.cmd_perm_field": "🔒 所需权限"
+  "help.cmd_perm_field": "🔒 所需权限",
+  "admin.stepup_not_set_title": "⚠️ 未启用二次验证（Step-Up Auth）",
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD 尚未在 .env 中设置，Web 终端 / Git Pull / 重启 仅由登录会话保护。请在 .env 中设置 ADMIN_PASSWORD 并重启面板。"
 }

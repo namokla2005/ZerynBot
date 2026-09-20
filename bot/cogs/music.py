@@ -28,7 +28,7 @@ from discord.ext import commands
 
 from datetime import datetime, timezone
 from cache import cache
-from database import async_get_guild_settings, async_get_song_cache, async_set_song_cache, async_increment_stat, async_get_top_music
+from database import async_get_guild_settings, async_get_song_cache, async_set_song_cache, async_increment_stat, async_get_top_played_songs
 from i18n import tr
 
 try:
@@ -927,7 +927,11 @@ class MusicPlayer:
             self.pause_start = 0.0
             self.total_paused_time = 0.0
 
-            # Ghi nhận thống kê bài hát được phát vào DB
+            # Ghi nhận thống kê bài hát được phát vào DB.
+            # Đây là NGUỒN DUY NHẤT cho `/topmusic` + dashboard (event_type="music_play",
+            # label = tên bài). Trước đây còn một dòng ghi `event_type="music"` với
+            # `track.video_id` (Track không có field này → AttributeError bị bắt im lặng)
+            # khiến số liệu bị chia làm 2 loại và `/topmusic` luôn trắng.
             try:
                 from database import async_increment_stat
                 asyncio.create_task(async_increment_stat(str(self.guild.id), "music_play", track.title[:80]))
@@ -985,12 +989,6 @@ class MusicPlayer:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
                 await self._report_play_failure(track)
                 return
-
-            if seek_offset == 0:
-                try:
-                    await async_increment_stat(str(self.guild.id), "music", f"{track.video_id}|{track.title[:80]}", 1)
-                except Exception as stat_err:
-                    log.debug(f"[Music] Failed to record music stat: {stat_err}")
 
             # Gửi embed Now Playing
             await self._send_now_playing()
@@ -2236,7 +2234,7 @@ class Music(commands.Cog, name="Music"):
     @commands.hybrid_command(name="topmusic", description="Bảng xếp hạng bài hát được nghe nhiều nhất trong server")
     async def topmusic(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
-        top_songs = await async_get_top_music(str(ctx.guild.id), limit=10)
+        top_songs = await async_get_top_played_songs(str(ctx.guild.id), limit=10)
         if not top_songs:
             return await ctx.send(tr(s, "music.top_empty"))
 
@@ -2244,9 +2242,11 @@ class Music(commands.Cog, name="Music"):
         medals = ["🥇", "🥈", "🥉"]
         for idx, item in enumerate(top_songs):
             rank = medals[idx] if idx < 3 else f"`#{idx+1:2}`"
-            parts = item["target"].split("|", 1)
-            title = parts[1] if len(parts) > 1 else parts[0]
-            count = item["count"]
+            # `get_top_played_songs` trả về {"title", "play_count"}; hàng cũ có thể
+            # còn dạng "<video_id>|<tên bài>" → chỉ lấy phần tên bài.
+            raw_title = str(item.get("title") or "?")
+            title = raw_title.split("|", 1)[-1]
+            count = int(item.get("play_count") or 0)
             desc += f"{rank} **{title}** — **{count:,}** lần nghe\n"
 
         embed = discord.Embed(

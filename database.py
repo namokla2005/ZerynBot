@@ -440,6 +440,9 @@ def init_db():
                 target_id   TEXT NOT NULL,
                 action      TEXT NOT NULL,
                 count       INTEGER DEFAULT 0,
+                -- Thời điểm tương tác gần nhất: bảng này chỉ có ý nghĩa "đếm gần đây",
+                -- trước đây không có cột thời gian nên không thể dọn dữ liệu cũ.
+                last_used   REAL DEFAULT 0,
                 PRIMARY KEY (guild_id, user_id, target_id, action)
             );
 
@@ -540,7 +543,15 @@ def init_db():
         ai_cols = [row[1] for row in cursor.fetchall()]
         if "api_key" not in ai_cols:
             conn.execute("ALTER TABLE ai_settings ADD COLUMN api_key TEXT DEFAULT ''")
-            
+
+        cursor.execute("PRAGMA table_info(fun_interactions)")
+        fi_cols = [row[1] for row in cursor.fetchall()]
+        if "last_used" not in fi_cols:
+            conn.execute("ALTER TABLE fun_interactions ADD COLUMN last_used REAL DEFAULT 0")
+            # Dữ liệu cũ không có mốc thời gian → coi như vừa dùng, để lần prune đầu
+            # tiên KHÔNG xoá sạch lịch sử đếm (nhờ vậy không mất dữ liệu của user).
+            conn.execute("UPDATE fun_interactions SET last_used = ? WHERE last_used IS NULL OR last_used = 0", (time.time(),))
+
         conn.commit()
 
 DEFAULT_MODULES = [
@@ -1064,22 +1075,16 @@ def get_guild_stats(guild_id: str, days: int = 7) -> list:
         """, (guild_id, start_date))
         return [_row_to_dict(row) for row in cur.fetchall()]
 
-def get_top_played_songs(guild_id: str, limit: int = 10) -> list[dict]:
-    """Lấy danh sách các bài hát được nghe nhiều nhất trong server (Dashboard sync)."""
-    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
-        conn.row_factory = sqlite3.Row
-        cur = conn.execute("""
-            SELECT event_label as title, SUM(count) as play_count
-            FROM guild_stats
-            WHERE guild_id = ? AND event_type = 'music_play'
-            GROUP BY event_label
-            ORDER BY play_count DESC
-            LIMIT ?
-        """, (guild_id, limit))
-        return [_row_to_dict(row) for row in cur.fetchall()]
+# ─── Thống kê nhạc ────────────────────────────────────────────────────────────
+# MỘT nguồn duy nhất: `guild_stats.event_type = 'music_play'`, label = tên bài.
+# (Trước đây có thêm event_type 'music' với label "<video_id>|<tên>" do một dòng
+# code lỗi ghi vào — cùng 3 hàm đọc trùng chức năng, không hàm nào được gọi.)
 
 async def async_get_top_played_songs(guild_id: str, limit: int = 10) -> list[dict]:
-    """Lấy danh sách các bài hát được nghe nhiều nhất trong server (Bot async)."""
+    """Top bài hát được nghe nhiều nhất trong server (Bot).
+
+    Trả về: [{"title": <tên bài>, "play_count": <số lần nghe>}, ...]
+    """
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -1094,49 +1099,23 @@ async def async_get_top_played_songs(guild_id: str, limit: int = 10) -> list[dic
             return [_row_to_dict(row) for row in rows]
 
 
-def get_top_music(guild_id: str, since_ts: float = 0, limit: int = 10) -> list[dict]:
-    """Lấy danh sách các bài hát nghe nhiều nhất (Sync - Dashboard)."""
-    import datetime
-    query = """
-        SELECT event_label, SUM(count) as plays
-        FROM guild_stats
-        WHERE guild_id = ? AND event_type IN ('music', 'music_play')
-    """
-    params: list = [guild_id]
-    if since_ts > 0:
-        start_date = datetime.datetime.fromtimestamp(since_ts, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:00:00")
-        query += " AND date_hour >= ?"
-        params.append(start_date)
-    query += " GROUP BY event_label ORDER BY plays DESC LIMIT ?"
-    params.append(limit)
-
-    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
-        conn.row_factory = sqlite3.Row
-        cur = conn.execute(query, tuple(params))
-        return [_row_to_dict(r) for r in cur.fetchall()]
-
-
-async def async_get_top_music(guild_id: str, since_ts: float = 0, limit: int = 10) -> list[dict]:
-    """Lấy danh sách các bài hát nghe nhiều nhất (Async - Bot /topmusic)."""
-    import datetime
-    query = """
-        SELECT event_label, SUM(count) as plays
-        FROM guild_stats
-        WHERE guild_id = ? AND event_type IN ('music', 'music_play')
-    """
-    params: list = [guild_id]
-    if since_ts > 0:
-        start_date = datetime.datetime.fromtimestamp(since_ts, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:00:00")
-        query += " AND date_hour >= ?"
-        params.append(start_date)
-    query += " GROUP BY event_label ORDER BY plays DESC LIMIT ?"
-    params.append(limit)
-
-    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(query, tuple(params)) as cur:
-            rows = await cur.fetchall()
-            return [_row_to_dict(r) for r in rows]
+def get_top_played_songs(guild_id: str, limit: int = 10) -> list[dict]:
+    """Top bài hát được nghe nhiều nhất trong server (Dashboard, sync)."""
+    try:
+        with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute("""
+                SELECT event_label as title, SUM(count) as play_count
+                FROM guild_stats
+                WHERE guild_id = ? AND event_type = 'music_play'
+                GROUP BY event_label
+                ORDER BY play_count DESC
+                LIMIT ?
+            """, (guild_id, limit))
+            return [_row_to_dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.debug(f"[Database] get_top_played_songs error: {e}")
+        return []
 
 async def async_is_module_enabled(guild_id: str, module_name: str) -> bool:
     # Đọc cả dict modules (đã được cache ở get_guild_modules / set_module) để tận dụng
@@ -2009,20 +1988,80 @@ async def async_get_economy_user(guild_id: str, user_id: str) -> dict:
             return dict(row)
 
 
-async def async_claim_daily(guild_id: str, user_id: str, reward: int, streak: int) -> dict:
-    import time
-    now = time.time()
+async def async_claim_daily(
+    guild_id: str,
+    user_id: str,
+    reward: int,
+    streak: int,
+    cutoff: float = None,
+    now: float = None,
+) -> Optional[dict]:
+    """Điểm danh NGUYÊN TỬ: chỉ cộng tiền nếu `last_daily_at <= cutoff`.
+
+    Trước đây cog tự kiểm tra cooldown rồi mới gọi hàm này (check-then-act): hai
+    tin nhắn gần như đồng thời đều qua được vòng kiểm tra → cộng tiền 2 lần.
+    Giờ điều kiện nằm trong chính câu UPDATE; nếu `rowcount == 0` nghĩa là người
+    dùng vừa điểm danh ở request khác → trả về None để cog báo cooldown.
+
+    `cutoff=None` = bỏ qua kiểm tra (dùng cho lần điểm danh đầu / admin set).
+    """
+    now = time.time() if now is None else now
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        if cutoff is None:
+            await db.execute("""
+                INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+                VALUES (?, ?, ?, 0, ?, ?)
+                ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                    wallet = wallet + ?,
+                    daily_streak = ?,
+                    last_daily_at = ?
+            """, (guild_id, user_id, reward, streak, now, reward, streak, now))
+            await db.commit()
+        else:
+            # Người dùng MỚI phải có last_daily_at = 0 (không phải `now`), nếu không
+            # UPDATE bên dưới sẽ không khớp điều kiện và lần điểm danh đầu bị chặn.
+            await db.execute("""
+                INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+                VALUES (?, ?, 0, 0, 0, 0)
+                ON CONFLICT(guild_id, user_id) DO NOTHING
+            """, (guild_id, user_id))
+            cursor = await db.execute("""
+                UPDATE economy_users
+                SET wallet = wallet + ?, daily_streak = ?, last_daily_at = ?
+                WHERE guild_id = ? AND user_id = ? AND last_daily_at <= ?
+            """, (reward, streak, now, guild_id, user_id, cutoff))
+            await db.commit()
+            if cursor.rowcount == 0:
+                return None
+    return await async_get_economy_user(guild_id, user_id)
+
+
+async def async_claim_economy_cooldown(
+    guild_id: str,
+    user_id: str,
+    action_type: str,
+    cooldown: float,
+    now: float = None,
+) -> bool:
+    """Giữ chỗ cooldown NGUYÊN TỬ cho `work` / `fish` / `hunt`.
+
+    Trả False nếu cooldown chưa hết (đã có request khác chiếm slot). Nhờ vậy 2 lệnh
+    gửi cùng lúc không thể cùng qua được cooldown (trước đây là check-then-act).
+    """
+    now = time.time() if now is None else now
+    threshold = now - cooldown
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         await db.execute("""
-            INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
-            VALUES (?, ?, ?, 0, ?, ?)
-            ON CONFLICT(guild_id, user_id) DO UPDATE SET
-                wallet = wallet + ?,
-                daily_streak = ?,
-                last_daily_at = ?
-        """, (guild_id, user_id, reward, streak, now, reward, streak, now))
+            INSERT OR IGNORE INTO economy_cooldowns (guild_id, user_id, action_type, last_used)
+            VALUES (?, ?, ?, 0)
+        """, (guild_id, user_id, action_type))
+        cursor = await db.execute("""
+            UPDATE economy_cooldowns
+            SET last_used = ?
+            WHERE guild_id = ? AND user_id = ? AND action_type = ? AND last_used <= ?
+        """, (now, guild_id, user_id, action_type, threshold))
         await db.commit()
-    return await async_get_economy_user(guild_id, user_id)
+        return cursor.rowcount > 0
 
 
 async def async_modify_wallet(guild_id: str, user_id: str, delta: int) -> dict:
@@ -2286,6 +2325,47 @@ async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tupl
         return True, item["role_id"], item["name"], price
 
 
+async def async_refund_shop_purchase(
+    guild_id: str,
+    user_id: str,
+    item_name: str,
+    price: int,
+    item_id: Optional[int] = None,
+    restore_stock: bool = True,
+) -> bool:
+    """Hoàn tiền khi mua hàng thất bại (role không còn / bot không gán được role).
+
+    Trước đây `/buy` trừ tiền bank + trừ stock rồi mới gán role; nếu role đã bị xoá
+    hoặc `add_roles` lỗi thì người dùng mất tiền mà không nhận được gì.
+    Dùng chung 1 transaction để tránh hoàn tiền nửa vời.
+    """
+    if price <= 0:
+        return False
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+            await db.execute("""
+                UPDATE economy_users SET bank = bank + ? WHERE guild_id = ? AND user_id = ?
+            """, (price, guild_id, user_id))
+
+            if restore_stock and item_id is not None:
+                # Chỉ trả lại stock cho item có giới hạn tồn kho (stock >= 0).
+                await db.execute("""
+                    UPDATE economy_shop SET stock = stock + 1
+                    WHERE id = ? AND guild_id = ? AND stock >= 0
+                """, (item_id, guild_id))
+
+            await db.execute("""
+                INSERT INTO economy_transactions (guild_id, user_id, kind, amount, counterparty, note, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (guild_id, user_id, "refund", price, None, f"Hoàn tiền mua '{item_name}' (không gán được role)", time.time()))
+            await db.commit()
+        logger.info(f"[Economy] Refunded {price} to {user_id} for item '{item_name}'")
+        return True
+    except Exception as exc:
+        logger.error(f"[Economy] refund_shop_purchase error: {exc}")
+        return False
+
+
 async def async_get_top_economy(guild_id: str, limit: int = 10) -> list:
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         db.row_factory = aiosqlite.Row
@@ -2542,7 +2622,9 @@ def add_custom_command(guild_id: str, trigger: str, match_type: str, response_te
             VALUES (?, ?, ?, ?, ?, 1, 0, ?)
         """, (guild_id, trigger.strip().lower(), match_type, response_text, embed_json, creator_id))
         conn.commit()
-        return cursor.lastrowid
+        lastrowid = cursor.lastrowid
+    invalidate_custom_commands_cache(guild_id)
+    return lastrowid
 
 
 def update_custom_command(cmd_id: int, guild_id: str, trigger: str, match_type: str, response_text: str, embed_json: str = None, is_enabled: int = 1) -> None:
@@ -2553,20 +2635,55 @@ def update_custom_command(cmd_id: int, guild_id: str, trigger: str, match_type: 
             WHERE id = ? AND guild_id = ?
         """, (trigger.strip().lower(), match_type, response_text, embed_json, is_enabled, cmd_id, guild_id))
         conn.commit()
+    invalidate_custom_commands_cache(guild_id)
 
 
 def delete_custom_command(cmd_id: int, guild_id: str) -> None:
     with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
         conn.execute("DELETE FROM custom_commands WHERE id = ? AND guild_id = ?", (cmd_id, guild_id))
         conn.commit()
+    invalidate_custom_commands_cache(guild_id)
+
+
+# Cache custom commands: bảng này được đọc cho MỌI tin nhắn trong guild (customcommands
+# listener) nên mỗi tin nhắn trước đây là 1 truy vấn SQLite. Cache 60s + invalidate
+# ngay khi thêm/sửa/xoá (cả đường async của bot và đường sync của dashboard).
+_CUSTOM_CMDS_TTL = 60
+
+
+def _custom_cmds_cache_key(guild_id: str) -> str:
+    return f"customcmds:{guild_id}"
+
+
+def invalidate_custom_commands_cache(guild_id: str) -> None:
+    """Xoá cache custom commands của một guild (gọi từ mọi đường ghi)."""
+    try:
+        cache.delete(_custom_cmds_cache_key(guild_id))
+    except Exception as exc:
+        logger.debug(f"[Cache] invalidate custom commands error: {exc}")
 
 
 async def async_get_custom_commands(guild_id: str) -> list:
+    """Danh sách custom command đang bật của guild (có cache 60 giây)."""
+    key = _custom_cmds_cache_key(guild_id)
+    try:
+        cached = await cache.aget(key)
+    except Exception:
+        cached = None
+    if cached is not None:
+        return cached
+
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM custom_commands WHERE guild_id = ? AND is_enabled = 1", (guild_id,)) as cur:
             rows = await cur.fetchall()
-            return [dict(r) for r in rows]
+            result = [dict(r) for r in rows]
+
+    try:
+        await cache.aset(key, result, ttl=_CUSTOM_CMDS_TTL)
+    except Exception as exc:
+        logger.debug(f"[Cache] set custom commands error: {exc}")
+    return result
 
 
 async def async_find_custom_command(guild_id: str, message_content: str) -> dict | None:
@@ -2592,13 +2709,16 @@ async def async_add_custom_command(guild_id: str, trigger: str, match_type: str,
             VALUES (?, ?, ?, ?, ?, 1, 0, ?)
         """, (guild_id, trigger.strip().lower(), match_type, response_text, embed_json, creator_id))
         await db.commit()
-        return cursor.lastrowid
+        lastrowid = cursor.lastrowid
+    await cache.adelete(_custom_cmds_cache_key(guild_id))
+    return lastrowid
 
 
 async def async_delete_custom_command(cmd_id: int, guild_id: str) -> None:
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         await db.execute("DELETE FROM custom_commands WHERE id = ? AND guild_id = ?", (cmd_id, guild_id))
         await db.commit()
+    await cache.adelete(_custom_cmds_cache_key(guild_id))
 
 
 async def async_increment_custom_command_usage(cmd_id: int) -> None:
@@ -2876,14 +2996,19 @@ def get_marriages_count_sync(guild_id: str) -> int:
 
 
 async def async_increment_fun_interaction(guild_id: str, user_id: str, target_id: str, action: str) -> int:
-    """Increment interaction count between user and target for a given action. Returns new count."""
+    """Tăng số lần tương tác giữa user và target cho một action. Trả về số mới.
+
+    `last_used` được cập nhật trong cùng câu lệnh để `async_prune_old_data` có thể
+    dọn các tương tác cũ (bảng này chỉ đếm "gần đây").
+    """
+    now = time.time()
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         await db.execute("""
-            INSERT INTO fun_interactions (guild_id, user_id, target_id, action, count)
-            VALUES (?, ?, ?, ?, 1)
+            INSERT INTO fun_interactions (guild_id, user_id, target_id, action, count, last_used)
+            VALUES (?, ?, ?, ?, 1, ?)
             ON CONFLICT(guild_id, user_id, target_id, action)
-            DO UPDATE SET count = count + 1
-        """, (guild_id, user_id, target_id, action))
+            DO UPDATE SET count = count + 1, last_used = excluded.last_used
+        """, (guild_id, user_id, target_id, action, now))
         await db.commit()
         async with db.execute("""
             SELECT count FROM fun_interactions
@@ -3188,6 +3313,18 @@ async def async_prune_old_data(
             )
         except Exception as exc:
             logger.warning(f"[Prune] automod_warnings error: {exc}")
+
+        try:
+            # Trước đây `interactions_days` được khai báo + ghi trong docstring nhưng
+            # KHÔNG có lệnh dọn nào cho fun_interactions → bảng phình mãi.
+            interactions_cutoff = time.time() - (interactions_days * 86400)
+            await _delete(
+                "fun_interactions",
+                "COALESCE(last_used, 0) < ?",
+                (interactions_cutoff,),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] fun_interactions error: {exc}")
 
         try:
             await _delete(

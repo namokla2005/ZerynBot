@@ -157,6 +157,16 @@
       {% endfor %}{% endwith %}
     </div>
 
+    {% if not admin_password_set %}
+    <div class="flash-msg error" style="align-items:flex-start;">
+      <i class="bi bi-shield-exclamation" style="font-size:1.1rem;"></i>
+      <div>
+        <strong>{{ t('admin.stepup_not_set_title') }}</strong><br>
+        {{ t('admin.stepup_not_set_desc') }}
+      </div>
+    </div>
+    {% endif %}
+
     <div style="margin-bottom:28px;">
       <h1 style="font-size:1.7rem;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
         🛡️ {{ t('admin.page_title') }}
