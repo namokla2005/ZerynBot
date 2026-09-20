@@ -93,7 +93,7 @@
     .broadcast-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;background:rgba(88,101,242,.07);border-bottom:1px solid rgba(88,101,242,.15);}
     .selected-count{background:rgba(88,101,242,.2);color:#5865f2;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:700;}
     .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
-    .modal-overlay.open{display:flex;}
+    .modal-overlay.open, .modal-overlay.active{display:flex;}
     .modal-box{background:#1a1624;border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:28px 32px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,.8);animation:modalIn .2s ease;}
     .modal-box.broadcast-box{max-width:560px;}
     @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
@@ -735,7 +735,7 @@
 
     <div class="modal-actions">
       <button type="button" class="btn-cancel" onclick="closeStepUpModal()"><i class="bi bi-x-lg"></i> {{ t('admin.btn_cancel') }}</button>
-      <button type="button" class="btn-confirm-broadcast" style="background:#FEE75C;color:#000;" onclick="submitStepUpAuth()"><i class="bi bi-unlock-fill"></i> Mở khóa</button>
+      <button type="button" class="btn-confirm-broadcast" id="stepupSubmitBtn" style="background:#FEE75C;color:#000;" onclick="submitStepUpAuth()"><i class="bi bi-unlock-fill"></i> Mở khóa</button>
     </div>
   </div>
 </div>
@@ -936,8 +936,17 @@
       const data = await res.json();
       if (res.status === 401 && data.error === 'stepup_required') {
         const term = document.getElementById('terminalOutput');
-        if (term.lastChild) term.removeChild(term.lastChild);
-        promptStepUpAuth(() => sendTerminalCommand(command));
+        if (term && term.lastChild) {
+          const outLine = term.lastChild.querySelector('.term-green, .term-red') || term.lastChild.lastChild;
+          if (outLine) {
+            outLine.className = 'term-yellow';
+            outLine.textContent = '🔒 Yêu cầu xác thực mật khẩu quản trị (Step-Up Auth)...';
+          }
+        }
+        promptStepUpAuth(() => {
+          if (term && term.lastChild) term.removeChild(term.lastChild);
+          sendTerminalCommand(command);
+        });
         return null;
       }
       return data;
@@ -972,26 +981,59 @@
 
   function promptStepUpAuth(callback) {
     _stepupPendingCallback = callback;
-    document.getElementById('stepupPasswordInput').value = '';
-    document.getElementById('stepupError').style.display = 'none';
-    document.getElementById('stepupModal').classList.add('active');
+    const input = document.getElementById('stepupPasswordInput');
+    const errEl = document.getElementById('stepupError');
+    if (input) input.value = '';
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    const modal = document.getElementById('stepupModal');
+    if (modal) {
+      modal.classList.add('open');
+      modal.classList.add('active');
+    }
     setTimeout(() => {
-      document.getElementById('stepupPasswordInput').focus();
+      if (input) input.focus();
     }, 100);
   }
 
   function closeStepUpModal() {
-    document.getElementById('stepupModal').classList.remove('active');
+    const modal = document.getElementById('stepupModal');
+    if (modal) {
+      modal.classList.remove('open');
+      modal.classList.remove('active');
+    }
+    if (_stepupPendingCallback) {
+      const term = document.getElementById('terminalOutput');
+      if (term && term.lastChild) {
+        const outLine = term.lastChild.querySelector('.term-yellow');
+        if (outLine) {
+          outLine.className = 'term-red';
+          outLine.textContent = '❌ Đã hủy xác thực Step-Up Auth.';
+        }
+      }
+    }
     _stepupPendingCallback = null;
+  }
+  const _stepupModalEl = document.getElementById('stepupModal');
+  if (_stepupModalEl) {
+    _stepupModalEl.addEventListener('click', function(e) { if(e.target === this) closeStepUpModal(); });
   }
 
   async function submitStepUpAuth() {
-    const pwd = document.getElementById('stepupPasswordInput').value;
+    const input = document.getElementById('stepupPasswordInput');
+    const pwd = input ? input.value : '';
     const errEl = document.getElementById('stepupError');
+    const btn = document.getElementById('stepupSubmitBtn');
     if (!pwd) {
-      errEl.textContent = 'Vui lòng nhập mật khẩu quản trị!';
-      errEl.style.display = 'block';
+      if (errEl) {
+        errEl.textContent = 'Vui lòng nhập mật khẩu quản trị!';
+        errEl.style.display = 'block';
+      }
       return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang xác thực...';
     }
 
     try {
@@ -1002,19 +1044,32 @@
       });
       const data = await res.json();
       if (res.ok && data.ok) {
+        const cb = _stepupPendingCallback;
+        _stepupPendingCallback = null;
         closeStepUpModal();
-        if (typeof _stepupPendingCallback === 'function') {
-          const cb = _stepupPendingCallback;
-          _stepupPendingCallback = null;
+        if (typeof cb === 'function') {
           cb();
         }
       } else {
-        errEl.textContent = data.message || 'Mật khẩu không chính xác!';
-        errEl.style.display = 'block';
+        if (errEl) {
+          errEl.textContent = data.message || 'Mật khẩu không chính xác!';
+          errEl.style.display = 'block';
+        }
+        if (input) {
+          input.value = '';
+          input.focus();
+        }
       }
     } catch (e) {
-      errEl.textContent = 'Lỗi kết nối máy chủ: ' + e;
-      errEl.style.display = 'block';
+      if (errEl) {
+        errEl.textContent = 'Lỗi kết nối máy chủ: ' + e;
+        errEl.style.display = 'block';
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-unlock-fill"></i> Mở khóa';
+      }
     }
   }
 
