@@ -18,6 +18,20 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 - **Chủ động đặt câu hỏi làm rõ**: Nếu yêu cầu còn mơ hồ, có nhiều phương án triển khai, hoặc tiềm ẩn rủi ro (hiệu năng ARM/Termux yếu, nghẽn SQLite WAL, phá vỡ chuẩn 20 modules / 108 lệnh / 1621 keys i18n, UX Discord/Web chưa mượt), AI **BẮT BUỘC phải hỏi thêm thông tin, chỉ ra các trường hợp biên (edge cases) và đề xuất các giải pháp tối ưu** kèm ưu/nhược điểm (trade-offs) trước khi bắt tay vào viết mã.
 - **Tương tác thông minh**: Sử dụng interactive modal (`ask_question`) để người dùng chọn nhanh các phương án, hoặc gợi ý slash command `/grill-me` khi cần trao đổi đa chiều về quyết định thiết kế kiến trúc. Chi tiết xem tại [`.agents/rules/critical_inquiry.md`](file:///d:/Project/Discord%20Bots/v2/.agents/rules/critical_inquiry.md).
 
+### 👥 1.2 Quy Tắc Mặc Định Bắt Buộc Luôn Dùng 2 Model AI Đồng Xử Lý (Mandatory Dual-Model Mandate)
+- **Quy tắc cốt lõi (Persistent Constraint)**: Trong **MỌI tác vụ** (tiếp nhận yêu cầu, phân tích nguyên nhân gốc rễ, lập phương án kiến trúc, phản biện kỹ thuật, chỉnh sửa mã nguồn và rà soát trước commit), AI **BẮT BUỘC MẶC ĐỊNH LUÔN DÙNG 2 MODEL AI ĐỒNG THỜI**, tuyệt đối không bao giờ làm việc đơn lẻ:
+  - 🏛️ **Model 1 — Lead Architect & Coordinator (Primary Agent - Gemini 3.8 / Antigravity IDE)**: Tiếp nhận yêu cầu từ người dùng, nắm giữ ngữ cảnh sâu rộng, thiết kế phương án kiến trúc, trực tiếp thao tác viết/chỉnh sửa mã nguồn và điều phối toàn bộ workflow.
+  - 🛡️ **Model 2 — Independent Reviewer & Security Critic (Groq LPU — Qwen 2.5 / GPT-OSS qua `scripts/dual_model_mcp.py`)**: Đóng vai trò kiểm toán viên độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), race condition, rò rỉ tài nguyên trên Termux ARM64 (Helio G85, 6GB RAM), nghẽn SQLite WAL và phá vỡ kiến trúc.
+- **Chu Trình 4 Bước Bắt Buộc Trong Mọi Turn (The Dual-Model Loop)**:
+  1. **Bước 1 (Proposal - Model 1)**: Model 1 phân tích yêu cầu, bóc tách nguyên nhân gốc rễ và đề xuất giải pháp/bản nháp mã nguồn.
+  2. **Bước 2 (Critique - Model 2)**: Model 1 tham vấn Model 2 qua `python scripts/dual_model_mcp.py --consult "<nội dung>" --role critic/architect` hoặc `--debate` để tìm kiếm điểm mù, edge cases và phản biện rủi ro.
+  3. **Bước 3 (Refinement - Model 1)**: Model 1 tiếp thu phản biện, hoàn thiện mã nguồn và chạy `python scripts/dual_model_mcp.py --review-file <file>` hoặc `--pre-commit-check` cho đến khi Model 2 đạt phán quyết `APPROVED` / `READY_TO_COMMIT`.
+  4. **Bước 4 (Joint Output)**: Trình bày câu trả lời cho Người Dùng luôn minh bạch góc nhìn của cả 2 Model:
+     - 🏛️ **Model 1 (Lead Architect)**: Phân tích & Giải pháp triển khai.
+     - 🛡️ **Model 2 (Independent Critic)**: Đánh giá an toàn, rủi ro Termux & SQLite WAL.
+     - 🤝 **Kết Luận Đồng Thuận (Consensus)**: Quyết định kỹ thuật cuối cùng được cả 2 Model phê duyệt.
+- **Khâu Rà Soát Bắt Buộc Trước Khi Đẩy Code (Mandatory Pre-Commit Gate)**: Trước khi `git push origin main` lên Termux, bắt buộc phải chạy `python scripts/dual_model_mcp.py --pre-commit-check` và đạt kết quả `🟢 SẴN SÀNG COMMIT`. Chi tiết xem tại [`.agents/rules/dual_model_co_reasoning.md`](file:///d:/Project/Discord%20Bots/v2/.agents/rules/dual_model_co_reasoning.md).
+
 ---
 
 ## 🌐 2. Môi Trường Triển Khai Thực Tế

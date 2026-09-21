@@ -68,3 +68,36 @@ def test_music_cog_loads_on_dummy_bot():
     import asyncio
     asyncio.run(load())
     asyncio.run(bot.close())
+
+
+def test_track_live_stream_detection():
+    M = _import()
+    # Case 1: is_live flag from yt-dlp
+    t1 = M.Track({"title": "Live 1", "url": "https://youtu.be/1", "is_live": True})
+    assert t1.is_live is True
+
+    # Case 2: SomaFM / Radio with duration <= 0
+    t2 = M.Track({"title": "Radio", "url": "https://ice1.somafm.com", "duration": -1, "stream_url": "https://ice1.somafm.com"})
+    assert t2.is_live is True
+
+    # Case 3: Live stream with live_status="is_live"
+    t3 = M.Track({"title": "Live Stream", "url": "https://youtu.be/2", "live_status": "is_live", "duration": None, "stream_url": "https://googlevideo.com/videoplayback"})
+    assert t3.is_live is True
+
+    # Case 4: Normal song with duration
+    t4 = M.Track({"title": "Song", "url": "https://youtu.be/3", "duration": 210, "stream_url": "https://googlevideo.com/videoplayback"})
+    assert t4.is_live is False
+
+
+def test_compact_song_info_preserves_is_live():
+    M = _import()
+    info_live = {
+        "id": "abc",
+        "title": "Lofi 24/7",
+        "url": "https://youtu.be/abc",
+        "is_live": True,
+        "formats": [{"url": "https://googlevideo.com/live", "acodec": "opus", "protocol": "https"}]
+    }
+    compact = M._compact_song_info(info_live)
+    assert compact["is_live"] is True
+

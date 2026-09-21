@@ -1369,6 +1369,18 @@ async def async_set_song_cache(cache_key: str, info: Any, expire_ts: Optional[fl
         # Ghi cache thất bại không được làm hỏng việc phát nhạc — chỉ ghi log.
         logger.debug(f"[MusicCache] set_song_cache error (key={cache_key[:32]}): {exc}")
 
+
+async def async_delete_song_cache(cache_key: str) -> None:
+    """Xóa entry trong music_song_cache khi force_refresh (giải phóng disk space)."""
+    try:
+        async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+            await db.execute("PRAGMA busy_timeout = 15000")
+            await db.execute("DELETE FROM music_song_cache WHERE cache_key = ?", (cache_key,))
+            await db.commit()
+    except Exception as exc:
+        logger.debug(f"[MusicCache] delete_song_cache error (key={cache_key[:32]}): {exc}")
+
+
 async def async_create_playlist(guild_id: str, name: str, creator_id: str = "", creator_name: str = "") -> int:
     async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
         cursor = await db.execute("INSERT INTO music_playlists (guild_id, name, creator_id, creator_name) VALUES (?, ?, ?, ?)", (guild_id, name, creator_id, creator_name))

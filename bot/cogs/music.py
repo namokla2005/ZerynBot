@@ -28,7 +28,14 @@ from discord.ext import commands
 
 from datetime import datetime, timezone
 from cache import cache
-from database import async_get_guild_settings, async_get_song_cache, async_set_song_cache, async_increment_stat, async_get_top_played_songs
+from database import (
+    async_get_guild_settings,
+    async_get_song_cache,
+    async_set_song_cache,
+    async_delete_song_cache,
+    async_increment_stat,
+    async_get_top_played_songs,
+)
 from i18n import tr
 
 try:
@@ -542,6 +549,7 @@ def _compact_song_info(info: dict) -> dict:
     is_opus = bool(info.get("is_opus")) if "is_opus" in info else (acodec == "opus")
     thumbnail = _get_best_thumbnail(info)
     stream_expire = _extract_stream_expire(stream_url, info)
+    is_live = bool(info.get("is_live") or info.get("live_status") == "is_live")
     return {
         "id":            info.get("id", ""),
         "title":         info.get("title", "Unknown"),
@@ -554,48 +562,56 @@ def _compact_song_info(info: dict) -> dict:
         "thumbnail":     thumbnail,
         "acodec":        acodec,
         "is_opus":       is_opus,
+        "is_live":       is_live,
     }
 
 
-async def extract_info(query: str) -> dict | None:
+async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
     """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
     key = query.strip().lower()
     cache_key = f"song_info:{key}"
 
-    # 1. Kiểm tra RAM Cache wrapper
-    cached = await cache.aget(cache_key)
-    if cached is not None:
-        return cached
+    if not force_refresh:
+        # 1. Kiểm tra RAM Cache wrapper
+        cached = await cache.aget(cache_key)
+        if cached is not None:
+            return cached
 
-    # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
-    disk = await async_get_song_cache(cache_key, ttl=21600)
-    if disk is not None:
-        exp = disk.get("stream_expire")
-        if exp and float(exp) <= (time.time() + 30):
-            disk = None
-        else:
-            await cache.aset(cache_key, disk, ttl=600)
-            return disk
+        # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
+        disk = await async_get_song_cache(cache_key, ttl=21600)
+        if disk is not None:
+            exp = disk.get("stream_expire")
+            if exp and float(exp) <= (time.time() + 30):
+                disk = None
+            else:
+                await cache.aset(cache_key, disk, ttl=600)
+                return disk
 
     # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
     async with _extract_semaphore:
+        if force_refresh:
+            await cache.adelete(cache_key)
+            await async_delete_song_cache(cache_key)
+
         loop = asyncio.get_running_loop()
         info = await loop.run_in_executor(None, _extract_sync, query)
 
     if info:
         compact = _compact_song_info(info)
         exp_ts = compact.get("stream_expire")
-        # Lưu vào In-Memory Cache (TTL 10 phút) + disk cache
-        await cache.aset(cache_key, compact, ttl=600)
-        await async_set_song_cache(cache_key, compact, exp_ts)
-        vid = compact.get("id")
-        if vid:
-            await cache.aset(f"song_info:{vid}", compact, ttl=600)
-            await async_set_song_cache(f"song_info:{vid}", compact, exp_ts)
-        web_url = compact.get("webpage_url") or compact.get("url")
-        if web_url and isinstance(web_url, str) and web_url.startswith("http"):
-            await cache.aset(f"song_info:{web_url.lower().strip()}", compact, ttl=600)
-            await async_set_song_cache(f"song_info:{web_url.lower().strip()}", compact, exp_ts)
+        is_live = compact.get("is_live", False)
+        # Với live stream: Tuyệt đối không cache để token luôn tươi mới và chống OOM trên Termux
+        if not is_live:
+            await cache.aset(cache_key, compact, ttl=600)
+            await async_set_song_cache(cache_key, compact, exp_ts)
+            vid = compact.get("id")
+            if vid:
+                await cache.aset(f"song_info:{vid}", compact, ttl=600)
+                await async_set_song_cache(f"song_info:{vid}", compact, exp_ts)
+            web_url = compact.get("webpage_url") or compact.get("url")
+            if web_url and isinstance(web_url, str) and web_url.startswith("http"):
+                await cache.aset(f"song_info:{web_url.lower().strip()}", compact, ttl=600)
+                await async_set_song_cache(f"song_info:{web_url.lower().strip()}", compact, exp_ts)
         return compact
 
     return None
@@ -629,7 +645,7 @@ async def extract_metadata(query: str) -> dict | None:
 
 # ─── Track ─────────────────────────────────────────────────────────────────────
 class Track:
-    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus", "recovery_attempts")
+    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus", "recovery_attempts", "is_live")
 
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")
@@ -649,6 +665,11 @@ class Track:
         # Xác định opus chính xác theo acodec (fallback heuristic nếu không tìm thấy format)
         self.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, self.stream_url) == "opus")
         self.recovery_attempts = 0
+        self.is_live       = bool(
+            info.get("is_live")
+            or info.get("live_status") == "is_live"
+            or (self.duration is not None and self.duration <= 0)
+        )
 
 
     @property
@@ -686,9 +707,12 @@ class MusicPlayer:
         self.pause_start   : float = 0.0
         self.total_paused_time : float = 0.0
         self._skipped      : bool = False
+        self._recovering   : bool = False
+        self._last_recovery_time : float = 0.0
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
+        self._recovery_lock = asyncio.Lock()
 
     def _get_loop(self):
         """Lấy event loop an toàn tại thời điểm gọi để tránh stale loop."""
@@ -764,67 +788,136 @@ class MusicPlayer:
         self._preload_task = asyncio.create_task(self._preload_next())
 
     def _after_play(self, error=None):
-        if self._manual_stopped:
+        """Callback từ audio thread của discord.py khi stream dừng (chuyển sang event loop an toàn)."""
+        if self._manual_stopped or self._recovering:
             return
 
-        loop = self._get_loop()
-        elapsed = self.get_elapsed()
-
-        # 403 / Premature disconnect auto-recovery
-        # Nếu bài hát đứt đoạn giữa chừng do URL YouTube hết hạn (403) hoặc rớt mạng TCP
-        is_premature = (
-            not self._skipped
-            and self.current
-            and self.current.duration
-            and self.current.duration > 30
-            and elapsed < (self.current.duration - 15)
-        )
-        if (error or is_premature) and self.current and getattr(self.current, "recovery_attempts", 0) < 1 and not self._skipped:
-            self.current.recovery_attempts += 1
-            log.warning(
-                f"[Music] Bài hát '{self.current.title}' đứt kết nối tại {elapsed}s (error={error}, premature={is_premature}). "
-                f"Đang tự động làm mới URL và phát tiếp từ {elapsed}s..."
-            )
-            self.current.stream_url = None
-            asyncio.run_coroutine_threadsafe(self._play(self.current, seek_offset=elapsed), loop)
-            return
-
-        if error:
-            log.warning(f"[Music] Player error: {error}")
-            self._consecutive_errors += 1
-            if self._consecutive_errors >= 3:
-                log.error(f"[Music] Gặp {self._consecutive_errors} lỗi phát nhạc liên tiếp, dừng autoplay để chống lặp.")
-                self._consecutive_errors = 0
-                self.autoplay = False
-                asyncio.run_coroutine_threadsafe(self._on_queue_empty(), loop)
+        try:
+            loop = self._get_loop()
+            if loop.is_closed():
                 return
-        else:
-            self._consecutive_errors = 0
+            elapsed = self.get_elapsed()
+            curr = self.current
+            if not curr:
+                return
 
-        if self.current:
-            self._record_played(self.current.title)
+            asyncio.run_coroutine_threadsafe(self._handle_after_play_async(error, elapsed, curr), loop)
+        except Exception as e:
+            log.debug(f"[Music] _after_play dispatch error: {e}")
 
-        if self.loop_mode == 1 and self.current:
-            self.current.recovery_attempts = 0
-            asyncio.run_coroutine_threadsafe(self._play(self.current), loop)
-        elif self.loop_mode == 2 and self.current:
-            self.current.recovery_attempts = 0
-            self.queue.append(self.current)
-            self._dispatch_next()
-        else:
-            self._dispatch_next()
+    async def _handle_after_play_async(self, error, elapsed: int, track: Track):
+        """Xử lý kết thúc phát nhạc trên Main Event Loop (100% thread-safe)."""
+        async with self._recovery_lock:
+            if self._manual_stopped or self._recovering:
+                return
+
+            is_live_track = getattr(track, "is_live", False)
+            now = time.time()
+
+            # 1. LIVE STREAM AUTO-RECOVERY (Lofi Girl 24/7, Radio, YouTube Live)
+            if is_live_track and not self._skipped:
+                # Reset recovery counter chỉ khi đã phát ổn định >= 180s (3 phút)
+                if elapsed >= 180 or (self._last_recovery_time > 0 and (now - self._last_recovery_time) >= 180):
+                    track.recovery_attempts = 0
+
+                if getattr(track, "recovery_attempts", 0) < 5:
+                    track.recovery_attempts = getattr(track, "recovery_attempts", 0) + 1
+                    self._last_recovery_time = now
+                    self._recovering = True
+                    log.warning(
+                        f"[Music] Live stream 24/7 '{track.title}' ngắt kết nối tại {elapsed}s (lần {track.recovery_attempts}/5). "
+                        f"Đang tự động làm mới stream URL và tiếp tục phát sau 2s backoff..."
+                    )
+                    try:
+                        track.stream_url = None
+                        await asyncio.sleep(2)
+                        await self._play(track, seek_offset=0)
+                    except Exception as rec_err:
+                        log.error(f"[Music] Lỗi khôi phục live stream '{track.title}': {rec_err}")
+                        await self._on_queue_empty()
+                    finally:
+                        self._recovering = False
+                    return
+                else:
+                    log.error(f"[Music] Live stream '{track.title}' lỗi liên tục 5 lần, dừng stream.")
+                    try:
+                        if self.text_channel:
+                            await self.text_channel.send(
+                                embed=discord.Embed(
+                                    description=f"⚠️ Live stream **{track.title}** bị gián đoạn và không thể kết nối lại sau 5 lần thử.",
+                                    color=0xED4245
+                                )
+                            )
+                    except Exception:
+                        pass
+                    await self.stop()
+                    return
+
+            # 2. Regular song premature disconnect auto-recovery (403 Forbidden / rớt mạng)
+            is_premature = (
+                not self._skipped
+                and not is_live_track
+                and track.duration
+                and track.duration > 30
+                and elapsed < (track.duration - 15)
+            )
+            if (error or is_premature) and getattr(track, "recovery_attempts", 0) < 1 and not self._skipped:
+                track.recovery_attempts = 1
+                self._recovering = True
+                log.warning(
+                    f"[Music] Bài hát '{track.title}' đứt kết nối tại {elapsed}s (error={error}, premature={is_premature}). "
+                    f"Đang tự động làm mới URL và phát tiếp từ {elapsed}s..."
+                )
+                try:
+                    track.stream_url = None
+                    await self._play(track, seek_offset=elapsed)
+                except Exception as rec_err:
+                    log.error(f"[Music] Lỗi khôi phục bài hát '{track.title}': {rec_err}")
+                    await self._on_queue_empty()
+                finally:
+                    self._recovering = False
+                return
+
+            if error:
+                log.warning(f"[Music] Player error: {error}")
+                self._consecutive_errors += 1
+                if self._consecutive_errors >= 3:
+                    log.error(f"[Music] Gặp {self._consecutive_errors} lỗi phát nhạc liên tiếp, dừng autoplay để chống lặp.")
+                    self._consecutive_errors = 0
+                    self.autoplay = False
+                    await self._on_queue_empty()
+                    return
+            else:
+                self._consecutive_errors = 0
+
+            self._record_played(track.title)
+
+            if self.loop_mode == 1:
+                track.recovery_attempts = 0
+                await self._play(track)
+            elif self.loop_mode == 2:
+                track.recovery_attempts = 0
+                self.queue.append(track)
+                await self._dispatch_next_async()
+            else:
+                await self._dispatch_next_async()
 
     def _dispatch_next(self):
+        """Dispatch bài tiếp theo an toàn (hỗ trợ gọi đồng bộ từ bên ngoài)."""
         loop = self._get_loop()
+        asyncio.run_coroutine_threadsafe(self._dispatch_next_async(), loop)
+
+    async def _dispatch_next_async(self):
+        """Dispatch bài tiếp theo bất đồng bộ trực tiếp trên event loop."""
         if self.queue:
             self._reset_inactivity_timer()
-            asyncio.run_coroutine_threadsafe(self._play(self.queue.pop(0)), loop)
+            await self._play(self.queue.pop(0))
         elif self.autoplay and self.current:
             self._reset_inactivity_timer()
-            asyncio.run_coroutine_threadsafe(self._handle_autoplay(), loop)
+            await self._handle_autoplay()
         else:
             self.current = None
-            asyncio.run_coroutine_threadsafe(self._on_queue_empty(), loop)
+            await self._on_queue_empty()
 
     async def _handle_autoplay(self):
         """Tự động tìm kiếm và phát bài hát cùng thể loại khi bật Autoplay."""
@@ -920,7 +1013,8 @@ class MusicPlayer:
 
             # Lấy stream URL tươi mới nếu chưa có hoặc URL đã hết hạn (sau 5.5h)
             if not track.stream_url or track.is_stream_expired:
-                info = await extract_info(track.url or track.title)
+                must_force = (track.stream_url is None) or getattr(track, "is_live", False)
+                info = await extract_info(track.url or track.title, force_refresh=must_force)
                 if not info:
                     log.warning(f"[Music] Cannot get stream URL for '{track.title}'")
                     await self._report_play_failure(track)
@@ -928,6 +1022,8 @@ class MusicPlayer:
                 track.stream_url    = info.get("stream_url") or _get_stream_url(info)
                 track.stream_expire = _extract_stream_expire(track.stream_url, info)
                 track.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, track.stream_url) == "opus")
+                if info.get("is_live"):
+                    track.is_live = True
 
             if not track.stream_url:
                 log.warning(f"[Music] Cannot resolve stream URL for '{track.title}'")
@@ -1015,16 +1111,24 @@ class MusicPlayer:
     async def _send_now_playing(self):
         if not self.text_channel or not self.current:
             return
-        if self.now_playing_msg:
-            try:
-                await self.now_playing_msg.delete()
-            except Exception as e:
-                log.debug(f"[Music] delete old NP message error: {e}")
+
         s = await async_get_guild_settings(str(self.guild.id))
         view  = MusicControlView(self, s)
         elapsed = self.get_elapsed()
         is_opus_copy = bool(self.vc and self.vc.source and not isinstance(self.vc.source, discord.PCMVolumeTransformer))
         embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s, is_opus_copy=is_opus_copy)
+
+        # Nếu đã có now_playing_msg đang tồn tại (ví dụ khi auto-reconnect live stream), ưu tiên edit
+        if self.now_playing_msg:
+            try:
+                await self.now_playing_msg.edit(embed=embed, view=view)
+                return
+            except discord.NotFound:
+                self.now_playing_msg = None
+            except Exception as e:
+                log.debug(f"[Music] edit NP message error: {e}")
+                self.now_playing_msg = None
+
         try:
             self.now_playing_msg = await self.text_channel.send(embed=embed, view=view)
         except Exception as e:
@@ -1083,13 +1187,34 @@ class MusicPlayer:
         self._played_history_set.clear()
         if self._preload_task:
             self._preload_task.cancel()
-        if self.vc and self.vc.is_connected():
-            if self.vc.is_playing() or self.vc.is_paused():
-                self.vc.stop()
+
+        # 1. Dọn dẹp self.vc
+        if self.vc:
             try:
-                await self.vc.disconnect()
+                if self.vc.is_playing() or self.vc.is_paused():
+                    self.vc.stop()
+                if self.vc.is_connected():
+                    await self.vc.disconnect(force=True)
             except Exception as e:
                 log.debug(f"[Music] voice disconnect error: {e}")
+
+        # 2. Dọn dẹp guild.voice_client trực tiếp (chống ghost voice desync)
+        try:
+            g_vc = self.guild.voice_client
+            if g_vc and g_vc.is_connected():
+                if g_vc.is_playing() or g_vc.is_paused():
+                    g_vc.stop()
+                await g_vc.disconnect(force=True)
+        except Exception as e:
+            log.debug(f"[Music] guild voice_client disconnect error: {e}")
+
+        # 3. Dọn dẹp voice state nếu bot vẫn còn kẹt trong channel
+        try:
+            if self.guild.me and self.guild.me.voice and self.guild.me.voice.channel:
+                await self.guild.change_voice_state(channel=None)
+        except Exception as e:
+            log.debug(f"[Music] guild change_voice_state error: {e}")
+
         if self.now_playing_msg:
             try:
                 await self.now_playing_msg.delete()
@@ -1528,14 +1653,16 @@ class Music(commands.Cog, name="Music"):
     async def _ensure(self, ctx: commands.Context) -> MusicPlayer | None:
         _t0 = time.time()
         s = await async_get_guild_settings(str(ctx.guild.id))
-        if not ctx.author.voice:
+        if not ctx.author.voice or not ctx.author.voice.channel:
             await ctx.send(tr(s, "music.join_voice_first"))
             return None
 
         guild_id = ctx.guild.id
         player   = self._players.get(guild_id)
+        g_vc     = ctx.guild.voice_client
 
-        if player and player.vc.is_connected():
+        # Trường hợp 1: Player đang sống và vc đang kết nối
+        if player and player.vc and player.vc.is_connected():
             if player.vc.channel != ctx.author.voice.channel:
                 await ctx.send(tr(s, "music.bot_in_other_voice"))
                 return None
@@ -1544,6 +1671,28 @@ class Music(commands.Cog, name="Music"):
             if ctx.guild.me.voice and not ctx.guild.me.voice.self_deaf:
                 try:
                     await ctx.guild.change_voice_state(channel=player.vc.channel, self_deaf=True)
+                except Exception:
+                    pass
+            return player
+
+        # Trường hợp 2: Desync recovery — discord.py voice_client đã kết nối nhưng player bị mất
+        if g_vc and g_vc.is_connected():
+            log.info(f"[Music] Phát hiện voice_client đã kết nối tại guild {guild_id}, tự động đồng bộ lại player.")
+            if g_vc.channel != ctx.author.voice.channel:
+                try:
+                    await g_vc.move_to(ctx.author.voice.channel)
+                except Exception:
+                    await ctx.send(tr(s, "music.bot_in_other_voice"))
+                    return None
+            if player:
+                player.vc = g_vc
+                player.text_channel = ctx.channel
+            else:
+                player = MusicPlayer(ctx.guild, ctx.channel, g_vc, cog=self)
+                self._players[guild_id] = player
+            if ctx.guild.me.voice and not ctx.guild.me.voice.self_deaf:
+                try:
+                    await ctx.guild.change_voice_state(channel=g_vc.channel, self_deaf=True)
                 except Exception:
                     pass
             return player
@@ -1559,8 +1708,11 @@ class Music(commands.Cog, name="Music"):
         try:
             vc = await ctx.author.voice.channel.connect(self_deaf=True)
         except Exception as e:
-            await ctx.send(tr(s, "music.cannot_connect", err=e))
-            return None
+            if "already connected" in str(e).lower() and ctx.guild.voice_client:
+                vc = ctx.guild.voice_client
+            else:
+                await ctx.send(tr(s, "music.cannot_connect", err=e))
+                return None
 
         log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
         player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
@@ -1575,53 +1727,111 @@ class Music(commands.Cog, name="Music"):
         before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        """Xử lý sự kiện voice channel, dọn dẹp tức thì khi bot bị kick hoặc phòng trống."""
+        """Xử lý sự kiện voice channel: dọn dẹp tức thì khi bot bị kick, và tự động rời phòng sau 30s nếu không còn ai."""
+        guild = member.guild
+        guild_id = guild.id
+
         # 1. Dọn dẹp tức thì nếu chính bot bị ngắt kết nối voice (bị kick hoặc disconnect)
         if self.bot.user and member.id == self.bot.user.id:
             if before.channel and after.channel is None:
-                log.info(f"[Music] Bot bị ngắt kết nối khỏi kênh voice tại guild {member.guild.id}. Dọn dẹp player tức thì.")
-                player = self._players.get(member.guild.id)
+                log.info(f"[Music] Bot bị ngắt kết nối khỏi kênh voice tại guild {guild_id}. Dọn dẹp player tức thì.")
+                task = self._empty_voice_tasks.pop(guild_id, None)
+                if task and not task.done():
+                    task.cancel()
+                player = self._players.get(guild_id)
                 if player:
                     await player.stop()
-                    self._drop(member.guild.id)
+                    self._drop(guild_id)
+            elif after.channel:
+                # Bot vừa join kênh voice hoặc chuyển kênh: kiểm tra nếu kênh mới trống
+                self._check_and_schedule_empty_voice(guild)
             return
 
         if member.bot:
             return
-        player = self._players.get(member.guild.id)
-        if not player or not player.vc.is_connected():
-            return
-        channel = player.vc.channel
-        if any(not m.bot for m in channel.members):
-            task = self._empty_voice_tasks.pop(member.guild.id, None)
+
+        # 2. Xử lý khi người dùng (user) vào/ra/chuyển kênh
+        self._check_and_schedule_empty_voice(guild)
+
+    def _check_and_schedule_empty_voice(self, guild: discord.Guild):
+        """Kiểm tra kênh voice của bot, nếu không còn ai ngoài bot thì lên lịch tự động out sau 30s."""
+        guild_id = guild.id
+        vc = guild.voice_client
+        bot_channel = vc.channel if (vc and vc.is_connected()) else (guild.me.voice.channel if (guild.me and guild.me.voice) else None)
+
+        if not bot_channel:
+            # Bot không ở trong kênh voice nào, hủy task đếm ngược nếu có
+            task = self._empty_voice_tasks.pop(guild_id, None)
             if task and not task.done():
                 task.cancel()
             return
 
-        existing_task = self._empty_voice_tasks.get(member.guild.id)
-        if existing_task and not existing_task.done():
+        # Kiểm tra xem có người thật (không phải bot) trong kênh của bot không
+        has_human = any(not m.bot for m in bot_channel.members)
+
+        if has_human:
+            # Có người trong phòng -> Hủy bộ đếm 30s nếu đang chạy
+            task = self._empty_voice_tasks.pop(guild_id, None)
+            if task and not task.done():
+                task.cancel()
+                log.debug(f"[Music] Người dùng đã vào lại phòng '{bot_channel.name}' tại guild {guild_id}. Đã hủy timer 30s.")
             return
 
-        task = asyncio.create_task(self._handle_empty_voice(member.guild.id, player))
-        self._empty_voice_tasks[member.guild.id] = task
+        # Phòng không có người nào ngoài bot -> Khởi động bộ đếm 30s tự động rời phòng
+        existing_task = self._empty_voice_tasks.get(guild_id)
+        if existing_task and not existing_task.done():
+            return  # Đã có timer 30s đang đếm ngược
 
-    async def _handle_empty_voice(self, guild_id: int, player: MusicPlayer):
+        log.info(f"[Music] Kênh voice '{bot_channel.name}' không còn ai (guild {guild_id}). Bắt đầu đếm ngược 30s tự động out.")
+        task = asyncio.create_task(self._handle_empty_voice(guild_id, bot_channel.id))
+        self._empty_voice_tasks[guild_id] = task
+
+    async def _handle_empty_voice(self, guild_id: int, channel_id: int):
         """Xử lý rời kênh khi phòng voice trống sau 30 giây (không block event loop)."""
         try:
             await asyncio.sleep(30)
-            current_player = self._players.get(guild_id)
-            if current_player is not player or not player.vc.is_connected():
+            guild = self.bot.get_guild(guild_id)
+            if not guild:
                 return
-            if any(not m.bot for m in player.vc.channel.members):
+            vc = guild.voice_client
+            bot_channel = vc.channel if (vc and vc.is_connected()) else (guild.me.voice.channel if (guild.me and guild.me.voice) else None)
+
+            # Nếu bot không còn ở trong kênh ban đầu hoặc đã rời
+            if not bot_channel or bot_channel.id != channel_id:
                 return
-            if player.text_channel:
+
+            # Kiểm tra lần cuối xem có người nào vào lại không
+            if any(not m.bot for m in bot_channel.members):
+                return
+
+            player = self._players.get(guild_id)
+            log.info(f"[Music] Phòng voice '{bot_channel.name}' đã trống 30s tại guild {guild_id}. Bot tự động rời kênh.")
+
+            # Gửi thông báo nếu có kênh text
+            channel_to_notify = player.text_channel if player else None
+            if channel_to_notify:
                 try:
                     s = await async_get_guild_settings(str(guild_id))
-                    await player.text_channel.send(tr(s, "music.empty_voice_left"), delete_after=60)
+                    await channel_to_notify.send(tr(s, "music.empty_voice_left"), delete_after=60)
                 except Exception:
                     pass
-            await player.stop()
-            self._drop(guild_id)
+
+            # Dừng và rời kênh an toàn
+            if player:
+                await player.stop()
+                self._drop(guild_id)
+            elif vc and vc.is_connected():
+                try:
+                    if vc.is_playing() or vc.is_paused():
+                        vc.stop()
+                    await vc.disconnect(force=True)
+                except Exception:
+                    pass
+            elif guild.me and guild.me.voice and guild.me.voice.channel:
+                try:
+                    await guild.change_voice_state(channel=None)
+                except Exception:
+                    pass
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -1641,12 +1851,32 @@ class Music(commands.Cog, name="Music"):
     async def leave(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
+        g_vc = ctx.guild.voice_client
+        me_voice = ctx.guild.me.voice if ctx.guild.me else None
+
+        if not player and not g_vc and not (me_voice and me_voice.channel):
+            await ctx.send(tr(s, "music.not_in_voice"))
+            return
+
         if player:
             await player.stop()
             self._drop(ctx.guild.id)
-            await ctx.send(tr(s, "music.left_voice"))
-        else:
-            await ctx.send(tr(s, "music.not_in_voice"))
+
+        # Fallback dọn dẹp kết nối voice vật lý nếu player bị drop trước đó (chống ghost voice)
+        if g_vc and g_vc.is_connected():
+            try:
+                if g_vc.is_playing() or g_vc.is_paused():
+                    g_vc.stop()
+                await g_vc.disconnect(force=True)
+            except Exception as e:
+                log.debug(f"[Music] leave g_vc disconnect error: {e}")
+        elif me_voice and me_voice.channel:
+            try:
+                await ctx.guild.change_voice_state(channel=None)
+            except Exception as e:
+                log.debug(f"[Music] leave change_voice_state error: {e}")
+
+        await ctx.send(tr(s, "music.left_voice"))
 
     @commands.hybrid_command(name="play", description="Phát nhạc từ YouTube hoặc Spotify (tên bài hoặc link)")
     @app_commands.describe(query="Tên bài hát, link YouTube hoặc link Spotify")
@@ -1758,11 +1988,31 @@ class Music(commands.Cog, name="Music"):
     async def stop(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
-        if not player:
+        g_vc = ctx.guild.voice_client
+        me_voice = ctx.guild.me.voice if ctx.guild.me else None
+
+        if not player and not g_vc and not (me_voice and me_voice.channel):
             await ctx.send(tr(s, "music.not_playing"))
             return
-        await player.stop()
-        self._drop(ctx.guild.id)
+
+        if player:
+            await player.stop()
+            self._drop(ctx.guild.id)
+
+        # Fallback dọn dẹp vật lý nếu bot vẫn còn kẹt trong voice (chống ghost voice)
+        if g_vc and g_vc.is_connected():
+            try:
+                if g_vc.is_playing() or g_vc.is_paused():
+                    g_vc.stop()
+                await g_vc.disconnect(force=True)
+            except Exception as e:
+                log.debug(f"[Music] stop g_vc disconnect error: {e}")
+        elif me_voice and me_voice.channel:
+            try:
+                await ctx.guild.change_voice_state(channel=None)
+            except Exception as e:
+                log.debug(f"[Music] stop change_voice_state error: {e}")
+
         await ctx.send(tr(s, "music.stopped_left"), delete_after=60)
 
     @commands.hybrid_command(name="skip", description="Bỏ qua bài hát hiện tại")
@@ -1875,19 +2125,21 @@ class Music(commands.Cog, name="Music"):
 
         if src_key == "soma":
             track = Track(
-                {"title": stream["title"], "url": stream["url"], "webpage_url": stream["url"], "duration": -1},
+                {"title": stream["title"], "url": stream["url"], "webpage_url": stream["url"], "duration": -1, "is_live": True},
                 requester=ctx.author,
             )
+            track.is_live = True
             track.stream_url = stream["url"]
             track.stream_expire = float("inf")  # stream sống mãi, không expire
             await player.add_and_play(track)
             await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_soma_success", name=stream['name']))
         else:
-            info = await extract_info(stream["url"])
+            info = await extract_info(stream["url"], force_refresh=True)
             if not info:
                 await ctx.send(tr(s, "music.lofi_yt_err"))
                 return
             track = Track(info, requester=ctx.author)
+            track.is_live = True
             await player.add_and_play(track)
             await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_yt_success", name=stream['name']))
 
