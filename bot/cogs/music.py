@@ -76,6 +76,18 @@ FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 
 MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet/phone 4-6GB, 10+ server)
 MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU)
+MAX_QUEUE_SIZE = 100  # Giới hạn hàng đợi tối đa mỗi server (chống DoS / tràn RAM)
+
+
+def _lower_process_priority(proc, niceness: int = 10) -> None:
+    """Hạ độ ưu tiên CPU của tiến trình ffmpeg con trên Linux/Termux để không tranh chấp với Bot event loop."""
+    if proc is None or getattr(proc, "pid", None) is None:
+        return
+    try:
+        if hasattr(os, "setpriority") and hasattr(os, "PRIO_PROCESS"):
+            os.setpriority(os.PRIO_PROCESS, proc.pid, niceness)
+    except (PermissionError, ProcessLookupError, OSError):
+        pass
 
 # ─── Stream lofi 24/7 ──────────────────────────────────────────────────────────
 LOFI_STREAMS = {
@@ -979,6 +991,9 @@ class MusicPlayer:
                     if self.volume != 1.0:
                         source = discord.PCMVolumeTransformer(source, volume=self.volume)
 
+                proc = getattr(source, "_process", None) or getattr(getattr(source, "original", None), "_process", None)
+                _lower_process_priority(proc)
+
                 if not discord.opus.is_loaded():
                     load_opus_library()
 
@@ -1438,6 +1453,8 @@ class SearchSelect(discord.ui.Select):
 
         track = Track(info, requester=self.requester)
         if self.player.vc.is_playing() or self.player.vc.is_paused() or self.player.current:
+            if len(self.player.queue) >= MAX_QUEUE_SIZE:
+                return await interaction.followup.send(tr(self.settings, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
             self.player.queue.append(track)
             embed = discord.Embed(
                 title=embed_title("zb_play", tr(self.settings, "music.added_to_queue")),
@@ -1665,6 +1682,9 @@ class Music(commands.Cog, name="Music"):
         track = Track(info, requester=ctx.author)
 
         if player.vc.is_playing() or player.vc.is_paused() or player.current:
+            if len(player.queue) >= MAX_QUEUE_SIZE:
+                await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+                return
             player.queue.append(track)
             embed = discord.Embed(
                 title=embed_title("zb_play", tr(s, "music.added_to_queue")),
@@ -2079,6 +2099,9 @@ class Music(commands.Cog, name="Music"):
                     if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
                         await player.add_and_play(trk)
                     else:
+                        if len(player.queue) >= MAX_QUEUE_SIZE:
+                            log.info(f"[Music] Playlist background load: dừng nạp vì hàng chờ đạt trần {MAX_QUEUE_SIZE} bài")
+                            break
                         player.queue.append(trk)
                     added_any = True
             await asyncio.sleep(0.4)
@@ -2130,6 +2153,12 @@ class Music(commands.Cog, name="Music"):
             if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
                 await player.add_and_play(first_track)
             else:
+                if len(player.queue) >= MAX_QUEUE_SIZE:
+                    try:
+                        await msg.delete()
+                    except Exception:
+                        pass
+                    return await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
                 player.queue.append(first_track)
             
             # Xóa tin nhắn tạm "Đang tải playlist..." ngay khi phát bài đầu tiên

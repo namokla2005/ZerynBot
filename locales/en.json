@@ -1618,5 +1618,6 @@
   "help.cmd_params_field": "⚙️ Parameters",
   "help.cmd_perm_field": "🔒 Required Permission",
   "admin.stepup_not_set_title": "⚠️ Step-Up Auth is not enabled",
-  "admin.stepup_not_set_desc": "ADMIN_PASSWORD is not set in .env, so Web Terminal / Git Pull / Restart are protected only by your login session. Set ADMIN_PASSWORD in .env and restart the dashboard."
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD is not set in .env, so Web Terminal / Git Pull / Restart are protected only by your login session. Set ADMIN_PASSWORD in .env and restart the dashboard.",
+  "music.queue_full": "⚠️ The music queue is full (maximum {max} tracks). Please wait for songs to finish before adding more!"
 }

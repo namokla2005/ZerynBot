@@ -1618,5 +1618,6 @@
   "help.cmd_params_field": "⚙️ Paramètres",
   "help.cmd_perm_field": "🔒 Permission Requise",
   "admin.stepup_not_set_title": "⚠️ L'authentification renforcée n'est pas activée",
-  "admin.stepup_not_set_desc": "ADMIN_PASSWORD n'est pas défini dans .env : Terminal Web / Git Pull / Redémarrage ne sont protégés que par votre session. Définissez ADMIN_PASSWORD dans .env puis redémarrez le tableau de bord."
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD n'est pas défini dans .env : Terminal Web / Git Pull / Redémarrage ne sont protégés que par votre session. Définissez ADMIN_PASSWORD dans .env puis redémarrez le tableau de bord.",
+  "music.queue_full": "⚠️ La file d'attente musicale est pleine (maximum {max} morceaux). Veuillez attendre que des morceaux se terminent avant d'en ajouter d'autres !"
 }

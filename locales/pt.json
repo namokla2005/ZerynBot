@@ -1618,5 +1618,6 @@
   "help.cmd_params_field": "⚙️ Parâmetros",
   "help.cmd_perm_field": "🔒 Permissão Necessária",
   "admin.stepup_not_set_title": "⚠️ A autenticação reforçada não está ativada",
-  "admin.stepup_not_set_desc": "ADMIN_PASSWORD não está definido no .env, então Terminal Web / Git Pull / Reiniciar estão protegidos apenas pela sua sessão. Defina ADMIN_PASSWORD no .env e reinicie o painel."
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD não está definido no .env, então Terminal Web / Git Pull / Reiniciar estão protegidos apenas pela sua sessão. Defina ADMIN_PASSWORD no .env e reinicie o painel.",
+  "music.queue_full": "⚠️ A fila de música está cheia (máximo de {max} músicas). Aguarde algumas terminarem antes de adicionar mais!"
 }

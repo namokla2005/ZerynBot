@@ -42,10 +42,10 @@
   - **Async Access (Bot):** `aiosqlite` via `database.py` `async_*` functions.
   - **Sync Access (Dashboard):** `sqlite3` via `database.py` sync helper functions.
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
-- **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`). Thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`).
+- **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`), subprocess CPU priority niceness (+10) to prevent async event loop starvation, queue length clamping (`MAX_QUEUE_SIZE = 100`), thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`).
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1620 keys per file.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1621 keys per file.
 
 ---
 
@@ -121,12 +121,12 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1620 keys
-│   ├── en.json                 # English — 1620 keys
-│   ├── zh.json                 # Chinese — 1620 keys
-│   ├── es.json                 # Spanish — 1620 keys
-│   ├── pt.json                 # Portuguese — 1620 keys
-│   └── fr.json                 # French — 1620 keys
+│   ├── vi.json                 # Vietnamese (Default) — 1621 keys
+│   ├── en.json                 # English — 1621 keys
+│   ├── zh.json                 # Chinese — 1621 keys
+│   ├── es.json                 # Spanish — 1621 keys
+│   ├── pt.json                 # Portuguese — 1621 keys
+│   └── fr.json                 # French — 1621 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -396,7 +396,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1620 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **1621 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
 2. **Async vs. Sync Separation:**
    - **Bot code (`bot/cogs/`)** MUST use async database functions (`async_get_guild_settings`, `async_is_module_enabled`, etc.).
    - **Dashboard code (`dashboard/`)** MUST use sync database functions (`get_guild_settings`, `is_module_enabled`, etc.).

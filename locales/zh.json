@@ -1618,5 +1618,6 @@
   "help.cmd_params_field": "⚙️ 参数列表",
   "help.cmd_perm_field": "🔒 所需权限",
   "admin.stepup_not_set_title": "⚠️ 未启用二次验证（Step-Up Auth）",
-  "admin.stepup_not_set_desc": "ADMIN_PASSWORD 尚未在 .env 中设置，Web 终端 / Git Pull / 重启 仅由登录会话保护。请在 .env 中设置 ADMIN_PASSWORD 并重启面板。"
+  "admin.stepup_not_set_desc": "ADMIN_PASSWORD 尚未在 .env 中设置，Web 终端 / Git Pull / 重启 仅由登录会话保护。请在 .env 中设置 ADMIN_PASSWORD 并重启面板。",
+  "music.queue_full": "⚠️ 播放队列已满（最多 {max} 首歌曲）。请等待部分歌曲播放完毕后再添加！"
 }

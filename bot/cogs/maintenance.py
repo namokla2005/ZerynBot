@@ -44,6 +44,29 @@ class Maintenance(commands.Cog):
     def cog_unload(self):
         self.auto_prune_task.cancel()
 
+    def _prune_temp_files(self) -> int:
+        """Dọn dẹp các file rác tạm (.tmp, temp_*) cũ hơn 24h trong thư mục data/ (an toàn trước file lock)."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        data_dir = os.path.join(base_dir, "data")
+        if not os.path.isdir(data_dir):
+            return 0
+        cleaned = 0
+        cutoff = time.time() - 86400  # Cũ hơn 24 giờ
+        try:
+            for fname in os.listdir(data_dir):
+                if fname.endswith(".tmp") or fname.startswith("temp_"):
+                    fpath = os.path.join(data_dir, fname)
+                    if os.path.isfile(fpath):
+                        try:
+                            if os.path.getmtime(fpath) < cutoff:
+                                os.remove(fpath)
+                                cleaned += 1
+                        except OSError:
+                            pass
+        except OSError:
+            pass
+        return cleaned
+
     @tasks.loop(seconds=3600)  # kiểm tra mỗi giờ, chỉ prune khi đủ 24h
     async def auto_prune_task(self):
         try:
@@ -54,6 +77,9 @@ class Maintenance(commands.Cog):
                 return
 
             deleted = await async_prune_old_data(song_cache_days=7)
+            temp_cleaned = self._prune_temp_files()
+            if temp_cleaned:
+                deleted["temp_files"] = temp_cleaned
             await async_set_maintenance_job("auto_prune", now)
 
             total = sum(deleted.values())
