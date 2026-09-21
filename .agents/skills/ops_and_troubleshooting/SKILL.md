@@ -85,6 +85,7 @@ Khi gặp sự cố hỏng hóc CSDL:
 ### 6.2 Các Công Cụ MCP Hỗ Trợ (Mapped 100% Với `main.py`)
 | Tool MCP | Lệnh Chạy Trên Termux | Mục Đích |
 | :--- | :--- | :--- |
+| `termux_diag.py` | `python scripts/termux_diag.py` | Thu thập hồ sơ chẩn đoán toàn diện (status, ps, logs, tracebacks, sqlite, ram) |
 | `termux_system_restart` | `python main.py --restart` | Khởi động lại toàn bộ Bot + Dashboard an toàn |
 | `termux_system_stop` | `python main.py --stop` | Dừng sạch tiến trình và gửi Webhook thông báo |
 | `termux_system_test` | `python main.py --test` | Chạy bộ tự chẩn đoán lỗi `SystemTester` |

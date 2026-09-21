@@ -13,23 +13,34 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 > 2. **Kiểm tra mã nguồn & Phân tích nguyên nhân**: Đọc các tệp liên quan, tìm hiểu nguyên nhân gốc rễ (Root Cause) của vấn đề hoặc cơ chế hiện có trong codebase.
 > 3. **Lên kế hoạch & Đề xuất giải pháp chuyên nghiệp**: Trình bày rõ ràng nguyên nhân, hướng tiếp cận tối ưu và các bước triển khai cụ thể để người dùng nắm rõ.
 
-### 💡 1.1 Nguyên Tắc Phản Biện & Tư Vấn Kỹ Thuật Chủ Động (Critical Inquiry Rule)
+### 🔍 1.1 Quy Tắc Tiếp Nhận Báo Lỗi & Thu Thập Chứng Cứ Termux Thực Tế (Evidence-Based Incident Triage Rule)
+- **Cấm phỏng đoán mò mẫm (No Guesswork)**: Khi Người Dùng báo lỗi, AI **tuyệt đối không được ngồi phỏng đoán mò mẫm hay vội vàng sửa code trên máy tính**.
+- **Bắt buộc truy cập Termux thu thập chứng cứ ngay lập tức**: AI **BẮT BUỘC phải lập tức kết nối tới thiết bị Termux (Tecno Pova 2)** bằng lệnh:
+  ```bash
+  python scripts/termux_diag.py
+  ```
+- **Các nguồn thông tin bắt buộc thu thập**:
+  1. 📊 **Trạng thái tiến trình thực tế**: Kiểm tra `python main.py --status` và danh sách tiến trình Python/Watchdog đang chạy (`ps -ef`).
+  2. 📜 **Nhật ký lỗi (Logs & Tracebacks)**: Đọc các dòng log gần nhất (`data/bot.log`, `data/dashboard.log`), trích xuất toàn bộ Traceback, Exception, Warning gần nhất.
+  3. 🌐 **Sức khỏe dịch vụ nội bộ**: Kiểm tra phản hồi Health Check (`curl -s http://localhost:5000/health`).
+  4. 🧠 **Tài nguyên & Trạng thái CSDL**: Kiểm tra dung lượng RAM/Swap (`free -h`, `uptime`) và kích thước CSDL SQLite WAL (`ls -lh data/bot.db*`).
+- **Phân tích nguyên nhân gốc rễ (Root Cause Analysis - RCA)**: Sau khi đã có dữ liệu thực tế từ Termux, Model 1 và Model 2 mới tiến hành phân tích chính xác nguyên nhân gây lỗi để đưa vào quy trình phản biện.
+
+### 💡 1.2 Nguyên Tắc Phản Biện & Tư Vấn Kỹ Thuật Chủ Động (Critical Inquiry Rule)
 - **Không thực thi mù quáng (No Blind Execution)**: AI đóng vai trò là Senior Architect và cộng sự kỹ thuật. Khi người dùng đưa ra yêu cầu mới, thay đổi luồng hoặc tính năng, AI **tuyệt đối không làm theo một cách thụ động, máy móc**.
 - **Chủ động đặt câu hỏi làm rõ**: Nếu yêu cầu còn mơ hồ, có nhiều phương án triển khai, hoặc tiềm ẩn rủi ro (hiệu năng ARM/Termux yếu, nghẽn SQLite WAL, phá vỡ chuẩn 20 modules / 108 lệnh / 1621 keys i18n, UX Discord/Web chưa mượt), AI **BẮT BUỘC phải hỏi thêm thông tin, chỉ ra các trường hợp biên (edge cases) và đề xuất các giải pháp tối ưu** kèm ưu/nhược điểm (trade-offs) trước khi bắt tay vào viết mã.
 - **Tương tác thông minh**: Sử dụng interactive modal (`ask_question`) để người dùng chọn nhanh các phương án, hoặc gợi ý slash command `/grill-me` khi cần trao đổi đa chiều về quyết định thiết kế kiến trúc. Chi tiết xem tại [`.agents/rules/critical_inquiry.md`](file:///d:/Project/Discord%20Bots/v2/.agents/rules/critical_inquiry.md).
 
-### 👥 1.2 Quy Tắc Mặc Định Bắt Buộc Luôn Dùng 2 Model AI Đồng Xử Lý (Mandatory Dual-Model Mandate)
-- **Quy tắc cốt lõi (Persistent Constraint)**: Trong **MỌI tác vụ** (tiếp nhận yêu cầu, phân tích nguyên nhân gốc rễ, lập phương án kiến trúc, phản biện kỹ thuật, chỉnh sửa mã nguồn và rà soát trước commit), AI **BẮT BUỘC MẶC ĐỊNH LUÔN DÙNG 2 MODEL AI ĐỒNG THỜI**, tuyệt đối không bao giờ làm việc đơn lẻ:
-  - 🏛️ **Model 1 — Lead Architect & Coordinator (Primary Agent - Gemini 3.8 / Antigravity IDE)**: Tiếp nhận yêu cầu từ người dùng, nắm giữ ngữ cảnh sâu rộng, thiết kế phương án kiến trúc, trực tiếp thao tác viết/chỉnh sửa mã nguồn và điều phối toàn bộ workflow.
+### 👥 1.3 Quy Trình Phản Biện Đa Model 5 Bước Chuẩn (The 5-Step Dual-Model Co-Reasoning Loop)
+- **Quy tắc cốt lõi (Persistent Constraint)**: Trong **MỌI tác vụ** (tiếp nhận yêu cầu, xử lý lỗi, phân tích nguyên nhân gốc rễ, lập kế hoạch kiến trúc, chỉnh sửa mã nguồn và rà soát trước commit), AI **BẮT BUỘC MẶC ĐỊNH LUÔN DÙNG 2 MODEL AI ĐỒNG THỜI**, tuyệt đối không bao giờ làm việc đơn lẻ:
+  - 🏛️ **Model 1 — Lead Architect & Coordinator (Primary Agent - Gemini 3.8 / Antigravity IDE)**: Tiếp nhận dữ liệu chẩn đoán Termux, nắm giữ ngữ cảnh sâu rộng, thiết kế phương án kiến trúc, trực tiếp thao tác viết/chỉnh sửa mã nguồn và điều phối toàn bộ workflow.
   - 🛡️ **Model 2 — Independent Reviewer & Security Critic (Groq LPU — Qwen 2.5 / GPT-OSS qua `scripts/dual_model_mcp.py`)**: Đóng vai trò kiểm toán viên độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), race condition, rò rỉ tài nguyên trên Termux ARM64 (Helio G85, 6GB RAM), nghẽn SQLite WAL và phá vỡ kiến trúc.
-- **Chu Trình 4 Bước Bắt Buộc Trong Mọi Turn (The Dual-Model Loop)**:
-  1. **Bước 1 (Proposal - Model 1)**: Model 1 phân tích yêu cầu, bóc tách nguyên nhân gốc rễ và đề xuất giải pháp/bản nháp mã nguồn.
-  2. **Bước 2 (Critique - Model 2)**: Model 1 tham vấn Model 2 qua `python scripts/dual_model_mcp.py --consult "<nội dung>" --role critic/architect` hoặc `--debate` để tìm kiếm điểm mù, edge cases và phản biện rủi ro.
-  3. **Bước 3 (Refinement - Model 1)**: Model 1 tiếp thu phản biện, hoàn thiện mã nguồn và chạy `python scripts/dual_model_mcp.py --review-file <file>` hoặc `--pre-commit-check` cho đến khi Model 2 đạt phán quyết `APPROVED` / `READY_TO_COMMIT`.
-  4. **Bước 4 (Joint Output)**: Trình bày câu trả lời cho Người Dùng luôn minh bạch góc nhìn của cả 2 Model:
-     - 🏛️ **Model 1 (Lead Architect)**: Phân tích & Giải pháp triển khai.
-     - 🛡️ **Model 2 (Independent Critic)**: Đánh giá an toàn, rủi ro Termux & SQLite WAL.
-     - 🤝 **Kết Luận Đồng Thuận (Consensus)**: Quyết định kỹ thuật cuối cùng được cả 2 Model phê duyệt.
+- **Chu Trình 5 Bước Phản Biện Bắt Buộc (The 5-Step Loop)**:
+  1. 📋 **Bước 1 (1 - Lên kế hoạch)**: Model 1 dựa trên chứng cứ thực tế thu thập từ Termux và phân tích mã nguồn để thiết lập kế hoạch giải quyết chi tiết (`Plan v1`).
+  2. 🔍 **Bước 2 (2 - Kiểm tra + Phản biện)**: Model 2 rà soát độc lập (`Critique v1`) qua `python scripts/dual_model_mcp.py --consult "<kế hoạch>" --role critic`, chỉ ra các điểm mù, rủi ro bảo mật, deadlock SQLite WAL và hiệu năng Termux Helio G85.
+  3. 🛠️ **Bước 3 (1 - Sửa kế hoạch)**: Model 1 tiếp thu phản biện, hoàn thiện kế hoạch, giải quyết triệt để các lỗ hổng được chỉ ra (`Plan v2`).
+  4. 🔬 **Bước 4 (2 - Kiểm tra + Phản biện lại)**: Model 2 kiểm tra lại `Plan v2` (`Critique v2`). Nếu vẫn còn lỗi hoặc rủi ro tiềm ẩn, tiếp tục yêu cầu Model 1 chỉnh sửa (tối đa 3 vòng lặp để tránh nghẽn).
+  5. 🤝 **Bước 5 (1 & 2 - Đồng thuận)**: Cả Model 1 và Model 2 cùng đạt đồng thuận phê duyệt (`APPROVED`), sau đó mới tiến hành viết mã nguồn / triển khai thực tế.
 - **Khâu Rà Soát Bắt Buộc Trước Khi Đẩy Code (Mandatory Pre-Commit Gate)**: Trước khi `git push origin main` lên Termux, bắt buộc phải chạy `python scripts/dual_model_mcp.py --pre-commit-check` và đạt kết quả `🟢 SẴN SÀNG COMMIT`. Chi tiết xem tại [`.agents/rules/dual_model_co_reasoning.md`](file:///d:/Project/Discord%20Bots/v2/.agents/rules/dual_model_co_reasoning.md).
 
 ---
