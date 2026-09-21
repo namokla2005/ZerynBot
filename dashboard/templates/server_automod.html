@@ -436,8 +436,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title"><i class="bi bi-shield-fill-exclamation" style="color:var(--accent)"></i> 🚨 Anti-Raid &amp; Anti-Nuke</div>
-        <div class="card-desc">Bảo vệ server khỏi join ồ ạt (raid) và xoá kênh/vai trò hàng loạt (nuke).</div>
+        <div class="card-title"><i class="bi bi-shield-fill-exclamation" style="color:var(--accent)"></i> 🚨 {{ t('automod.anti_raid_title') }}</div>
+        <div class="card-desc">{{ t('automod.anti_raid_desc') }}</div>
       </div>
     </div>
 
@@ -447,19 +447,19 @@
           <input type="checkbox" name="anti_raid_enabled" value="1" {% if settings.get('anti_raid_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">🚨 Auto-Lockdown khi join ồ ạt (Anti-Raid)</span>
+        <span class="switch-text">🚨 {{ t('automod.anti_raid_enable') }}</span>
       </label>
 
       <div class="form-group" style="margin-bottom: 0;">
-        <label class="form-label">Ngưỡng join (số lượt trong 60 giây)</label>
+        <label class="form-label">{{ t('automod.anti_raid_threshold_label') }}</label>
         <input type="number" name="raid_join_per_window" class="form-control" min="2" max="100" value="{{ settings.get('raid_join_per_window', 5) }}">
       </div>
 
       <div class="form-group" style="margin-bottom: 0;">
-        <label class="form-label">Hành động khi raid</label>
+        <label class="form-label">{{ t('automod.anti_raid_action_label') }}</label>
         <select name="raid_action" class="form-control">
-          <option value="lockdown" {% if settings.get('raid_action', 'lockdown') == 'lockdown' %}selected{% endif %}>🔒 Lockdown (chặn gửi tin)</option>
-          <option value="verify" {% if settings.get('raid_action') == 'verify' %}selected{% endif %}>🔐 Bật Verify Gate</option>
+          <option value="lockdown" {% if settings.get('raid_action', 'lockdown') == 'lockdown' %}selected{% endif %}>🔒 {{ t('automod.anti_raid_action_lockdown') }}</option>
+          <option value="verify" {% if settings.get('raid_action') == 'verify' %}selected{% endif %}>🔐 {{ t('automod.anti_raid_action_verify') }}</option>
         </select>
       </div>
 
@@ -468,24 +468,24 @@
           <input type="checkbox" name="anti_nuke_enabled" value="1" {% if settings.get('anti_nuke_enabled') %}checked{% endif %}>
           <span class="slider"></span>
         </div>
-        <span class="switch-text">💥 Chặn xoá kênh/vai trò hàng loạt (Anti-Nuke)</span>
+        <span class="switch-text">💥 {{ t('automod.anti_nuke_enable') }}</span>
       </label>
 
       <div class="form-group" style="margin-bottom: 0; margin-top: 8px;">
-        <label class="form-label">Hành động chống nuke</label>
+        <label class="form-label">{{ t('automod.anti_nuke_actions_label') }}</label>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           {% set nuke_actions = settings.get('nuke_actions', ['channel_delete','role_delete','guild_update']) %}
           <label class="switch-container" style="justify-content: flex-start;">
             <input type="checkbox" name="nuke_actions" value="channel_delete" {% if 'channel_delete' in nuke_actions %}checked{% endif %}>
-            <span class="switch-text">Xoá kênh hàng loạt</span>
+            <span class="switch-text">{{ t('automod.anti_nuke_channel_delete') }}</span>
           </label>
           <label class="switch-container" style="justify-content: flex-start;">
             <input type="checkbox" name="nuke_actions" value="role_delete" {% if 'role_delete' in nuke_actions %}checked{% endif %}>
-            <span class="switch-text">Xoá vai trò hàng loạt</span>
+            <span class="switch-text">{{ t('automod.anti_nuke_role_delete') }}</span>
           </label>
           <label class="switch-container" style="justify-content: flex-start;">
             <input type="checkbox" name="nuke_actions" value="guild_update" {% if 'guild_update' in nuke_actions %}checked{% endif %}>
-            <span class="switch-text">Đổi cấu hình server hàng loạt</span>
+            <span class="switch-text">{{ t('automod.anti_nuke_guild_update') }}</span>
           </label>
         </div>
       </div>

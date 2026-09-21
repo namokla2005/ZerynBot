@@ -53,7 +53,7 @@
   <div class="stat-card">
     <div class="stat-icon" style="background: rgba(157,141,241,0.15); color: #9d8df1;">⚡</div>
     <div class="stat-value">{{ recent_events | length if recent_events else 0 }}</div>
-    <div class="stat-label">Recent Events (Max 15)</div>
+    <div class="stat-label">{{ t('dashboard.recent_events_title') }}</div>
   </div>
 </div>
 {% endif %}
@@ -69,7 +69,7 @@
             <i class="bi bi-activity" style="color:var(--accent);"></i>
             <span>{{ t('dashboard.chart_chat_activity') }} &amp; {{ t('dashboard.chart_join_leave') }}</span>
           </div>
-          <div class="bento-subtitle">Xu hướng hoạt động chat 24 giờ &amp; thành viên 7 ngày qua</div>
+          <div class="bento-subtitle">{{ t('dashboard.chart_subtitle') }}</div>
         </div>
       </div>
       <div style="height: 270px; position: relative;">
@@ -85,9 +85,9 @@
         <div>
           <div class="bento-title">
             <i class="bi bi-clock-history" style="color:var(--accent);"></i>
-            <span>Recent Events</span>
+            <span>{{ t('dashboard.recent_events_title') }}</span>
           </div>
-          <div class="bento-subtitle">4 lệnh mới nhất • Cuộn để xem 15 lệnh</div>
+          <div class="bento-subtitle">{{ t('dashboard.recent_events_subtitle') }}</div>
         </div>
         <span class="bento-badge" id="recentEventsBadge">{{ recent_events | length if recent_events else 0 }} / 15</span>
       </div>
@@ -104,7 +104,7 @@
               <div class="event-title-line">
                 {% set cmd = ev.action or ev.command_name or 'command' %}
                 <span class="event-cmd">{{ cmd if cmd.startswith('/') else '/' ~ cmd }}</span>
-                <span class="event-user">{{ ev.user_name or ev.user_id or 'Thành viên' }}</span>
+                <span class="event-user">{{ ev.user_name or ev.user_id or t('common.member') }}</span>
               </div>
               <div class="event-meta-line">
                 <span class="event-time" title="{{ ev.created_at_formatted or ev.created_at }}">
@@ -113,14 +113,14 @@
                   {% elif ev.created_at %}
                     {{ ev.created_at | string | truncate(19, True, '') }}
                   {% else %}
-                    Gần đây
+                    {{ t('common.recently') }}
                   {% endif %}
                 </span>
                 {% if ev.channel_name %}
                   <span style="color:var(--text-muted);">#{{ ev.channel_name }}</span>
                 {% endif %}
                 <span class="event-badge-status success">
-                  ✓ Sẵn sàng
+                  ✓ {{ t('common.ready') }}
                 </span>
               </div>
             </div>
@@ -129,8 +129,8 @@
         {% else %}
           <div class="empty-events-state">
             <div class="empty-events-icon">⚡</div>
-            <div style="font-weight:700; color:var(--text-primary); font-size:0.9rem;">Chưa có lệnh nào gần đây</div>
-            <div style="font-size:0.78rem; margin-top:4px;">Khi các thành viên dùng lệnh Slash hoặc lệnh bot, hoạt động sẽ xuất hiện ngay tại đây.</div>
+            <div style="font-weight:700; color:var(--text-primary); font-size:0.9rem;">{{ t('dashboard.no_recent_events') }}</div>
+            <div style="font-size:0.78rem; margin-top:4px;">{{ t('dashboard.no_recent_events_desc') }}</div>
           </div>
         {% endif %}
       </div>
@@ -196,7 +196,7 @@
 <div class="fast-grid" style="margin-bottom: 32px;">
   <div class="fast-card">
     <div class="fast-card-icon">🔍</div>
-    <div class="fast-card-title">Overview</div>
+    <div class="fast-card-title">{{ t('nav.overview') }}</div>
     <div class="fast-card-desc">{{ t('dashboard.overview_desc') }}</div>
     <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
@@ -204,7 +204,7 @@
   </div>
   <div class="fast-card">
     <div class="fast-card-icon">💬</div>
-    <div class="fast-card-title">Embed Messages</div>
+    <div class="fast-card-title">{{ t('nav.embeds') }}</div>
     <div class="fast-card-desc">{{ t('dashboard.embeds_desc') }}</div>
     <a href="{{ url_for('server_embeds', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
@@ -212,7 +212,7 @@
   </div>
   <div class="fast-card">
     <div class="fast-card-icon">🧩</div>
-    <div class="fast-card-title">Modules</div>
+    <div class="fast-card-title">{{ t('nav.modules') }}</div>
     <div class="fast-card-desc">{{ t('dashboard.modules_desc') }}</div>
     <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('dashboard.manage') }} <i class="bi bi-arrow-right-short"></i>
