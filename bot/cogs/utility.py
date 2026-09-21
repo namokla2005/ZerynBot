@@ -8,7 +8,11 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timezone
 import config
-from database import async_get_guild_settings
+from database import (
+    async_get_guild_settings,
+    async_get_saved_embeds,
+    async_get_saved_embed_by_name,
+)
 from i18n import tr
 try:
     from emojis import e, partial, embed_title, clean_title
@@ -578,6 +582,106 @@ class Utility(commands.Cog):
             color=config.COLOR_INFO
         )
         await ctx.send(embed=embed)
+
+    # ─── embed ─────────────────────────────────────────────────────────────────
+    @commands.hybrid_command(name="embed", description="Gửi embed đã lưu từ Web Dashboard vào kênh hiện tại")
+    @discord.app_commands.describe(name="Tên embed đã lưu trên Web Dashboard")
+    async def embed_cmd(self, ctx: commands.Context, *, name: str):
+        if not ctx.guild:
+            return await ctx.send("Lệnh này chỉ có thể sử dụng trong máy chủ.", ephemeral=True)
+
+        s = await async_get_guild_settings(str(ctx.guild.id))
+
+        # Kiểm tra quyền: chỉ người có quyền manage_messages hoặc manage_guild hoặc administrator
+        perms = ctx.author.guild_permissions
+        if not (perms.manage_messages or perms.manage_guild or perms.administrator):
+            return await ctx.send(tr(s, "utility.embed_no_permission"), ephemeral=True)
+
+        # Kiểm tra quyền của bot trong channel: embed_links
+        bot_perms = ctx.channel.permissions_for(ctx.guild.me)
+        if not bot_perms.embed_links:
+            return await ctx.send(tr(s, "utility.embed_bot_no_permission"), ephemeral=True)
+
+        # Lấy embed từ database theo guild_id và name (chống IDOR)
+        embed_row = await async_get_saved_embed_by_name(str(ctx.guild.id), name.strip())
+        if not embed_row:
+            return await ctx.send(tr(s, "utility.embed_not_found", name=name), ephemeral=True)
+
+        raw_data = embed_row.get("embed_data")
+        if isinstance(raw_data, str):
+            try:
+                import json
+                embed_data = json.loads(raw_data)
+            except Exception:
+                embed_data = {}
+        elif isinstance(raw_data, dict):
+            embed_data = raw_data
+        else:
+            embed_data = {}
+
+        color_hex = str(embed_data.get("color", "#5865f2")).lstrip("#")
+        try:
+            color_int = int(color_hex, 16)
+        except ValueError:
+            color_int = 0x5865F2
+
+        d_embed = discord.Embed(
+            title=embed_data.get("title") or None,
+            description=embed_data.get("description") or None,
+            url=embed_data.get("url") or None,
+            color=color_int,
+            timestamp=datetime.now(timezone.utc)
+        )
+
+        author = embed_data.get("author") or {}
+        if author.get("name"):
+            d_embed.set_author(name=author["name"])
+
+        footer = embed_data.get("footer") or {}
+        if footer.get("text"):
+            d_embed.set_footer(
+                text=footer["text"],
+                icon_url=footer.get("icon_url") or None
+            )
+
+        if embed_data.get("thumbnail"):
+            d_embed.set_thumbnail(url=embed_data["thumbnail"])
+
+        if embed_data.get("image"):
+            d_embed.set_image(url=embed_data["image"])
+
+        for field in embed_data.get("fields", []):
+            if field.get("name") and field.get("value"):
+                d_embed.add_field(
+                    name=field["name"],
+                    value=field["value"],
+                    inline=bool(field.get("inline", False))
+                )
+
+        if ctx.interaction:
+            await ctx.channel.send(embed=d_embed)
+            await ctx.interaction.response.send_message(tr(s, "utility.embed_sent", name=name), ephemeral=True)
+        else:
+            try:
+                await ctx.message.delete()
+            except Exception:
+                pass
+            await ctx.send(embed=d_embed)
+
+    @embed_cmd.autocomplete("name")
+    async def embed_autocomplete(self, interaction: discord.Interaction, current: str) -> list[discord.app_commands.Choice[str]]:
+        if not interaction.guild:
+            return []
+        saved = await async_get_saved_embeds(str(interaction.guild.id))
+        curr = (current or "").strip().lower()
+        matches = []
+        for em in saved:
+            em_name = em.get("name") or ""
+            if not curr or curr in em_name.lower():
+                matches.append(discord.app_commands.Choice(name=em_name[:100], value=em_name))
+            if len(matches) >= 25:
+                break
+        return matches
 
 
 async def setup(bot: commands.Bot):

@@ -2739,6 +2739,62 @@ async def async_increment_custom_command_usage(cmd_id: int) -> None:
         await db.commit()
 
 
+async def async_count_user_custom_commands(guild_id: str, user_id: str) -> int:
+    """Đếm số lượng lệnh tùy biến do một người dùng cụ thể tạo ra trong guild."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute("SELECT COUNT(*) FROM custom_commands WHERE guild_id = ? AND creator_id = ?", (guild_id, user_id)) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+
+async def async_count_guild_custom_commands(guild_id: str) -> int:
+    """Đếm tổng số lượng lệnh tùy biến trong toàn guild."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        async with db.execute("SELECT COUNT(*) FROM custom_commands WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0
+
+
+async def async_get_saved_embeds(guild_id: str) -> list[dict]:
+    """Lấy danh sách tất cả embed đã lưu của server cho bot (async, chống IDOR)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, guild_id, name, embed_json, created_at FROM saved_embeds WHERE guild_id = ? ORDER BY created_at DESC",
+            (guild_id,)
+        ) as cur:
+            rows = await cur.fetchall()
+            result = []
+            for r in rows:
+                d = dict(r)
+                try:
+                    d["embed_data"] = json.loads(d["embed_json"])
+                except Exception:
+                    d["embed_data"] = {}
+                result.append(d)
+            return result
+
+
+async def async_get_saved_embed_by_name(guild_id: str, name: str) -> dict | None:
+    """Tìm embed đã lưu theo tên cụ thể của server (chống IDOR)."""
+    async with aiosqlite.connect(DB_PATH, timeout=15.0) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, guild_id, name, embed_json, created_at FROM saved_embeds WHERE guild_id = ? AND name = ?",
+            (guild_id, name.strip())
+        ) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            try:
+                d["embed_data"] = json.loads(d["embed_json"])
+            except Exception:
+                d["embed_data"] = {}
+            return d
+
+
+
 # ═════════════════════════════════════════════════════════════════════════════════
 # ─── MODULE: AI CHAT & SMART ASSISTANT ─────────────────────────────────────────
 # ═════════════════════════════════════════════════════════════════════════════════

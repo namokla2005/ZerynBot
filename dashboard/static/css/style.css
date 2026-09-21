@@ -913,6 +913,7 @@ select.form-control option { background: #191822; color: #fff; }
 .discord-preview {
   background: #313338; border-radius: var(--radius-lg); padding: 18px 18px 14px;
   position: sticky; top: 24px; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 .discord-preview-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #80848e; margin-bottom: 12px; }
 .discord-msg { display: flex; gap: 12px; }
@@ -932,14 +933,16 @@ select.form-control option { background: #191822; color: #fff; }
   background: #2b2d31;
   border-left: 4px solid var(--accent);
   max-width: 100%;
+  min-height: 80px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
 }
 .embed-author-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .embed-author-icon { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
 .embed-author-name { font-size: 0.8rem; font-weight: 700; color: #f2f3f5; }
 .preview-title { font-size: 0.92rem; font-weight: 800; color: #f2f3f5; margin-bottom: 6px; word-break: break-word; }
-.preview-title:empty::before { content: attr(data-placeholder); color: #52555d; font-style: italic; }
+.preview-title:empty::before { content: attr(data-placeholder); color: #80848e; font-style: italic; }
 .preview-desc  { font-size: 0.85rem; color: #dbdee1; white-space: pre-wrap; word-break: break-word; line-height: 1.5; margin-bottom: 8px; }
-.preview-desc:empty::before { content: attr(data-placeholder); color: #52555d; font-style: italic; }
+.preview-desc:empty::before { content: attr(data-placeholder); color: #80848e; font-style: italic; }
 .preview-fields { display: grid; gap: 6px; margin-bottom: 8px; }
 .preview-field-name  { font-size: 0.8rem; font-weight: 700; color: #f2f3f5; }
 .preview-field-value { font-size: 0.8rem; color: #dbdee1; }

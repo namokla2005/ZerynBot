@@ -157,9 +157,9 @@
               <span class="embed-author-name"></span>
             </div>
             <!-- Title -->
-            <div class="preview-title" id="prev-title" data-placeholder="Embed Title" style="display:none"></div>
+            <div class="preview-title" id="prev-title" data-placeholder="{{ t('embeds.title_placeholder') if t('embeds.title_placeholder') != 'embeds.title_placeholder' else 'Tiêu đề embed...' }}"></div>
             <!-- Description -->
-            <div class="preview-desc"  id="prev-desc"  data-placeholder="Embed description..." style="display:none"></div>
+            <div class="preview-desc"  id="prev-desc"  data-placeholder="{{ t('embeds.desc_placeholder') if t('embeds.desc_placeholder') != 'embeds.desc_placeholder' else 'Nội dung mô tả embed...' }}"></div>
             <!-- Fields -->
             <div class="preview-fields" id="prev-fields" style="display:none"></div>
             <!-- Image -->
@@ -195,7 +195,7 @@
       <div class="embed-item-actions">
         <script type="application/json" id="embed-payload-{{ embed.id }}">{{ embed.embed_data | tojson | safe }}</script>
         <button class="btn btn-secondary btn-sm"
-                onclick='loadEmbedFromScript("embed-payload-{{ embed.id }}")'>
+                onclick='loadEmbedFromScript("embed-payload-{{ embed.id }}", "{{ embed.name }}")'>
           <i class="bi bi-pencil"></i> {{ t('common.edit') }}
         </button>
         <button class="btn btn-danger btn-sm"

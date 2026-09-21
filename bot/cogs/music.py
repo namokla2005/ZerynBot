@@ -1623,6 +1623,150 @@ class SearchSelectView(discord.ui.View):
                 pass
 
 
+
+# ─── Lyrics Utilities & Paginator ─────────────────────────────────────────────
+def _clean_track_title(title: str) -> str:
+    """Loại bỏ các hậu tố thừa như [MV], (Official Audio), HD, 4K để tìm lyrics chính xác."""
+    t = re.sub(r'(?i)\b(official\s+(music\s+)?video|official\s+audio|lyrics\s+video|lyric\s+video|mv|visualizer|audio|4k|hd|remastered)\b', '', title)
+    t = re.sub(r'[\(\[\{][^\)\]\}]*[\)\]\}]', '', t)
+    t = re.sub(r'\|.*$', '', t)
+    t = re.sub(r'\s+', ' ', t).strip(' -_')
+    return t or title
+
+
+async def _fetch_lyrics_from_lrclib(query: str) -> tuple[str | None, str | None]:
+    """Tìm lyrics qua LrcLib API với timeout 5.0s. Trả về (lyrics_text, track_title) hoặc (None, None)."""
+    clean_q = _clean_track_title(query)
+    cache_key = f"lyrics:{clean_q.lower()}"
+    cached = await cache.aget(cache_key)
+    if cached:
+        return cached
+
+    url = "https://lrclib.net/api/search"
+    headers = {"User-Agent": "ZerynBot/2.0 (Discord Music Bot)"}
+    params = {"q": clean_q}
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=5.0)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, params=params, headers=headers) as resp:
+                if resp.status != 200:
+                    return None, None
+                data = await resp.json(content_type=None)
+                if not data or not isinstance(data, list):
+                    return None, None
+
+                for item in data:
+                    plain = item.get("plainLyrics")
+                    synced = item.get("syncedLyrics")
+                    track_name = f"{item.get('artistName', '')} - {item.get('trackName', '')}".strip(' -')
+                    if plain:
+                        res = (plain.strip(), track_name)
+                        await cache.aset(cache_key, res, ttl=86400)
+                        return res
+                    elif synced:
+                        clean_synced = re.sub(r'\[\d{2}:\d{2}\.\d{2,3}\]\s*', '', synced).strip()
+                        if clean_synced:
+                            res = (clean_synced, track_name)
+                            await cache.aset(cache_key, res, ttl=86400)
+                            return res
+    except Exception as exc:
+        log.warning("LrcLib lyrics fetch failed for '%s': %s", clean_q, exc)
+    return None, None
+
+
+def _chunk_lyrics(text: str, max_chars: int = 1800) -> list[str]:
+    """Chia nhỏ lời bài hát thành các trang <= 1800 ký tự theo ngắt dòng."""
+    lines = text.splitlines()
+    pages = []
+    current_page = []
+    current_len = 0
+
+    for line in lines:
+        line_len = len(line) + 1
+        if current_len + line_len > max_chars and current_page:
+            pages.append("\n".join(current_page))
+            current_page = [line]
+            current_len = line_len
+        else:
+            current_page.append(line)
+            current_len += line_len
+
+    if current_page:
+        pages.append("\n".join(current_page))
+
+    return pages or [text[:max_chars]]
+
+
+class LyricsPaginatorView(discord.ui.View):
+    def __init__(self, pages: list[str], title: str, user_id: int, settings: dict):
+        super().__init__(timeout=180)
+        self.pages = pages
+        self.title = title
+        self.user_id = user_id
+        self.settings = settings
+        self.current_page = 0
+        self.message: discord.Message | None = None
+        self._update_buttons()
+
+    def _update_buttons(self):
+        self.prev_btn.disabled = (self.current_page <= 0)
+        self.next_btn.disabled = (self.current_page >= len(self.pages) - 1)
+        self.indicator_btn.label = f"{self.current_page + 1}/{len(self.pages)}"
+
+    def get_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title=f"📜 {self.title}",
+            description=self.pages[self.current_page],
+            color=0x5865F2,
+            timestamp=datetime.now(timezone.utc)
+        )
+        return embed
+
+    @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.secondary, custom_id="lyrics_prev")
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(tr(self.settings, "common.not_your_interaction"), ephemeral=True)
+            return
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._update_buttons()
+            embed = self.get_embed()
+            embed.set_footer(text=f"Trang {self.current_page + 1}/{len(self.pages)} • Nguồn: LrcLib | {tr(self.settings, 'common.requested_by', user=interaction.user.display_name)}")
+            try:
+                await interaction.response.edit_message(embed=embed, view=self)
+            except (discord.NotFound, discord.HTTPException):
+                pass
+
+    @discord.ui.button(label="1/1", style=discord.ButtonStyle.primary, disabled=True, custom_id="lyrics_indicator")
+    async def indicator_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pass
+
+    @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.secondary, custom_id="lyrics_next")
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(tr(self.settings, "common.not_your_interaction"), ephemeral=True)
+            return
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self._update_buttons()
+            embed = self.get_embed()
+            embed.set_footer(text=f"Trang {self.current_page + 1}/{len(self.pages)} • Nguồn: LrcLib | {tr(self.settings, 'common.requested_by', user=interaction.user.display_name)}")
+            try:
+                await interaction.response.edit_message(embed=embed, view=self)
+            except (discord.NotFound, discord.HTTPException):
+                pass
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
 # ─── Cog ───────────────────────────────────────────────────────────────────────
 class Music(commands.Cog, name="Music"):
     def __init__(self, bot: commands.Bot):
@@ -1947,6 +2091,49 @@ class Music(commands.Cog, name="Music"):
         embed = _make_np_embed(player.current, player.queue, player.loop_mode, player.volume, elapsed, s)
         view = MusicControlView(player, s)
         await ctx.send(embed=embed, view=view)
+
+    @commands.hybrid_command(name="lyrics", description="Xem lời bài hát đang phát hoặc tìm theo tên")
+    @app_commands.describe(query="Tên bài hát cần tìm lời (để trống nếu muốn lấy bài đang phát)")
+    async def lyrics(self, ctx: commands.Context, *, query: str = None):
+        s = await async_get_guild_settings(str(ctx.guild.id))
+        target_query = query
+        if not target_query:
+            player = self._get(ctx.guild.id)
+            if player and player.current:
+                target_query = player.current.title
+            else:
+                await ctx.send(tr(s, "music.lyrics_no_track"), ephemeral=True)
+                return
+
+        # Defer vì gọi API LrcLib có thể mất vài giây
+        if ctx.interaction and not ctx.interaction.response.is_done():
+            await ctx.defer()
+
+        lyrics_text, track_title = await _fetch_lyrics_from_lrclib(target_query)
+        if not lyrics_text:
+            display_title = target_query[:50]
+            msg = tr(s, "music.lyrics_not_found", query=display_title)
+            await ctx.send(msg)
+            return
+
+        pages = _chunk_lyrics(lyrics_text, max_chars=1800)
+        display_name = track_title or target_query
+
+        if len(pages) == 1:
+            embed = discord.Embed(
+                title=f"📜 {display_name}",
+                description=pages[0],
+                color=0x5865F2,
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text=f"Trang 1/1 • Nguồn: LrcLib | {tr(s, 'common.requested_by', user=ctx.author.display_name)}")
+            await ctx.send(embed=embed)
+        else:
+            view = LyricsPaginatorView(pages, display_name, ctx.author.id, s)
+            embed = view.get_embed()
+            embed.set_footer(text=f"Trang 1/{len(pages)} • Nguồn: LrcLib | {tr(s, 'common.requested_by', user=ctx.author.display_name)}")
+            msg = await ctx.send(embed=embed, view=view)
+            view.message = msg
 
     @commands.hybrid_command(name="volume", description="Điều chỉnh âm lượng phát nhạc (1-150%)")
     @app_commands.describe(level="Mức âm lượng (1 - 150)")

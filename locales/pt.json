@@ -1619,5 +1619,19 @@
   "help.cmd_perm_field": "🔒 Permissão Necessária",
   "admin.stepup_not_set_title": "⚠️ A autenticação reforçada não está ativada",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD não está definido no .env, então Terminal Web / Git Pull / Reiniciar estão protegidos apenas pela sua sessão. Defina ADMIN_PASSWORD no .env e reinicie o painel.",
-  "music.queue_full": "⚠️ A fila de música está cheia (máximo de {max} músicas). Aguarde algumas terminarem antes de adicionar mais!"
+  "music.queue_full": "⚠️ A fila de música está cheia (máximo de {max} músicas). Aguarde algumas terminarem antes de adicionar mais!",
+  "music.lyrics_no_track": "Nenhuma música está tocando no momento. Especifique um nome de música para pesquisar!",
+  "music.lyrics_not_found": "❌ Letra não encontrada para: **{query}**",
+  "utility.embed_no_permission": "❌ Você precisa de permissão de **Gerenciar Mensagens** ou **Gerenciar Servidor** para enviar embeds salvos!",
+  "utility.embed_bot_no_permission": "❌ O bot não possui permissão de **Inserir Links (Embed Links)** neste canal!",
+  "utility.embed_not_found": "❌ Nenhum embed salvo foi encontrado com o nome: **{name}**",
+  "utility.embed_sent": "✅ Embed **{name}** enviado para o canal com sucesso!",
+  "customcmd.mention_blocked": "❌ A resposta do comando personalizado não pode conter menções em massa (@everyone, @here ou cargos)!",
+  "customcmd.invalid_trigger": "❌ Palavra-chave de ativação inválida ou muito longa (máximo de 32 caracteres)!",
+  "customcmd.guild_limit_reached": "❌ Este servidor atingiu o limite máximo de {max} comandos personalizados!",
+  "customcmd.user_limit_reached": "❌ Você atingiu seu limite de {max} comandos personalizados. Exclua um antigo primeiro!",
+  "customcmd.cooldown_err": "⏳ Aguarde {seconds}s antes de criar outro comando personalizado!",
+  "customcmd.delete_no_permission": "❌ Você só pode excluir comandos personalizados que você mesmo criou!",
+  "cmd.lyrics.desc": "Ver a letra da música em reprodução ou buscar por nome com paginação",
+  "cmd.embed.desc": "Enviar um embed salvo do Web Dashboard para o canal atual"
 }

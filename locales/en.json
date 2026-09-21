@@ -1619,5 +1619,19 @@
   "help.cmd_perm_field": "🔒 Required Permission",
   "admin.stepup_not_set_title": "⚠️ Step-Up Auth is not enabled",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD is not set in .env, so Web Terminal / Git Pull / Restart are protected only by your login session. Set ADMIN_PASSWORD in .env and restart the dashboard.",
-  "music.queue_full": "⚠️ The music queue is full (maximum {max} tracks). Please wait for songs to finish before adding more!"
+  "music.queue_full": "⚠️ The music queue is full (maximum {max} tracks). Please wait for songs to finish before adding more!",
+  "music.lyrics_no_track": "No song is currently playing. Please specify a song name to search!",
+  "music.lyrics_not_found": "❌ Lyrics not found for: **{query}**",
+  "utility.embed_no_permission": "❌ You need **Manage Messages** or **Manage Server** permissions to send saved embeds!",
+  "utility.embed_bot_no_permission": "❌ The bot lacks **Embed Links** permission in this channel!",
+  "utility.embed_not_found": "❌ No saved embed found with name: **{name}**",
+  "utility.embed_sent": "✅ Successfully sent embed **{name}** to the channel!",
+  "customcmd.mention_blocked": "❌ Custom command response cannot contain mass mentions (@everyone, @here, or role tags)!",
+  "customcmd.invalid_trigger": "❌ Trigger keyword is invalid or too long (max 32 characters)!",
+  "customcmd.guild_limit_reached": "❌ This server has reached the maximum limit of {max} custom commands!",
+  "customcmd.user_limit_reached": "❌ You have reached your limit of {max} custom commands. Delete an older command first!",
+  "customcmd.cooldown_err": "⏳ Please wait {seconds}s before creating another custom command!",
+  "customcmd.delete_no_permission": "❌ You can only delete custom commands that you created yourself!",
+  "cmd.lyrics.desc": "View lyrics for the playing song or search by track name with pagination",
+  "cmd.embed.desc": "Send a saved embed from Web Dashboard to the current channel"
 }

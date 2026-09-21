@@ -1619,5 +1619,19 @@
   "help.cmd_perm_field": "🔒 Permiso Requerido",
   "admin.stepup_not_set_title": "⚠️ La autenticación reforzada no está activada",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD no está definida en .env, por lo que Terminal Web / Git Pull / Reiniciar solo están protegidos por tu sesión. Define ADMIN_PASSWORD en .env y reinicia el panel.",
-  "music.queue_full": "⚠️ ¡La cola de música está llena (máximo {max} canciones)! Espera a que terminen antes de añadir más."
+  "music.queue_full": "⚠️ ¡La cola de música está llena (máximo {max} canciones)! Espera a que terminen antes de añadir más.",
+  "music.lyrics_no_track": "No se está reproduciendo ninguna canción. ¡Especifica el nombre de la canción a buscar!",
+  "music.lyrics_not_found": "❌ No se encontraron letras para: **{query}**",
+  "utility.embed_no_permission": "❌ ¡Necesitas permisos de **Gestionar mensajes** o **Gestionar servidor** para enviar embeds guardados!",
+  "utility.embed_bot_no_permission": "❌ ¡El bot carece del permiso **Insertar enlaces (Embed Links)** en este canal!",
+  "utility.embed_not_found": "❌ No se encontró ningún embed guardado con el nombre: **{name}**",
+  "utility.embed_sent": "✅ ¡Embed **{name}** enviado al canal con éxito!",
+  "customcmd.mention_blocked": "❌ ¡La respuesta del comando personalizado no puede contener menciones masivas (@everyone, @here o roles)!",
+  "customcmd.invalid_trigger": "❌ ¡La palabra clave activadora no es válida o es demasiado larga (máx. 32 caracteres)!",
+  "customcmd.guild_limit_reached": "❌ ¡Este servidor ha alcanzado el límite máximo de {max} comandos personalizados!",
+  "customcmd.user_limit_reached": "❌ ¡Has alcanzado el límite de {max} comandos personalizados. Elimina uno antiguo primero!",
+  "customcmd.cooldown_err": "⏳ ¡Espera {seconds}s antes de crear otro comando personalizado!",
+  "customcmd.delete_no_permission": "❌ ¡Solo puedes eliminar comandos personalizados creados por ti mismo!",
+  "cmd.lyrics.desc": "Ver la letra de la canción que se está reproduciendo o buscar por nombre",
+  "cmd.embed.desc": "Enviar un embed guardado desde el panel web al canal actual"
 }

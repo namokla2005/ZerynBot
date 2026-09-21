@@ -1619,5 +1619,19 @@
   "help.cmd_perm_field": "🔒 所需权限",
   "admin.stepup_not_set_title": "⚠️ 未启用二次验证（Step-Up Auth）",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD 尚未在 .env 中设置，Web 终端 / Git Pull / 重启 仅由登录会话保护。请在 .env 中设置 ADMIN_PASSWORD 并重启面板。",
-  "music.queue_full": "⚠️ 播放队列已满（最多 {max} 首歌曲）。请等待部分歌曲播放完毕后再添加！"
+  "music.queue_full": "⚠️ 播放队列已满（最多 {max} 首歌曲）。请等待部分歌曲播放完毕后再添加！",
+  "music.lyrics_no_track": "当前没有正在播放的歌曲。请输入要搜索的歌曲名称！",
+  "music.lyrics_not_found": "❌ 未找到歌词: **{query}**",
+  "utility.embed_no_permission": "❌ 您需要拥有 **管理消息** 或 **管理服务器** 权限才能发送已保存的 Embed！",
+  "utility.embed_bot_no_permission": "❌ 机器人在该频道中缺少 **嵌入链接 (Embed Links)** 权限！",
+  "utility.embed_not_found": "❌ 未找到名称为 **{name}** 的已保存 Embed",
+  "utility.embed_sent": "✅ 已成功将 Embed **{name}** 发送到频道！",
+  "customcmd.mention_blocked": "❌ 自定义命令的回复内容不得包含全体提及其身份组 (@everyone, @here, role)！",
+  "customcmd.invalid_trigger": "❌ 触发关键词无效或过长（最多 32 个字符）！",
+  "customcmd.guild_limit_reached": "❌ 该服务器已达到最多 {max} 个自定义命令的上限！",
+  "customcmd.user_limit_reached": "❌ 您已创建最多 {max} 个自定义命令。请先删除旧命令再创建！",
+  "customcmd.cooldown_err": "⏳ 请等待 {seconds} 秒后再创建新的自定义命令！",
+  "customcmd.delete_no_permission": "❌ 您只能删除由自己创建的自定义命令！",
+  "cmd.lyrics.desc": "查看正在播放的歌词或按歌曲名搜索歌词（支持翻页）",
+  "cmd.embed.desc": "将网页控制台保存的 Embed 发送到当前频道"
 }

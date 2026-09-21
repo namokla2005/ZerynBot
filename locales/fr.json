@@ -1619,5 +1619,19 @@
   "help.cmd_perm_field": "🔒 Permission Requise",
   "admin.stepup_not_set_title": "⚠️ L'authentification renforcée n'est pas activée",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD n'est pas défini dans .env : Terminal Web / Git Pull / Redémarrage ne sont protégés que par votre session. Définissez ADMIN_PASSWORD dans .env puis redémarrez le tableau de bord.",
-  "music.queue_full": "⚠️ La file d'attente musicale est pleine (maximum {max} morceaux). Veuillez attendre que des morceaux se terminent avant d'en ajouter d'autres !"
+  "music.queue_full": "⚠️ La file d'attente musicale est pleine (maximum {max} morceaux). Veuillez attendre que des morceaux se terminent avant d'en ajouter d'autres !",
+  "music.lyrics_no_track": "Aucune chanson n'est en cours de lecture. Veuillez spécifier un nom de chanson à rechercher !",
+  "music.lyrics_not_found": "❌ Paroles introuvables pour : **{query}**",
+  "utility.embed_no_permission": "❌ Vous devez avoir la permission **Gérer les messages** ou **Gérer le serveur** pour envoyer des embeds enregistrés !",
+  "utility.embed_bot_no_permission": "❌ Le bot n'a pas la permission **Intégrer des liens (Embed Links)** dans ce salon !",
+  "utility.embed_not_found": "❌ Aucun embed enregistré trouvé sous le nom : **{name}**",
+  "utility.embed_sent": "✅ Embed **{name}** envoyé dans le salon avec succès !",
+  "customcmd.mention_blocked": "❌ La réponse de la commande personnalisée ne peut pas contenir de mentions de masse (@everyone, @here ou rôles) !",
+  "customcmd.invalid_trigger": "❌ Le mot-clé déclencheur est invalide ou trop long (max 32 caractères) !",
+  "customcmd.guild_limit_reached": "❌ Ce serveur a atteint la limite maximale de {max} commandes personnalisées !",
+  "customcmd.user_limit_reached": "❌ Vous avez atteint votre limite de {max} commandes personnalisées. Supprimez-en une ancienne d'abord !",
+  "customcmd.cooldown_err": "⏳ Veuillez attendre {seconds}s avant de créer une autre commande personnalisée !",
+  "customcmd.delete_no_permission": "❌ Vous ne pouvez supprimer que les commandes personnalisées que vous avez créées vous-même !",
+  "cmd.lyrics.desc": "Voir les paroles de la chanson en cours ou rechercher par titre avec pagination",
+  "cmd.embed.desc": "Envoyer un embed enregistré depuis le tableau de bord Web dans le salon actuel"
 }

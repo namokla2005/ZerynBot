@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Central Registry for all 108 commands across 17 categories in ZerynBot V2.
+Central Registry for all 110 commands across 17 categories in ZerynBot V2.
 Shared by Web Dashboard and Discord Bot Help Command (/help [command]).
 """
 
@@ -69,6 +69,16 @@ _COMMANDS_DATA = [
                 "preview": {
                     "type": "embed", "color": "#5865f2", "title": "🤔 Lựa chọn ngẫu nhiên",
                     "desc": "Giữa các phương án: `Ăn cơm, Ăn phở`<br><br>🎯 Mình chọn: **Ăn phở**"
+                }
+            },
+            {
+                "name": "embed", "emoji": "💬",
+                "desc": "Gửi embed đã lưu từ Web Dashboard vào kênh hiện tại",
+                "usage": "/embed [tên]", "example": "/embed thong_bao",
+                "args": [{"name": "name", "type": "Text", "required": True, "desc": "Tên embed đã lưu trên Web Dashboard"}],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "💬 Embed Thông Báo",
+                    "desc": "Nội dung thông báo embed được gửi trực tiếp từ Web Dashboard Studio!"
                 }
             },
             {
@@ -594,6 +604,16 @@ _COMMANDS_DATA = [
                 "preview": {
                     "type": "embed", "color": "#5865F2", "title": "🏆 Top Bài Hát Nghe Nhiều Nhất",
                     "desc": "🥇 **Bài hát A** — **45** lần nghe<br>🥈 **Bài hát B** — **32** lần nghe<br>🥉 **Bài hát C** — **18** lần nghe"
+                }
+            },
+            {
+                "name": "lyrics", "emoji": "📜",
+                "desc": "Xem lời bài hát đang phát hoặc tìm theo tên với phân trang",
+                "usage": "/lyrics [tên bài]", "example": "/lyrics Đen - Nấu Ăn Cho Em",
+                "args": [{"name": "query", "type": "Text", "required": False, "desc": "Tên bài hát cần xem lời (bỏ trống để lấy bài đang phát)"}],
+                "preview": {
+                    "type": "embed", "color": "#5865F2", "title": "📜 Đen - Nấu Ăn Cho Em",
+                    "desc": "Mặt trời soi rạng ngời trên nương cao...<br>Những nụ cười em thơ đón chào nắng sớm..."
                 }
             },
         ]

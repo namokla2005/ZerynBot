@@ -65,12 +65,17 @@ function isSafeWebUrl(url) {
   }
 }
 
-  // Title
+  // Title & Description Mockup Logic
   const prevTitle = refs.prevTitle();
+  const prevDesc = refs.prevDesc();
+  const hasTitle = Boolean(title);
+  const hasDesc = Boolean(description);
+  const isCompletelyEmpty = !hasTitle && !hasDesc && !authorName && fields.length === 0;
+
   if (prevTitle) {
     prevTitle.innerHTML = '';
-    prevTitle.style.display = title ? 'block' : 'none';
-    if (title) {
+    if (hasTitle) {
+      prevTitle.style.display = 'block';
       if (titleUrl && isSafeWebUrl(titleUrl)) {
         const a = document.createElement('a');
         a.href = titleUrl.trim();
@@ -83,14 +88,25 @@ function isSafeWebUrl(url) {
       } else {
         prevTitle.textContent = title;
       }
+    } else if (isCompletelyEmpty) {
+      prevTitle.style.display = 'block';
+      prevTitle.textContent = '';
+    } else {
+      prevTitle.style.display = 'none';
     }
   }
 
   // Description
-  const prevDesc = refs.prevDesc();
   if (prevDesc) {
-    prevDesc.textContent = description;
-    prevDesc.style.display = description ? 'block' : 'none';
+    if (hasDesc) {
+      prevDesc.textContent = description;
+      prevDesc.style.display = 'block';
+    } else if (isCompletelyEmpty) {
+      prevDesc.style.display = 'block';
+      prevDesc.textContent = '';
+    } else {
+      prevDesc.style.display = 'none';
+    }
   }
 
   // Thumbnail
@@ -236,7 +252,8 @@ function getEmbedData() {
 async function saveEmbed() {
   const name = refs.embedName()?.value?.trim();
   if (!name) {
-    showToast('⚠️ Nhập tên cho embed!', 'error');
+    showToast('⚠️ Vui lòng nhập tên cho embed!', 'error');
+    refs.embedName()?.focus();
     return;
   }
   const data = getEmbedData();
@@ -247,8 +264,8 @@ async function saveEmbed() {
       body: JSON.stringify({ name, embed: data }),
     });
     if (!res.ok) throw new Error('Failed');
-    showToast('✅ Đã lưu embed!', 'success');
-    setTimeout(() => window.location.reload(), 1200);
+    showToast('✅ Đã lưu embed: ' + name, 'success');
+    setTimeout(() => window.location.reload(), 1000);
   } catch {
     showToast('❌ Lỗi khi lưu embed', 'error');
   }
@@ -273,11 +290,14 @@ async function deleteEmbed(embedId) {
 }
 
 // ─── Load embed into builder ──────────────────────────────────────────────────
-function loadEmbedFromScript(scriptId) {
+function loadEmbedFromScript(scriptId, embedName = '') {
   const el = document.getElementById(scriptId);
   if (!el) return;
   try {
     const data = JSON.parse(el.textContent);
+    if (embedName && refs.embedName()) {
+      refs.embedName().value = embedName;
+    }
     loadEmbed(data);
   } catch {
     showToast('❌ Lỗi khi đọc dữ liệu embed', 'error');

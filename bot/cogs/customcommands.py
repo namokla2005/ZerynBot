@@ -18,7 +18,9 @@ from database import (
     async_get_guild_settings, async_is_module_enabled,
     async_get_custom_commands, async_find_custom_command,
     async_increment_custom_command_usage, add_custom_command,
-    delete_custom_command
+    delete_custom_command, async_count_user_custom_commands,
+    async_count_guild_custom_commands, async_add_custom_command,
+    async_delete_custom_command
 )
 from i18n import tr
 try:
@@ -142,32 +144,63 @@ class CustomCommands(commands.Cog):
         trigger="Từ khóa kích hoạt (VD: !ip, !rules, !donate)",
         response="Câu trả lời của bot (hỗ trợ {user}, {server}, {members})"
     )
+    @app_commands.checks.cooldown(1, 60.0, key=lambda i: (i.guild_id, i.user.id))
     async def cmd_add(self, interaction: discord.Interaction, trigger: str, response: str):
         s = await async_get_guild_settings(str(interaction.guild.id))
-        if not interaction.user.guild_permissions.manage_guild and not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(tr(s, "common.no_permission"), ephemeral=True)
+        is_admin = interaction.user.guild_permissions.manage_guild or interaction.user.guild_permissions.administrator
+
+        # 1. Chống spam mass ping / role ping
+        lower_resp = response.lower()
+        if "@everyone" in lower_resp or "@here" in lower_resp or "<@&" in response:
+            await interaction.response.send_message(tr(s, "customcmd.mention_blocked"), ephemeral=True)
             return
 
+        # 2. Giới hạn độ dài từ khóa
         clean_trigger = trigger.strip().lower()
-        import database as db
-        await db.async_add_custom_command(
+        if not clean_trigger or len(clean_trigger) > 32:
+            await interaction.response.send_message(tr(s, "customcmd.invalid_trigger"), ephemeral=True)
+            return
+
+        # 3. Giới hạn số lượng lệnh toàn guild (max 50)
+        guild_count = await async_count_guild_custom_commands(str(interaction.guild.id))
+        if guild_count >= 50:
+            await interaction.response.send_message(tr(s, "customcmd.guild_limit_reached", max=50), ephemeral=True)
+            return
+
+        # 4. Giới hạn số lượng lệnh mỗi thành viên thường (max 5)
+        if not is_admin:
+            user_count = await async_count_user_custom_commands(str(interaction.guild.id), str(interaction.user.id))
+            if user_count >= 5:
+                await interaction.response.send_message(tr(s, "customcmd.user_limit_reached", max=5), ephemeral=True)
+                return
+
+        # 5. Thoát mention an toàn và lưu vào CSDL
+        safe_response = discord.utils.escape_mentions(response)
+        await async_add_custom_command(
             guild_id=str(interaction.guild.id),
             trigger=clean_trigger,
             match_type="exact",
-            response_text=response,
+            response_text=safe_response,
             embed_json=None,
             creator_id=str(interaction.user.id)
         )
-        await interaction.response.send_message(tr(s, "customcmd.added_success", trigger=clean_trigger), ephemeral=True)
+        await interaction.response.send_message(tr(s, "customcmd.added_success", trigger=clean_trigger))
+
+    @cmd_add.error
+    async def cmd_add_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            s = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else {}
+            await interaction.response.send_message(
+                tr(s, "customcmd.cooldown_err", seconds=int(error.retry_after)),
+                ephemeral=True
+            )
+        else:
+            raise error
 
     @cmd_group.command(name="delete", description="Xóa một lệnh tùy biến")
     @app_commands.describe(trigger="Từ khóa kích hoạt của lệnh cần xóa")
     async def cmd_delete(self, interaction: discord.Interaction, trigger: str):
         s = await async_get_guild_settings(str(interaction.guild.id))
-        if not interaction.user.guild_permissions.manage_guild and not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(tr(s, "common.no_permission"), ephemeral=True)
-            return
-
         clean_trigger = trigger.strip().lower()
         cmds = await async_get_custom_commands(str(interaction.guild.id))
         target_cmd = next((c for c in cmds if c["trigger"].lower() == clean_trigger), None)
@@ -176,8 +209,14 @@ class CustomCommands(commands.Cog):
             await interaction.response.send_message(tr(s, "customcmd.not_found", trigger=clean_trigger), ephemeral=True)
             return
 
-        import database as db
-        await db.async_delete_custom_command(target_cmd["id"], str(interaction.guild.id))
+        is_admin = interaction.user.guild_permissions.manage_guild or interaction.user.guild_permissions.administrator
+        is_creator = str(target_cmd.get("creator_id")) == str(interaction.user.id)
+
+        if not is_admin and not is_creator:
+            await interaction.response.send_message(tr(s, "customcmd.delete_no_permission"), ephemeral=True)
+            return
+
+        await async_delete_custom_command(target_cmd["id"], str(interaction.guild.id))
         await interaction.response.send_message(tr(s, "customcmd.deleted_success", trigger=clean_trigger), ephemeral=True)
 
 
