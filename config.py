@@ -24,6 +24,12 @@ STATUS_WEBHOOK_URL: str = os.getenv("STATUS_WEBHOOK_URL", "")
 BACKUP_DB_URL: str = os.getenv("BACKUP_DB", "") or os.getenv("BACKUP_WEBHOOK_URL", "")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
+_fix_ch = os.getenv("FIX_ERROR_CHANNEL_ID", "1528731356811624488").strip()
+FIX_ERROR_CHANNEL_ID: int = int(_fix_ch) if _fix_ch.isdigit() else 1528731356811624488
+
+_bot_log_ch = os.getenv("BOT_LOG_CHANNEL_ID", "1528732275938955445").strip()
+BOT_LOG_CHANNEL_ID: int = int(_bot_log_ch) if _bot_log_ch.isdigit() else 1528732275938955445
+
 # ─── Dashboard ─────────────────────────────────────────────────────────────────
 # P0.1 (security): KHÔNG fallback về chuỗi bí mật tĩnh/hardcoded.
 # Nếu thiếu hoặc để giá trị mặc định của .env.example → tự sinh key ngẫu nhiên

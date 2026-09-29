@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="{{ current_ui_lang or 'vi' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ t('support.meta_title') | default('Hỗ Trợ 24/7 Trực Tuyến — Zeryn') }}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=11.0">
+  <style>
+    :root {
+      --bg-dark: #0a0812;
+      --bg-card: rgba(22, 18, 36, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-purple: #a855f7;
+      --accent-pink: #ec4899;
+      --user-bubble: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
+      --bot-bubble: rgba(255, 255, 255, 0.05);
+      --staff-bubble: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(249, 115, 22, 0.15));
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+    }
+
+    /* Topbar */
+    .topbar {
+      height: 72px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      background: rgba(10, 8, 18, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .topbar-brand img { width: 36px; height: 36px; border-radius: 50%; }
+    .topbar-links { display: flex; align-items: center; gap: 24px; margin-left: 40px; }
+    .topbar-link { color: #94a3b8; text-decoration: none; font-weight: 600; font-size: 0.92rem; }
+    .topbar-link:hover, .topbar-link.active { color: #fff; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+
+    /* Language Switcher */
+    .lang-dropdown { position: relative; }
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      color: #e2e8f0;
+      padding: 7px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .lang-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      background: #171328;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 6px;
+      min-width: 150px;
+      display: none;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      z-index: 200;
+    }
+    .lang-menu.show { display: block; }
+    .lang-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.85rem;
+      border-radius: 8px;
+    }
+    .lang-opt:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+    /* Main Container */
+    .support-wrapper {
+      max-width: 1000px;
+      margin: 28px auto 40px;
+      padding: 0 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Chat Card */
+    .chat-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 78vh;
+      min-height: 550px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+    }
+
+    /* Chat Header */
+    .chat-header {
+      padding: 18px 24px;
+      background: rgba(14, 11, 24, 0.8);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chat-header-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .bot-avatar-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      position: relative;
+    }
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #10b981;
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      border: 2px solid #141122;
+    }
+    .chat-header-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .chat-header-sub {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-escalate {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-escalate:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+    .btn-escalate.escalated {
+      background: rgba(234, 179, 8, 0.15);
+      border-color: rgba(234, 179, 8, 0.4);
+      color: #fde047;
+      cursor: default;
+    }
+
+    /* Messages Thread Area */
+    .chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 12px;
+      max-width: 82%;
+    }
+    .message-row.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    .message-row.bot, .message-row.admin {
+      align-self: flex-start;
+    }
+
+    .msg-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .msg-bubble {
+      padding: 12px 18px;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      border: 1px solid var(--border-color);
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .message-row.user .msg-bubble {
+      background: var(--user-bubble);
+      border-color: rgba(168, 85, 247, 0.3);
+      border-top-right-radius: 4px;
+      color: #fff;
+    }
+    .message-row.bot .msg-bubble {
+      background: var(--bot-bubble);
+      border-top-left-radius: 4px;
+      color: #e2e8f0;
+    }
+    .message-row.admin .msg-bubble {
+      background: var(--staff-bubble);
+      border-color: rgba(234, 179, 8, 0.35);
+      border-top-left-radius: 4px;
+      color: #fff;
+    }
+    .msg-author {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .msg-author.bot { color: #c084fc; }
+    .msg-author.admin { color: #facc15; }
+    .msg-time {
+      font-size: 0.7rem;
+      color: #64748b;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      width: fit-content;
+      margin-left: 48px;
+    }
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #a855f7;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Quick Chips */
+    .quick-chips {
+      padding: 10px 24px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      background: rgba(14, 11, 24, 0.5);
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .quick-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: #94a3b8;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .quick-chip:hover {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: var(--accent-purple);
+      color: #fff;
+    }
+
+    /* Input Footer */
+    .chat-footer {
+      padding: 18px 24px;
+      background: rgba(14, 11, 24, 0.85);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+    .chat-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      color: #fff;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: none;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .chat-input:focus { border-color: var(--accent-purple); }
+    .btn-send {
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      border: none;
+      color: #fff;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-send:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35); }
+    .btn-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <a href="{{ url_for('index') }}" class="topbar-brand">
+      <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
+      <span>Zeryn</span>
+    </a>
+
+    <div class="topbar-links">
+      <a href="{{ url_for('index') }}" class="topbar-link">{{ t('nav.home') | default('Trang Chủ') }}</a>
+      <a href="{{ url_for('docs_page') }}" class="topbar-link">{{ t('nav.docs') | default('Tài Liệu') }}</a>
+      <a href="{{ url_for('dashboard_index') }}" class="topbar-link">{{ t('nav.dashboard') | default('Dashboard') }}</a>
+      <a href="{{ url_for('support_page') }}" class="topbar-link active">{{ t('nav.support') | default('Hỗ Trợ 24/7') }}</a>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Language Dropdown -->
+      <div class="lang-dropdown">
+        <button class="lang-btn" onclick="toggleLangMenu()">
+          <i class="bi bi-translate"></i>
+          <span>{{ current_ui_lang | upper }}</span>
+          <i class="bi bi-chevron-down" style="font-size: 0.75rem;"></i>
+        </button>
+        <div class="lang-menu" id="lang-menu">
+          <a href="/set_lang/vi" class="lang-opt">🇻🇳 Tiếng Việt</a>
+          <a href="/set_lang/en" class="lang-opt">🇺🇸 English</a>
+          <a href="/set_lang/zh" class="lang-opt">🇨🇳 中文</a>
+          <a href="/set_lang/es" class="lang-opt">🇪🇸 Español</a>
+          <a href="/set_lang/pt" class="lang-opt">🇧🇷 Português</a>
+          <a href="/set_lang/fr" class="lang-opt">🇫🇷 Français</a>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="{{ user.get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);">
+        <span style="font-size:0.88rem;font-weight:600;color:#fff;">{{ user.get('username') }}</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Support Chat Container -->
+  <div class="support-wrapper">
+    <div class="chat-box">
+      <!-- Header -->
+      <div class="chat-header">
+        <div class="chat-header-info">
+          <div class="bot-avatar-badge">
+            🤖
+            <div class="status-dot"></div>
+          </div>
+          <div>
+            <div class="chat-header-title">{{ t('support.chat_title') | default('Zeryn AI Assistant 24/7') }}</div>
+            <div class="chat-header-sub">
+              <span id="chat-status-text">
+                {% if thread.status == 'escalated' %}
+                  🟡 {{ t('support.status_escalated') | default('Đang liên hệ nhân viên hỗ trợ') }}
+                {% else %}
+                  🟢 {{ t('support.status_online') | default('Trực tuyến sẵn sàng giải đáp') }}
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button id="escalate-btn" class="btn-escalate {% if thread.status == 'escalated' %}escalated{% endif %}" onclick="triggerEscalate()">
+          <i class="bi bi-headset"></i>
+          <span id="escalate-btn-text">
+            {% if thread.status == 'escalated' %}
+              {{ t('support.staff_notified') | default('Đã báo nhân viên') }}
+            {% else %}
+              {{ t('support.call_staff_btn') | default('Gặp nhân viên hỗ trợ') }}
+            {% endif %}
+          </span>
+        </button>
+      </div>
+
+      <!-- Messages Stream -->
+      <div class="chat-messages" id="chat-messages">
+        <!-- Render existing messages via safe server template -->
+        {% for msg in messages %}
+          {% if msg.sender_type == 'user' %}
+            <div class="message-row user" data-msg-id="{{ msg.id }}">
+              <img src="{{ user.get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}" class="msg-avatar">
+              <div>
+                <div class="msg-bubble">{{ msg.content }}</div>
+                <div class="msg-time">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</div>
+              </div>
+            </div>
+          {% elif msg.sender_type == 'admin' %}
+            <div class="message-row admin" data-msg-id="{{ msg.id }}">
+              <div class="msg-avatar" style="background:#eab308;display:flex;align-items:center;justify-content:center;color:#000;font-size:1.1rem;">👑</div>
+              <div>
+                <div class="msg-author admin">👑 {{ t('support.staff_badge') | default('Nhân Viên Hỗ Trợ') }}</div>
+                <div class="msg-bubble">{{ msg.content }}</div>
+                <div class="msg-time">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</div>
+              </div>
+            </div>
+          {% else %}
+            <div class="message-row bot" data-msg-id="{{ msg.id }}">
+              <div class="msg-avatar" style="background:linear-gradient(135deg, #a855f7, #ec4899);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;">🤖</div>
+              <div>
+                <div class="msg-author bot">🤖 Zeryn AI</div>
+                <div class="msg-bubble">{{ msg.content }}</div>
+                <div class="msg-time">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-indicator" id="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <span style="font-size:0.75rem; color:#a855f7; margin-left:4px;">{{ t('support.ai_typing') | default('Zeryn AI đang soạn câu trả lời...') }}</span>
+      </div>
+
+      <!-- Quick Chips -->
+      <div class="quick-chips">
+        <div class="quick-chip" onclick="fillPrompt('Làm sao để bot phát nhạc trong voice channel?')">🎵 {{ t('support.quick_music') | default('Cách phát nhạc?') }}</div>
+        <div class="quick-chip" onclick="fillPrompt('Cách thiết lập tin nhắn chào mừng thành viên mới?')">👋 {{ t('support.quick_welcome') | default('Thiết lập chào mừng?') }}</div>
+        <div class="quick-chip" onclick="fillPrompt('Làm sao để tạo phòng voice chat tạm thời?')">🔊 {{ t('support.quick_tempvoice') | default('Tạo phòng Voice tạm?') }}</div>
+        <div class="quick-chip" onclick="fillPrompt('Tôi cần gặp trực tiếp nhân viên hỗ trợ!')">🚨 {{ t('support.quick_escalate') | default('Cần gặp nhân viên!') }}</div>
+      </div>
+
+      <!-- Input Footer -->
+      <form class="chat-footer" id="chat-form" onsubmit="sendMessage(event)">
+        <textarea id="chat-input" class="chat-input" rows="1" placeholder="{{ t('support.input_placeholder') | default('Nhập câu hỏi hoặc mô tả vấn đề của bạn... (Enter để gửi)') }}" onkeydown="handleKeyDown(event)"></textarea>
+        <button type="submit" class="btn-send" id="btn-send" title="{{ t('support.send_btn') | default('Gửi') }}">
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const THREAD_ID = "{{ thread.thread_id }}";
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    const USER_AVATAR = "{{ user.get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}";
+    let lastMsgId = {{ (messages[-1].id if messages else 0) }};
+    let isPolling = false;
+
+    // Toggle language menu
+    function toggleLangMenu() {
+      document.getElementById('lang-menu').classList.toggle('show');
+    }
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.lang-dropdown')) {
+        const menu = document.getElementById('lang-menu');
+        if (menu) menu.classList.remove('show');
+      }
+    });
+
+    // Auto-scroll to bottom of chat
+    function scrollToBottom() {
+      const container = document.getElementById('chat-messages');
+      container.scrollTop = container.scrollHeight;
+    }
+    scrollToBottom();
+
+    function fillPrompt(text) {
+      const input = document.getElementById('chat-input');
+      input.value = text;
+      input.focus();
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage(e);
+      }
+    }
+
+    // Send message via AJAX POST with CSRF protection and safe DOM creation
+    async function sendMessage(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      input.disabled = true;
+      document.getElementById('btn-send').disabled = true;
+
+      // 1. Render user message locally immediately
+      appendMessageDOM('user', 'Bạn', text, USER_AVATAR, new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+      scrollToBottom();
+
+      // Show typing indicator
+      document.getElementById('typing-indicator').style.display = 'flex';
+
+      try {
+        const resp = await fetch('/api/support/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN
+          },
+          body: JSON.stringify({
+            thread_id: THREAD_ID,
+            content: text
+          })
+        });
+        const data = await resp.json();
+        if (data.ok && data.message_id) {
+          if (data.message_id > lastMsgId) {
+            lastMsgId = data.message_id;
+          }
+        }
+      } catch (err) {
+        console.error('Error sending support message:', err);
+      } finally {
+        input.disabled = false;
+        document.getElementById('btn-send').disabled = false;
+        input.focus();
+      }
+    }
+
+    // Append message using 100% DOM API to prevent XSS
+    function appendMessageDOM(senderType, senderName, content, avatarUrl, timeStr, msgId) {
+      const messagesContainer = document.getElementById('chat-messages');
+
+      const row = document.createElement('div');
+      row.className = 'message-row ' + senderType;
+      if (msgId) row.setAttribute('data-msg-id', msgId);
+
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      if (senderType === 'user') {
+        const img = document.createElement('img');
+        img.src = avatarUrl || USER_AVATAR;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.borderRadius = '50%';
+        avatar.appendChild(img);
+      } else if (senderType === 'admin') {
+        avatar.style.background = '#eab308';
+        avatar.style.display = 'flex';
+        avatar.style.alignItems = 'center';
+        avatar.style.justifyContent = 'center';
+        avatar.style.color = '#000';
+        avatar.textContent = '👑';
+      } else {
+        avatar.style.background = 'linear-gradient(135deg, #a855f7, #ec4899)';
+        avatar.style.display = 'flex';
+        avatar.style.alignItems = 'center';
+        avatar.style.justifyContent = 'center';
+        avatar.style.color = '#fff';
+        avatar.textContent = '🤖';
+      }
+
+      const body = document.createElement('div');
+      if (senderType === 'bot') {
+        const author = document.createElement('div');
+        author.className = 'msg-author bot';
+        author.textContent = '🤖 Zeryn AI';
+        body.appendChild(author);
+      } else if (senderType === 'admin') {
+        const author = document.createElement('div');
+        author.className = 'msg-author admin';
+        author.textContent = '👑 Nhân Viên Hỗ Trợ';
+        body.appendChild(author);
+      }
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = content; // Anti-XSS safe textContent
+      body.appendChild(bubble);
+
+      const time = document.createElement('div');
+      time.className = 'msg-time';
+      time.textContent = timeStr || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      body.appendChild(time);
+
+      row.appendChild(avatar);
+      row.appendChild(body);
+      messagesContainer.appendChild(row);
+    }
+
+    // Trigger escalation to Discord alert
+    async function triggerEscalate() {
+      const btn = document.getElementById('escalate-btn');
+      if (btn.classList.contains('escalated')) return;
+
+      const confirmed = confirm('Bạn có muốn chuyển tiếp đoạn chat này tới kênh hỗ trợ kỹ thuật trên Discord không?');
+      if (!confirmed) return;
+
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/support/escalate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN
+          },
+          body: JSON.stringify({ thread_id: THREAD_ID })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          btn.classList.add('escalated');
+          document.getElementById('escalate-btn-text').textContent = 'Đã báo nhân viên';
+          document.getElementById('chat-status-text').textContent = '🟡 Đang liên hệ nhân viên hỗ trợ';
+          alert('✅ Đã gửi thông báo tới đội ngũ hỗ trợ kỹ thuật của ZerynBot trên Discord!');
+        }
+      } catch (err) {
+        console.error('Error escalating thread:', err);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Incremental polling for new messages every 3s
+    async function pollMessages() {
+      if (isPolling) return;
+      isPolling = true;
+      try {
+        const resp = await fetch(`/api/support/messages?thread_id=${THREAD_ID}&after_id=${lastMsgId}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.ok && data.messages && data.messages.length > 0) {
+            let hasNew = false;
+            data.messages.forEach(msg => {
+              if (msg.id > lastMsgId) {
+                // If it's a message not yet in the DOM
+                if (!document.querySelector(`[data-msg-id="${msg.id}"]`)) {
+                  appendMessageDOM(msg.sender_type, msg.sender_name, msg.content, USER_AVATAR, (msg.created_at || '').substring(11, 16), msg.id);
+                  hasNew = true;
+                }
+                lastMsgId = msg.id;
+              }
+            });
+            if (hasNew) {
+              document.getElementById('typing-indicator').style.display = 'none';
+              scrollToBottom();
+            }
+          }
+          if (data.status === 'escalated') {
+            document.getElementById('escalate-btn').classList.add('escalated');
+            document.getElementById('escalate-btn-text').textContent = 'Đã báo nhân viên';
+            document.getElementById('chat-status-text').textContent = '🟡 Đang liên hệ nhân viên hỗ trợ';
+          }
+        }
+      } catch (err) {
+        // silent catch on network lag
+      } finally {
+        isPolling = false;
+      }
+    }
+
+    setInterval(pollMessages, 3000);
+  </script>
+</body>
+</html>

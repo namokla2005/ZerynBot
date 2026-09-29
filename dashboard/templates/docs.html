@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="{{ current_ui_lang or 'vi' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ t('docs.meta_title') | default('Tài Liệu Hướng Dẫn & Danh Mục Lệnh — Zeryn') }}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=11.0">
+  <style>
+    :root {
+      --bg-dark: #0a0812;
+      --bg-card: rgba(22, 18, 36, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(168, 85, 247, 0.4);
+      --accent-purple: #a855f7;
+      --accent-pink: #ec4899;
+      --accent-blue: #3b82f6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --discord-bg: #313338;
+      --discord-embed-bg: #2b2d31;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    /* ─── Topbar ─────────────────────────────────────────── */
+    .topbar {
+      height: 72px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      background: rgba(10, 8, 18, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .topbar-brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .topbar-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-left: 40px;
+    }
+    .topbar-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.92rem;
+      transition: color 0.2s;
+    }
+    .topbar-link:hover, .topbar-link.active {
+      color: #fff;
+    }
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Language Switcher */
+    .lang-dropdown { position: relative; }
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      color: #e2e8f0;
+      padding: 7px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover { background: rgba(255, 255, 255, 0.1); }
+    .lang-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      background: #171328;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 6px;
+      min-width: 150px;
+      display: none;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      z-index: 200;
+    }
+    .lang-menu.show { display: block; }
+    .lang-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .lang-opt:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+    /* ─── Hero Header ────────────────────────────────────── */
+    .docs-hero {
+      padding: 64px 24px 40px;
+      text-align: center;
+      background: radial-gradient(ellipse at 50% 0%, rgba(168, 85, 247, 0.15) 0%, rgba(10, 8, 18, 0) 70%);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .docs-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      color: #d8b4fe;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .docs-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 0 16px;
+      letter-spacing: -0.02em;
+    }
+    .docs-subtitle {
+      max-width: 720px;
+      margin: 0 auto 32px;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    /* Search Bar */
+    .search-wrap {
+      max-width: 580px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      background: rgba(22, 18, 36, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 14px 20px 14px 48px;
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      box-sizing: border-box;
+    }
+    .search-input:focus {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.18);
+    }
+    .search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 1.15rem;
+    }
+
+    /* ─── Main Container & Category Tabs ─────────────────── */
+    .docs-container {
+      max-width: 1300px;
+      margin: 36px auto 80px;
+      padding: 0 24px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .cat-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 32px;
+      justify-content: center;
+    }
+    .cat-tab-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .cat-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .cat-tab-btn.active {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(236, 72, 153, 0.25));
+      border-color: var(--accent-purple);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(168, 85, 247, 0.2);
+    }
+    .cat-count {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+    }
+
+    /* ─── Commands Grid ──────────────────────────────────── */
+    .commands-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
+    }
+    .cmd-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+    }
+    .cmd-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    .cmd-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .cmd-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cmd-emoji {
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+    .cmd-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .cmd-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+    }
+    .cmd-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 16px;
+      flex-grow: 1;
+    }
+    .cmd-card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 12px;
+      margin-top: auto;
+    }
+    .cmd-usage-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cmd-view-btn {
+      color: var(--accent-purple);
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ─── Interactive Modal / Preview ────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-card {
+      background: #181528;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 660px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+      transform: scale(0.95);
+      transition: transform 0.25s ease;
+      box-sizing: border-box;
+    }
+    .modal-overlay.active .modal-card {
+      transform: scale(1);
+    }
+    .modal-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+    }
+    .modal-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: none;
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .modal-close-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+
+    .modal-section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 18px 0 8px;
+    }
+
+    /* Discord Simulation Box */
+    .discord-chat-bar {
+      background: #383a40;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #dbdee1;
+      margin-bottom: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .discord-chat-prefix { color: #5865f2; font-weight: 700; }
+    .discord-arg-tag {
+      background: rgba(88, 101, 242, 0.25);
+      color: #85b0f2;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    .discord-embed-wrap {
+      background: var(--discord-bg);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .discord-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .discord-body { flex: 1; min-width: 0; }
+    .discord-author-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .discord-author-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #00b0f4;
+    }
+    .discord-bot-tag {
+      font-size: 0.6rem;
+      font-weight: 700;
+      background: #5865f2;
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .discord-embed-card {
+      background: var(--discord-embed-bg);
+      border-left: 4px solid var(--accent-purple);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-top: 6px;
+    }
+    .discord-embed-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .discord-embed-desc {
+      font-size: 0.85rem;
+      color: #dbdee1;
+      line-height: 1.5;
+    }
+    .discord-fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .discord-field-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .discord-field-val {
+      font-size: 0.8rem;
+      color: #dbdee1;
+    }
+
+    /* Args list */
+    .args-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .arg-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .arg-name {
+      font-family: 'JetBrains Mono', monospace;
+      color: #a855f7;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .arg-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-left: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .topbar { padding: 0 16px; }
+      .topbar-links { display: none; }
+      .docs-title { font-size: 2rem; }
+      .commands-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <a href="{{ url_for('index') }}" class="topbar-brand">
+      <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
+      <span>Zeryn</span>
+    </a>
+
+    <div class="topbar-links">
+      <a href="{{ url_for('index') }}" class="topbar-link">{{ t('nav.home') | default('Trang Chủ') }}</a>
+      <a href="{{ url_for('docs_page') }}" class="topbar-link active">{{ t('nav.docs') | default('Tài Liệu') }}</a>
+      <a href="{{ url_for('dashboard_index') }}" class="topbar-link">{{ t('nav.dashboard') | default('Dashboard') }}</a>
+      <a href="{{ url_for('support_page') }}" class="topbar-link">{{ t('nav.support') | default('Hỗ Trợ 24/7') }}</a>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Language Dropdown -->
+      <div class="lang-dropdown">
+        <button class="lang-btn" onclick="toggleLangMenu()">
+          <i class="bi bi-translate"></i>
+          <span>{{ current_ui_lang | upper }}</span>
+          <i class="bi bi-chevron-down" style="font-size: 0.75rem;"></i>
+        </button>
+        <div class="lang-menu" id="lang-menu">
+          <a href="/set_lang/vi" class="lang-opt">🇻🇳 Tiếng Việt</a>
+          <a href="/set_lang/en" class="lang-opt">🇺🇸 English</a>
+          <a href="/set_lang/zh" class="lang-opt">🇨🇳 中文</a>
+          <a href="/set_lang/es" class="lang-opt">🇪🇸 Español</a>
+          <a href="/set_lang/pt" class="lang-opt">🇧🇷 Português</a>
+          <a href="/set_lang/fr" class="lang-opt">🇫🇷 Français</a>
+        </div>
+      </div>
+
+      {% if session.get('user') %}
+        <a href="{{ url_for('dashboard_index') }}" class="btn-pink-pill" style="padding: 8px 18px; font-size: 0.88rem;">
+          <img src="{{ session['user'].get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px;">
+          Dashboard
+        </a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn-pink-pill" style="padding: 8px 18px; font-size: 0.88rem;">
+          <i class="bi bi-discord" style="margin-right: 6px;"></i> {{ t('nav.login') | default('Đăng nhập') }}
+        </a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="docs-hero">
+    <div class="docs-badge">
+      <i class="bi bi-book-half"></i> {{ t('docs.hero_badge') | default('Tài Liệu Hướng Dẫn & Danh Mục Lệnh') }}
+    </div>
+    <h1 class="docs-title">{{ t('docs.hero_title') | default('Khám Phá Toàn Bộ Sức Mạnh Của ZerynBot') }}</h1>
+    <p class="docs-subtitle">
+      {{ t('docs.hero_subtitle') | default('Tra cứu 110 lệnh thuộc 17 danh mục với bộ mô phỏng cú pháp nhập liệu và phản hồi Discord Embed trực quan.') }}
+    </p>
+
+    <!-- Search Input -->
+    <div class="search-wrap">
+      <i class="bi bi-search search-icon"></i>
+      <input type="text" id="cmd-search" class="search-input" placeholder="{{ t('docs.search_placeholder') | default('Tìm kiếm theo tên lệnh hoặc mô tả... (ví dụ: /play, /ban, /rank)') }}" oninput="filterCommands()">
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="docs-container">
+    <!-- Category Filter Tabs -->
+    <div class="cat-tabs" id="cat-tabs">
+      <button class="cat-tab-btn active" onclick="selectCategory('all', this)">
+        <span>✨ {{ t('docs.all_categories') | default('Tất Cả') }}</span>
+        <span class="cat-count">{{ total_count }}</span>
+      </button>
+      {% for cat in commands_data %}
+      <button class="cat-tab-btn" onclick="selectCategory('{{ loop.index0 }}', this)">
+        <span>{{ cat.icon }} {{ cat.category }}</span>
+        <span class="cat-count">{{ cat.commands | length }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Commands List Grid -->
+    <div class="commands-grid" id="commands-grid">
+      {% for cat in commands_data %}
+        {% set cat_idx = loop.index0 %}
+        {% for cmd in cat.commands %}
+        <div class="cmd-card" data-cat="{{ cat_idx }}" data-name="{{ cmd.name | lower }}" data-desc="{{ cmd.desc | lower }}" onclick='openModal({{ cmd | tojson }})'>
+          <div class="cmd-card-header">
+            <div class="cmd-name-wrap">
+              <span class="cmd-emoji">{{ cmd.emoji }}</span>
+              <span class="cmd-name">/{{ cmd.name }}</span>
+            </div>
+            <span class="cmd-badge">Slash</span>
+          </div>
+          <div class="cmd-desc">{{ cmd.desc }}</div>
+          <div class="cmd-card-bottom">
+            <div class="cmd-usage-pill">{{ cmd.usage }}</div>
+            <span class="cmd-view-btn">{{ t('docs.view_preview') | default('Xem Preview') }} <i class="bi bi-arrow-right"></i></span>
+          </div>
+        </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </main>
+
+  <!-- Interactive Modal / Preview -->
+  <div class="modal-overlay" id="cmd-modal" onclick="closeModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-top">
+        <div class="modal-title-wrap">
+          <span id="m-emoji" style="font-size: 1.8rem;">📖</span>
+          <div>
+            <div id="m-name" style="font-size: 1.35rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #fff;">/help</div>
+            <div id="m-desc" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;"></div>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal()"><i class="bi bi-x"></i></button>
+      </div>
+
+      <!-- Syntax & Input Simulation -->
+      <div class="modal-section-title">{{ t('docs.modal_input_preview') | default('1. Cú pháp nhập liệu (Discord Slash)') }}</div>
+      <div class="discord-chat-bar" id="m-input-box">
+        <span class="discord-chat-prefix">/</span>
+        <span id="m-input-cmd" style="font-weight: 600; color: #fff;"></span>
+        <span id="m-input-args"></span>
+      </div>
+
+      <!-- Arguments Table -->
+      <div id="m-args-section" style="display: none;">
+        <div class="modal-section-title">{{ t('docs.modal_args_title') | default('Các tham số (Arguments)') }}</div>
+        <div class="args-list" id="m-args-list"></div>
+      </div>
+
+      <!-- Output Simulation -->
+      <div class="modal-section-title">{{ t('docs.modal_output_preview') | default('2. Kết quả xuất ra (Discord Output Simulation)') }}</div>
+      <div class="discord-embed-wrap">
+        <div class="discord-avatar">🤖</div>
+        <div class="discord-body">
+          <div class="discord-author-row">
+            <span class="discord-author-name">Zeryn</span>
+            <span class="discord-bot-tag">BOT</span>
+          </div>
+          <div class="discord-embed-card" id="m-embed-card">
+            <div class="discord-embed-title" id="m-embed-title"></div>
+            <div class="discord-embed-desc" id="m-embed-desc"></div>
+            <div class="discord-fields-grid" id="m-embed-fields"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; text-align: right;">
+        <button class="btn-pink-pill" style="padding: 10px 22px; font-size: 0.9rem;" onclick="closeModal()">
+          {{ t('docs.modal_close') | default('Đóng') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Language dropdown toggle
+    function toggleLangMenu() {
+      document.getElementById('lang-menu').classList.toggle('show');
+    }
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.lang-dropdown')) {
+        const menu = document.getElementById('lang-menu');
+        if (menu) menu.classList.remove('show');
+      }
+    });
+
+    let currentCategory = 'all';
+
+    function selectCategory(catIdx, btn) {
+      currentCategory = catIdx;
+      document.querySelectorAll('.cat-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterCommands();
+    }
+
+    function filterCommands() {
+      const q = document.getElementById('cmd-search').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.cmd-card');
+
+      cards.forEach(card => {
+        const cat = card.getAttribute('data-cat');
+        const name = card.getAttribute('data-name');
+        const desc = card.getAttribute('data-desc');
+
+        const matchesCat = (currentCategory === 'all' || cat === currentCategory);
+        const matchesQuery = (!q || name.includes(q) || desc.includes(q));
+
+        if (matchesCat && matchesQuery) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // Modal logic with safe DOM construction
+    function openModal(cmd) {
+      document.getElementById('m-emoji').textContent = cmd.emoji || '⚡';
+      document.getElementById('m-name').textContent = '/' + cmd.name;
+      document.getElementById('m-desc').textContent = cmd.desc || '';
+
+      // Input preview
+      document.getElementById('m-input-cmd').textContent = cmd.name;
+      const argsWrap = document.getElementById('m-input-args');
+      argsWrap.innerHTML = '';
+
+      const argsSection = document.getElementById('m-args-section');
+      const argsList = document.getElementById('m-args-list');
+      argsList.innerHTML = '';
+
+      if (cmd.args && cmd.args.length > 0) {
+        argsSection.style.display = 'block';
+        cmd.args.forEach(arg => {
+          // Chat tag
+          const tag = document.createElement('span');
+          tag.className = 'discord-arg-tag';
+          tag.textContent = arg.name + (arg.required ? '*' : '');
+          tag.style.marginRight = '6px';
+          argsWrap.appendChild(tag);
+
+          // Arg item
+          const item = document.createElement('div');
+          item.className = 'arg-item';
+          const left = document.createElement('div');
+          left.className = 'arg-name';
+          left.textContent = (arg.required ? '[Bắt buộc] ' : '[Tùy chọn] ') + arg.name;
+          const right = document.createElement('div');
+          right.className = 'arg-desc';
+          right.textContent = arg.desc || '';
+          item.appendChild(left);
+          item.appendChild(right);
+          argsList.appendChild(item);
+        });
+      } else {
+        argsSection.style.display = 'none';
+      }
+
+      // Output preview
+      const preview = cmd.preview || {};
+      const embedCard = document.getElementById('m-embed-card');
+      embedCard.style.borderLeftColor = preview.color || '#a855f7';
+
+      const titleEl = document.getElementById('m-embed-title');
+      titleEl.textContent = preview.title || ('/' + cmd.name);
+
+      const descEl = document.getElementById('m-embed-desc');
+      // Format markdown breaks cleanly without XSS
+      descEl.textContent = (preview.desc || cmd.desc || '').replace(/<br>/g, '\n').replace(/\*\*/g, '');
+
+      const fieldsEl = document.getElementById('m-embed-fields');
+      fieldsEl.innerHTML = '';
+      if (preview.fields && preview.fields.length > 0) {
+        fieldsEl.style.display = 'grid';
+        preview.fields.forEach(f => {
+          const fBox = document.createElement('div');
+          const fName = document.createElement('div');
+          fName.className = 'discord-field-name';
+          fName.textContent = f.name;
+          const fVal = document.createElement('div');
+          fVal.className = 'discord-field-val';
+          fVal.textContent = (f.value || '').replace(/\*\*/g, '');
+          fBox.appendChild(fName);
+          fBox.appendChild(fVal);
+          fieldsEl.appendChild(fBox);
+        });
+      } else {
+        fieldsEl.style.display = 'none';
+      }
+
+      document.getElementById('cmd-modal').classList.add('active');
+    }
+
+    function closeModal(e) {
+      if (!e || e.target === document.getElementById('cmd-modal') || e.target.closest('.modal-close-btn') || e.target.tagName === 'BUTTON') {
+        document.getElementById('cmd-modal').classList.remove('active');
+      }
+    }
+  </script>
+</body>
+</html>

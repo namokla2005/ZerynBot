@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="{{ current_ui_lang or 'vi' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ t('admin_support.meta_title') | default('Trung Tâm Hỗ Trợ Khách Hàng (Admin Messenger) — Zeryn') }}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=11.0">
+  <style>
+    :root {
+      --bg-dark: #07050e;
+      --bg-sidebar: #0f0c1b;
+      --bg-chat: #141024;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-purple: #a855f7;
+      --accent-pink: #ec4899;
+      --accent-gold: #eab308;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    /* Topbar */
+    .admin-topbar {
+      height: 60px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0b0914;
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    .admin-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .back-btn {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+    }
+    .back-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+
+    /* 2-Column Messenger Layout */
+    .messenger-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Threads List */
+    .threads-sidebar {
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .threads-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .threads-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .threads-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .search-thread-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      color: #fff;
+      padding: 8px 12px 8px 34px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      overflow-x: auto;
+    }
+    .f-tab {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 4px 10px;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .f-tab.active {
+      background: rgba(168, 85, 247, 0.2);
+      border-color: var(--accent-purple);
+      color: #fff;
+    }
+
+    /* Threads Scrollable List */
+    .threads-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .thread-item {
+      padding: 12px 14px;
+      border-radius: 12px;
+      display: flex;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .thread-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .thread-item.active {
+      background: rgba(168, 85, 247, 0.12);
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+    .thread-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .thread-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .thread-name-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .thread-user-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .thread-time {
+      font-size: 0.7rem;
+      color: #64748b;
+    }
+    .thread-snippet {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+    .thread-status-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+    .thread-status-badge.escalated {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .thread-status-badge.open {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .thread-status-badge.resolved {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .unread-pill {
+      background: #ef4444;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 999px;
+      margin-left: 6px;
+    }
+
+    /* Right Pane: Chat Window */
+    .chat-pane {
+      background: var(--bg-chat);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-pane-header {
+      padding: 14px 24px;
+      background: #0e0b1c;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .active-user-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .active-user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+    .active-user-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .active-user-id {
+      font-size: 0.75rem;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-select {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Messages History */
+    .admin-chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .admin-msg-row {
+      display: flex;
+      gap: 10px;
+      max-width: 78%;
+    }
+    .admin-msg-row.admin {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    .admin-msg-row.user, .admin-msg-row.bot {
+      align-self: flex-start;
+    }
+    .admin-msg-bubble {
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      word-break: break-word;
+      white-space: pre-wrap;
+      border: 1px solid var(--border-color);
+    }
+    .admin-msg-row.admin .admin-msg-bubble {
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.25), rgba(249, 115, 22, 0.25));
+      border-color: rgba(234, 179, 8, 0.4);
+      color: #fff;
+    }
+    .admin-msg-row.user .admin-msg-bubble {
+      background: rgba(255, 255, 255, 0.05);
+      color: #f1f5f9;
+    }
+    .admin-msg-row.bot .admin-msg-bubble {
+      background: rgba(168, 85, 247, 0.1);
+      border-color: rgba(168, 85, 247, 0.25);
+      color: #e2e8f0;
+    }
+    .admin-msg-meta {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* Reply Bar */
+    .admin-reply-bar {
+      padding: 16px 24px;
+      background: #0e0b1c;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+    .admin-reply-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      color: #fff;
+      padding: 12px 16px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      max-height: 100px;
+    }
+    .admin-reply-input:focus { border-color: var(--accent-gold); }
+    .btn-admin-send {
+      background: linear-gradient(135deg, #eab308, #f97316);
+      border: none;
+      color: #000;
+      font-weight: 700;
+      padding: 12px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 44px;
+      transition: all 0.2s;
+    }
+    .btn-admin-send:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(234, 179, 8, 0.35); }
+
+    .canned-chips {
+      display: flex;
+      gap: 6px;
+      padding: 8px 24px;
+      background: #0a0815;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      overflow-x: auto;
+    }
+    .canned-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: #94a3b8;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .canned-chip:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+    /* Empty state */
+    .empty-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="admin-topbar">
+    <div class="admin-topbar-left">
+      <a href="{{ url_for('admin_panel') }}" class="back-btn">
+        <i class="bi bi-arrow-left"></i> {{ t('admin.back_to_panel') | default('Về Trang Admin') }}
+      </a>
+      <span style="font-weight: 800; font-size: 1.05rem; color: #fff;">
+        <i class="bi bi-chat-dots-fill" style="color: #eab308; margin-right: 6px;"></i>
+        {{ t('admin_support.title') | default('Trung Tâm Hỗ Trợ 24/7 (Admin Messenger)') }}
+      </span>
+    </div>
+    <div>
+      <span style="font-size: 0.82rem; color: #94a3b8;">
+        Bot Owner: <strong style="color: #eab308;">{{ session['user'].get('username') }}</strong>
+      </span>
+    </div>
+  </header>
+
+  <!-- 2-Column Messenger -->
+  <div class="messenger-container">
+    <!-- Left Sidebar: Threads List -->
+    <aside class="threads-sidebar">
+      <div class="threads-header">
+        <div class="threads-title-row">
+          <span class="threads-title">
+            <i class="bi bi-inbox-fill" style="color: #a855f7;"></i>
+            {{ t('admin_support.inbox') | default('Hộp Thư Yêu Cầu') }}
+          </span>
+          <span id="threads-total-count" style="font-size: 0.78rem; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px; color: #cbd5e1;">
+            {{ threads | length }}
+          </span>
+        </div>
+
+        <div style="position: relative;">
+          <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #64748b;"></i>
+          <input type="text" id="thread-search" class="search-thread-input" placeholder="{{ t('admin_support.search_placeholder') | default('Tìm user hoặc ID...') }}" oninput="filterThreadsList()">
+        </div>
+
+        <div class="filter-tabs">
+          <button class="f-tab active" onclick="setFilter('all', this)">{{ t('admin_support.filter_all') | default('Tất cả') }}</button>
+          <button class="f-tab" onclick="setFilter('escalated', this)">🚨 {{ t('admin_support.filter_escalated') | default('Cần hỗ trợ') }}</button>
+          <button class="f-tab" onclick="setFilter('open', this)">{{ t('admin_support.filter_open') | default('Đang mở') }}</button>
+          <button class="f-tab" onclick="setFilter('resolved', this)">{{ t('admin_support.filter_resolved') | default('Đã xong') }}</button>
+        </div>
+      </div>
+
+      <div class="threads-list" id="threads-list">
+        {% for th in threads %}
+        <div class="thread-item {% if loop.first %}active{% endif %}" data-thread-id="{{ th.thread_id }}" data-status="{{ th.status }}" data-name="{{ th.user_name | lower }}" data-user-id="{{ th.user_id }}" onclick="selectThread('{{ th.thread_id }}', '{{ th.user_name }}', '{{ th.user_id }}', '{{ th.user_avatar }}', '{{ th.status }}', this)">
+          <img src="{{ th.user_avatar or url_for('static', filename='img/default_avatar.png') }}" class="thread-avatar">
+          <div class="thread-info">
+            <div class="thread-name-row">
+              <span class="thread-user-name">{{ th.user_name }}</span>
+              <span class="thread-time">{{ th.updated_at[11:16] if th.updated_at|length >= 16 else '' }}</span>
+            </div>
+            <div class="thread-snippet">{{ th.last_message or 'Chưa có tin nhắn' }}</div>
+            <div>
+              <span class="thread-status-badge {{ th.status }}">
+                {% if th.status == 'escalated' %}🚨 CẦN HỖ TRỢ{% elif th.status == 'resolved' %}Đã giải quyết{% else %}Đang mở{% endif %}
+              </span>
+              {% if th.unread_admin > 0 %}
+                <span class="unread-pill">{{ th.unread_admin }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <!-- Right Pane: Active Chat Window -->
+    <main class="chat-pane" id="chat-pane">
+      {% if threads %}
+        {% set active_th = threads[0] %}
+        <!-- Header -->
+        <div class="chat-pane-header">
+          <div class="active-user-meta">
+            <img id="active-avatar" src="{{ active_th.user_avatar or url_for('static', filename='img/default_avatar.png') }}" class="active-user-avatar">
+            <div>
+              <div id="active-name" class="active-user-name">{{ active_th.user_name }}</div>
+              <div id="active-uid" class="active-user-id">ID: {{ active_th.user_id }}</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <select id="active-status-select" class="status-select" onchange="changeThreadStatus(this.value)">
+              <option value="open" {% if active_th.status == 'open' %}selected{% endif %}>🟢 Đang mở</option>
+              <option value="escalated" {% if active_th.status == 'escalated' %}selected{% endif %}>🚨 Cần nhân viên hỗ trợ</option>
+              <option value="resolved" {% if active_th.status == 'resolved' %}selected{% endif %}>✅ Đã giải quyết</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Messages Area -->
+        <div class="admin-chat-messages" id="admin-chat-messages">
+          <div style="text-align: center; color: #64748b; font-size: 0.8rem; margin-bottom: 8px;">
+            Phiên hỗ trợ bắt đầu lúc {{ active_th.created_at }}
+          </div>
+        </div>
+
+        <!-- Canned Quick Chips -->
+        <div class="canned-chips">
+          <div class="canned-chip" onclick="fillAdminReply('Chào bạn! Tôi là Admin của ZerynBot. Tôi có thể hỗ trợ gì cho bạn?')">👋 Chào hỏi</div>
+          <div class="canned-chip" onclick="fillAdminReply('Bạn vui lòng cung cấp ID Server (Guild ID) để tôi kiểm tra nhật ký nhé.')">🔍 Xin Server ID</div>
+          <div class="canned-chip" onclick="fillAdminReply('Vấn đề của bạn đã được kỹ thuật viên xử lý xong, bạn vui lòng thử lại nhé!')">✅ Đã xử lý xong</div>
+        </div>
+
+        <!-- Reply Input -->
+        <form class="admin-reply-bar" onsubmit="sendAdminReply(event)">
+          <textarea id="admin-reply-input" class="admin-reply-input" rows="1" placeholder="{{ t('admin_support.reply_placeholder') | default('Nhập phản hồi gửi tới người dùng... (Enter để gửi)') }}" onkeydown="handleAdminKeyDown(event)"></textarea>
+          <button type="submit" class="btn-admin-send">
+            <i class="bi bi-send-fill"></i>
+            {{ t('admin_support.send_reply') | default('Gửi') }}
+          </button>
+        </form>
+      {% else %}
+        <div class="empty-chat">
+          <i class="bi bi-chat-square-dots" style="font-size: 3rem; color: rgba(255,255,255,0.1);"></i>
+          <p>{{ t('admin_support.no_threads') | default('Chưa có yêu cầu hỗ trợ nào từ người dùng.') }}</p>
+        </div>
+      {% endif %}
+    </main>
+  </div>
+
+  <script>
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    let activeThreadId = "{{ threads[0].thread_id if threads else '' }}";
+    let activeUserId = "{{ threads[0].user_id if threads else '' }}";
+    let currentFilter = 'all';
+    let lastAdminMsgId = 0;
+    let isPollingAdmin = false;
+
+    // Load messages on startup if thread exists
+    if (activeThreadId) {
+      loadThreadMessages(activeThreadId);
+    }
+
+    function setFilter(filterType, btn) {
+      currentFilter = filterType;
+      document.querySelectorAll('.f-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterThreadsList();
+    }
+
+    function filterThreadsList() {
+      const q = document.getElementById('thread-search').value.toLowerCase().trim();
+      const items = document.querySelectorAll('.thread-item');
+
+      items.forEach(item => {
+        const status = item.getAttribute('data-status');
+        const name = item.getAttribute('data-name');
+        const uid = item.getAttribute('data-user-id');
+
+        const matchesFilter = (currentFilter === 'all' || status === currentFilter);
+        const matchesQuery = (!q || name.includes(q) || uid.includes(q));
+
+        if (matchesFilter && matchesQuery) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    function selectThread(threadId, userName, userId, avatarUrl, status, itemEl) {
+      activeThreadId = threadId;
+      activeUserId = userId;
+      lastAdminMsgId = 0;
+
+      document.querySelectorAll('.thread-item').forEach(i => i.classList.remove('active'));
+      if (itemEl) itemEl.classList.add('active');
+
+      document.getElementById('active-avatar').src = avatarUrl || "{{ url_for('static', filename='img/default_avatar.png') }}";
+      document.getElementById('active-name').textContent = userName;
+      document.getElementById('active-uid').textContent = 'ID: ' + userId;
+      document.getElementById('active-status-select').value = status;
+
+      const msgContainer = document.getElementById('admin-chat-messages');
+      msgContainer.innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">Đang tải hội thoại...</div>';
+
+      loadThreadMessages(threadId);
+    }
+
+    async function loadThreadMessages(threadId) {
+      try {
+        const resp = await fetch(`/api/admin/support/thread/${threadId}/messages?after_id=0`);
+        if (resp.ok) {
+          const data = await resp.json();
+          const msgContainer = document.getElementById('admin-chat-messages');
+          msgContainer.innerHTML = '';
+
+          if (data.ok && data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+              appendAdminMsgDOM(msg.sender_type, msg.sender_name, msg.content, msg.created_at, msg.id);
+              if (msg.id > lastAdminMsgId) lastAdminMsgId = msg.id;
+            });
+            scrollAdminChatBottom();
+          } else {
+            msgContainer.innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">Chưa có tin nhắn trong phiên này.</div>';
+          }
+        }
+      } catch (err) {
+        console.error('Error loading messages:', err);
+      }
+    }
+
+    function appendAdminMsgDOM(senderType, senderName, content, createdAt, msgId) {
+      const container = document.getElementById('admin-chat-messages');
+      const row = document.createElement('div');
+      row.className = 'admin-msg-row ' + senderType;
+      if (msgId) row.setAttribute('data-msg-id', msgId);
+
+      const body = document.createElement('div');
+      const bubble = document.createElement('div');
+      bubble.className = 'admin-msg-bubble';
+      bubble.textContent = content; // Anti-XSS
+
+      const meta = document.createElement('div');
+      meta.className = 'admin-msg-meta';
+      const timeStr = createdAt && createdAt.length >= 16 ? createdAt.substring(11, 16) : '';
+      if (senderType === 'admin') {
+        meta.textContent = '👑 Bạn (' + timeStr + ')';
+        meta.style.textAlign = 'right';
+      } else if (senderType === 'bot') {
+        meta.textContent = '🤖 Zeryn AI (' + timeStr + ')';
+      } else {
+        meta.textContent = senderName + ' (' + timeStr + ')';
+      }
+
+      body.appendChild(bubble);
+      body.appendChild(meta);
+      row.appendChild(body);
+      container.appendChild(row);
+    }
+
+    function scrollAdminChatBottom() {
+      const c = document.getElementById('admin-chat-messages');
+      c.scrollTop = c.scrollHeight;
+    }
+
+    function fillAdminReply(text) {
+      const input = document.getElementById('admin-reply-input');
+      input.value = text;
+      input.focus();
+    }
+
+    function handleAdminKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendAdminReply(e);
+      }
+    }
+
+    async function sendAdminReply(e) {
+      if (e) e.preventDefault();
+      if (!activeThreadId) return;
+
+      const input = document.getElementById('admin-reply-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+
+      // Render locally immediately
+      appendAdminMsgDOM('admin', 'Admin', text, new Date().toISOString(), null);
+      scrollAdminChatBottom();
+
+      try {
+        const resp = await fetch(`/api/admin/support/thread/${activeThreadId}/reply`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN
+          },
+          body: JSON.stringify({ content: text })
+        });
+        const data = await resp.json();
+        if (data.ok && data.message_id) {
+          if (data.message_id > lastAdminMsgId) lastAdminMsgId = data.message_id;
+        }
+      } catch (err) {
+        console.error('Error sending admin reply:', err);
+      }
+    }
+
+    async function changeThreadStatus(newStatus) {
+      if (!activeThreadId) return;
+      try {
+        const resp = await fetch(`/api/admin/support/thread/${activeThreadId}/status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN
+          },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          // Update status badge in sidebar
+          const activeItem = document.querySelector(`.thread-item[data-thread-id="${activeThreadId}"]`);
+          if (activeItem) {
+            activeItem.setAttribute('data-status', newStatus);
+            const badge = activeItem.querySelector('.thread-status-badge');
+            if (badge) {
+              badge.className = 'thread-status-badge ' + newStatus;
+              badge.textContent = (newStatus === 'escalated' ? '🚨 CẦN HỖ TRỢ' : (newStatus === 'resolved' ? 'Đã giải quyết' : 'Đang mở'));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error updating status:', err);
+      }
+    }
+
+    // Polling active thread for new messages every 3s
+    async function pollAdminChat() {
+      if (!activeThreadId || isPollingAdmin) return;
+      isPollingAdmin = true;
+      try {
+        const resp = await fetch(`/api/admin/support/thread/${activeThreadId}/messages?after_id=${lastAdminMsgId}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.ok && data.messages && data.messages.length > 0) {
+            let hasNew = false;
+            data.messages.forEach(msg => {
+              if (msg.id > lastAdminMsgId) {
+                if (!document.querySelector(`[data-msg-id="${msg.id}"]`)) {
+                  appendAdminMsgDOM(msg.sender_type, msg.sender_name, msg.content, msg.created_at, msg.id);
+                  hasNew = true;
+                }
+                lastAdminMsgId = msg.id;
+              }
+            });
+            if (hasNew) scrollAdminChatBottom();
+          }
+        }
+      } catch (err) {
+        // silent
+      } finally {
+        isPollingAdmin = false;
+      }
+    }
+
+    setInterval(pollAdminChat, 3000);
+  </script>
+</body>
+</html>

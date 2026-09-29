@@ -256,6 +256,9 @@
       <button class="admin-tab" onclick="switchTab('terminal',this)">
         <i class="bi bi-terminal-fill"></i> {{ t('admin.tab_terminal') }}
       </button>
+      <a href="{{ url_for('admin_support_center') }}" class="admin-tab" style="text-decoration:none; color:inherit; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.3); color:#fde047;">
+        <i class="bi bi-chat-dots-fill"></i> Hỗ Trợ 24/7 (Messenger)
+      </a>
     </div>
 
     <div class="tab-panel active" id="panel-servers">

@@ -9,8 +9,10 @@ across all 6 languages (vi, en, zh, es, pt, fr).
 """
 
 import sys, os, json, copy
-sys.path.insert(0, '.')
-from dashboard.app import _COMMANDS_DATA
+try:
+    from commands_data import _COMMANDS_DATA
+except ImportError:
+    from dashboard.app import _COMMANDS_DATA
 
 # Dictionary of argument description translations across 6 languages
 ARG_TRANS = {

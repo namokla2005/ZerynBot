@@ -764,6 +764,118 @@ def server_commands(guild_id: str):
     ))
 
 
+# ─── Public Documentation & Interactive Commands Guide ─────────────────────────
+
+@app.route("/docs")
+def docs_page():
+    """Trang Tài Liệu Hướng Dẫn & Danh Mục 110 Lệnh (Public, Đa ngôn ngữ, Preview tương tác)."""
+    from dashboard.commands_catalog import get_localized_commands_data
+    ui_lang = session.get("ui_lang", "vi")
+    localized_data = get_localized_commands_data(ui_lang)
+    total = sum(len(c["commands"]) for c in localized_data)
+    return render_template(
+        "docs.html",
+        commands_data=localized_data,
+        total_count=total,
+        current_ui_lang=ui_lang
+    )
+
+
+# ─── 24/7 User Support Chat System ─────────────────────────────────────────────
+
+@app.route("/support")
+def support_page():
+    """Trang Hỗ Trợ 24/7 (Yêu cầu đăng nhập, chat với Zeryn AI và chuyển tiếp nhân viên)."""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    user = session["user"]
+    user_id = str(user.get("id"))
+    user_name = user.get("username", "User")
+    user_avatar = user.get("avatar_url", "")
+
+    thread = db.get_or_create_support_thread(user_id, user_name, user_avatar)
+    messages = db.get_support_messages(thread["thread_id"], after_id=0, limit=50)
+    db.mark_support_thread_read(thread["thread_id"], by_admin=False)
+
+    return render_template(
+        "support.html",
+        user=user,
+        thread=thread,
+        messages=messages,
+        current_ui_lang=session.get("ui_lang", "vi")
+    )
+
+
+@app.route("/api/support/messages")
+def api_support_messages():
+    """API Incremental Polling tin nhắn hỗ trợ (chống IDOR bằng cách kiểm tra user_id)."""
+    if "user" not in session:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    user_id = str(session["user"].get("id"))
+    thread_id = request.args.get("thread_id", "").strip()
+    after_id = int(request.args.get("after_id", 0) or 0)
+
+    thread = db.get_support_thread(thread_id, user_id=user_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "thread_not_found"}), 404
+
+    messages = db.get_support_messages(thread_id, after_id=after_id, limit=50)
+    db.mark_support_thread_read(thread_id, by_admin=False)
+    return jsonify({"ok": True, "messages": messages, "status": thread.get("status")})
+
+
+@app.route("/api/support/send", methods=["POST"])
+def api_support_send():
+    """API gửi tin nhắn từ người dùng, lưu DB ngay và đẩy tác vụ AI ngầm (non-blocking)."""
+    if "user" not in session:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    user_id = str(session["user"].get("id"))
+    user_name = session["user"].get("username", "User")
+    data = request.get_json(silent=True) or request.form
+    thread_id = data.get("thread_id", "").strip()
+    content = data.get("content", "").strip()
+
+    if not thread_id or not content:
+        return jsonify({"ok": False, "error": "invalid_payload"}), 400
+
+    thread = db.get_support_thread(thread_id, user_id=user_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "thread_not_found"}), 404
+
+    # 1. Lưu tin nhắn người dùng tức thì (<5ms commit)
+    msg = db.add_support_message(
+        thread_id=thread_id,
+        sender_type="user",
+        sender_id=user_id,
+        sender_name=user_name,
+        content=content
+    )
+
+    # 2. Đẩy vào background worker xử lý AI và Discord escalation alert (không block)
+    from dashboard.support_service import process_user_support_message_async
+    process_user_support_message_async(thread_id, user_id, user_name, content)
+
+    return jsonify({"ok": True, "message_id": msg.get("id")})
+
+
+@app.route("/api/support/escalate", methods=["POST"])
+def api_support_escalate():
+    """API kích hoạt chuyển tiếp tới nhân viên hỗ trợ khi người dùng bấm nút."""
+    if "user" not in session:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    user_id = str(session["user"].get("id"))
+    user_name = session["user"].get("username", "User")
+    data = request.get_json(silent=True) or request.form
+    thread_id = data.get("thread_id", "").strip()
+
+    thread = db.get_support_thread(thread_id, user_id=user_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "thread_not_found"}), 404
+
+    from dashboard.support_service import manual_escalate_thread
+    alerted = manual_escalate_thread(thread_id, user_id, user_name, thread.get("last_message", ""))
+    return jsonify({"ok": True, "alerted": alerted})
+
 
 @app.route("/dashboard/<guild_id>/music")
 @guild_access_required
@@ -1394,6 +1506,73 @@ def api_admin_activity_logs():
     """Trả về tối đa 50 log hoạt động gần nhất trong vòng 7 ngày (tự động xóa log > 7 ngày)."""
     logs = db.get_system_activity_logs(limit=50, days_ttl=7)
     return jsonify({"ok": True, "logs": logs})
+
+
+# ─── Admin Support Messenger ──────────────────────────────────────────────────
+
+@app.route("/admin/support")
+@app.route("/admin/support/")
+@owner_required
+def admin_support_center():
+    """Trang quản trị hỗ trợ khách hàng phong cách Messenger 2 cột."""
+    status_filter = request.args.get("status")
+    threads = db.get_all_support_threads(status_filter=status_filter)
+    return render_template(
+        "admin_support.html",
+        threads=threads,
+        current_ui_lang=session.get("ui_lang", "vi")
+    )
+
+
+@app.route("/api/admin/support/thread/<thread_id>/messages")
+@owner_required
+def api_admin_thread_messages(thread_id: str):
+    """API lấy tin nhắn của một thread cụ thể cho Admin."""
+    after_id = int(request.args.get("after_id", 0) or 0)
+    thread = db.get_support_thread(thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "thread_not_found"}), 404
+
+    messages = db.get_support_messages(thread_id, after_id=after_id, limit=50)
+    db.mark_support_thread_read(thread_id, by_admin=True)
+    return jsonify({"ok": True, "messages": messages, "status": thread.get("status")})
+
+
+@app.route("/api/admin/support/thread/<thread_id>/reply", methods=["POST"])
+@owner_required
+def api_admin_thread_reply(thread_id: str):
+    """API gửi tin nhắn phản hồi từ Admin tới User."""
+    data = request.get_json(silent=True) or request.form
+    content = data.get("content", "").strip()
+    if not content:
+        return jsonify({"ok": False, "error": "empty_content"}), 400
+
+    thread = db.get_support_thread(thread_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "thread_not_found"}), 404
+
+    admin_name = session["user"].get("username", "Admin")
+    msg = db.add_support_message(
+        thread_id=thread_id,
+        sender_type="admin",
+        sender_id=str(session["user"].get("id")),
+        sender_name=admin_name,
+        content=content
+    )
+    return jsonify({"ok": True, "message_id": msg.get("id")})
+
+
+@app.route("/api/admin/support/thread/<thread_id>/status", methods=["POST"])
+@owner_required
+def api_admin_thread_status(thread_id: str):
+    """API cập nhật trạng thái thread ('open', 'escalated', 'resolved')."""
+    data = request.get_json(silent=True) or request.form
+    status = data.get("status", "").strip()
+    if status not in ("open", "escalated", "resolved"):
+        return jsonify({"ok": False, "error": "invalid_status"}), 400
+
+    updated = db.update_support_thread_status(thread_id, status)
+    return jsonify({"ok": updated})
 
 
 @app.route("/admin/ai_key", methods=["POST"])

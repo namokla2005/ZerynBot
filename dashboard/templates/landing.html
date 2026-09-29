@@ -1158,21 +1158,21 @@
   <p class="guides-subtitle">{{ t('landing.guides_sub') }}</p>
 
   <div class="guides-grid">
-    <div class="guide-card">
+    <a href="{{ url_for('docs_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
       <div class="guide-icon"><i class="bi bi-journal-bookmark-fill"></i></div>
       <h3>{{ t('landing.guide1_title') }}</h3>
       <p>{{ t('landing.guide1_desc') }}</p>
-    </div>
-    <div class="guide-card">
+    </a>
+    <a href="{{ url_for('dashboard_index') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
       <div class="guide-icon"><i class="bi bi-sliders"></i></div>
       <h3>{{ t('landing.guide2_title') }}</h3>
       <p>{{ t('landing.guide2_desc') }}</p>
-    </div>
-    <div class="guide-card">
+    </a>
+    <a href="{{ url_for('support_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
       <div class="guide-icon"><i class="bi bi-people-fill"></i></div>
       <h3>{{ t('landing.guide3_title') }}</h3>
       <p>{{ t('landing.guide3_desc') }}</p>
-    </div>
+    </a>
   </div>
 </section>
 
