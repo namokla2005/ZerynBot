@@ -57,19 +57,24 @@ def mask_key(key: str) -> str:
     return f"{k[:7]}...{k[-4:]}"
 
 
-def parse_key_pool(raw: str) -> List[str]:
-    """Parse newline or comma or semicolon separated keys, strip and deduplicate."""
-    if not raw:
+def parse_key_pool(raw: str, max_keys: int = 50) -> List[str]:
+    """Parse newline or comma or semicolon separated keys, strip, sanitize and deduplicate."""
+    if not raw or not isinstance(raw, str):
         return []
-    # Split by newlines, commas, semicolons
+    # Limit raw input length to prevent DOS
+    raw = raw[:10000]
     tokens = re.split(r"[\r\n,;]+", raw)
     keys = []
     seen = set()
     for tok in tokens:
         k = tok.strip().strip("'\"")
-        if k and k not in seen:
+        # Sanitize: only alphanumeric, hyphen, underscore, dot
+        k = re.sub(r"[^a-zA-Z0-9_\.-]", "", k)
+        if len(k) >= 8 and len(k) <= 256 and k not in seen:
             seen.add(k)
             keys.append(k)
+            if len(keys) >= max_keys:
+                break
     return keys
 
 
@@ -134,6 +139,11 @@ class AIProviderManager:
         """Mark a key as rate-limited with exponential backoff up to 300s."""
         now = time.time()
         with self._state_lock:
+            # Purge expired cooldowns to prevent memory leak
+            expired = [k for k, v in self._cooldowns.items() if now >= v[0]]
+            for k in expired:
+                self._cooldowns.pop(k, None)
+
             info = self._cooldowns.get(key)
             if info:
                 until, prev_backoff = info
