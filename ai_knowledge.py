@@ -35,7 +35,7 @@ def get_zerynbot_knowledge() -> str:
         "12. Economy: Hệ thống kinh tế kép tách biệt: Ví tiền mặt (Wallet - cược game mini /coinflip, /slots, /blackjack) và Ngân hàng (Bank - cất giữ an toàn, mua sắm Role trong /shop).",
         "13. Temp Voice: Kênh thoại tự động (Voice Hub), tự tạo phòng riêng khi tham gia, tự xóa khi phòng trống.",
         "14. Custom Commands: Tự tạo lệnh tùy biến không giới hạn với placeholder linh hoạt.",
-        "15. AI Assistant: Trợ lý thông minh đa mô hình (Google Gemini 3.x, Groq LPU, Vision đa phương thức, tìm kiếm web).",
+        "15. AI Assistant: Trợ lý thông minh đa mô hình (hệ thống AI tốc độ cao, Vision đa phương thức, tìm kiếm web DuckDuckGo).",
         "16. Remind: Lệnh nhắc hẹn giờ thông minh /remind me.",
         "17. Moderation: Bộ công cụ quản trị máy chủ (/ban, /kick, /timeout, /warn, /clear, /lock, /slowmode).",
         "18. Fun: Các lệnh giải trí, meme, mini-games thú vị.",
