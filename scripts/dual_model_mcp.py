@@ -49,10 +49,12 @@ server = MCPServer(
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "data", "bot.db")
 
+MODEL2_PRIMARY_MODEL = "google/gemma-4-31b-it:free"
+
 GROQ_FALLBACK_MODELS = [
     "qwen/qwen3.8-27b",
-    "openai/gpt-oss-20b",
     "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
     "groq/compound-mini",
 ]
 
@@ -212,40 +214,64 @@ def _extract_json_block(raw_text: str) -> dict:
 # 3. Model API Connectors & Dispatcher
 # ==========================================
 
+def _extract_clean_keys(raw: str) -> list[str]:
+    if not raw:
+        return []
+    items = []
+    for line in raw.replace(",", "\n").splitlines():
+        k = line.strip()
+        if k and not k.startswith("#") and k not in items:
+            items.append(k)
+    return items
+
+
 def _get_api_keys():
     """Lấy API key từ env, .env, hoặc bot_global_settings trong data/bot.db."""
-    keys = {
-        "gemini": os.environ.get("GEMINI_API_KEY", "").strip(),
-        "groq": os.environ.get("GROQ_API_KEY", "").strip(),
-        "openrouter": os.environ.get("OPENROUTER_API_KEY", "").strip(),
+    pools = {
+        "gemini": _extract_clean_keys(os.environ.get("GEMINI_API_KEY", "")),
+        "groq": _extract_clean_keys(os.environ.get("GROQ_API_KEY", "")),
+        "openrouter": _extract_clean_keys(os.environ.get("OPENROUTER_API_KEY", "")),
     }
 
     if os.path.exists(DB_PATH):
         try:
             with sqlite3.connect(DB_PATH, timeout=5.0) as conn:
                 for row in conn.execute("SELECT key, value FROM bot_global_settings").fetchall():
-                    k, v = row[0], str(row[1]).strip()
-                    if k == "gemini_api_key" and v:
-                        if v.startswith("gsk_") and not keys["groq"]:
-                            keys["groq"] = v
-                        elif v.startswith("sk-or-") and not keys["openrouter"]:
-                            keys["openrouter"] = v
-                        elif not keys["gemini"]:
-                            keys["gemini"] = v
-                    elif k == "groq_api_key" and v and not keys["groq"]:
-                        keys["groq"] = v
+                    k, v = str(row[0]).strip(), str(row[1]).strip()
+                    if not v:
+                        continue
+                    extracted = _extract_clean_keys(v)
+                    if k in ("gemini_api_keys", "gemini_api_key"):
+                        for item in extracted:
+                            if item.startswith("gsk_") and item not in pools["groq"]:
+                                pools["groq"].append(item)
+                            elif item.startswith("sk-or-") and item not in pools["openrouter"]:
+                                pools["openrouter"].append(item)
+                            elif item not in pools["gemini"]:
+                                pools["gemini"].append(item)
+                    elif k in ("groq_api_keys", "groq_api_key"):
+                        for item in extracted:
+                            if item not in pools["groq"]:
+                                pools["groq"].append(item)
+                    elif k in ("openrouter_api_keys", "openrouter_api_key"):
+                        for item in extracted:
+                            if item not in pools["openrouter"]:
+                                pools["openrouter"].append(item)
         except Exception:
             pass
 
-    return keys
+    return {
+        "gemini": pools["gemini"][0] if pools["gemini"] else "",
+        "groq": pools["groq"][0] if pools["groq"] else "",
+        "openrouter": pools["openrouter"][0] if pools["openrouter"] else "",
+        "all_gemini": pools["gemini"],
+        "all_groq": pools["groq"],
+        "all_openrouter": pools["openrouter"],
+    }
 
 
-def _call_gemini(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
-    models_to_try = [model]
-    for m in ["gemini-3.1-pro-preview", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]:
-        if m not in models_to_try:
-            models_to_try.append(m)
-
+def _call_gemini_single(api_key: str, model: str, prompt: str, system_instruction: str = "") -> tuple[bool, str]:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     contents = []
     if system_instruction:
         contents.append({"role": "user", "parts": [{"text": f"[SYSTEM INSTRUCTION]\n{system_instruction}"}]})
@@ -257,70 +283,26 @@ def _call_gemini(api_key: str, model: str, prompt: str, system_instruction: str 
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2000}
     }
     headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
-
-    last_err = ""
-    for target_model in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent"
-        try:
-            r = requests.post(url, headers=headers, json=payload, timeout=30)
-            if r.status_code == 200:
-                data = r.json()
-                candidates = data.get("candidates", [])
-                if candidates:
-                    cparts = candidates[0].get("content", {}).get("parts", [])
-                    if cparts:
-                        return cparts[0].get("text", "").strip()
-            elif r.status_code in (429, 404, 503):
-                last_err = f"HTTP {r.status_code} on {target_model}"
-                continue
-            else:
-                last_err = f"HTTP {r.status_code}: {r.text[:120]}"
-        except Exception as e:
-            last_err = str(e)
-            continue
-
-    return f"❌ Lỗi Gemini API: {last_err}"
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            candidates = data.get("candidates", [])
+            if candidates:
+                cparts = candidates[0].get("content", {}).get("parts", [])
+                if cparts:
+                    return True, cparts[0].get("text", "").strip()
+            return False, "Gemini trả về candidate rỗng."
+        elif r.status_code in (429, 404, 503):
+            return False, f"Gemini HTTP {r.status_code} on {model}"
+        else:
+            return False, f"Gemini HTTP {r.status_code}: {r.text[:120]}"
+    except Exception as e:
+        return False, f"Gemini Error: {e}"
 
 
-def _call_groq(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
-    models_to_try = [model] + [m for m in GROQ_FALLBACK_MODELS if m != model]
-    last_err = ""
-
-    for target_model in models_to_try:
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        messages = []
-        if system_instruction:
-            messages.append({"role": "system", "content": system_instruction})
-        messages.append({"role": "user", "content": prompt})
-
-        payload = {
-            "model": target_model,
-            "messages": messages,
-            "temperature": 0.3,
-            "max_tokens": 2000
-        }
-        try:
-            r = requests.post(url, headers=headers, json=payload, timeout=35)
-            if r.status_code == 200:
-                data = r.json()
-                content = data["choices"][0]["message"]["content"].strip()
-                if content:
-                    return content
-            elif r.status_code == 429:
-                last_err = f"Rate limit on {target_model}, trying next..."
-                time.sleep(1.0)
-                continue
-            else:
-                last_err = f"HTTP {r.status_code}: {r.text}"
-        except Exception as e:
-            last_err = str(e)
-
-    return f"❌ Lỗi Groq API: {last_err}"
-
-
-def _call_openrouter(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
-    url = "https://openrouter.ai/api/v1/chat/completions"
+def _call_groq_single(api_key: str, model: str, prompt: str, system_instruction: str = "") -> tuple[bool, str]:
+    url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     messages = []
     if system_instruction:
@@ -331,16 +313,82 @@ def _call_openrouter(api_key: str, model: str, prompt: str, system_instruction: 
         "model": model,
         "messages": messages,
         "temperature": 0.3,
-        "max_tokens": 1200
+        "max_tokens": 1800
     }
-    r = requests.post(url, headers=headers, json=payload, timeout=30)
-    if r.status_code == 200:
-        data = r.json()
-        try:
-            return data["choices"][0]["message"]["content"].strip()
-        except (KeyError, IndexError):
-            return "❌ Phản hồi rỗng từ OpenRouter API."
-    return f"❌ Lỗi OpenRouter API (HTTP {r.status_code}): {r.text}"
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if content:
+                return True, content
+            return False, "Groq trả về content rỗng."
+        elif r.status_code == 429:
+            return False, f"Groq HTTP 429 Rate Limit on {model}"
+        else:
+            return False, f"Groq HTTP {r.status_code}: {r.text[:120]}"
+    except Exception as e:
+        return False, f"Groq Error: {e}"
+
+
+def _call_openrouter(api_key: str, model: str, prompt: str, system_instruction: str = "") -> tuple[bool, str]:
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://zerynbot.id.vn",
+        "X-Title": "ZerynBot Architecture Reviewer"
+    }
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.3,
+        "max_tokens": 1500
+    }
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if content:
+                return True, content
+            return False, "OpenRouter trả về content rỗng."
+        elif r.status_code == 429:
+            return False, f"OpenRouter HTTP 429 Rate Limit / Token Exceeded on {model}"
+        else:
+            return False, f"OpenRouter HTTP {r.status_code}: {r.text[:120]}"
+    except Exception as e:
+        return False, f"OpenRouter Error: {e}"
+
+
+def _call_gemini(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
+    models_to_try = [model]
+    for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]:
+        if m not in models_to_try:
+            models_to_try.append(m)
+    last_err = ""
+    for target_model in models_to_try:
+        ok, res = _call_gemini_single(api_key, target_model, prompt, system_instruction)
+        if ok:
+            return res
+        last_err = res
+    return f"❌ Lỗi Gemini API: {last_err}"
+
+
+def _call_groq(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
+    models_to_try = [model] + [m for m in GROQ_FALLBACK_MODELS if m != model]
+    last_err = ""
+    for target_model in models_to_try:
+        ok, res = _call_groq_single(api_key, target_model, prompt, system_instruction)
+        if ok:
+            return res
+        last_err = res
+    return f"❌ Lỗi Groq API: {last_err}"
 
 
 def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> str:
@@ -352,7 +400,7 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
             "Bạn là Senior Security Auditor & Code Reviewer khó tính cho ZerynBot V2. "
             "Dự án vận hành trên Android Termux (ARM64, CPU Helio G85, RAM 6GB, SQLite WAL 15s timeout). "
             "Nhiệm vụ của bạn là soi xét tỉ mỉ mã nguồn, chỉ ra các lỗ hổng bảo mật (SSRF, XSS, IDOR, SQL injection/deadlock), "
-            "vấn đề quá tải CPU/RAM trên Termux, lỗi async/sync, race conditions, và phá vỡ chuẩn 20 modules / 108 lệnh / 1621 keys i18n. "
+            "vấn đề quá tải CPU/RAM trên Termux, lỗi async/sync, race conditions, và phá vỡ chuẩn 20 modules / 110 lệnh / 1694 keys i18n. "
             "Trả lời súc tích bằng tiếng Việt, đi thẳng vào các điểm yếu cốt lõi."
         ),
         "architect": (
@@ -372,25 +420,92 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
     }
     sys_inst = role_instructions.get(role, role_instructions["general"])
 
-    # 1. Ưu tiên Google Gemini (Gemini 3.1 Pro Preview / 3.x Flash) theo yêu cầu hệ thống
-    if keys["gemini"] and (model_pref == "auto" or model_pref.startswith("gemini")):
-        model = "gemini-3.1-pro-preview" if model_pref == "auto" else model_pref
-        return _call_gemini(keys["gemini"], model, prompt, sys_inst)
+    # 1. Trường hợp người dùng chỉ định đích danh model (Explicit Model Preference)
+    if model_pref != "auto":
+        if model_pref.startswith("gemini"):
+            for k in keys.get("all_gemini", [keys["gemini"]]):
+                if k:
+                    ok, res = _call_gemini_single(k, model_pref, prompt, sys_inst)
+                    if ok:
+                        return res
+        elif model_pref.startswith("qwen") or model_pref.startswith("openai/"):
+            for k in keys.get("all_groq", [keys["groq"]]):
+                if k:
+                    ok, res = _call_groq_single(k, model_pref, prompt, sys_inst)
+                    if ok:
+                        return res
+        else:
+            for k in keys.get("all_openrouter", [keys["openrouter"]]):
+                if k:
+                    ok, res = _call_openrouter(k, model_pref, prompt, sys_inst)
+                    if ok:
+                        return res
 
-    # 2. Dự phòng Groq LPU (Qwen 2.5 / GPT-OSS)
-    if keys["groq"] and (model_pref == "auto" or model_pref.startswith("qwen") or model_pref.startswith("openai/")):
-        model = "qwen/qwen3.8-27b" if model_pref == "auto" else model_pref
-        return _call_groq(keys["groq"], model, prompt, sys_inst)
+    # 2. Quy trình phân tầng mặc định cho Model 2:
+    # Tier 1: Google: Gemma 4 31B (free) qua OpenRouter
+    # Tier 2: Qwen 3.8 27B qua Groq
+    # Tier 3: GPT-OSS 120B qua Groq
+    # Tier 4: Safe Fallbacks (Groq GPT-OSS 20B -> OpenRouter Free -> Gemini Flash)
+    err_log = []
 
-    # 3. Fallback OpenRouter
-    if keys["openrouter"]:
-        model = "deepseek/deepseek-chat" if model_pref == "auto" else model_pref
-        return _call_openrouter(keys["openrouter"], model, prompt, sys_inst)
+    # --- TIER 1 (Ưu tiên số 1): Google: Gemma 4 31B (free) qua OpenRouter ---
+    openrouter_keys = keys.get("all_openrouter", [])
+    if openrouter_keys:
+        for k in openrouter_keys:
+            ok, res = _call_openrouter(k, MODEL2_PRIMARY_MODEL, prompt, sys_inst)
+            if ok:
+                return res
+            err_log.append(f"Tier 1 (Gemma 4 31B Free): {res}")
 
-    return (
-        "❌ Chưa tìm thấy API Key nào (Gemini, Groq hoặc OpenRouter). "
-        "Vui lòng cấu hình GEMINI_API_KEY hoặc GROQ_API_KEY trong file .env hoặc trên Web Dashboard /admin!"
-    )
+    # --- TIER 2 (Fallback 1 khi hết Token / 429): Qwen 3.8 27B qua Groq ---
+    groq_keys = keys.get("all_groq", [])
+    if groq_keys:
+        for k in groq_keys:
+            ok, res = _call_groq_single(k, "qwen/qwen3.8-27b", prompt, sys_inst)
+            if ok:
+                return res
+            err_log.append(f"Tier 2 (Groq Qwen 3.8 27B): {res}")
+
+    # --- TIER 3 (Fallback 2 khi hết Token tiếp): GPT-OSS 120B qua Groq ---
+    if groq_keys:
+        for k in groq_keys:
+            ok, res = _call_groq_single(k, "openai/gpt-oss-120b", prompt, sys_inst)
+            if ok:
+                return res
+            err_log.append(f"Tier 3 (Groq GPT-OSS 120B): {res}")
+
+    # --- TIER 4 (Dự phòng an toàn mở rộng): Groq GPT-OSS 20B -> OpenRouter Free -> Gemini Flash ---
+    if groq_keys:
+        for k in groq_keys:
+            for alt_groq in ["openai/gpt-oss-20b", "groq/compound-mini"]:
+                ok, res = _call_groq_single(k, alt_groq, prompt, sys_inst)
+                if ok:
+                    return res
+                err_log.append(f"Tier 4 (Groq {alt_groq}): {res}")
+
+    if openrouter_keys:
+        for k in openrouter_keys:
+            ok, res = _call_openrouter(k, "openrouter/free", prompt, sys_inst)
+            if ok:
+                return res
+            err_log.append(f"Tier 4 (OpenRouter Free): {res}")
+
+    gemini_keys = keys.get("all_gemini", [])
+    if gemini_keys:
+        for k in gemini_keys:
+            for gem_m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]:
+                ok, res = _call_gemini_single(k, gem_m, prompt, sys_inst)
+                if ok:
+                    return res
+                err_log.append(f"Tier 4 (Gemini {gem_m}): {res}")
+
+    if not err_log:
+        return (
+            "❌ Chưa tìm thấy API Key nào khả dụng (OpenRouter, Groq hoặc Gemini). "
+            "Vui lòng cấu hình API Key trong file .env hoặc trên Web Dashboard /admin!"
+        )
+
+    return "❌ Toàn bộ các tầng model Model 2 thất bại:\n" + "\n".join(f"  • {e}" for e in err_log)
 
 
 # ==========================================
@@ -431,7 +546,7 @@ def execute_review_code_file(file_path: str) -> str:
         f"Yêu cầu:\n"
         f"1. Soi xét các lỗ hổng bảo mật (SSRF, Stored XSS, IDOR, SQL injection, SQLite deadlock).\n"
         f"2. Đánh giá rủi ro phần cứng trên Termux (rò rỉ RAM, quá tải CPU, I/O blocking, cờ ffmpeg).\n"
-        f"3. Kiểm tra tuân thủ kiến trúc ZerynBot V2 (20 modules, 108 commands, 1621 keys i18n, async_ vs sync_ db helpers).\n"
+        f"3. Kiểm tra tuân thủ kiến trúc ZerynBot V2 (20 modules, 110 commands, 1694 keys i18n, async_ vs sync_ db helpers).\n"
         f"4. Chỉ liệt kê tối đa 3-4 vấn đề trọng tâm nhất, mô tả ngắn gọn súc tích dưới 25 từ mỗi vấn đề để JSON không bị cắt cụt.\n"
         f"BẮT BUỘC trả về duy nhất một khối JSON (không bọc thêm lời mở đầu hay kết luận) có cấu trúc:\n"
         f"{{\n"
@@ -602,7 +717,7 @@ def execute_pre_commit_check() -> str:
     }
     local_notes = []
     if any("locales/" in f for f in changed_files):
-        local_notes.append("• Có thay đổi file từ điển i18n -> Cần chạy validate_i18n.py xác nhận chuẩn 1621 keys.")
+        local_notes.append("• Có thay đổi file từ điển i18n -> Cần chạy validate_i18n.py xác nhận chuẩn 1694 keys.")
     if any("bot/cogs/" in f for f in changed_files):
         local_notes.append("• Có thay đổi cogs -> Cần đảm bảo async_ database helpers và module guards.")
 

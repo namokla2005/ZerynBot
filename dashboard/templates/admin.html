@@ -643,15 +643,20 @@
                 </optgroup>
                 <optgroup label="⚡ Groq Cloud LPU Models">
                   <option value="qwen/qwen3.8-27b" {% if global_ai_model in ['qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b'] %}selected{% endif %}>💬 Qwen 3.8 27B — Tiếng Việt tự nhiên & Mượt mà (~300 tps)</option>
+                  <option value="openai/gpt-oss-120b" {% if global_ai_model in ['openai/gpt-oss-120b', 'groq/openai/gpt-oss-120b'] %}selected{% endif %}>🧠 GPT-OSS 120B — Mô hình mã nguồn mở siêu lớn & sâu sắc</option>
                   <option value="openai/gpt-oss-20b" {% if global_ai_model in ['openai/gpt-oss-20b', 'groq/openai/gpt-oss-20b'] %}selected{% endif %}>⚡ GPT-OSS 20B — Nhẹ và siêu nhanh (~1000 tps)</option>
                   <option value="groq/compound" {% if global_ai_model in ['groq/compound', 'groq/groq/compound'] %}selected{% endif %}>🌐 Groq Compound — Hỗ trợ tự động duyệt web</option>
                 </optgroup>
+                <optgroup label="🌐 OpenRouter Models (Free)">
+                  <option value="google/gemma-4-31b-it:free" {% if global_ai_model == 'google/gemma-4-31b-it:free' %}selected{% endif %}>💎 Google: Gemma 4 31B (free) — Phản biện & Deep Reasoning</option>
+                  <option value="openrouter/free" {% if global_ai_model == 'openrouter/free' %}selected{% endif %}>🔄 OpenRouter Free Auto-Router — Tự động chuyển model free khả dụng</option>
+                </optgroup>
                 <optgroup label="✍️ Khác">
-                  <option value="custom" {% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
+                  <option value="custom" {% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
                 </optgroup>
               </select>
-              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound'] %}block{% else %}none{% endif %};">
-                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: gemini-3.6-flash)" style="width:100%; font-size:0.85rem; font-family:monospace;">
+              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free'] %}block{% else %}none{% endif %};">
+                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: gemini-3.6-flash)" style="width:100%; font-size:0.85rem; font-family:monospace;">
               </div>
             </div>
 

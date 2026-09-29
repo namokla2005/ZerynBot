@@ -10,7 +10,12 @@ Tài liệu này hướng dẫn cách Antigravity AI kết hợp đồng thời 
 > **Quy Tắc Mặc Định Bắt Buộc**: AI phải **luôn luôn vận hành song song 2 Model AI** trong toàn bộ vòng đời phát triển (tiếp nhận yêu cầu, phân tích nguyên nhân gốc rễ, lên phương án kiến trúc, phản biện kỹ thuật và rà soát mã nguồn). Không được bỏ qua Model 2 trong bất kỳ tác vụ chỉnh sửa logic nào.
 
 - **Agent Chính (Primary Agent - Gemini 3.8 Flash)**: Đóng vai trò **Lead Architect & Coordinator** trong Antigravity IDE (suy luận ngữ cảnh lớn 1M+ tokens, lập kế hoạch, chỉnh sửa code và điều phối công việc).
-- **Model Thứ 2 (Secondary Model - Qwen 3.8 27B / GPT-OSS 20B trên Groq LPU)**: Đóng vai trò **Independent Reviewer & Security Auditor** (soi xét độc lập, tìm kiếm lỗ hổng bảo mật, lỗi hiệu năng ARM64, deadlock SQLite và các trường hợp biên).
+- **Model Thứ 2 (Secondary Model - Independent Reviewer & Security Auditor)**:
+  - 🥇 **Tier 1 (Ưu tiên số 1 - Khởi đầu)**: `Google: Gemma 4 31B (free)` (`google/gemma-4-31b-it:free` qua OpenRouter Free API).
+  - 🥈 **Tier 2 (Fallback 1 khi hết Token / HTTP 429)**: `Qwen 3.8 27B` (`qwen/qwen3.8-27b` qua Groq Cloud siêu tốc ~300 tps).
+  - 🥉 **Tier 3 (Fallback 2 khi hết Token tiếp)**: `GPT-OSS 120B` (`openai/gpt-oss-120b` qua Groq Cloud).
+  - 🛡️ **Tier 4 (Dự phòng an toàn mở rộng)**: `openai/gpt-oss-20b` (Groq), `openrouter/free` (OpenRouter), hoặc `gemini-3.6-flash`.
+  - **Nhiệm vụ**: Soi xét độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), lỗi hiệu năng ARM64 (Helio G85, 6GB RAM), deadlock SQLite WAL và phá vỡ chuẩn 20 modules / 110 lệnh / 1694 keys i18n.
 - **Kênh Tác Nghiệp**: Hai model trao đổi thông qua **MCP Server `dual_model`** (chuẩn MCP 2.x Stdio) hoặc CLI trực tiếp `python scripts/dual_model_mcp.py` với **Pydantic v2 Type-Safety Schemas**.
 
 ### 🔍 1.1 Quy Chuẩn Tiếp Nhận Báo Lỗi (Evidence-Based Incident Triage)
@@ -76,7 +81,7 @@ Mọi bài toán sửa lỗi hoặc thay đổi logic đều phải tuân thủ 
    - Tự động scrub bí mật, chống path traversal, bóc tách lỗi và xuất báo cáo chuẩn Pydantic: Điểm số, Phán quyết (`APPROVED`/`REQUEST_CHANGES`), danh sách lỗi phân cấp (`CRITICAL`/`WARNING`/`INFO`) kèm tác động Termux.
 2. **`review_pre_commit_diff()`**:
    - Yêu cầu Model 2 quét toàn bộ `git diff` (staged hoặc unstaged) trước khi commit.
-   - Đánh giá rủi ro hồi quy (Regression Risks), kiểm tra checklist quy chuẩn (i18n 1621 keys, SQLite concurrency, module guards).
+   - Đánh giá rủi ro hồi quy (Regression Risks), kiểm tra checklist quy chuẩn (i18n 1694 keys, SQLite concurrency, module guards).
 3. **`consult_second_model(prompt, role, model)`**:
    - Gửi yêu cầu/đề xuất sang Model thứ 2 để lấy ý kiến phản biện (Second Opinion).
    - Vai trò: `critic` (Bảo mật/Hiệu năng), `architect` (Kiến trúc sạch), `tester` (Phá hoại/Fuzzing).
@@ -137,7 +142,7 @@ Trước khi thực hiện `git push origin main` lên máy chủ Termux, quy tr
 
 1. 🏛️ **Model 1 — Lead Architect (Gemini 3.8)**:
    - Phân tích nguyên nhân gốc rễ (kèm dữ liệu chẩn đoán Termux), luồng dữ liệu, kiến trúc tổng thể và đề xuất giải pháp.
-2. 🛡️ **Model 2 — Security & Systems Critic (Qwen 2.5 / GPT-OSS qua Groq)**:
+2. 🛡️ **Model 2 — Security & Systems Critic (Google: Gemma 4 31B Free -> fallback Groq Qwen 3.8 27B -> fallback Groq GPT-OSS 120B)**:
    - Phản biện độc lập: các rủi ro bảo mật (SSRF, IDOR, XSS), rủi ro SQLite WAL, tắc nghẽn tài nguyên trên Termux ARM64 (Helio G85, 6GB RAM).
 3. 🤝 **Đồng Thuận Kỹ Thuật (Consensus & Final Verdict)**:
    - Kết luận thống nhất giữa 2 Model, giải pháp được cả 2 Model thông qua (`APPROVED`) và các bước hành động cụ thể.
