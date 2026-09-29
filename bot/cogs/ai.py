@@ -198,10 +198,10 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
                 {"type": "image_url", "image_url": {"url": image_url}}
             ]
         })
-        free_models = ["meta-llama/llama-3.2-11b-vision-instruct:free", "google/gemini-2.0-flash-exp:free"]
+        free_models = ["openrouter/free", "meta-llama/llama-3.2-11b-vision-instruct:free"]
     else:
         messages.append({"role": "user", "content": prompt})
-        free_models = ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1:free", "google/gemini-2.0-flash-exp:free"]
+        free_models = ["openrouter/free", "google/gemma-4-31b-it:free", "qwen/qwen3.8-27b:free", "nvidia/nemotron-3.5-lightning:free"]
 
     async with aiohttp.ClientSession() as session:
         for model in free_models:

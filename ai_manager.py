@@ -44,8 +44,10 @@ GROQ_MODELS = [
 ]
 
 OPENROUTER_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "deepseek/deepseek-r1:free"
+    "openrouter/free",
+    "google/gemma-4-31b-it:free",
+    "qwen/qwen3.8-27b:free",
+    "nvidia/nemotron-3.5-lightning:free"
 ]
 
 
@@ -328,7 +330,7 @@ class AIProviderManager:
 
         return False, last_error or "Groq API Error"
 
-    def _call_openrouter_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "meta-llama/llama-3.3-70b-instruct:free", timeout: int = 15) -> Tuple[bool, str]:
+    def _call_openrouter_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "openrouter/free", timeout: int = 15) -> Tuple[bool, str]:
         """Synchronous OpenRouter call with SSRF defense."""
         url = "https://openrouter.ai/api/v1/chat/completions"
         parsed = urlparse(url)
@@ -709,8 +711,8 @@ class AIProviderManager:
             }
 
         elif prov == "openrouter":
-            m = "meta-llama/llama-3.3-70b-instruct:free"
-            ok, res = self._call_openrouter_sync(k, "Hi", model=m, timeout=8)
+            m = "openrouter/free"
+            ok, res = self._call_openrouter_sync(k, "Hi", model=m, timeout=12)
             latency = int((time.time() - t0) * 1000)
             if ok:
                 return {
@@ -719,7 +721,7 @@ class AIProviderManager:
                     "model": m,
                     "key_masked": masked,
                     "latency_ms": latency,
-                    "message": f"🟢 Kết nối OpenRouter Free ({latency}ms)"
+                    "message": f"🟢 Kết nối OpenRouter Free ({latency}ms) với {m}"
                 }
             return {
                 "ok": False,
