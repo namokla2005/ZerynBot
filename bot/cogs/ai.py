@@ -220,6 +220,21 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
 
 async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False, image_url: str = None, preferred_model: str = None) -> str:
     """Tự động phát hiện và gọi AI Provider tương ứng (Groq / OpenRouter / Google Gemini) có hỗ trợ Vision ảnh và model tùy chọn."""
+    # Nếu không có custom key riêng của guild, sử dụng hệ thống AI Provider Pool & Circuit Breaker toàn cục
+    if not api_key:
+        try:
+            from ai_manager import ai_manager
+            ok, reply = await ai_manager.call_ai_async(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                image_url=image_url,
+                preferred_model=preferred_model
+            )
+            if ok and reply:
+                return reply.strip()
+        except Exception as e:
+            logger.warning(f"[BotAI] AI Provider Manager async call failed: {e}")
+
     key = (api_key or config.GEMINI_API_KEY).strip()
     if not key:
         return _local_smart_reply(prompt, is_owner=is_owner)
@@ -232,7 +247,7 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
     if key.startswith("sk-or-"):
         return await _call_openrouter_api(prompt, system_instruction, key, image_url=image_url)
 
-    # 3. Google Gemini (Mặc định hoặc bắt đầu bằng AIzaSy)
+    # 3. Google Gemini (Mặc định hoặc bắt đầu bằng AIzaSy / AQ.)
     parts = [{"text": prompt}]
     if image_url:
         try:
@@ -291,7 +306,8 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
                 last_error = str(e)
                 continue
 
-    return f"⚠️ **Lỗi kết nối AI ({last_error})**\nVui lòng kiểm tra lại API Key."
+    # Fallback cuối cùng nếu toàn bộ API đều lỗi
+    return _local_smart_reply(prompt, is_owner=is_owner)
 
 
 # Alias backwards compatibility

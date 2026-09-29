@@ -1474,7 +1474,21 @@ def admin_panel():
     blacklist = db.get_blacklist()
     blacklist_ids = {b["guild_id"] for b in blacklist}
     global_ai_key = db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
-    global_ai_model = db.get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
+    global_ai_model = db.get_global_setting("global_ai_model") or "gemini-3.6-flash"
+    gemini_api_keys = db.get_global_setting("gemini_api_keys", "")
+    groq_api_keys = db.get_global_setting("groq_api_keys", "")
+    openrouter_api_keys = db.get_global_setting("openrouter_api_keys", "")
+    global_ai_provider = db.get_global_setting("global_ai_provider", "auto")
+
+    # Tự động nạp key cũ vào pool tương ứng nếu pool chưa được lưu
+    if not gemini_api_keys and not groq_api_keys and not openrouter_api_keys and global_ai_key:
+        if global_ai_key.startswith("gsk_"):
+            groq_api_keys = global_ai_key
+        elif global_ai_key.startswith("sk-or-"):
+            openrouter_api_keys = global_ai_key
+        else:
+            gemini_api_keys = global_ai_key
+
     telemetry = get_system_hardware_stats()
     activity_logs = db.get_system_activity_logs(limit=50, days_ttl=7)
     return render_template(
@@ -1488,6 +1502,10 @@ def admin_panel():
         total_blacklist=len(blacklist),
         global_ai_key=global_ai_key,
         global_ai_model=global_ai_model,
+        gemini_api_keys=gemini_api_keys,
+        groq_api_keys=groq_api_keys,
+        openrouter_api_keys=openrouter_api_keys,
+        global_ai_provider=global_ai_provider,
         telemetry=telemetry,
         activity_logs=activity_logs,
         admin_password_set=bool(config.ADMIN_PASSWORD),
@@ -1580,157 +1598,98 @@ def api_admin_thread_status(thread_id: str):
 @app.route("/admin/ai_key", methods=["POST"])
 @owner_required
 def admin_save_ai_key():
-    key = request.form.get("global_ai_key", "").strip()
+    gemini_keys = request.form.get("gemini_api_keys", "").strip()
+    groq_keys = request.form.get("groq_api_keys", "").strip()
+    openrouter_keys = request.form.get("openrouter_api_keys", "").strip()
+    provider = request.form.get("global_ai_provider", "auto").strip().lower()
     model = request.form.get("global_ai_model", "").strip()
     custom_model = request.form.get("custom_ai_model", "").strip()
     if model == "custom" and custom_model:
         model = custom_model
 
-    db.set_global_setting("gemini_api_key", key)
+    # Backward compatibility with single-key field if user pasted in legacy field
+    legacy_key = request.form.get("global_ai_key", "").strip()
+    if legacy_key and not gemini_keys and not groq_keys and not openrouter_keys:
+        if legacy_key.startswith("gsk_"):
+            groq_keys = legacy_key
+        elif legacy_key.startswith("sk-or-"):
+            openrouter_keys = legacy_key
+        else:
+            gemini_keys = legacy_key
+
+    db.set_global_setting("gemini_api_keys", gemini_keys)
+    db.set_global_setting("groq_api_keys", groq_keys)
+    db.set_global_setting("openrouter_api_keys", openrouter_keys)
+    db.set_global_setting("global_ai_provider", provider)
     if model:
         db.set_global_setting("global_ai_model", model)
-    flash("✅ Đã lưu cấu hình AI API Key & Model toàn cục thành công!", "success")
+
+    # Sync primary key to legacy setting for backwards compatibility
+    from ai_manager import parse_key_pool
+    p_gemini = parse_key_pool(gemini_keys)
+    p_groq = parse_key_pool(groq_keys)
+    p_open = parse_key_pool(openrouter_keys)
+    primary_key = (p_gemini[0] if p_gemini else (p_groq[0] if p_groq else (p_open[0] if p_open else "")))
+    if primary_key:
+        db.set_global_setting("gemini_api_key", primary_key)
+
+    flash("✅ Đã lưu cấu hình Multi-Provider AI API Key Pools & Model toàn cục thành công!", "success")
     return redirect(url_for("admin_panel") + "#ai_settings")
 
 
 @app.route("/api/admin/test_ai_key", methods=["POST"])
-@limiter.limit("20/minute")
+@limiter.limit("30/minute")
 @owner_required
 def api_admin_test_ai_key():
-    import urllib.request, time
+    from ai_manager import ai_manager, parse_key_pool
     data = request.get_json(silent=True) or {}
-    key = data.get("api_key") or db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
-    key = key.strip()
-    target_model = data.get("model") or db.get_global_setting("global_ai_model") or "qwen/qwen3.6-27b"
-    if not key:
-        return jsonify({"ok": False, "status": "no_key", "message": "Chưa có API Key (Đang dùng Smart Local Responder)"})
 
-    # 1. Groq Cloud (Key starts with gsk_)
-    if key.startswith("gsk_"):
-        groq_url = "https://api.groq.com/openai/v1/chat/completions"
-        groq_payload = json.dumps({
-            "model": target_model,
-            "messages": [{"role": "user", "content": "Hi"}],
-            "max_tokens": 10
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            groq_url,
-            data=groq_payload,
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            },
-            method="POST"
-        )
-        t0 = time.time()
-        try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                latency = int((time.time() - t0) * 1000)
-                if resp.status == 200:
-                    return jsonify({
-                        "ok": True,
-                        "status": "active",
-                        "model": f"Groq Cloud ({target_model})",
-                        "latency_ms": latency,
-                        "message": f"Kết nối Groq Cloud siêu tốc thành công ({latency}ms) với model {target_model}"
-                    })
-        except urllib.error.HTTPError as e:
-            try:
-                err_data = json.loads(e.read().decode('utf-8'))
-                err_msg = err_data.get("error", {}).get("message", f"HTTP {e.code}")
-            except Exception:
-                err_msg = f"HTTP {e.code}"
-            return jsonify({"ok": False, "status": "invalid_key", "message": f"Lỗi Groq API ({err_msg})"})
-        except Exception as e:
-            return jsonify({"ok": False, "status": "error", "message": f"Lỗi kết nối Groq: {str(e)}"})
+    gemini_raw = data.get("gemini_keys")
+    groq_raw = data.get("groq_keys")
+    openrouter_raw = data.get("openrouter_keys")
+    single_key = data.get("api_key", "").strip()
+    target_model = data.get("model") or db.get_global_setting("global_ai_model") or "gemini-3.6-flash"
 
-    # 2. OpenRouter (Key starts with sk-or-)
-    if key.startswith("sk-or-"):
-        or_url = "https://openrouter.ai/api/v1/chat/completions"
-        or_payload = json.dumps({
-            "model": "meta-llama/llama-3.3-70b-instruct:free",
-            "messages": [{"role": "user", "content": "Hi"}],
-            "max_tokens": 10
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            or_url,
-            data=or_payload,
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://zerynbot.id.vn"
-            },
-            method="POST"
-        )
-        t0 = time.time()
-        try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                latency = int((time.time() - t0) * 1000)
-                if resp.status == 200:
-                    return jsonify({
-                        "ok": True,
-                        "status": "active",
-                        "model": "OpenRouter Free (Llama 3.3)",
-                        "latency_ms": latency,
-                        "message": f"Kết nối OpenRouter Free thành công ({latency}ms)"
-                    })
-        except Exception as e:
-            return jsonify({"ok": False, "status": "invalid_key", "message": f"Lỗi kết nối OpenRouter: {str(e)}"})
+    # Single key check fallback (nếu người dùng bấm test nhanh 1 key cụ thể)
+    if single_key and gemini_raw is None and groq_raw is None:
+        res = ai_manager.test_single_key(single_key, target_model=target_model)
+        return jsonify(res)
 
-    # 3. Validate key format hint
-    if key.startswith("AQ."):
+    # Multi-pool check: lấy từ payload hoặc DB
+    if gemini_raw is None:
+        gemini_raw = db.get_global_setting("gemini_api_keys", "")
+    if groq_raw is None:
+        groq_raw = db.get_global_setting("groq_api_keys", "")
+    if openrouter_raw is None:
+        openrouter_raw = db.get_global_setting("openrouter_api_keys", "")
+
+    g_keys = parse_key_pool(gemini_raw)
+    gr_keys = parse_key_pool(groq_raw)
+    op_keys = parse_key_pool(openrouter_raw)
+
+    if not g_keys and not gr_keys and not op_keys:
+        legacy_k = db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
+        if legacy_k:
+            res = ai_manager.test_single_key(legacy_k, target_model=target_model)
+            return jsonify(res)
         return jsonify({
             "ok": False,
-            "status": "wrong_key_type",
-            "message": "Chuỗi bạn vừa dán bắt đầu bằng 'AQ.' (đây là Project Token, không phải API Key). Hãy lấy API Key Google (AIzaSy...) hoặc tạo nhanh key Groq (gsk_...) tại https://console.groq.com."
+            "status": "no_key",
+            "message": "Chưa có bất kỳ API Key nào trong các Pool! Vui lòng nhập ít nhất 1 Key."
         })
 
-    # 4. Test key with Google Gemini API
-    models_to_test = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-    payload = json.dumps({"contents": [{"parts": [{"text": "Hi"}]}]}).encode("utf-8")
-    
-    t0 = time.time()
-    last_err_detail = ""
-    for model in models_to_test:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": key
-            },
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                latency = int((time.time() - t0) * 1000)
-                if resp.status == 200:
-                    return jsonify({
-                        "ok": True,
-                        "status": "active",
-                        "model": f"Google Gemini ({model})",
-                        "latency_ms": latency,
-                        "message": f"API Key hoạt động hoàn hảo với {model} ({latency}ms)"
-                    })
-        except urllib.error.HTTPError as e:
-            try:
-                err_data = json.loads(e.read().decode('utf-8'))
-                last_err_detail = err_data.get("error", {}).get("message", f"HTTP {e.code}")
-            except Exception:
-                last_err_detail = f"HTTP {e.code}"
-            continue
-        except Exception as e:
-            last_err_detail = str(e)
-            continue
+    # Kiểm tra song song an toàn qua ThreadPoolExecutor (max_workers=3)
+    results = ai_manager.test_all_pools(g_keys, gr_keys, op_keys, target_model=target_model)
+    total = len(results)
+    passed = sum(1 for r in results if r.get("ok"))
 
-    if "API_KEY_INVALID" in last_err_detail or "400" in last_err_detail or "401" in last_err_detail or "UNAUTHENTICATED" in last_err_detail:
-        msg = "API Key không hợp lệ. Bạn có thể lấy key Google (bắt đầu bằng AIzaSy...) tại https://aistudio.google.com hoặc tạo key Groq (bắt đầu bằng gsk_...) tại https://console.groq.com."
-    else:
-        msg = f"Lỗi Google API: {last_err_detail}"
-
-    return jsonify({"ok": False, "status": "invalid_key", "message": msg})
+    return jsonify({
+        "ok": passed > 0,
+        "total": total,
+        "passed": passed,
+        "results": results,
+        "message": f"Kiểm tra hoàn tất: {passed}/{total} Key hoạt động bình thường!"
+    })
 
 
 @app.route("/admin/kick/<guild_id>", methods=["POST"])

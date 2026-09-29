@@ -518,15 +518,15 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border);">
           <div>
             <h2 style="font-size:1.25rem; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:10px; margin:0;">
-              <i class="bi bi-cpu-fill" style="color:var(--accent);"></i> Cấu Hình Trí Tuệ Nhân Tạo (AI API Key Toàn Cục)
+              <i class="bi bi-cpu-fill" style="color:var(--accent);"></i> Cấu Hình Trí Tuệ Nhân Tạo & Multi-Key Pools
             </h2>
             <p style="color:var(--text-muted); font-size:0.85rem; margin-top:4px; margin-bottom:0;">
-              Key này được lưu an toàn tại máy chủ và tự động kích hoạt tính năng AI cho <strong>TẤT CẢ các server</strong> mà bot tham gia.
+              Hỗ trợ nhập <strong>nhiều API Key cùng lúc</strong> (Google Gemini, Groq Cloud, OpenRouter). Tự động xoay vòng (Round-Robin) và tự cứu luồng (Auto-Failover) khi hết token hoặc bị Rate Limit (429)!
             </p>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <button type="button" class="btn-icon" style="background:rgba(88,101,242,0.15); color:#5865f2; border:1px solid rgba(88,101,242,0.3); padding:8px 16px; border-radius:8px; font-weight:600; font-size:0.85rem; cursor:pointer;" onclick="testAdminAiKey()">
-              <i class="bi bi-arrow-repeat" id="admin-test-spinner"></i> Kiểm Tra Trạng Thái Key
+              <i class="bi bi-arrow-repeat" id="admin-test-spinner"></i> Kiểm Tra Trạng Thái Pools
             </button>
           </div>
         </div>
@@ -534,66 +534,127 @@
         <!-- Live Status Card -->
         <div id="admin-ai-status-box" style="background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-md); padding:18px 20px; margin-bottom:24px;">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <span id="admin-ai-dot" style="width:12px; height:12px; border-radius:50%; background:{% if global_ai_key %}var(--success){% else %}var(--warning){% endif %}; display:inline-block; box-shadow:0 0 10px {% if global_ai_key %}var(--success){% else %}var(--warning){% endif %};"></span>
+            <span id="admin-ai-dot" style="width:12px; height:12px; border-radius:50%; background:{% if gemini_api_keys or groq_api_keys or openrouter_api_keys or global_ai_key %}var(--success){% else %}var(--warning){% endif %}; display:inline-block; box-shadow:0 0 10px {% if gemini_api_keys or groq_api_keys or openrouter_api_keys or global_ai_key %}var(--success){% else %}var(--warning){% endif %};"></span>
             <span id="admin-ai-status-title" style="font-size:0.95rem; font-weight:700; color:var(--text-primary);">
-              {% if global_ai_key %}
-              Đã Cấu Hình AI Key Toàn Cục
+              {% if gemini_api_keys or groq_api_keys or openrouter_api_keys or global_ai_key %}
+              🟢 Hệ Thống AI Key Pools Sẵn Sàng (Auto-Failover Active)
               {% else %}
-              Chưa Có AI API Key (Đang dùng Smart Local Responder)
+              🟡 Chưa Có AI API Key (Đang dùng Smart Local Responder)
               {% endif %}
             </span>
           </div>
           <div id="admin-ai-status-desc" style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5;">
-            {% if global_ai_key %}
-            Hệ thống đã nạp key. Bấm nút "Kiểm Tra Trạng Thái Key" ở trên để kiểm tra kết nối API thời gian thực đến nhà cung cấp (Groq / Gemini).
+            {% if gemini_api_keys or groq_api_keys or openrouter_api_keys or global_ai_key %}
+            Đã nạp các key pool. Hệ thống sẽ tự động xoay tua key và tự động nhảy sang nhà cung cấp dự phòng nếu gặp lỗi 429 Rate Limit. Bấm nút "Kiểm Tra Trạng Thái Pools" ở trên để kiểm tra toàn bộ key!
             {% else %}
-            Bot hiện đang dùng bộ não thông minh tích hợp sẵn. Hãy nhập API Key bên dưới để kích hoạt sức mạnh Groq Cloud (Llama 3.3 70B) hoặc Google Gemini!
+            Bot hiện đang dùng bộ não thông minh tích hợp sẵn. Hãy dán danh sách API Key bên dưới để kích hoạt sức mạnh Google Gemini & Groq Cloud siêu tốc!
             {% endif %}
           </div>
+          <!-- Live Diagnostics Details -->
+          <div id="admin-ai-diagnostics-box" style="display:none; margin-top:14px; padding-top:12px; border-top:1px dashed var(--border);"></div>
         </div>
 
-        <!-- Form save Global Key & Model -->
+        <!-- Form save Multi-Provider Key Pools & Model -->
         <form method="POST" action="{{ url_for('admin_save_ai_key') }}">
+          
+          <!-- Key Pools Grid -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-bottom:24px;">
+            
+            <!-- 1. Google Gemini Pool -->
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:var(--radius-md); padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label style="font-size:0.88rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                  🌟 <strong>Google Gemini Pool</strong>
+                </label>
+                <a href="https://aistudio.google.com/api-keys" target="_blank" style="font-size:0.75rem; color:var(--accent); text-decoration:none;">
+                  <i class="bi bi-box-arrow-up-right"></i> Lấy Key
+                </a>
+              </div>
+              <textarea name="gemini_api_keys" id="geminiKeysInput" class="modal-input" rows="4" placeholder="Nhập một hoặc nhiều key (mỗi dòng một key)&#10;Hỗ trợ cả key bắt đầu bằng AIzaSy... và AQ...." style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;">{{ gemini_api_keys or '' }}</textarea>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px; line-height:1.4;">
+                Hỗ trợ cả định dạng mới <code>AQ.xxxx</code> và <code>AIzaSy...</code>. Nhập nhiều key để nhân bội hạn mức 15 RPM.
+              </div>
+            </div>
+
+            <!-- 2. Groq Cloud Pool -->
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:var(--radius-md); padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label style="font-size:0.88rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                  ⚡ <strong>Groq Cloud Pool</strong>
+                </label>
+                <a href="https://console.groq.com/keys" target="_blank" style="font-size:0.75rem; color:var(--accent); text-decoration:none;">
+                  <i class="bi bi-box-arrow-up-right"></i> Lấy Key
+                </a>
+              </div>
+              <textarea name="groq_api_keys" id="groqKeysInput" class="modal-input" rows="4" placeholder="Nhập một hoặc nhiều key (mỗi dòng một key)&#10;Ví dụ: gsk_xxxxxxxxxxxxxxxxxxxx" style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;">{{ groq_api_keys or '' }}</textarea>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px; line-height:1.4;">
+                Key bắt đầu bằng <code>gsk_...</code>. Tốc độ phản hồi cực nhanh ~0.2s với Qwen 3.8 27B & GPT-OSS 20B.
+              </div>
+            </div>
+
+            <!-- 3. OpenRouter Pool -->
+            <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.07); border-radius:var(--radius-md); padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label style="font-size:0.88rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                  🌐 <strong>OpenRouter Pool</strong>
+                </label>
+                <a href="https://openrouter.ai/keys" target="_blank" style="font-size:0.75rem; color:var(--accent); text-decoration:none;">
+                  <i class="bi bi-box-arrow-up-right"></i> Lấy Key
+                </a>
+              </div>
+              <textarea name="openrouter_api_keys" id="openrouterKeysInput" class="modal-input" rows="4" placeholder="Nhập một hoặc nhiều key (mỗi dòng một key)&#10;Ví dụ: sk-or-v1-xxxxxxxxxxxx" style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;">{{ openrouter_api_keys or '' }}</textarea>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px; line-height:1.4;">
+                Key bắt đầu bằng <code>sk-or-...</code>. Dự phòng kết nối mô hình Llama 3.3 Free & DeepSeek R1.
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Routing & Model Settings -->
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom:24px;">
-            <!-- API Key Input -->
+            
+            <!-- Provider Routing Selection -->
             <div>
               <label style="display:block; font-size:0.88rem; font-weight:700; margin-bottom:8px; color:var(--text-primary);">
-                <i class="bi bi-key-fill" style="color:var(--accent);"></i> Global AI API Key
+                <i class="bi bi-signpost-split-fill" style="color:var(--accent);"></i> Chế Độ Điều Hướng (Provider Routing)
               </label>
-              <input type="text" name="global_ai_key" id="globalAiKeyInput" class="modal-input" value="{{ global_ai_key or '' }}" placeholder="gsk_... (Groq) hoặc AIzaSy... (Gemini)" style="width:100%; font-family:monospace; font-size:0.9rem;">
-              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
-                Tự động nhận diện: <code>gsk_...</code> ➔ <strong>Groq Cloud</strong> | <code>AIzaSy...</code> ➔ <strong>Google Gemini</strong> | <code>sk-or-...</code> ➔ <strong>OpenRouter</strong>.
+              <select name="global_ai_provider" id="globalAiProviderSelect" class="modal-input" style="width:100%; font-size:0.9rem; background:var(--bg-input); color:var(--text-primary);">
+                <option value="auto" {% if global_ai_provider == 'auto' or not global_ai_provider %}selected{% endif %}>🌟 Tự Động Failover (Gemini Flash ➔ Groq LPU ➔ OpenRouter) [Khuyên dùng]</option>
+                <option value="gemini" {% if global_ai_provider == 'gemini' %}selected{% endif %}>🌟 Ưu Tiên Google Gemini (Xoay vòng pool Gemini)</option>
+                <option value="groq" {% if global_ai_provider == 'groq' %}selected{% endif %}>⚡ Ưu Tiên Groq Cloud (Siêu tốc ~300-1000 tps)</option>
+                <option value="openrouter" {% if global_ai_provider == 'openrouter' %}selected{% endif %}>🌐 Ưu Tiên OpenRouter Free</option>
+              </select>
+              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">
+                Chế độ Tự Động sẽ dùng Gemini Flash trước, nếu gặp 429 sẽ tự xoay sang key kế tiếp, và tự động nhảy sang Groq nếu hết quota.
               </div>
             </div>
 
             <!-- Model Selection Dropdown -->
             <div>
               <label style="display:block; font-size:0.88rem; font-weight:700; margin-bottom:8px; color:var(--text-primary);">
-                <i class="bi bi-robot" style="color:var(--accent);"></i> Mô Hình AI Mặc Định (Default AI Model)
+                <i class="bi bi-robot" style="color:var(--accent);"></i> Mô Hình AI Ưu Tiên (Preferred Model)
               </label>
               <select name="global_ai_model" id="globalAiModelSelect" class="modal-input" style="width:100%; font-size:0.9rem; background:var(--bg-input); color:var(--text-primary);" onchange="toggleCustomModelInput(this.value)">
-                <optgroup label="⚡ Groq Cloud Models (Khả dụng & Khuyên dùng)">
-                  <option value="qwen/qwen3.8-27b" {% if global_ai_model in ['qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b'] %}selected{% endif %}>🌟 Qwen 3.8 27B — Bản mới nhất, Tiếng Việt tự nhiên & Mượt mà (Khuyên dùng số 1)</option>
-                  <option value="qwen/qwen3.6-27b" {% if global_ai_model in ['qwen/qwen3.6-27b', 'groq/qwen/qwen3.6-27b'] %}selected{% endif %}>💬 Qwen 3.6 27B — Bản 27B ổn định của Qwen</option>
-                  <option value="openai/gpt-oss-20b" {% if global_ai_model in ['openai/gpt-oss-20b', 'groq/openai/gpt-oss-20b'] %}selected{% endif %}>⚡ GPT-OSS 20B — Nhẹ và siêu nhanh (~1000 tps)</option>
-                  <option value="groq/compound-mini" {% if global_ai_model in ['groq/compound-mini', 'groq/groq/compound-mini'] %}selected{% endif %}>🚀 Groq Compound Mini — Siêu tiết kiệm token</option>
-                  <option value="groq/compound" {% if global_ai_model in ['groq/compound', 'groq/groq/compound'] %}selected{% endif %}>🌐 Groq Compound — Hỗ trợ tự động duyệt web & Chạy mã</option>
-                  <option value="openai/gpt-oss-120b" {% if global_ai_model in ['openai/gpt-oss-120b', 'groq/openai/gpt-oss-120b'] %}selected{% endif %}>💎 GPT-OSS 120B — Mạnh nhất (120B tham số, ~500 tps)</option>
-                  <option value="openai/gpt-oss-safeguard-20b" {% if global_ai_model in ['openai/gpt-oss-safeguard-20b', 'groq/openai/gpt-oss-safeguard-20b'] %}selected{% endif %}>🛡️ GPT-OSS Safeguard 20B — An toàn & Kiểm duyệt</option>
+                <optgroup label="🌟 Google Gemini 3.x Models (Khuyên dùng)">
+                  <option value="gemini-3.6-flash" {% if global_ai_model in ['gemini-3.6-flash', 'gemini-2.0-flash'] or not global_ai_model %}selected{% endif %}>🌟 Gemini 3.6 Flash — Mới nhất, cực nhanh & thông minh (Khuyên dùng số 1)</option>
+                  <option value="gemini-3.5-flash" {% if global_ai_model == 'gemini-3.5-flash' %}selected{% endif %}>🎯 Gemini 3.5 Flash — Rất ổn định & 15 RPM Free</option>
+                  <option value="gemini-3.1-flash-lite" {% if global_ai_model == 'gemini-3.1-flash-lite' %}selected{% endif %}>⚡ Gemini 3.1 Flash-Lite — Siêu nhẹ & Phản hồi tức thì</option>
+                  <option value="gemini-3.1-pro-preview" {% if global_ai_model == 'gemini-3.1-pro-preview' %}selected{% endif %}>🔬 Gemini 3.1 Pro Preview — Suy luận sâu cấp cao (Cần tài khoản có billing)</option>
                 </optgroup>
-                <optgroup label="🌟 Google Gemini Models">
-                  <option value="gemini-2.0-flash" {% if global_ai_model == 'gemini-2.0-flash' %}selected{% endif %}>⚡ Gemini 2.0 Flash — Tốc độ cao & Đa năng</option>
-                  <option value="gemini-1.5-flash" {% if global_ai_model == 'gemini-1.5-flash' %}selected{% endif %}>🎯 Gemini 1.5 Flash — Ổn định & Phản hồi nhanh</option>
-                  <option value="gemini-1.5-pro" {% if global_ai_model == 'gemini-1.5-pro' %}selected{% endif %}>🔬 Gemini 1.5 Pro — Suy luận sâu & Phức tạp</option>
+                <optgroup label="⚡ Groq Cloud LPU Models">
+                  <option value="qwen/qwen3.8-27b" {% if global_ai_model in ['qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b'] %}selected{% endif %}>💬 Qwen 3.8 27B — Tiếng Việt tự nhiên & Mượt mà (~300 tps)</option>
+                  <option value="openai/gpt-oss-20b" {% if global_ai_model in ['openai/gpt-oss-20b', 'groq/openai/gpt-oss-20b'] %}selected{% endif %}>⚡ GPT-OSS 20B — Nhẹ và siêu nhanh (~1000 tps)</option>
+                  <option value="groq/compound" {% if global_ai_model in ['groq/compound', 'groq/groq/compound'] %}selected{% endif %}>🌐 Groq Compound — Hỗ trợ tự động duyệt web</option>
                 </optgroup>
                 <optgroup label="✍️ Khác">
-                  <option value="custom" {% if global_ai_model not in ['qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','qwen/qwen3.6-27b','groq/qwen/qwen3.6-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound-mini','groq/groq/compound-mini','groq/compound','groq/groq/compound','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-safeguard-20b','groq/openai/gpt-oss-safeguard-20b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
+                  <option value="custom" {% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
                 </optgroup>
               </select>
-              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','qwen/qwen3.6-27b','groq/qwen/qwen3.6-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound-mini','groq/groq/compound-mini','groq/compound','groq/groq/compound','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-safeguard-20b','groq/openai/gpt-oss-safeguard-20b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] %}block{% else %}none{% endif %};">
-                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','qwen/qwen3.6-27b','groq/qwen/qwen3.6-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound-mini','groq/groq/compound-mini','groq/compound','groq/groq/compound','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-safeguard-20b','groq/openai/gpt-oss-safeguard-20b','gemini-2.0-flash','gemini-1.5-flash','gemini-1.5-pro'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: groq/qwen/qwen3.8-27b)" style="width:100%; font-size:0.85rem; font-family:monospace;">
+              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound'] %}block{% else %}none{% endif %};">
+                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: gemini-3.6-flash)" style="width:100%; font-size:0.85rem; font-family:monospace;">
               </div>
             </div>
+
           </div>
 
           <div style="display:flex; justify-content:flex-end;">
@@ -1125,8 +1186,15 @@
     const dot = document.getElementById('admin-ai-dot');
     const title = document.getElementById('admin-ai-status-title');
     const desc = document.getElementById('admin-ai-status-desc');
-    const keyInput = document.getElementById('globalAiKeyInput');
-    const apiKey = keyInput ? keyInput.value.trim() : '';
+    const diagBox = document.getElementById('admin-ai-diagnostics-box');
+
+    const geminiInput = document.getElementById('geminiKeysInput');
+    const groqInput = document.getElementById('groqKeysInput');
+    const openrouterInput = document.getElementById('openrouterKeysInput');
+
+    const geminiKeys = geminiInput ? geminiInput.value.trim() : '';
+    const groqKeys = groqInput ? groqInput.value.trim() : '';
+    const openrouterKeys = openrouterInput ? openrouterInput.value.trim() : '';
 
     const modelSelect = document.getElementById('globalAiModelSelect');
     let selModel = modelSelect ? modelSelect.value : '';
@@ -1136,31 +1204,66 @@
     }
 
     if (btn) btn.classList.add('spin-anim');
-    if (title) title.innerText = 'Đang kiểm tra kết nối API AI...';
+    if (title) title.innerText = 'Đang kiểm tra kết nối toàn bộ Key Pools...';
+    if (diagBox) {
+      diagBox.style.display = 'block';
+      diagBox.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted);"><i class="bi bi-hourglass-split"></i> Đang gửi kiểm tra song song (tối đa 3 workers)...</div>';
+    }
 
     try {
       const res = await fetch('/api/admin/test_ai_key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey, model: selModel })
+        body: JSON.stringify({
+          gemini_keys: geminiKeys,
+          groq_keys: groqKeys,
+          openrouter_keys: openrouterKeys,
+          model: selModel
+        })
       });
       const data = await res.json();
+
+      if (data.results && data.results.length > 0) {
+        let cardsHtml = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin-top:8px;">';
+        data.results.forEach(r => {
+          const isOk = r.ok;
+          const bgCol = isOk ? 'rgba(46,204,113,0.08)' : 'rgba(231,76,60,0.08)';
+          const borderCol = isOk ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)';
+          const badgeText = isOk ? (r.latency_ms + 'ms') : 'Lỗi';
+          const badgeBg = isOk ? 'var(--success)' : 'var(--danger)';
+          cardsHtml += `
+            <div style="background:${bgCol}; border:1px solid ${borderCol}; border-radius:8px; padding:10px 12px; font-size:0.78rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <strong style="color:var(--text-primary); font-size:0.8rem;">${isOk ? '🟢' : '🔴'} ${r.provider || 'Provider'}</strong>
+                <span style="background:${badgeBg}; color:#fff; border-radius:12px; padding:2px 8px; font-weight:700; font-size:0.7rem;">${badgeText}</span>
+              </div>
+              <div style="color:var(--text-secondary); font-family:monospace; margin-bottom:3px;">Key: ${r.key_masked || '****'}</div>
+              <div style="color:${isOk ? 'var(--text-secondary)' : 'var(--danger)'}; line-height:1.3;">${r.message || ''}</div>
+            </div>
+          `;
+        });
+        cardsHtml += '</div>';
+        diagBox.innerHTML = cardsHtml;
+      } else if (data.message) {
+        diagBox.innerHTML = `<div style="font-size:0.82rem; color:var(--text-secondary);">${data.message}</div>`;
+      }
 
       if (data.ok) {
         dot.style.background = 'var(--success)';
         dot.style.boxShadow = '0 0 12px var(--success)';
-        title.innerText = '🟢 ' + data.model + ' (Hoạt Động)';
-        desc.innerHTML = '<span style="color:var(--success); font-weight:600;">' + data.message + '</span>. Hệ thống đã sẵn sàng phục vụ cho toàn bộ bot!';
+        title.innerText = '🟢 ' + (data.message || 'Key Pools Hoạt Động Bình Thường');
+        desc.innerHTML = '<span style="color:var(--success); font-weight:600;">' + (data.passed || 1) + '/' + (data.total || 1) + ' Key hoạt động tốt.</span> Hệ thống đã sẵn sàng phục vụ với cơ chế Auto-Failover!';
       } else {
         dot.style.background = 'var(--danger)';
         dot.style.boxShadow = '0 0 12px var(--danger)';
-        title.innerText = '🔴 ' + (data.status === 'no_key' ? 'Chưa Có API Key' : 'API Key Không Hợp Lệ');
-        desc.innerHTML = '<span style="color:var(--danger); font-weight:600;">' + data.message + '</span>';
+        title.innerText = '🔴 ' + (data.status === 'no_key' ? 'Chưa Có API Key Nào' : 'Tất Cả Key Đều Lỗi');
+        desc.innerHTML = '<span style="color:var(--danger); font-weight:600;">' + (data.message || 'Không có key nào kết nối thành công.') + '</span>';
       }
     } catch (err) {
       dot.style.background = 'var(--danger)';
       title.innerText = '❌ Lỗi Kiểm Tra';
       desc.innerText = 'Không thể kết nối tới server: ' + err.message;
+      if (diagBox) diagBox.innerHTML = `<div style="color:var(--danger); font-size:0.8rem;">Lỗi kết nối: ${err.message}</div>`;
     } finally {
       if (btn) btn.classList.remove('spin-anim');
     }
