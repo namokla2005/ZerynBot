@@ -249,8 +249,11 @@ python main.py
 # 📊 Kiểm tra trạng thái các dịch vụ đang chạy
 python main.py --status
 
-# 🛑 Dừng sạch tất cả dịch vụ
+# ⏸️ Dừng Bot & Dashboard (Watchdog tự động bật lại sau 30s)
 python main.py --stop
+
+# 🛑 Dừng sạch tất cả dịch vụ (kể cả Watchdog và giải phóng wake-lock)
+python main.py --stopall
 
 # 🔄 Khởi động lại toàn bộ dịch vụ
 python main.py --restart
@@ -302,7 +305,8 @@ File cấu hình tại `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`:
 | Tool MCP | Lệnh Chạy Trên Termux | Chức Năng |
 | :--- | :--- | :--- |
 | `termux_system_restart` | `python main.py --restart` | Khởi động lại toàn bộ Bot + Dashboard an toàn |
-| `termux_system_stop` | `python main.py --stop` | Dừng sạch tiến trình và gửi Webhook thông báo |
+| `termux_system_stop` | `python main.py --stop` | Dừng Bot & Dashboard (Watchdog tự bật lại sau 30s) |
+| `termux_system_stopall` | `python main.py --stopall` | Dừng sạch tiến trình kể cả Watchdog và giải phóng wake-lock |
 | `termux_system_test` | `python main.py --test` | Chạy bộ tự chẩn đoán lỗi `SystemTester` |
 | `termux_get_status` | `free -h` & `ps -ef \| grep python` | Kiểm tra tài nguyên RAM/Swap và trạng thái PID |
 | `termux_read_logs` | `tail -n <lines> data/bot.log` | Đọc log thời gian thực trực tiếp từ thiết bị |

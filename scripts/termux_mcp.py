@@ -123,11 +123,19 @@ def termux_system_restart() -> str:
     return _run_ssh(cmd, timeout=20.0)
 
 
-@server.tool(name="termux_system_stop", description="Dừng sạch toàn bộ hệ thống ZerynBot trên Termux (python main.py --stop)")
+@server.tool(name="termux_system_stop", description="Dừng Bot & Dashboard trên Termux, giữ Watchdog để tự động bật lại sau 30s (python main.py --stop)")
 def termux_system_stop() -> str:
-    """Dừng sạch toàn bộ services qua main.py --stop."""
+    """Dừng Bot & Dashboard qua main.py --stop."""
     cfg = _get_config()
     cmd = f"cd {cfg['bot_dir']} && python main.py --stop"
+    return _run_ssh(cmd, timeout=15.0)
+
+
+@server.tool(name="termux_system_stopall", description="Dừng sạch toàn bộ hệ thống ZerynBot trên Termux kể cả Watchdog (python main.py --stopall)")
+def termux_system_stopall() -> str:
+    """Dừng sạch toàn bộ services kể cả Watchdog qua main.py --stopall."""
+    cfg = _get_config()
+    cmd = f"cd {cfg['bot_dir']} && python main.py --stopall"
     return _run_ssh(cmd, timeout=15.0)
 
 

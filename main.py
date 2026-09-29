@@ -3,7 +3,8 @@ main.py — Điểm vào duy nhất quản lý toàn bộ hệ thống Zeryn (Ze
 Hỗ trợ các lệnh:
   python main.py              (Khởi chạy toàn bộ: Bot Discord, Dashboard, Watchdog)
   python main.py --start      (Khởi chạy toàn bộ hệ thống)
-  python main.py --stop       (Dừng sạch tất cả services và gửi webhook)
+  python main.py --stop       (Dừng Bot & Dashboard, giữ Watchdog để tự động bật lại sau 30s)
+  python main.py --stopall    (Dừng sạch tất cả services kể cả Watchdog và gửi webhook)
   python main.py --restart    (Tắt sạch và khởi động lại)
   python main.py --status     (Kiểm tra trạng thái các services)
   python main.py --test       (Chạy Self-Diagnostic Tester)
@@ -16,9 +17,11 @@ import sys
 import os
 import json
 import time
+import shutil
 import subprocess
 import signal
 import asyncio
+from typing import Optional
 
 # Force UTF-8 output on all platforms (prevents UnicodeEncodeError on Windows cp1252)
 try:
@@ -39,9 +42,10 @@ PID_DIR = os.path.join(BASE_DIR, "data")
 PID_BOT = os.path.join(PID_DIR, "bot.pid")
 PID_DASH = os.path.join(PID_DIR, "dashboard.pid")
 PID_WATCHDOG = os.path.join(PID_DIR, "watchdog.pid")
+FLAG_STOPALL = os.path.join(PID_DIR, "stopall.flag")
 
 
-def _read_pid(file_path: str) -> int | None:
+def _read_pid(file_path: str) -> Optional[int]:
     if os.path.exists(file_path):
         try:
             with open(file_path, "r") as f:
@@ -108,48 +112,141 @@ def _enforce_file_security():
                 pass
 
 
-def stop_all():
-    print("[Main] Stopping all system services...")
-    
-    # Gửi webhook thông báo trước khi dừng
-    script_status = os.path.join(BASE_DIR, "scripts", "send_status.py")
-    if os.path.exists(script_status):
+def _kill_gracefully(pid: int, name: str, timeout: float = 1.5) -> bool:
+    """Tắt tiến trình an toàn: gửi SIGTERM trước, chờ tiến trình thoát, nếu không thoát mới SIGKILL."""
+    if not pid or pid == os.getpid():
+        return False
+    if not _is_pid_running(pid):
+        return True
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
+            return True
+        else:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                return True
+            except PermissionError as e:
+                print(f" - Permission denied stopping {name} (PID {pid}): {e}")
+                return False
+
+            t0 = time.time()
+            while time.time() - t0 < timeout:
+                if not _is_pid_running(pid):
+                    print(f" - Stopped {name} (PID {pid})")
+                    return True
+                time.sleep(0.25)
+
+            if _is_pid_running(pid):
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                    time.sleep(0.25)
+                    print(f" - Force stopped {name} (PID {pid})")
+                except ProcessLookupError:
+                    pass
+                except PermissionError as e:
+                    print(f" - Permission denied force stopping {name} (PID {pid}): {e}")
+                    return False
+            return not _is_pid_running(pid)
+    except Exception as e:
+        print(f" - Error stopping {name} (PID {pid}): {e}")
+        return False
+
+
+def stop_services(keep_watchdog: bool = False):
+    """
+    Dừng các dịch vụ trong hệ thống:
+    - keep_watchdog=True  (--stop): Chỉ dừng Bot và Dashboard. Giữ Watchdog để tự động bật lại sau 30s.
+    - keep_watchdog=False (--stopall): Dừng sạch toàn bộ kể cả Watchdog, giải phóng wake-lock.
+    """
+    if keep_watchdog:
+        print("[Main] Stopping Bot and Dashboard (keeping Watchdog active for auto-recovery)...")
+        if os.path.exists(FLAG_STOPALL):
+            try:
+                os.remove(FLAG_STOPALL)
+            except Exception:
+                pass
+    else:
+        print("[Main] Stopping all system services (including Watchdog)...")
+        # Ghi cờ stopall để Watchdog nhận biết và ngắt ngay lập tức
         try:
-            subprocess.run([sys.executable, script_status, "stop"], timeout=5)
+            with open(FLAG_STOPALL, "w") as f:
+                f.write(str(time.time()))
         except Exception:
             pass
 
-    for pid_file, name in [(PID_BOT, "Bot"), (PID_DASH, "Dashboard"), (PID_WATCHDOG, "Watchdog")]:
-        pid = _read_pid(pid_file)
-        if pid and _is_pid_running(pid):
+        # Gửi webhook thông báo trước khi dừng toàn bộ dịch vụ
+        script_status = os.path.join(BASE_DIR, "scripts", "send_status.py")
+        if os.path.exists(script_status):
             try:
-                if os.name == "nt":
-                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
-                else:
-                    os.kill(pid, signal.SIGKILL)
-                print(f" - Stopped {name} (PID {pid})")
-            except Exception as e:
-                print(f" - Error stopping {name}: {e}")
-        _remove_pid(pid_file)
-
-    # Tắt watchdog / process con (loại trừ PID của chính tiến trình hiện tại)
-    if os.name != "nt":
-        my_pid = os.getpid()
-        # Dùng pgrep + kill thay vì pkill để tránh lỗi 'Bad system call' trên Android SECCOMP
-        for pattern in ["watchdog.sh", "main.py --bot", "main.py --dashboard", "main.py", "sleep 900", "sleep 90"]:
-            try:
-                res = subprocess.check_output(f"pgrep -f '{pattern}'", shell=True, text=True).strip().splitlines()
-                for p in res:
-                    if p.isdigit() and int(p) != my_pid:
-                        subprocess.run(f"kill -9 {p} 2>/dev/null", shell=True)
+                subprocess.run([sys.executable, script_status, "stop"], timeout=5)
             except Exception:
                 pass
-        subprocess.run("termux-wake-unlock 2>/dev/null", shell=True)
 
-    print("[Main] All services stopped successfully.")
+    # 1. Dừng Watchdog trước nếu được yêu cầu (--stopall) để tránh race condition tự động restart
+    if not keep_watchdog:
+        try:
+            wd_pid = _read_pid(PID_WATCHDOG)
+            if wd_pid and _is_pid_running(wd_pid):
+                _kill_gracefully(wd_pid, "Watchdog", timeout=1.0)
+                if not _is_pid_running(wd_pid):
+                    _remove_pid(PID_WATCHDOG)
+        except Exception as e:
+            print(f" - Warning khi dừng Watchdog: {e}")
+
+        if os.name != "nt":
+            # Dọn sạch các tiến trình watchdog cũ còn sót lại để tránh orphan
+            my_pid = os.getpid()
+            try:
+                out = subprocess.check_output(["pgrep", "-f", "watchdog.sh"], text=True).strip()
+                for p in out.splitlines():
+                    p_str = p.strip()
+                    if p_str.isdigit() and int(p_str) != my_pid:
+                        try:
+                            os.kill(int(p_str), signal.SIGTERM)
+                            time.sleep(0.2)
+                            if _is_pid_running(int(p_str)):
+                                os.kill(int(p_str), signal.SIGKILL)
+                        except (ProcessLookupError, PermissionError):
+                            pass
+            except Exception:
+                pass
+
+            subprocess.run("termux-wake-unlock 2>/dev/null", shell=True)
+
+    # 2. Dừng Bot Discord bằng PID thực tế
+    try:
+        bot_pid = get_live_bot_pid()
+        if bot_pid:
+            _kill_gracefully(bot_pid, "Bot", timeout=1.0)
+            if not _is_pid_running(bot_pid):
+                _remove_pid(PID_BOT)
+    except Exception as e:
+        print(f" - Warning khi dừng Bot: {e}")
+
+    # 3. Dừng Dashboard bằng PID thực tế
+    try:
+        dash_pid = get_live_dash_pid()
+        if dash_pid:
+            _kill_gracefully(dash_pid, "Dashboard", timeout=1.0)
+            if not _is_pid_running(dash_pid):
+                _remove_pid(PID_DASH)
+    except Exception as e:
+        print(f" - Warning khi dừng Dashboard: {e}")
+
+    if keep_watchdog:
+        print("[Main] Bot & Dashboard stopped. Watchdog is running and will auto-restart them after 30s.")
+    else:
+        print("[Main] All services (including Watchdog) stopped successfully.")
 
 
-def get_live_bot_pid() -> int | None:
+def stop_all():
+    """Dừng toàn bộ hệ thống (kể cả Watchdog)."""
+    stop_services(keep_watchdog=False)
+
+
+def get_live_bot_pid() -> Optional[int]:
     """Tìm PID chính xác của Bot đang chạy (kể cả khi Watchdog vừa restart)."""
     # 1. Kiểm tra file bot.pid
     pid = _read_pid(PID_BOT)
@@ -180,7 +277,7 @@ def get_live_bot_pid() -> int | None:
     return None
 
 
-def get_live_dash_pid() -> int | None:
+def get_live_dash_pid() -> Optional[int]:
     pid = _read_pid(PID_DASH)
     if pid and _is_pid_running(pid):
         return pid
@@ -250,6 +347,13 @@ def start_all():
     print("[Main] Starting full system ZerynBot V2...")
     _enforce_file_security()
 
+    # Xóa cờ stopall nếu còn sót lại từ lần dừng trước
+    if os.path.exists(FLAG_STOPALL):
+        try:
+            os.remove(FLAG_STOPALL)
+        except Exception:
+            pass
+
     if os.name != "nt":
         subprocess.run("termux-wake-lock 2>/dev/null", shell=True)
 
@@ -296,7 +400,8 @@ def start_all():
     print("[Main] System started successfully!")
     print("- Web Dashboard: http://localhost:5000")
     print("- Run 'python main.py --status' to check status.")
-    print("- Run 'python main.py --stop' to stop system.")
+    print("- Run 'python main.py --stop' to stop Bot & Dashboard (Watchdog will auto-restart after 30s).")
+    print("- Run 'python main.py --stopall' to stop all services completely.")
     print("--------------------------------------------------")
 
     # Send Webhook start notification
@@ -322,8 +427,11 @@ def run_system_test():
 def main():
     args = [a.lower() for a in sys.argv[1:]]
 
-    if "--stop" in args or "stop" in args:
-        stop_all()
+    if "--stopall" in args or "stopall" in args:
+        stop_services(keep_watchdog=False)
+        sys.exit(0)
+    elif "--stop" in args or "stop" in args:
+        stop_services(keep_watchdog=True)
         sys.exit(0)
     elif "--status" in args or "status" in args:
         print_status()
@@ -335,7 +443,11 @@ def main():
         stop_all()
         time.sleep(2)
         print("\n[Main] Restarting system...")
-        start_all()
+        try:
+            start_all()
+        except Exception as e:
+            print(f"[Main] Error restarting system: {e}")
+            sys.exit(1)
         sys.exit(0)
     elif "--bot" in args or "bot" in args:
         run_only_bot()

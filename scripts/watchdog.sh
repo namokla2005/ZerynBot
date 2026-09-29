@@ -15,7 +15,9 @@ cd "$DIR"
 PID_FILE="data/watchdog.pid"
 BOT_PID_FILE="data/bot.pid"
 DASH_PID_FILE="data/dashboard.pid"
+STOPALL_FLAG="data/stopall.flag"
 mkdir -p data
+termux-wake-lock 2>/dev/null
 
 # ─── Đảm bảo duy nhất 1 watchdog chạy (Singleton Guard) ─────────────────────────
 if [ -f "$PID_FILE" ]; then
@@ -105,6 +107,7 @@ cleanup_and_exit() {
         [ -n "$b_pid" ] && kill -15 "$b_pid" 2>/dev/null
     fi
     rm -f "$PID_FILE" "$BOT_PID_FILE" 2>/dev/null
+    termux-wake-unlock 2>/dev/null
     exit 0
 }
 trap cleanup_and_exit INT TERM EXIT
@@ -121,6 +124,13 @@ get_backoff() {
 }
 
 while true; do
+    # 0. Kiểm tra cờ dừng toàn bộ (--stopall)
+    if [ -f "$STOPALL_FLAG" ]; then
+        echo "[Watchdog] Đã nhận tín hiệu dừng toàn bộ (stopall.flag). Dừng watchdog."
+        rm -f "$STOPALL_FLAG" 2>/dev/null
+        exit 0
+    fi
+
     # Dọn dẹp tiến trình bot cũ nếu còn sót lại để triệt tiêu 100% duplicate bot
     if [ -f "$BOT_PID_FILE" ]; then
         old_b=$(cat "$BOT_PID_FILE" 2>/dev/null)
@@ -150,9 +160,11 @@ while true; do
     rm -f "$BOT_PID_FILE" 2>/dev/null
     echo "[Watchdog] Bot đã dừng với mã thoát $EXIT_CODE (thời gian chạy: ${RUNTIME}s)."
 
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo "[Watchdog] Bot đã tắt bình thường (Exit Code 0). Dừng watchdog."
-        break
+    # Kiểm tra cờ dừng toàn bộ ngay sau khi bot thoát
+    if [ -f "$STOPALL_FLAG" ]; then
+        echo "[Watchdog] Đã nhận tín hiệu dừng toàn bộ (stopall.flag). Dừng watchdog."
+        rm -f "$STOPALL_FLAG" 2>/dev/null
+        exit 0
     fi
 
     # Nếu bot đã chạy ổn định trên 120s thì reset số lần restart
@@ -163,9 +175,25 @@ while true; do
     backoff=$(get_backoff $restart_count)
     restart_count=$((restart_count + 1))
     echo "[Watchdog] ==========================================================="
-    echo "[Watchdog] CẢNH BÁO: Bot bị dừng/crash (mã $EXIT_CODE)! Đợi ${backoff}s trước khi restart..."
+    echo "[Watchdog] CẢNH BÁO: Bot bị dừng (mã $EXIT_CODE)! Đợi ${backoff}s trước khi restart..."
     echo "[Watchdog] ==========================================================="
-    sleep "$backoff"
+
+    # Chờ với kiểm tra ngắt stopall tức thời (1s/tick)
+    for ((s=0; s<backoff; s++)); do
+        if [ -f "$STOPALL_FLAG" ]; then
+            echo "[Watchdog] Đã nhận tín hiệu dừng toàn bộ trong khi đợi. Dừng watchdog."
+            rm -f "$STOPALL_FLAG" 2>/dev/null
+            exit 0
+        fi
+        sleep 1
+    done
+
+    # Kiểm tra cờ một lần nữa trước khi khởi động lại
+    if [ -f "$STOPALL_FLAG" ]; then
+        echo "[Watchdog] Đã nhận tín hiệu dừng toàn bộ trước khi restart. Dừng watchdog."
+        rm -f "$STOPALL_FLAG" 2>/dev/null
+        exit 0
+    fi
 
     # Kiểm tra và đảm bảo Dashboard vẫn đang chạy (tránh chạy trùng lặp nếu dashboard đã online)
     dash_running=0
