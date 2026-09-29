@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+import signal
 import sys
 import threading
 import time
@@ -587,8 +588,23 @@ async def main():
         logger.addHandler(webhook_handler)
         logger.info("✅  Webhook logging enabled")
 
-    async with bot:
-        await bot.start(config.TOKEN)
+    loop = asyncio.get_running_loop()
+    for sig in (getattr(signal, "SIGINT", None), getattr(signal, "SIGTERM", None)):
+        if sig is not None:
+            try:
+                loop.add_signal_handler(sig, lambda: asyncio.create_task(bot.close()))
+            except (NotImplementedError, RuntimeError):
+                pass
+
+    try:
+        async with bot:
+            await bot.start(config.TOKEN)
+    finally:
+        try:
+            if os.path.exists(pid_file):
+                os.remove(pid_file)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

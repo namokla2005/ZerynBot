@@ -13,6 +13,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$DIR"
 
 PID_FILE="data/watchdog.pid"
+BOT_PID_FILE="data/bot.pid"
+DASH_PID_FILE="data/dashboard.pid"
 mkdir -p data
 
 # ─── Đảm bảo duy nhất 1 watchdog chạy (Singleton Guard) ─────────────────────────
@@ -20,54 +22,71 @@ if [ -f "$PID_FILE" ]; then
     old_pid=$(cat "$PID_FILE" 2>/dev/null)
     if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
         echo "[Watchdog] Đã phát hiện watchdog cũ (PID $old_pid). Đang dừng..."
-        # Dọn các tiến trình con của watchdog cũ trước
+        # Dọn sạch các tiến trình con của watchdog cũ để tránh mồ côi
         for c in $(pgrep -P "$old_pid" 2>/dev/null); do
+            kill -15 "$c" 2>/dev/null
+            sleep 1
             kill -9 "$c" 2>/dev/null
         done
+        kill -15 "$old_pid" 2>/dev/null
+        sleep 2
         kill -9 "$old_pid" 2>/dev/null
     fi
 fi
 echo $$ > "$PID_FILE"
 
-HEALTH_URL="http://localhost:5000/health"
+HEALTH_URL="http://127.0.0.1:5000/health"
 HEALTH_INTERVAL=90        # kiểm tra mỗi 90 giây
 HEALTH_FAIL_THRESHOLD=4   # ~6 phút (4 × 90s) → khớp với OFFLINE_THRESHOLD của bot
 
 echo "[Watchdog] Đã khởi động (PID $$). (exit-code + health-check)"
 
-restart_count=0
-get_backoff() {
-    # 5s → 10s → 30s (tránh restart liên tục khi mạng thực sự xấu)
-    case $1 in
-        0|1) echo 5 ;;
-        2)   echo 10 ;;
-        *)   echo 30 ;;
-    esac
+# ─── Hàm kiểm tra kết nối mạng/DNS Termux tới Discord Gateway (Fallback 2 tầng) ────
+check_discord_network() {
+    # 1. Thử qua bash /dev/tcp siêu nhẹ (0 overhead)
+    if timeout 4 bash -c '(echo > /dev/tcp/gateway.discord.gg/443) 2>/dev/null'; then
+        return 0
+    fi
+    # 2. Fallback qua python socket nếu shell không hỗ trợ /dev/tcp
+    python -c "
+import socket, sys
+try:
+    s = socket.create_connection(('gateway.discord.gg', 443), timeout=4)
+    s.close()
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" >/dev/null 2>&1
 }
 
 # ─── Cơ chế 2: Health-check nền ────────────────────────────────────────────────
-# Chạy song song với bot. Khi bot bị kill/crash, vòng while chính sẽ restart.
 health_loop() {
     local fail_streak=0
     while true; do
         sleep "$HEALTH_INTERVAL"
-        # curl -sf: fail (exit != 0) khi HTTP không phải 2xx hoặc lỗi kết nối
-        # --max-time 10: chống treo khi dashboard không phản hồi
         if curl -sf --max-time 10 "$HEALTH_URL" >/dev/null 2>&1; then
             fail_streak=0   # bot khỏe (HTTP 200)
         else
             fail_streak=$((fail_streak + 1))
             echo "[Watchdog] Health-check FAIL lần $fail_streak (bot offline hoặc dashboard không phản hồi)"
-            # Chỉ kill khi curl ĐỤNG ĐƯỢC dashboard (HTTP 503) nhưng bot offline liên tục.
-            # Nếu dashboard cũng down (curl lỗi kết nối) → bỏ qua, không kill nhầm.
-            # Phân biệt: -s hiển thị body, ta check HTTP code thực.
             http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_URL" 2>/dev/null)
             if [ "$http_code" = "503" ] && [ "$fail_streak" -ge "$HEALTH_FAIL_THRESHOLD" ]; then
-                echo "[Watchdog] Bot offline liên tục $fail_streak × ${HEALTH_INTERVAL}s → KILL để kích hoạt restart..."
-                # Tắt bot an toàn bằng PID thay vì pkill để tránh lỗi 'Bad system call' trên Android/Termux
-                if [ -f "data/bot.pid" ]; then
-                    b_pid=$(cat data/bot.pid 2>/dev/null)
-                    [ -n "$b_pid" ] && kill -9 "$b_pid" 2>/dev/null
+                echo "[Watchdog] Bot offline liên tục $fail_streak × ${HEALTH_INTERVAL}s → Gửi SIGTERM dừng bot..."
+                if [ -f "$BOT_PID_FILE" ]; then
+                    b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
+                    if [ -n "$b_pid" ] && kill -0 "$b_pid" 2>/dev/null; then
+                        kill -15 "$b_pid" 2>/dev/null
+                        # Chờ tối đa 5 giây cho aiosqlite đóng và Discord ngắt kết nối an toàn
+                        for i in 1 2 3 4 5; do
+                            if ! kill -0 "$b_pid" 2>/dev/null; then
+                                break
+                            fi
+                            sleep 1
+                        done
+                        # Nếu vẫn còn sống thì buộc kill -9
+                        kill -9 "$b_pid" 2>/dev/null
+                    fi
+                    rm -f "$BOT_PID_FILE" 2>/dev/null
                 fi
                 fail_streak=0  # reset sau khi kill
             fi
@@ -75,43 +94,103 @@ health_loop() {
     done
 }
 
-# Khởi động health-check nền
+# Khởi động health-check nền & Dọn dẹp an toàn khi nhận tín hiệu dừng
 health_loop &
 HEALTH_PID=$!
-trap 'kill $HEALTH_PID 2>/dev/null; rm -f "$PID_FILE" 2>/dev/null; exit 0' INT TERM EXIT
 
-# ─── Vòng lặp chính: chạy bot + restart sau 15 phút khi dừng/crash ──────────────
-RESTART_DELAY=900  # Đợi đúng 15 phút (900 giây) trước khi khởi động lại
+cleanup_and_exit() {
+    [ -n "$HEALTH_PID" ] && kill -15 "$HEALTH_PID" 2>/dev/null
+    if [ -f "$BOT_PID_FILE" ]; then
+        b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
+        [ -n "$b_pid" ] && kill -15 "$b_pid" 2>/dev/null
+    fi
+    rm -f "$PID_FILE" "$BOT_PID_FILE" 2>/dev/null
+    exit 0
+}
+trap cleanup_and_exit INT TERM EXIT
+
+# ─── Vòng lặp chính: Chạy bot + Supervisor Auto-Recovery ────────────────────────
+restart_count=0
+get_backoff() {
+    case $1 in
+        0) echo 30 ;;
+        1) echo 60 ;;
+        2) echo 120 ;;
+        *) echo 180 ;;
+    esac
+}
 
 while true; do
+    # Dọn dẹp tiến trình bot cũ nếu còn sót lại để triệt tiêu 100% duplicate bot
+    if [ -f "$BOT_PID_FILE" ]; then
+        old_b=$(cat "$BOT_PID_FILE" 2>/dev/null)
+        if [ -n "$old_b" ]; then
+            if kill -0 "$old_b" 2>/dev/null; then
+                echo "[Watchdog] Dọn dẹp tiến trình bot cũ (PID $old_b)..."
+                kill -15 "$old_b" 2>/dev/null
+                sleep 2
+                kill -9 "$old_b" 2>/dev/null
+            fi
+            rm -f "$BOT_PID_FILE" 2>/dev/null
+        fi
+    fi
+
+    # Kiểm tra mạng/DNS Termux trước khi chạy bot (chống spam rate limit khi mạng rớt)
+    while ! check_discord_network; do
+        echo "[Watchdog] ⚠️ Không có kết nối tới Discord gateway (lỗi DNS/Mạng). Chờ 30s..."
+        sleep 30
+    done
+
     echo "[Watchdog] Đang chạy bot..."
+    START_TIME=$(date +%s)
     python main.py --bot
     EXIT_CODE=$?
-    echo "[Watchdog] Bot đã dừng với mã thoát $EXIT_CODE."
+    END_TIME=$(date +%s)
+    RUNTIME=$((END_TIME - START_TIME))
+    rm -f "$BOT_PID_FILE" 2>/dev/null
+    echo "[Watchdog] Bot đã dừng với mã thoát $EXIT_CODE (thời gian chạy: ${RUNTIME}s)."
 
     if [ $EXIT_CODE -eq 0 ]; then
         echo "[Watchdog] Bot đã tắt bình thường (Exit Code 0). Dừng watchdog."
         break
     fi
 
+    # Nếu bot đã chạy ổn định trên 120s thì reset số lần restart
+    if [ $RUNTIME -gt 120 ]; then
+        restart_count=0
+    fi
+
+    backoff=$(get_backoff $restart_count)
+    restart_count=$((restart_count + 1))
     echo "[Watchdog] ==========================================================="
-    echo "[Watchdog] CẢNH BÁO: Bot bị dừng/crash! Tạm dừng và đợi 15 phút (900s)..."
-    echo "[Watchdog] Thời gian chờ để hệ thống ổn định và tránh lỗi xung đột cổng."
+    echo "[Watchdog] CẢNH BÁO: Bot bị dừng/crash (mã $EXIT_CODE)! Đợi ${backoff}s trước khi restart..."
     echo "[Watchdog] ==========================================================="
-    sleep "$RESTART_DELAY"
+    sleep "$backoff"
 
-    echo "[Watchdog] Hết 15 phút! Đang khởi động lại sạch sẽ cả Bot và Dashboard..."
-    python main.py --stop >/dev/null 2>&1
-    sleep 3
+    # Kiểm tra và đảm bảo Dashboard vẫn đang chạy (tránh chạy trùng lặp nếu dashboard đã online)
+    dash_running=0
+    if [ -f "$DASH_PID_FILE" ]; then
+        d_pid=$(cat "$DASH_PID_FILE" 2>/dev/null)
+        if [ -n "$d_pid" ] && kill -0 "$d_pid" 2>/dev/null; then
+            dash_running=1
+        else
+            rm -f "$DASH_PID_FILE" 2>/dev/null
+        fi
+    fi
+    # Kiểm tra cổng nếu PID file thất lạc
+    if [ $dash_running -eq 0 ] && curl -sf --max-time 3 "http://127.0.0.1:5000/health" >/dev/null 2>&1; then
+        dash_running=1
+    fi
 
-    # Đảm bảo Dashboard cũng được khởi động lại ngầm nếu bị tắt
-    dash_log="data/dashboard.log"
-    nohup python main.py --dashboard > "$dash_log" 2>&1 &
-    sleep 2
-    dash_res=$(pidof python python3 2>/dev/null | awk '{print $1}')
-    [ -n "$dash_res" ] && echo "$dash_res" > data/dashboard.pid 2>/dev/null
+    if [ $dash_running -eq 0 ]; then
+        echo "[Watchdog] Dashboard đang tắt, khởi động lại Dashboard..."
+        dash_log="data/dashboard.log"
+        nohup python main.py --dashboard > "$dash_log" 2>&1 &
+        DASH_NEW_PID=$!
+        echo "$DASH_NEW_PID" > "$DASH_PID_FILE"
+    fi
 
-    echo "[Watchdog] Tiếp tục chạy lại Bot Discord..."
+    echo "[Watchdog] Đang khởi động lại Bot Discord..."
 done
 
 # Dọn health-check khi thoát
