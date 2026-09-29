@@ -619,13 +619,13 @@
                 <i class="bi bi-signpost-split-fill" style="color:var(--accent);"></i> Chế Độ Điều Hướng (Provider Routing)
               </label>
               <select name="global_ai_provider" id="globalAiProviderSelect" class="modal-input" style="width:100%; font-size:0.9rem; background:var(--bg-input); color:var(--text-primary);">
-                <option value="auto" {% if global_ai_provider == 'auto' or not global_ai_provider %}selected{% endif %}>🌟 Tự Động Failover (Gemini Flash ➔ Groq LPU ➔ OpenRouter) [Khuyên dùng]</option>
-                <option value="gemini" {% if global_ai_provider == 'gemini' %}selected{% endif %}>🌟 Ưu Tiên Google Gemini (Xoay vòng pool Gemini)</option>
+                <option value="auto" {% if global_ai_provider == 'auto' or not global_ai_provider %}selected{% endif %}>⚡ Tự Động Siêu Tốc (Groq LPU ➔ OpenRouter ➔ Gemini Cuối Cùng) [Khuyên dùng]</option>
                 <option value="groq" {% if global_ai_provider == 'groq' %}selected{% endif %}>⚡ Ưu Tiên Groq Cloud (Siêu tốc ~300-1000 tps)</option>
                 <option value="openrouter" {% if global_ai_provider == 'openrouter' %}selected{% endif %}>🌐 Ưu Tiên OpenRouter Free</option>
+                <option value="gemini" {% if global_ai_provider == 'gemini' %}selected{% endif %}>🌟 Ưu Tiên Google Gemini (Xoay vòng pool Gemini)</option>
               </select>
               <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">
-                Chế độ Tự Động sẽ dùng Gemini Flash trước, nếu gặp 429 sẽ tự xoay sang key kế tiếp, và tự động nhảy sang Groq nếu hết quota.
+                Chế độ Tự Động ưu tiên theo Model đã chọn (Groq siêu tốc ~0.2s, OpenRouter), và đưa toàn bộ model Google AI Studio về tầng fallback cuối cùng.
               </div>
             </div>
 
@@ -635,28 +635,30 @@
                 <i class="bi bi-robot" style="color:var(--accent);"></i> Mô Hình AI Ưu Tiên (Preferred Model)
               </label>
               <select name="global_ai_model" id="globalAiModelSelect" class="modal-input" style="width:100%; font-size:0.9rem; background:var(--bg-input); color:var(--text-primary);" onchange="toggleCustomModelInput(this.value)">
-                <optgroup label="🌟 Google Gemini 3.x Models (Khuyên dùng)">
-                  <option value="gemini-3.6-flash" {% if global_ai_model in ['gemini-3.6-flash', 'gemini-2.0-flash'] or not global_ai_model %}selected{% endif %}>🌟 Gemini 3.6 Flash — Mới nhất, cực nhanh & thông minh (Khuyên dùng số 1)</option>
-                  <option value="gemini-3.5-flash" {% if global_ai_model == 'gemini-3.5-flash' %}selected{% endif %}>🎯 Gemini 3.5 Flash — Rất ổn định & 15 RPM Free</option>
-                  <option value="gemini-3.1-flash-lite" {% if global_ai_model == 'gemini-3.1-flash-lite' %}selected{% endif %}>⚡ Gemini 3.1 Flash-Lite — Siêu nhẹ & Phản hồi tức thì</option>
-                  <option value="gemini-3.1-pro-preview" {% if global_ai_model == 'gemini-3.1-pro-preview' %}selected{% endif %}>🔬 Gemini 3.1 Pro Preview — Suy luận sâu cấp cao (Cần tài khoản có billing)</option>
-                </optgroup>
-                <optgroup label="⚡ Groq Cloud LPU Models">
+                <optgroup label="⚡ Groq Cloud LPU Models (Khuyên dùng số 1 — ~0.2s)">
                   <option value="qwen/qwen3.8-27b" {% if global_ai_model in ['qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b'] %}selected{% endif %}>💬 Qwen 3.8 27B — Tiếng Việt tự nhiên & Mượt mà (~300 tps)</option>
-                  <option value="openai/gpt-oss-120b" {% if global_ai_model in ['openai/gpt-oss-120b', 'groq/openai/gpt-oss-120b'] %}selected{% endif %}>🧠 GPT-OSS 120B — Mô hình mã nguồn mở siêu lớn & sâu sắc</option>
                   <option value="openai/gpt-oss-20b" {% if global_ai_model in ['openai/gpt-oss-20b', 'groq/openai/gpt-oss-20b'] %}selected{% endif %}>⚡ GPT-OSS 20B — Nhẹ và siêu nhanh (~1000 tps)</option>
+                  <option value="openai/gpt-oss-120b" {% if global_ai_model in ['openai/gpt-oss-120b', 'groq/openai/gpt-oss-120b'] %}selected{% endif %}>🧠 GPT-OSS 120B — Mô hình mã nguồn mở siêu lớn & sâu sắc</option>
                   <option value="groq/compound" {% if global_ai_model in ['groq/compound', 'groq/groq/compound'] %}selected{% endif %}>🌐 Groq Compound — Hỗ trợ tự động duyệt web</option>
                 </optgroup>
-                <optgroup label="🌐 OpenRouter Models (Free)">
+                <optgroup label="🌐 OpenRouter Models (Khuyên dùng số 2 — Miễn phí)">
                   <option value="google/gemma-4-31b-it:free" {% if global_ai_model == 'google/gemma-4-31b-it:free' %}selected{% endif %}>💎 Google: Gemma 4 31B (free) — Phản biện & Deep Reasoning</option>
                   <option value="openrouter/free" {% if global_ai_model == 'openrouter/free' %}selected{% endif %}>🔄 OpenRouter Free Auto-Router — Tự động chuyển model free khả dụng</option>
+                  <option value="nvidia/nemotron-3.5-lightning:free" {% if global_ai_model == 'nvidia/nemotron-3.5-lightning:free' %}selected{% endif %}>⚡ NVIDIA Nemotron 3.5 Lightning (free) — Siêu nhẹ, siêu nhanh</option>
+                  <option value="qwen/qwen3.8-27b:free" {% if global_ai_model == 'qwen/qwen3.8-27b:free' %}selected{% endif %}>💬 Qwen 3.8 27B (free) — Miễn phí qua OpenRouter</option>
+                </optgroup>
+                <optgroup label="🌟 Google AI Studio — Fallback Cuối (⚠️ Chậm ~60s, chỉ dùng khi Groq/OpenRouter thất bại)">
+                  <option value="gemini-3.6-flash" {% if global_ai_model in ['gemini-3.6-flash', 'gemini-2.0-flash'] or not global_ai_model %}selected{% endif %}>🌟 Gemini 3.6 Flash — Mới nhất & thông minh (Fallback cuối)</option>
+                  <option value="gemini-3.5-flash" {% if global_ai_model == 'gemini-3.5-flash' %}selected{% endif %}>🎯 Gemini 3.5 Flash — Ổn định & 15 RPM Free (Fallback cuối)</option>
+                  <option value="gemini-3.1-flash-lite" {% if global_ai_model == 'gemini-3.1-flash-lite' %}selected{% endif %}>⚡ Gemini 3.1 Flash-Lite — Siêu nhẹ (Fallback cuối)</option>
+                  <option value="gemini-3.1-pro-preview" {% if global_ai_model == 'gemini-3.1-pro-preview' %}selected{% endif %}>🔬 Gemini 3.1 Pro Preview — Suy luận sâu (Cần billing, Fallback cuối)</option>
                 </optgroup>
                 <optgroup label="✍️ Khác">
-                  <option value="custom" {% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
+                  <option value="custom" {% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free','nvidia/nemotron-3.5-lightning:free','qwen/qwen3.8-27b:free'] %}selected{% endif %}>✍️ Tùy chỉnh model ID khác...</option>
                 </optgroup>
               </select>
-              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free'] %}block{% else %}none{% endif %};">
-                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: gemini-3.6-flash)" style="width:100%; font-size:0.85rem; font-family:monospace;">
+              <div id="customModelWrap" style="margin-top:8px; display:{% if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free','nvidia/nemotron-3.5-lightning:free','qwen/qwen3.8-27b:free'] %}block{% else %}none{% endif %};">
+                <input type="text" name="custom_ai_model" id="customAiModelInput" class="modal-input" value="{{ global_ai_model if global_ai_model not in ['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-2.0-flash','qwen/qwen3.8-27b','groq/qwen/qwen3.8-27b','openai/gpt-oss-120b','groq/openai/gpt-oss-120b','openai/gpt-oss-20b','groq/openai/gpt-oss-20b','groq/compound','google/gemma-4-31b-it:free','openrouter/free','nvidia/nemotron-3.5-lightning:free','qwen/qwen3.8-27b:free'] else '' }}" placeholder="Nhập model ID tùy chỉnh (ví dụ: gemini-3.6-flash)" style="width:100%; font-size:0.85rem; font-family:monospace;">
               </div>
             </div>
 

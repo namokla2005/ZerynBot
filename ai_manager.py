@@ -40,6 +40,7 @@ GEMINI_MODELS = [
 GROQ_MODELS = [
     "qwen/qwen3.8-27b",
     "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
     "groq/compound"
 ]
 
@@ -232,6 +233,46 @@ class AIProviderManager:
             "model": model
         }
 
+    def _get_provider_chain(self, routing: str, model: str) -> List[str]:
+        """
+        Determines the failover order of AI providers.
+
+        KEY RULE: Google AI Studio (Gemini) is ALWAYS the LAST fallback in 'auto' mode,
+        regardless of which model is selected as preferred. Gemini is slow on Termux ARM64
+        (response time ~60s+). It is only placed first when routing is EXPLICITLY forced
+        to 'gemini' by the admin.
+
+        Fallback order in auto mode: Groq (fast ~0.2s) → OpenRouter → Gemini (last resort)
+        """
+        # 1. Forced routing mode (admin explicitly picks a provider)
+        if routing == "gemini":
+            return ["gemini", "groq", "openrouter"]
+        if routing == "groq":
+            return ["groq", "openrouter", "gemini"]
+        if routing == "openrouter":
+            return ["openrouter", "groq", "gemini"]
+
+        # 2. Auto routing mode: Google Gemini is ALWAYS last, regardless of preferred model.
+        #    Detect preferred provider from model name only to determine Groq vs OpenRouter order.
+        m = (model or "").strip().lower()
+
+        if "gemma" in m or m.startswith("openrouter/") or m.startswith("nvidia/"):
+            # OpenRouter model selected → OpenRouter first, Groq second, Gemini LAST
+            return ["openrouter", "groq", "gemini"]
+        elif (
+            m in ("openai/gpt-oss-20b", "openai/gpt-oss-120b", "groq/compound", "groq/compound-mini")
+            or m.startswith("qwen")
+            or m.startswith("groq/")
+            or m.startswith("openai/")
+        ):
+            # Groq model selected → Groq first, OpenRouter second, Gemini LAST
+            return ["groq", "openrouter", "gemini"]
+        else:
+            # Default (including gemini-* model selected as preferred): Groq → OpenRouter → Gemini LAST
+            # Even if user selects a Gemini model as "preferred", the system still tries
+            # Groq/OpenRouter first for speed. Gemini is only used as a last-resort fallback.
+            return ["groq", "openrouter", "gemini"]
+
     # ─── Synchronous Execution (Flask / Web Support Chat) ──────────────────────
 
     def _call_gemini_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "gemini-3.6-flash", timeout: int = 12) -> Tuple[bool, str]:
@@ -382,19 +423,8 @@ class AIProviderManager:
         groq_pool = list(cfg["groq_keys"])
         openrouter_pool = list(cfg["openrouter_keys"])
 
-        # Determine order of provider attempts
-        if routing == "groq":
-            provider_chain = ["groq", "gemini", "openrouter"]
-        elif routing == "openrouter":
-            provider_chain = ["openrouter", "gemini", "groq"]
-        elif routing == "gemini":
-            provider_chain = ["gemini", "groq", "openrouter"]
-        else:
-            # Auto mode: prioritize gemini if keys exist, else groq
-            if gemini_pool:
-                provider_chain = ["gemini", "groq", "openrouter"]
-            else:
-                provider_chain = ["groq", "gemini", "openrouter"]
+        # Determine order of provider attempts (Google Gemini is always last fallback)
+        provider_chain = self._get_provider_chain(routing, model)
 
         pools_map = {
             "gemini": gemini_pool,
@@ -626,17 +656,8 @@ class AIProviderManager:
         groq_pool = list(cfg["groq_keys"])
         openrouter_pool = list(cfg["openrouter_keys"])
 
-        if routing == "groq":
-            provider_chain = ["groq", "gemini", "openrouter"]
-        elif routing == "openrouter":
-            provider_chain = ["openrouter", "gemini", "groq"]
-        elif routing == "gemini":
-            provider_chain = ["gemini", "groq", "openrouter"]
-        else:
-            if gemini_pool:
-                provider_chain = ["gemini", "groq", "openrouter"]
-            else:
-                provider_chain = ["groq", "gemini", "openrouter"]
+        # Determine order of provider attempts (Google Gemini is always last fallback)
+        provider_chain = self._get_provider_chain(routing, model)
 
         pools_map = {
             "gemini": gemini_pool,
