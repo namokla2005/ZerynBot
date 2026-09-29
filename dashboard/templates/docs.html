@@ -556,7 +556,7 @@
     <div class="topbar-links">
       <a href="{{ url_for('index') }}" class="topbar-link">{{ t('nav.home') | default('Trang Chủ') }}</a>
       <a href="{{ url_for('docs_page') }}" class="topbar-link active">{{ t('nav.docs') | default('Tài Liệu') }}</a>
-      <a href="{{ url_for('dashboard_index') }}" class="topbar-link">{{ t('nav.dashboard') | default('Dashboard') }}</a>
+      <a href="{{ url_for('home') }}" class="topbar-link">{{ t('nav.dashboard') | default('Dashboard') }}</a>
       <a href="{{ url_for('support_page') }}" class="topbar-link">{{ t('nav.support') | default('Hỗ Trợ 24/7') }}</a>
     </div>
 
@@ -579,7 +579,7 @@
       </div>
 
       {% if session.get('user') %}
-        <a href="{{ url_for('dashboard_index') }}" class="btn-pink-pill" style="padding: 8px 18px; font-size: 0.88rem;">
+        <a href="{{ url_for('home') }}" class="btn-pink-pill" style="padding: 8px 18px; font-size: 0.88rem;">
           <img src="{{ session['user'].get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px;">
           Dashboard
         </a>
