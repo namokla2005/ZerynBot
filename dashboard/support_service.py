@@ -148,12 +148,14 @@ def _call_ai_support(user_message: str, user_name: str) -> Tuple[str, bool]:
     user_lower = user_message.lower()
     user_requested_escalation = any(k in user_lower for k in escalate_keywords)
 
+    try:
+        from ai_knowledge import get_zerynbot_knowledge
+        knowledge_text = get_zerynbot_knowledge()
+    except Exception:
+        knowledge_text = ZERYNBOT_SYSTEM_KNOWLEDGE
+
     # 2. Chuẩn bị prompt với thẻ phân tách an toàn chống Prompt Injection
     prompt = f"""
-<bot_knowledge>
-{ZERYNBOT_SYSTEM_KNOWLEDGE}
-</bot_knowledge>
-
 <user_information>
 Tên người dùng: {user_name}
 </user_information>
@@ -162,50 +164,65 @@ Tên người dùng: {user_name}
 {user_message}
 </user_question>
 
-Hãy phản hồi người dùng ngắn gọn, chuyên nghiệp và lịch sự. Nếu câu hỏi không giải quyết được hoặc yêu cầu nhân viên, hãy chèn [TRIGGER_ESCALATE].
+Hãy phản hồi người dùng ngắn gọn, chuyên nghiệp và lịch sự, sử dụng đúng thông tin các lệnh Slash Commands của ZerynBot V2. Nếu câu hỏi không giải quyết được hoặc yêu cầu nhân viên, hãy chèn [TRIGGER_ESCALATE].
 """
 
     api_key = db.get_global_setting("gemini_api_key") or config.GEMINI_API_KEY
     ai_reply = ""
 
-    # Thử gọi Groq Cloud hoặc Gemini API
+    # Thử gọi Google Gemini (mặc định) hoặc Groq Cloud
     if api_key:
         try:
-            # 1. Groq Cloud
+            # 1. Groq Cloud (nếu key bắt đầu bằng gsk_)
             if api_key.startswith("gsk_"):
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
                 }
-                body = {
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [
-                        {"role": "system", "content": ZERYNBOT_SYSTEM_KNOWLEDGE},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.5,
-                    "max_tokens": 800
-                }
-                resp = requests.post(url, headers=headers, json=body, timeout=12)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    ai_reply = data["choices"][0]["message"]["content"].strip()
-            # 2. Google Gemini
+                for groq_m in ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "groq/compound"]:
+                    body = {
+                        "model": groq_m,
+                        "messages": [
+                            {"role": "system", "content": knowledge_text},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.5,
+                        "max_tokens": 1200
+                    }
+                    resp = requests.post(url, headers=headers, json=body, timeout=12)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        ai_reply = data["choices"][0]["message"]["content"].strip()
+                        break
+            # 2. Google Gemini (Gemini 3.1 Pro Preview / 3.x Flash)
             else:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                headers = {"Content-Type": "application/json"}
-                body = {
-                    "contents": [{"parts": [{"text": prompt}]}]
+                gemini_models = [
+                    "gemini-3.1-pro-preview",
+                    "gemini-3.6-flash",
+                    "gemini-3.5-flash",
+                    "gemini-3.1-flash-lite",
+                    "gemini-3.1-flash-lite-preview"
+                ]
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key
                 }
-                resp = requests.post(url, headers=headers, json=body, timeout=12)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts:
-                            ai_reply = parts[0].get("text", "").strip()
+                body = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "system_instruction": {"parts": [{"text": knowledge_text}]}
+                }
+                for gem_m in gemini_models:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{gem_m}:generateContent"
+                    resp = requests.post(url, headers=headers, json=body, timeout=15)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                ai_reply = parts[0].get("text", "").strip()
+                                break
         except Exception as e:
             logger.warning(f"[SupportService] AI API call failed: {e}")
 

@@ -320,6 +320,38 @@
       border-color: rgba(168, 85, 247, 0.25);
       color: #e2e8f0;
     }
+    .admin-msg-bubble strong { font-weight: 700; color: #fff; }
+    .admin-msg-bubble em { font-style: italic; }
+    .admin-msg-bubble u { text-decoration: underline; }
+    .admin-msg-bubble del { text-decoration: line-through; opacity: 0.75; }
+    .admin-msg-bubble .discord-code {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.88em;
+      color: #f1f5f9;
+    }
+    .admin-msg-bubble .discord-pre {
+      background: rgba(10, 10, 20, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 8px 0;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85em;
+      color: #e2e8f0;
+      white-space: pre;
+    }
+    .admin-msg-bubble .discord-quote {
+      border-left: 4px solid #a855f7;
+      padding-left: 10px;
+      margin: 6px 0;
+      color: rgba(255, 255, 255, 0.85);
+      font-style: italic;
+    }
     .admin-msg-meta {
       font-size: 0.72rem;
       color: #64748b;
@@ -448,7 +480,7 @@
       <div class="threads-list" id="threads-list">
         {% for th in threads %}
         <div class="thread-item {% if loop.first %}active{% endif %}" data-thread-id="{{ th.thread_id }}" data-status="{{ th.status }}" data-name="{{ th.user_name | lower }}" data-user-id="{{ th.user_id }}" onclick="selectThread('{{ th.thread_id }}', '{{ th.user_name }}', '{{ th.user_id }}', '{{ th.user_avatar }}', '{{ th.status }}', this)">
-          <img src="{{ th.user_avatar or url_for('static', filename='img/default_avatar.png') }}" class="thread-avatar">
+          <img src="{{ th.user_avatar or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" class="thread-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
           <div class="thread-info">
             <div class="thread-name-row">
               <span class="thread-user-name">{{ th.user_name }}</span>
@@ -476,7 +508,7 @@
         <!-- Header -->
         <div class="chat-pane-header">
           <div class="active-user-meta">
-            <img id="active-avatar" src="{{ active_th.user_avatar or url_for('static', filename='img/default_avatar.png') }}" class="active-user-avatar">
+            <img id="active-avatar" src="{{ active_th.user_avatar or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" class="active-user-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
             <div>
               <div id="active-name" class="active-user-name">{{ active_th.user_name }}</div>
               <div id="active-uid" class="active-user-id">ID: {{ active_th.user_id }}</div>
@@ -531,6 +563,29 @@
     let lastAdminMsgId = 0;
     let isPollingAdmin = false;
 
+    // Discord Markdown parser (100% Anti-XSS sanitized)
+    function formatDiscordMarkdown(text) {
+      if (!text) return '';
+      let escaped = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+      escaped = escaped.replace(/```(?:[a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g, '<pre class="discord-pre"><code>$1</code></pre>');
+      escaped = escaped.replace(/`([^`\n]+)`/g, '<code class="discord-code">$1</code>');
+      escaped = escaped.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      escaped = escaped.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+      escaped = escaped.replace(/\b_([^_]+)_\b/g, '<em>$1</em>');
+      escaped = escaped.replace(/__(.+?)__/g, '<u>$1</u>');
+      escaped = escaped.replace(/~~(.+?)~~/g, '<del>$1</del>');
+      escaped = escaped.replace(/(?:^|\n)&gt;\s?(.*?)(?=\n|$)/g, '<blockquote class="discord-quote">$1</blockquote>');
+      escaped = escaped.replace(/\n/g, '<br>');
+      return escaped;
+    }
+
     // Load messages on startup if thread exists
     if (activeThreadId) {
       loadThreadMessages(activeThreadId);
@@ -571,7 +626,8 @@
       document.querySelectorAll('.thread-item').forEach(i => i.classList.remove('active'));
       if (itemEl) itemEl.classList.add('active');
 
-      document.getElementById('active-avatar').src = avatarUrl || "{{ url_for('static', filename='img/default_avatar.png') }}";
+      document.getElementById('active-avatar').src = avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
+      document.getElementById('active-avatar').onerror = () => { document.getElementById('active-avatar').src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
       document.getElementById('active-name').textContent = userName;
       document.getElementById('active-uid').textContent = 'ID: ' + userId;
       document.getElementById('active-status-select').value = status;
@@ -614,7 +670,7 @@
       const body = document.createElement('div');
       const bubble = document.createElement('div');
       bubble.className = 'admin-msg-bubble';
-      bubble.textContent = content; // Anti-XSS
+      bubble.innerHTML = formatDiscordMarkdown(content); // Safe Discord Markdown
 
       const meta = document.createElement('div');
       meta.className = 'admin-msg-meta';

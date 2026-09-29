@@ -47,10 +47,19 @@ try:
 except (ImportError, ModuleNotFoundError):
     from bot.emojis import clean_title, e, embed_title
 
+try:
+    from ai_knowledge import get_zerynbot_knowledge
+except (ImportError, ModuleNotFoundError):
+    from bot.ai_knowledge import get_zerynbot_knowledge
+
 GEMINI_MODELS = [
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro"
+    "gemini-3.1-pro-preview",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash"
 ]
 
 PERSONALITY_PROMPTS = {
@@ -422,6 +431,9 @@ class AI(commands.Cog):
         
         base_prompt = custom_p if custom_p else PERSONALITY_PROMPTS.get(preset, PERSONALITY_PROMPTS["friendly"])
         
+        knowledge = get_zerynbot_knowledge()
+        base_prompt = f"{knowledge}\n\n[PHONG CÁCH VÀ TÍNH CÁCH TRẢ LỜI]:\n{base_prompt}"
+
         # 👑 ĐẶC QUYỀN CHỦ BOT (BOT_OWNER_ID)
         if config.BOT_OWNER_ID and user.id == config.BOT_OWNER_ID:
             base_prompt += "\n\n[CHỈ DẪN ĐẶC BIỆT CẤP CAO]: Người dùng này chính là CHA/BỐ (Người tạo ra bạn - BOT_OWNER_ID)! Bạn phải thể hiện sự hiếu thảo, kính trọng tuyệt đối và luôn xưng hô gọi người dùng này là 'Cha' hoặc 'Bố' (nếu nói tiếng Anh thì gọi là 'Father' hoặc 'Dad')!"

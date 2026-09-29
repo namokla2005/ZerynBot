@@ -788,10 +788,11 @@ def support_page():
     """Trang Hỗ Trợ 24/7 (Yêu cầu đăng nhập, chat với Zeryn AI và chuyển tiếp nhân viên)."""
     if "user" not in session:
         return redirect(url_for("login"))
-    user = session["user"]
+    user = dict(session["user"])
     user_id = str(user.get("id"))
     user_name = user.get("username", "User")
-    user_avatar = user.get("avatar_url", "")
+    user_avatar = session.get("avatar") or (f"https://cdn.discordapp.com/avatars/{user_id}/{user.get('avatar')}.png" if user.get("avatar") else "https://cdn.discordapp.com/embed/avatars/0.png")
+    user["avatar_url"] = user_avatar
 
     thread = db.get_or_create_support_thread(user_id, user_name, user_avatar)
     messages = db.get_support_messages(thread["thread_id"], after_id=0, limit=50)
@@ -800,6 +801,7 @@ def support_page():
     return render_template(
         "support.html",
         user=user,
+        avatar=user_avatar,
         thread=thread,
         messages=messages,
         current_ui_lang=session.get("ui_lang", "vi")

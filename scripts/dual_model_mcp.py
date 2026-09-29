@@ -228,10 +228,10 @@ def _get_api_keys():
                     if k == "gemini_api_key" and v:
                         if v.startswith("gsk_") and not keys["groq"]:
                             keys["groq"] = v
-                        elif v.startswith("AIzaSy") and not keys["gemini"]:
-                            keys["gemini"] = v
                         elif v.startswith("sk-or-") and not keys["openrouter"]:
                             keys["openrouter"] = v
+                        elif not keys["gemini"]:
+                            keys["gemini"] = v
                     elif k == "groq_api_key" and v and not keys["groq"]:
                         keys["groq"] = v
         except Exception:
@@ -241,7 +241,11 @@ def _get_api_keys():
 
 
 def _call_gemini(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    models_to_try = [model]
+    for m in ["gemini-3.1-pro-preview", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
     contents = []
     if system_instruction:
         contents.append({"role": "user", "parts": [{"text": f"[SYSTEM INSTRUCTION]\n{system_instruction}"}]})
@@ -252,14 +256,30 @@ def _call_gemini(api_key: str, model: str, prompt: str, system_instruction: str 
         "contents": contents,
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2000}
     }
-    r = requests.post(url, json=payload, timeout=30)
-    if r.status_code == 200:
-        data = r.json()
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+
+    last_err = ""
+    for target_model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent"
         try:
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except (KeyError, IndexError):
-            return "❌ Phản hồi rỗng từ Gemini API."
-    return f"❌ Lỗi Gemini API (HTTP {r.status_code}): {r.text}"
+            r = requests.post(url, headers=headers, json=payload, timeout=30)
+            if r.status_code == 200:
+                data = r.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    cparts = candidates[0].get("content", {}).get("parts", [])
+                    if cparts:
+                        return cparts[0].get("text", "").strip()
+            elif r.status_code in (429, 404, 503):
+                last_err = f"HTTP {r.status_code} on {target_model}"
+                continue
+            else:
+                last_err = f"HTTP {r.status_code}: {r.text[:120]}"
+        except Exception as e:
+            last_err = str(e)
+            continue
+
+    return f"❌ Lỗi Gemini API: {last_err}"
 
 
 def _call_groq(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
@@ -352,15 +372,15 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
     }
     sys_inst = role_instructions.get(role, role_instructions["general"])
 
-    # 1. Ưu tiên Groq cho phản biện (tốc độ cao 300 tokens/s)
+    # 1. Ưu tiên Google Gemini (Gemini 3.1 Pro Preview / 3.x Flash) theo yêu cầu hệ thống
+    if keys["gemini"] and (model_pref == "auto" or model_pref.startswith("gemini")):
+        model = "gemini-3.1-pro-preview" if model_pref == "auto" else model_pref
+        return _call_gemini(keys["gemini"], model, prompt, sys_inst)
+
+    # 2. Dự phòng Groq LPU (Qwen 2.5 / GPT-OSS)
     if keys["groq"] and (model_pref == "auto" or model_pref.startswith("qwen") or model_pref.startswith("openai/")):
         model = "qwen/qwen3.8-27b" if model_pref == "auto" else model_pref
         return _call_groq(keys["groq"], model, prompt, sys_inst)
-
-    # 2. Nếu chỉ định rõ Gemini hoặc chỉ có Gemini key
-    if keys["gemini"] and (model_pref.startswith("gemini") or model_pref == "auto"):
-        model = model_pref if model_pref.startswith("gemini") else "gemini-2.0-flash"
-        return _call_gemini(keys["gemini"], model, prompt, sys_inst)
 
     # 3. Fallback OpenRouter
     if keys["openrouter"]:

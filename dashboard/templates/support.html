@@ -256,6 +256,38 @@
       border-top-left-radius: 4px;
       color: #fff;
     }
+    .msg-bubble strong { font-weight: 700; color: #fff; }
+    .msg-bubble em { font-style: italic; }
+    .msg-bubble u { text-decoration: underline; }
+    .msg-bubble del { text-decoration: line-through; opacity: 0.75; }
+    .msg-bubble .discord-code {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.88em;
+      color: #f1f5f9;
+    }
+    .msg-bubble .discord-pre {
+      background: rgba(10, 10, 20, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 8px 0;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85em;
+      color: #e2e8f0;
+      white-space: pre;
+    }
+    .msg-bubble .discord-quote {
+      border-left: 4px solid #a855f7;
+      padding-left: 10px;
+      margin: 6px 0;
+      color: rgba(255, 255, 255, 0.85);
+      font-style: italic;
+    }
     .msg-author {
       font-size: 0.75rem;
       font-weight: 700;
@@ -403,7 +435,7 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px;">
-        <img src="{{ user.get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);">
+        <img src="{{ avatar or user.get('avatar_url') or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
         <span style="font-size:0.88rem;font-weight:600;color:#fff;">{{ user.get('username') }}</span>
       </div>
     </div>
@@ -416,7 +448,7 @@
       <div class="chat-header">
         <div class="chat-header-info">
           <div class="bot-avatar-badge">
-            🤖
+            <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
             <div class="status-dot"></div>
           </div>
           <div>
@@ -451,7 +483,7 @@
         {% for msg in messages %}
           {% if msg.sender_type == 'user' %}
             <div class="message-row user" data-msg-id="{{ msg.id }}">
-              <img src="{{ user.get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}" class="msg-avatar">
+              <img src="{{ avatar or user.get('avatar_url') or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" class="msg-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
               <div>
                 <div class="msg-bubble">{{ msg.content }}</div>
                 <div class="msg-time">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</div>
@@ -468,9 +500,11 @@
             </div>
           {% else %}
             <div class="message-row bot" data-msg-id="{{ msg.id }}">
-              <div class="msg-avatar" style="background:linear-gradient(135deg, #a855f7, #ec4899);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;">🤖</div>
+              <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="msg-avatar" alt="Zeryn" style="object-fit:cover;border-radius:50%;border:1px solid rgba(168,85,247,0.4);">
               <div>
-                <div class="msg-author bot">🤖 Zeryn AI</div>
+                <div class="msg-author bot">
+                  <img src="{{ url_for('static', filename='img/logo_v3.png') }}" style="width:16px;height:16px;border-radius:50%;vertical-align:middle;margin-right:4px;"> Zeryn AI
+                </div>
                 <div class="msg-bubble">{{ msg.content }}</div>
                 <div class="msg-time">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</div>
               </div>
@@ -508,9 +542,52 @@
   <script>
     const THREAD_ID = "{{ thread.thread_id }}";
     const CSRF_TOKEN = "{{ csrf_token() }}";
-    const USER_AVATAR = "{{ user.get('avatar_url') or url_for('static', filename='img/default_avatar.png') }}";
+    const USER_AVATAR = "{{ avatar or user.get('avatar_url') or 'https://cdn.discordapp.com/embed/avatars/0.png' }}";
+    const BOT_LOGO = "{{ url_for('static', filename='img/logo_v3.png') }}";
     let lastMsgId = {{ (messages[-1].id if messages else 0) }};
     let isPolling = false;
+
+    // Discord Markdown parser (100% Anti-XSS sanitized)
+    function formatDiscordMarkdown(text) {
+      if (!text) return '';
+      // 1. Strict HTML escape to prevent XSS
+      let escaped = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+      // 2. Code blocks (```lang\ncode\n```)
+      escaped = escaped.replace(/```(?:[a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g, '<pre class="discord-pre"><code>$1</code></pre>');
+
+      // 3. Inline code (`code`)
+      escaped = escaped.replace(/`([^`\n]+)`/g, '<code class="discord-code">$1</code>');
+
+      // 4. Bold + Italic (***text***)
+      escaped = escaped.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+
+      // 5. Bold (**text**)
+      escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      // 6. Italic (*text* or _text_)
+      escaped = escaped.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+      escaped = escaped.replace(/\b_([^_]+)_\b/g, '<em>$1</em>');
+
+      // 7. Underline (__text__)
+      escaped = escaped.replace(/__(.+?)__/g, '<u>$1</u>');
+
+      // 8. Strikethrough (~~text~~)
+      escaped = escaped.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+      // 9. Blockquote (> text)
+      escaped = escaped.replace(/(?:^|\n)&gt;\s?(.*?)(?=\n|$)/g, '<blockquote class="discord-quote">$1</blockquote>');
+
+      // 10. Newlines to <br>
+      escaped = escaped.replace(/\n/g, '<br>');
+
+      return escaped;
+    }
 
     // Toggle language menu
     function toggleLangMenu() {
@@ -526,8 +603,13 @@
     // Auto-scroll to bottom of chat
     function scrollToBottom() {
       const container = document.getElementById('chat-messages');
-      container.scrollTop = container.scrollHeight;
+      if (container) container.scrollTop = container.scrollHeight;
     }
+
+    // Format initial server-rendered messages with Discord markdown
+    document.querySelectorAll('.msg-bubble').forEach(b => {
+      b.innerHTML = formatDiscordMarkdown(b.textContent);
+    });
     scrollToBottom();
 
     function fillPrompt(text) {
@@ -588,7 +670,7 @@
       }
     }
 
-    // Append message using 100% DOM API to prevent XSS
+    // Append message using safe DOM + sanitized Markdown formatting
     function appendMessageDOM(senderType, senderName, content, avatarUrl, timeStr, msgId) {
       const messagesContainer = document.getElementById('chat-messages');
 
@@ -604,6 +686,7 @@
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.borderRadius = '50%';
+        img.onerror = () => { img.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
         avatar.appendChild(img);
       } else if (senderType === 'admin') {
         avatar.style.background = '#eab308';
@@ -613,19 +696,23 @@
         avatar.style.color = '#000';
         avatar.textContent = '👑';
       } else {
-        avatar.style.background = 'linear-gradient(135deg, #a855f7, #ec4899)';
-        avatar.style.display = 'flex';
-        avatar.style.alignItems = 'center';
-        avatar.style.justifyContent = 'center';
-        avatar.style.color = '#fff';
-        avatar.textContent = '🤖';
+        const botImg = document.createElement('img');
+        botImg.src = BOT_LOGO;
+        botImg.alt = 'Zeryn';
+        botImg.style.width = '100%';
+        botImg.style.height = '100%';
+        botImg.style.borderRadius = '50%';
+        botImg.style.objectFit = 'cover';
+        botImg.style.border = '1px solid rgba(168,85,247,0.4)';
+        avatar.style.background = 'transparent';
+        avatar.appendChild(botImg);
       }
 
       const body = document.createElement('div');
       if (senderType === 'bot') {
         const author = document.createElement('div');
         author.className = 'msg-author bot';
-        author.textContent = '🤖 Zeryn AI';
+        author.innerHTML = `<img src="${BOT_LOGO}" style="width:16px;height:16px;border-radius:50%;vertical-align:middle;margin-right:4px;"> Zeryn AI`;
         body.appendChild(author);
       } else if (senderType === 'admin') {
         const author = document.createElement('div');
@@ -636,7 +723,7 @@
 
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble';
-      bubble.textContent = content; // Anti-XSS safe textContent
+      bubble.innerHTML = formatDiscordMarkdown(content); // Safe Discord Markdown
       body.appendChild(bubble);
 
       const time = document.createElement('div');
