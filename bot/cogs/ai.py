@@ -61,6 +61,32 @@ GEMINI_MODELS = [
     "gemini-1.5-flash"
 ]
 
+# ─── Safety Metadata Filter ────────────────────────────────────────────────────
+_SAFETY_PATTERNS = [
+    re.compile(r'[\r\n]*[ \t]*User Safety:[ \t]*\w+[ \t]*', re.IGNORECASE),
+    re.compile(r'[\r\n]*[ \t]*Assistant Safety:[ \t]*\w+[ \t]*', re.IGNORECASE),
+    re.compile(r'[\r\n]*[ \t]*\[Safety[:\s][^\]]*\][ \t]*', re.IGNORECASE),
+    re.compile(r'<safety_ratings>[\s\S]*?</safety_ratings>', re.IGNORECASE),
+    re.compile(r'\{\s*["\']safety["\']\s*:[^}]+\}', re.IGNORECASE),
+]
+
+
+def _sanitize_ai_response(text: str) -> str:
+    """Lọc bỏ safety metadata do một số OpenRouter model tự chèn vào response.
+
+    Ví dụ model Nvidia Nemotron đôi khi trả về:
+        <actual response>\n\nUser Safety: safe\nAssistant Safety: safe
+    Hàm này loại bỏ hoàn toàn các dòng đó trước khi gửi lên Discord.
+    """
+    if not text:
+        return text
+    for pattern in _SAFETY_PATTERNS:
+        text = pattern.sub('', text)
+    # Dọn dẹp khoảng trắng/dòng trống thừa đầu cuối
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 PERSONALITY_PROMPTS = {
     "friendly": "Bạn là Zeryn, trợ lý Discord bot thông minh, thân thiện, dễ thương và hữu ích.",
     "expert": "Bạn là Zeryn, chuyên gia cố vấn kỹ thuật và học tập, trả lời súc tích, chính xác và chuyên nghiệp.",
@@ -200,7 +226,12 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
         free_models = ["openrouter/free", "meta-llama/llama-3.2-11b-vision-instruct:free"]
     else:
         messages.append({"role": "user", "content": prompt})
-        free_models = ["openrouter/free", "google/gemma-4-31b-it:free", "qwen/qwen3.8-27b:free", "nvidia/nemotron-3.5-lightning:free"]
+        free_models = [
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "google/gemma-4-31b-it:free",
+            "qwen/qwen3.8-27b:free",
+            "nvidia/nemotron-3.5-lightning:free",
+        ]
 
     async with aiohttp.ClientSession() as session:
         for model in free_models:
@@ -211,7 +242,14 @@ async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_
                         data = await resp.json()
                         choices = data.get("choices", [])
                         if choices:
-                            return choices[0].get("message", {}).get("content", "").strip()
+                            raw = choices[0].get("message", {}).get("content", "") or ""
+                            clean = _sanitize_ai_response(raw)
+                            if clean:
+                                return clean
+                    elif resp.status == 529:  # OpenRouter overloaded
+                        import asyncio
+                        await asyncio.sleep(2)
+                        continue
             except Exception:
                 continue
     return "❌ Không thể kết nối tới OpenRouter Free API."
@@ -295,7 +333,7 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
                 preferred_model=preferred_model
             )
             if ok and reply:
-                return reply.strip()
+                return _sanitize_ai_response(reply)
         except Exception as e:
             logger.warning(f"[BotAI] AI Provider Manager async call failed: {e}")
         # Chuyển sang Smart Local Responder nhanh chóng, không block event loop
@@ -662,6 +700,9 @@ class AI(commands.Cog):
             guild_key = (ai_s.get("api_key") or "").strip()
             
             response = await call_ai_api(content, sys_prompt, api_key=guild_key, is_owner=is_owner, image_url=image_url, preferred_model=global_model)
+            response = _sanitize_ai_response(response)
+            if not response:
+                return
             if len(response) > 2000:
                 response = response[:1990] + "..."
             await message.reply(response)

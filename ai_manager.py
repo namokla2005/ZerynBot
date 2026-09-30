@@ -45,10 +45,10 @@ GROQ_MODELS = [
 ]
 
 OPENROUTER_MODELS = [
-    "openrouter/free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
     "google/gemma-4-31b-it:free",
     "qwen/qwen3.8-27b:free",
-    "nvidia/nemotron-3.5-lightning:free"
+    "nvidia/nemotron-3.5-lightning:free",
 ]
 
 
@@ -96,6 +96,25 @@ def classify_key(key: str) -> str:
     return "gemini"
 
 
+# ─── Safety Metadata Sanitizer ────────────────────────────────────────────────
+_SAFETY_PATTERNS_MGR = [
+    re.compile(r'[\r\n]*[ \t]*User Safety:[ \t]*\w+[ \t]*', re.IGNORECASE),
+    re.compile(r'[\r\n]*[ \t]*Assistant Safety:[ \t]*\w+[ \t]*', re.IGNORECASE),
+    re.compile(r'[\r\n]*[ \t]*\[Safety[:\s][^\]]*\][ \t]*', re.IGNORECASE),
+    re.compile(r'<safety_ratings>[\s\S]*?</safety_ratings>', re.IGNORECASE),
+]
+
+
+def _sanitize_mgr(text: str) -> str:
+    """Strip safety metadata injected by some OpenRouter models (e.g. Nvidia Nemotron)."""
+    if not text:
+        return text
+    for p in _SAFETY_PATTERNS_MGR:
+        text = p.sub('', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 class AIProviderManager:
     """
     Singleton AI Manager maintaining:
@@ -103,6 +122,7 @@ class AIProviderManager:
     - Round-robin pointers
     - Thread-safety with threading.Lock
     """
+
     _instance = None
     _lock = threading.Lock()
 
@@ -631,11 +651,18 @@ class AIProviderManager:
                         data = await resp.json()
                         choices = data.get("choices", [])
                         if choices:
-                            self.reset_cooldown(key)
-                            return True, choices[0].get("message", {}).get("content", "").strip()
+                            raw = choices[0].get("message", {}).get("content", "") or ""
+                            clean = _sanitize_mgr(raw)
+                            if clean:
+                                self.reset_cooldown(key)
+                                return True, clean
                     elif resp.status == 429:
                         self.mark_cooldown(key, base_cooldown=60.0)
                         return False, "RATE_LIMIT_429"
+                    elif resp.status == 529:  # OpenRouter overloaded
+                        import asyncio
+                        await asyncio.sleep(2)
+                        last_error = "OVERLOADED_529"
                     else:
                         last_error = f"HTTP {resp.status}"
             except Exception as e:
