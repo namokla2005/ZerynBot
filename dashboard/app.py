@@ -1633,8 +1633,40 @@ def admin_save_ai_key():
     if primary_key:
         db.set_global_setting("gemini_api_key", primary_key)
 
+    try:
+        from ai_logger import ai_logger
+        ai_logger.update_model_config("model1", model=model, provider=provider)
+        ai_logger.log_event(
+            source="model1",
+            model=model or "auto",
+            provider=provider or "auto",
+            latency_ms=0,
+            status="OK",
+            message=f"Quản trị viên đã lưu cấu hình AI Model mới: {model} ({provider})"
+        )
+    except Exception:
+        pass
+
     flash("✅ Đã lưu cấu hình Multi-Provider AI API Key Pools & Model toàn cục thành công!", "success")
     return redirect(url_for("admin_panel") + "#ai_settings")
+
+
+@app.route("/api/admin/ai/activity-feed", methods=["GET"])
+@limiter.limit("60/minute")
+@owner_required
+def api_admin_ai_activity_feed():
+    """Trả về snapshot hoạt động thời gian thực của cả Model 1 và Model 2."""
+    since_id = request.args.get("since_id", 0)
+    try:
+        from ai_logger import ai_logger
+        data = ai_logger.get_snapshot(since_id=since_id)
+        cur_model = db.get_global_setting("global_ai_model") or "qwen/qwen3.8-27b"
+        cur_prov = db.get_global_setting("global_ai_provider") or "auto"
+        data["models"]["model1"]["model"] = cur_model
+        data["models"]["model1"]["provider"] = cur_prov
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e), "models": {}, "logs": []})
 
 
 @app.route("/api/admin/test_ai_key", methods=["POST"])

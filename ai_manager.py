@@ -22,6 +22,11 @@ import aiohttp
 
 logger = logging.getLogger("ZerynAI")
 
+try:
+    from ai_logger import ai_logger
+except ImportError:
+    ai_logger = None
+
 # ─── Security: Hardcoded Whitelist (Zero SSRF) ──────────────────────────────────
 ALLOWED_HOSTS = frozenset({
     "generativelanguage.googleapis.com",
@@ -478,17 +483,54 @@ class AIProviderManager:
                     ok, res = False, "Unknown provider"
 
                 if ok:
+                    lat_ms = int((time.time() - t0) * 1000)
+                    if ai_logger:
+                        ai_logger.log_event(
+                            source="model1",
+                            model=model,
+                            provider=provider,
+                            latency_ms=lat_ms,
+                            status="OK",
+                            message=f"Xử lý thành công trong {lat_ms}ms"
+                        )
                     return True, res
 
                 # If rate limited (429), try next key in this provider's pool
                 if res == "RATE_LIMIT_429":
+                    if ai_logger:
+                        ai_logger.log_event(
+                            source="model1",
+                            model=model,
+                            provider=provider,
+                            latency_ms=int((time.time() - t0) * 1000),
+                            status="WARN",
+                            message=f"Key {mask_key(active_key)} bị 429 Rate-Limit, đang xoay tua..."
+                        )
                     continue
                 # If invalid key or other error, also continue to next key
                 continue
 
             # If all keys in this provider failed, log and fall through to next provider
             logger.info(f"[AIManager] Provider '{provider}' pool exhausted/rate-limited. Failing over to next provider...")
+            if ai_logger:
+                ai_logger.log_event(
+                    source="model1",
+                    model=model,
+                    provider=provider,
+                    latency_ms=0,
+                    status="WARN",
+                    message=f"Hết key khả dụng trên {provider}. Chuyển tầng sang provider dự phòng..."
+                )
 
+        if ai_logger:
+            ai_logger.log_event(
+                source="model1",
+                model=model,
+                provider=routing,
+                latency_ms=0,
+                status="ERROR",
+                message="Toàn bộ AI Providers và Key Pools đều không phản hồi"
+            )
         return False, ""
 
     # ─── Asynchronous Execution (Discord Bot / cogs/ai.py) ──────────────────────
@@ -704,6 +746,7 @@ class AIProviderManager:
                     if not active_key:
                         break
 
+                    t0_attempt = time.time()
                     if provider == "gemini":
                         ok, res = await self._call_gemini_async(session, active_key, prompt, system_instruction, model=model, image_url=image_url)
                     elif provider == "groq":
@@ -714,14 +757,51 @@ class AIProviderManager:
                         ok, res = False, "Unknown provider"
 
                     if ok:
+                        lat_ms = int((time.time() - t0_attempt) * 1000)
+                        if ai_logger:
+                            ai_logger.log_event(
+                                source="model1",
+                                model=model,
+                                provider=provider,
+                                latency_ms=lat_ms,
+                                status="OK",
+                                message=f"Xử lý thành công trong {lat_ms}ms"
+                            )
                         return True, res
 
                     if res == "RATE_LIMIT_429":
+                        if ai_logger:
+                            ai_logger.log_event(
+                                source="model1",
+                                model=model,
+                                provider=provider,
+                                latency_ms=int((time.time() - t0_attempt) * 1000),
+                                status="WARN",
+                                message=f"Key {mask_key(active_key)} bị 429 Rate-Limit, đang xoay tua..."
+                            )
                         continue
                     continue
 
                 logger.info(f"[AIManager] Async Provider '{provider}' pool exhausted/rate-limited. Failing over...")
+                if ai_logger:
+                    ai_logger.log_event(
+                        source="model1",
+                        model=model,
+                        provider=provider,
+                        latency_ms=0,
+                        status="WARN",
+                        message=f"Hết key khả dụng trên {provider}. Chuyển tầng sang provider dự phòng..."
+                    )
 
+        if ai_logger:
+            ai_logger.log_event(
+                source="model1",
+                model=model,
+                provider=routing,
+                latency_ms=0,
+                status="ERROR",
+                message="Toàn bộ AI Providers và Key Pools đều không phản hồi"
+            )
         return False, ""
 
     # ─── Multi-Key Diagnostics & Testing ───────────────────────────────────────

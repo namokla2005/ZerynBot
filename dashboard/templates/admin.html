@@ -698,6 +698,134 @@
           </div>
         </div>
 
+        <!-- ─── Dual-Model AI Activity Feed & Live Console ───────────────────────── -->
+        <div style="margin-top:32px; border-top:1px solid rgba(255,255,255,0.08); padding-top:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:18px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <h3 style="font-size:1.15rem; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
+                  <i class="bi bi-terminal-split" style="color:#a855f7;"></i> Console Hoạt Động & Giám Sát Trí Tuệ Nhân Tạo (Dual-Model Live Console)
+                </h3>
+                <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(87,242,135,0.12); color:#57f287; border:1px solid rgba(87,242,135,0.25); border-radius:12px; padding:3px 10px; font-size:0.72rem; font-weight:700; letter-spacing:0.5px;">
+                  <span style="width:7px; height:7px; border-radius:50%; background:#57f287; box-shadow:0 0 8px #57f287; display:inline-block; animation:spin 3s linear infinite;"></span>
+                  LIVE 24/7 DUAL-MODEL
+                </span>
+              </div>
+              <p style="color:var(--text-muted); font-size:0.82rem; margin-top:4px; margin-bottom:0;">
+                Theo dõi hoạt động song song của 2 mô hình AI trong thời gian thực: <strong>Model 1 (Bot AI Chat Assistant)</strong> và <strong>Model 2 (Dual Model MCP Security Critic)</strong>.
+              </p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button type="button" id="btnRefreshAiLogs" onclick="triggerManualAiLogRefresh()" class="btn-icon" style="background:rgba(255,255,255,0.05); color:var(--text-primary); border:1px solid rgba(255,255,255,0.12); padding:6px 14px; border-radius:8px; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                <i class="bi bi-arrow-repeat" id="ai-log-refresh-spinner"></i> Làm Mới
+              </button>
+              <button type="button" id="btnClearAiLogs" onclick="clearAiTerminalScreen()" class="btn-icon" style="background:rgba(255,255,255,0.05); color:var(--text-muted); border:1px solid rgba(255,255,255,0.12); padding:6px 12px; border-radius:8px; font-size:0.8rem; cursor:pointer;">
+                <i class="bi bi-trash3"></i> Xóa Màn Hình
+              </button>
+            </div>
+          </div>
+
+          <!-- Dual-Model Telemetry Bento Grid -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-bottom:18px;">
+            <!-- Model 1 Card -->
+            <div style="background:rgba(18, 16, 32, 0.65); border:1px solid rgba(168, 85, 247, 0.25); border-radius:var(--radius-md); padding:16px 20px; position:relative; overflow:hidden;">
+              <div style="position:absolute; top:-30px; right:-30px; width:100px; height:100px; background:radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%); pointer-events:none;"></div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.25rem;">🤖</span>
+                  <div>
+                    <div style="font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#c084fc;">Model 1 &bull; Primary Agent</div>
+                    <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem;">Bot AI Chat Assistant</div>
+                  </div>
+                </div>
+                <span id="m1-status-badge" style="background:rgba(87,242,135,0.15); color:#57f287; border:1px solid rgba(87,242,135,0.3); border-radius:12px; padding:3px 9px; font-size:0.72rem; font-weight:700;">🟢 SẴN SÀNG</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.8rem; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Model Hiện Tại:</div>
+                  <div id="m1-model-name" style="font-family:monospace; color:#e9d5ff; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ global_ai_model }}</div>
+                </div>
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Nhà Cung Cấp:</div>
+                  <div id="m1-provider-name" style="font-family:monospace; color:var(--text-primary); font-weight:600; text-transform:uppercase;">{{ global_ai_provider }}</div>
+                </div>
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Phản Hồi Gần Nhất:</div>
+                  <div id="m1-latency-val" style="font-family:monospace; color:#57f287; font-weight:700;">~220ms</div>
+                </div>
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Tổng Lượt Xử Lý:</div>
+                  <div id="m1-total-calls" style="font-family:monospace; color:var(--text-primary); font-weight:700;">0 reqs</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Model 2 Card -->
+            <div style="background:rgba(16, 22, 38, 0.65); border:1px solid rgba(59, 130, 246, 0.25); border-radius:var(--radius-md); padding:16px 20px; position:relative; overflow:hidden;">
+              <div style="position:absolute; top:-30px; right:-30px; width:100px; height:100px; background:radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%); pointer-events:none;"></div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.25rem;">🛡️</span>
+                  <div>
+                    <div style="font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#60a5fa;">Model 2 &bull; Security Critic</div>
+                    <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem;">Dual Model MCP Auditor</div>
+                  </div>
+                </div>
+                <span id="m2-status-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); border-radius:12px; padding:3px 9px; font-size:0.72rem; font-weight:700;">🟢 ACTIVE</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.8rem; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Mô Hình Thẩm Định:</div>
+                  <div id="m2-model-name" style="font-family:monospace; color:#93c5fd; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">gemma-4-31b-it:free</div>
+                </div>
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Dự Phòng (Fallback):</div>
+                  <div id="m2-fallback-name" style="font-family:monospace; color:var(--text-primary); font-weight:600;">Qwen 3.8 / GPT-OSS</div>
+                </div>
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Kiểm Toán Gần Nhất:</div>
+                  <div id="m2-verdict-val" style="font-family:monospace; color:#57f287; font-weight:700;">READY_TO_COMMIT</div>
+                </div>
+                <div>
+                  <div style="color:var(--text-muted); font-size:0.72rem;">Tổng Lượt Kiểm Định:</div>
+                  <div id="m2-total-audits" style="font-family:monospace; color:var(--text-primary); font-weight:700;">0 audits</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Glass Terminal Filter & Output Frame -->
+          <div style="background:#090812; border:1px solid rgba(168, 85, 247, 0.3); border-radius:var(--radius-md); overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+            <!-- Terminal Header Controls -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.08); padding:8px 16px; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ed4245;"></span>
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#fee75c;"></span>
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#57f287;"></span>
+                <span style="font-family:monospace; font-size:0.78rem; color:var(--text-muted); margin-left:6px;">zeryn@ai-terminal:~# live-stream --dual-model</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; font-size:0.75rem;">
+                <span style="color:var(--text-muted);">Bộ lọc:</span>
+                <button type="button" class="ai-filter-btn active" data-filter="all" onclick="setAiLogFilter('all', this)" style="background:rgba(168,85,247,0.25); color:#e9d5ff; border:1px solid rgba(168,85,247,0.4); border-radius:6px; padding:2px 8px; font-size:0.72rem; cursor:pointer;">Tất cả</button>
+                <button type="button" class="ai-filter-btn" data-filter="model1" onclick="setAiLogFilter('model1', this)" style="background:transparent; color:var(--text-muted); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:2px 8px; font-size:0.72rem; cursor:pointer;">🤖 Model 1</button>
+                <button type="button" class="ai-filter-btn" data-filter="model2" onclick="setAiLogFilter('model2', this)" style="background:transparent; color:var(--text-muted); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:2px 8px; font-size:0.72rem; cursor:pointer;">🛡️ Model 2</button>
+                <button type="button" class="ai-filter-btn" data-filter="error" onclick="setAiLogFilter('error', this)" style="background:transparent; color:var(--text-muted); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:2px 8px; font-size:0.72rem; cursor:pointer;">⚠️ Cảnh báo/Lỗi</button>
+                <label style="display:inline-flex; align-items:center; gap:4px; margin-left:8px; cursor:pointer; color:var(--text-muted);">
+                  <input type="checkbox" id="chkAiAutoScroll" checked onchange="aiLogAutoScroll = this.checked;" style="cursor:pointer;">
+                  Auto-scroll
+                </label>
+              </div>
+            </div>
+
+            <!-- Terminal Stream Body -->
+            <div id="aiTerminalBody" style="min-height:240px; max-height:360px; overflow-y:auto; padding:14px 18px; font-family:Consolas, 'Courier New', monospace; font-size:0.8rem; line-height:1.6; color:#d1d5db; background:rgba(0,0,0,0.65);">
+              <div class="ai-log-init-line" style="color:rgba(255,255,255,0.4); font-style:italic;">
+                [Khởi động] Đang kết nối tới trung tâm giám sát Dual-Model AI...
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1437,6 +1565,284 @@
       if (btn) switchTab('activity', btn);
     }
   });
+
+  // ─── Dual-Model AI Activity Feed & Live Console Logic ────────────────────────
+  let aiLogSinceId = 0;
+  let aiLogFilter = 'all';
+  let aiLogAutoScroll = true;
+  let aiLogHistory = [];
+  let isAiPollingActive = false;
+
+  function setAiLogFilter(f, btn) {
+    aiLogFilter = f;
+    document.querySelectorAll('.ai-filter-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.background = 'transparent';
+      b.style.color = 'var(--text-muted)';
+      b.style.borderColor = 'rgba(255,255,255,0.1)';
+    });
+    if (btn) {
+      btn.classList.add('active');
+      btn.style.background = 'rgba(168,85,247,0.25)';
+      btn.style.color = '#e9d5ff';
+      btn.style.borderColor = 'rgba(168,85,247,0.4)';
+    }
+    renderAiTerminalLogs();
+  }
+
+  function clearAiTerminalScreen() {
+    aiLogHistory = [];
+    const body = document.getElementById('aiTerminalBody');
+    if (body) {
+      body.textContent = '';
+      const clearNotice = document.createElement('div');
+      clearNotice.style.color = 'rgba(255,255,255,0.35)';
+      clearNotice.style.fontStyle = 'italic';
+      clearNotice.textContent = '[Console đã được xóa lúc ' + (new Date()).toLocaleTimeString() + ']';
+      body.appendChild(clearNotice);
+    }
+  }
+
+  function triggerManualAiLogRefresh() {
+    const icon = document.getElementById('ai-log-refresh-spinner');
+    if (icon) icon.classList.add('spin-anim');
+    pollAiActivityLogs().finally(() => {
+      if (icon) setTimeout(() => icon.classList.remove('spin-anim'), 400);
+    });
+  }
+
+  function isAiSettingsPanelVisible() {
+    const p = document.getElementById('panel-ai_settings');
+    return p && p.classList.contains('active') && document.visibilityState === 'visible';
+  }
+
+  function createLogLineElement(item) {
+    const row = document.createElement('div');
+    row.style.marginBottom = '4px';
+    row.style.display = 'flex';
+    row.style.alignItems = 'flex-start';
+    row.style.gap = '8px';
+    row.style.wordBreak = 'break-word';
+
+    // Time stamp
+    const timeSpan = document.createElement('span');
+    timeSpan.style.color = 'rgba(255,255,255,0.4)';
+    timeSpan.style.fontFamily = 'monospace';
+    timeSpan.style.flexShrink = '0';
+    timeSpan.textContent = '[' + (item.timestamp ? item.timestamp.split('T')[1] || item.timestamp : '00:00:00') + ']';
+    row.appendChild(timeSpan);
+
+    // Source badge
+    const srcSpan = document.createElement('span');
+    srcSpan.style.borderRadius = '4px';
+    srcSpan.style.padding = '1px 6px';
+    srcSpan.style.fontSize = '0.72rem';
+    srcSpan.style.fontWeight = '700';
+    srcSpan.style.flexShrink = '0';
+    if (item.source === 'model2') {
+      srcSpan.style.background = 'rgba(59,130,246,0.2)';
+      srcSpan.style.color = '#60a5fa';
+      srcSpan.style.border = '1px solid rgba(59,130,246,0.35)';
+      srcSpan.textContent = '🛡️ MODEL 2';
+    } else {
+      srcSpan.style.background = 'rgba(168,85,247,0.2)';
+      srcSpan.style.color = '#c084fc';
+      srcSpan.style.border = '1px solid rgba(168,85,247,0.35)';
+      srcSpan.textContent = '🤖 MODEL 1';
+    }
+    row.appendChild(srcSpan);
+
+    // Status badge
+    const statSpan = document.createElement('span');
+    statSpan.style.borderRadius = '4px';
+    statSpan.style.padding = '1px 6px';
+    statSpan.style.fontSize = '0.7rem';
+    statSpan.style.fontWeight = '700';
+    statSpan.style.flexShrink = '0';
+    const st = (item.status || 'OK').toUpperCase();
+    if (st === 'OK' || st === 'SUCCESS') {
+      statSpan.style.background = 'rgba(87,242,135,0.15)';
+      statSpan.style.color = '#57f287';
+      statSpan.textContent = '✓ ' + st;
+    } else if (st === 'AUDIT' || st === 'READY') {
+      statSpan.style.background = 'rgba(0,240,255,0.15)';
+      statSpan.style.color = '#00f0ff';
+      statSpan.textContent = '⚙ ' + st;
+    } else if (st.indexOf('WARN') !== -1 || st.indexOf('FALLBACK') !== -1) {
+      statSpan.style.background = 'rgba(254,231,92,0.15)';
+      statSpan.style.color = '#fee75c';
+      statSpan.textContent = '⚠ ' + st;
+    } else {
+      statSpan.style.background = 'rgba(237,66,69,0.18)';
+      statSpan.style.color = '#ed4245';
+      statSpan.textContent = '✕ ' + st;
+    }
+    row.appendChild(statSpan);
+
+    // Model & Meta
+    const metaSpan = document.createElement('span');
+    metaSpan.style.color = 'var(--text-muted)';
+    metaSpan.style.fontFamily = 'monospace';
+    metaSpan.style.flexShrink = '0';
+    const latStr = (item.latency_ms !== undefined && item.latency_ms > 0) ? `(${item.latency_ms}ms)` : '';
+    metaSpan.textContent = `<${item.model || 'auto'}> ${latStr}:`;
+    row.appendChild(metaSpan);
+
+    // Message Text (Safe textContent)
+    const msgSpan = document.createElement('span');
+    msgSpan.style.color = '#f3f4f6';
+    msgSpan.textContent = item.message || '';
+    row.appendChild(msgSpan);
+
+    return row;
+  }
+
+  function renderAiTerminalLogs() {
+    const body = document.getElementById('aiTerminalBody');
+    if (!body) return;
+
+    body.textContent = '';
+    const filtered = aiLogHistory.filter(item => {
+      if (aiLogFilter === 'all') return true;
+      if (aiLogFilter === 'model1') return item.source === 'model1';
+      if (aiLogFilter === 'model2') return item.source === 'model2';
+      if (aiLogFilter === 'error') {
+        const s = (item.status || '').toUpperCase();
+        return s === 'ERROR' || s.indexOf('WARN') !== -1 || s.indexOf('FAIL') !== -1;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      const emptyNotice = document.createElement('div');
+      emptyNotice.style.color = 'rgba(255,255,255,0.4)';
+      emptyNotice.style.fontStyle = 'italic';
+      emptyNotice.textContent = 'Chưa có bản ghi hoạt động nào phù hợp với bộ lọc hiện tại.';
+      body.appendChild(emptyNotice);
+      return;
+    }
+
+    filtered.forEach(item => {
+      body.appendChild(createLogLineElement(item));
+    });
+
+    if (aiLogAutoScroll) {
+      body.scrollTop = body.scrollHeight;
+    }
+  }
+
+  async function pollAiActivityLogs() {
+    if (!isAiSettingsPanelVisible() && aiLogHistory.length > 0) return;
+    if (isAiPollingActive) return;
+    isAiPollingActive = true;
+
+    try {
+      const res = await fetch('/api/admin/ai/activity-feed?since_id=' + aiLogSinceId);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.ok) return;
+
+      // 1. Update Telemetry Cards
+      if (data.models) {
+        // Model 1
+        const m1 = data.models.model1;
+        if (m1) {
+          const elModel = document.getElementById('m1-model-name');
+          const elProv = document.getElementById('m1-provider-name');
+          const elBadge = document.getElementById('m1-status-badge');
+          const elLat = document.getElementById('m1-latency-val');
+          const elCalls = document.getElementById('m1-total-calls');
+
+          if (elModel && m1.model) elModel.textContent = m1.model;
+          if (elProv && m1.provider) elProv.textContent = m1.provider.toUpperCase();
+          if (elBadge && m1.status) {
+            elBadge.textContent = (m1.status === 'ACTIVE' || m1.status === 'READY') ? '🟢 ' + m1.status : '🟡 ' + m1.status;
+          }
+          if (elLat && m1.last_latency_ms !== undefined) {
+            elLat.textContent = (m1.last_latency_ms > 0 ? (m1.last_latency_ms + 'ms') : '~180ms');
+          }
+          if (elCalls && m1.total_calls !== undefined) {
+            elCalls.textContent = m1.total_calls + ' reqs';
+          }
+        }
+
+        // Model 2
+        const m2 = data.models.model2;
+        if (m2) {
+          const elModel2 = document.getElementById('m2-model-name');
+          const elFall2 = document.getElementById('m2-fallback-name');
+          const elBadge2 = document.getElementById('m2-status-badge');
+          const elVerd2 = document.getElementById('m2-verdict-val');
+          const elAud2 = document.getElementById('m2-total-audits');
+
+          if (elModel2 && m2.model) elModel2.textContent = m2.model;
+          if (elFall2 && m2.fallback) elFall2.textContent = m2.fallback;
+          if (elBadge2 && m2.status) {
+            elBadge2.textContent = '🟢 ' + m2.status;
+          }
+          if (elVerd2 && m2.last_verdict) {
+            elVerd2.textContent = m2.last_verdict;
+          }
+          if (elAud2 && m2.total_audits !== undefined) {
+            elAud2.textContent = m2.total_audits + ' audits';
+          }
+        }
+      }
+
+      // 2. Append new log entries
+      if (data.logs && data.logs.length > 0) {
+        let hasNew = false;
+        data.logs.forEach(log => {
+          if (!aiLogHistory.some(existing => existing.id === log.id)) {
+            aiLogHistory.push(log);
+            if (log.id > aiLogSinceId) {
+              aiLogSinceId = log.id;
+            }
+            hasNew = true;
+          }
+        });
+        if (hasNew) {
+          if (aiLogHistory.length > 50) {
+            aiLogHistory = aiLogHistory.slice(-50);
+          }
+          renderAiTerminalLogs();
+        }
+      }
+    } catch (e) {
+      console.error("AI activity feed poll error:", e);
+    } finally {
+      isAiPollingActive = false;
+    }
+  }
+
+  // Hook terminal scroll to detect manual scrolling
+  const _aiTermEl = document.getElementById('aiTerminalBody');
+  if (_aiTermEl) {
+    _aiTermEl.addEventListener('scroll', () => {
+      const isBottom = _aiTermEl.scrollHeight - _aiTermEl.scrollTop <= _aiTermEl.clientHeight + 20;
+      const chk = document.getElementById('chkAiAutoScroll');
+      if (chk) {
+        chk.checked = isBottom;
+        aiLogAutoScroll = isBottom;
+      }
+    });
+  }
+
+  // Switch tab hook to trigger poll immediately
+  const _origSwitchTab = window.switchTab;
+  window.switchTab = function(tab, el) {
+    _origSwitchTab(tab, el);
+    if (tab === 'ai_settings') {
+      setTimeout(pollAiActivityLogs, 150);
+    }
+  };
+
+  // Start polling interval for AI terminal (every 6s, only when tab is visible)
+  setInterval(() => {
+    if (isAiSettingsPanelVisible()) {
+      pollAiActivityLogs();
+    }
+  }, 6000);
 
   document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeKickModal(); closeBroadcastModal(); closeInviteModal(); closeStepUpModal(); } });
 </script>

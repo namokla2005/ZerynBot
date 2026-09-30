@@ -49,6 +49,12 @@ server = MCPServer(
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "data", "bot.db")
 
+try:
+    sys.path.insert(0, BASE_DIR)
+    from ai_logger import ai_logger
+except ImportError:
+    ai_logger = None
+
 MODEL2_PRIMARY_MODEL = "google/gemma-4-31b-it:free"
 
 GROQ_FALLBACK_MODELS = [
@@ -393,6 +399,7 @@ def _call_groq(api_key: str, model: str, prompt: str, system_instruction: str = 
 
 def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> str:
     """Tự động điều phối gọi model thích hợp theo role và API key sẵn có."""
+    t0_start = time.time()
     keys = _get_api_keys()
 
     role_instructions = {
@@ -454,6 +461,16 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
         for k in openrouter_keys:
             ok, res = _call_openrouter(k, MODEL2_PRIMARY_MODEL, prompt, sys_inst)
             if ok:
+                if ai_logger:
+                    lat_ms = int((time.time() - t0_start) * 1000)
+                    ai_logger.log_event(
+                        source="model2",
+                        model=MODEL2_PRIMARY_MODEL,
+                        provider="openrouter",
+                        latency_ms=lat_ms,
+                        status="AUDIT",
+                        message=f"Tư vấn vai trò '{role}': Phản hồi trong {lat_ms}ms"
+                    )
                 return res
             err_log.append(f"Tier 1 (Gemma 4 31B Free): {res}")
 
@@ -463,6 +480,16 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
         for k in groq_keys:
             ok, res = _call_groq_single(k, "qwen/qwen3.8-27b", prompt, sys_inst)
             if ok:
+                if ai_logger:
+                    lat_ms = int((time.time() - t0_start) * 1000)
+                    ai_logger.log_event(
+                        source="model2",
+                        model="qwen/qwen3.8-27b",
+                        provider="groq",
+                        latency_ms=lat_ms,
+                        status="AUDIT",
+                        message=f"Fallback Qwen 3.8 ({role}): Phản hồi trong {lat_ms}ms"
+                    )
                 return res
             err_log.append(f"Tier 2 (Groq Qwen 3.8 27B): {res}")
 
@@ -795,6 +822,15 @@ def execute_pre_commit_check() -> str:
         lines_out.append("✅ Không phát hiện rủi ro breaking change nào.")
 
     lines_out.append(f"============================================================")
+    if ai_logger:
+        ai_logger.log_event(
+            source="model2",
+            model=MODEL2_PRIMARY_MODEL,
+            provider="openrouter",
+            latency_ms=0,
+            status="AUDIT",
+            message=f"Pre-commit audit: {verdict_icons.get(report.verdict, report.verdict)} ({len(changed_files)} files)"
+        )
     return "\n".join(lines_out)
 
 

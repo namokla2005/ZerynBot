@@ -344,16 +344,39 @@ async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str 
         return _local_smart_reply(prompt, is_owner=is_owner)
 
     # 2. Xử lý khi guild tự cấu hình key riêng trong settings:
+    import time
+    t0 = time.time()
+    res = ""
+    prov = "unknown"
+    model_used = preferred_model or "auto"
     if key.startswith("gsk_"):
-        return await _call_groq_api(prompt, system_instruction, key, image_url=image_url, preferred_model=preferred_model)
-    if key.startswith("sk-or-"):
-        return await _call_openrouter_api(prompt, system_instruction, key, image_url=image_url)
+        prov = "groq"
+        res = await _call_groq_api(prompt, system_instruction, key, image_url=image_url, preferred_model=preferred_model)
+    elif key.startswith("sk-or-"):
+        prov = "openrouter"
+        res = await _call_openrouter_api(prompt, system_instruction, key, image_url=image_url)
+    else:
+        prov = "gemini"
+        res = await _call_gemini_direct(prompt, system_instruction, key, image_url=image_url, preferred_model=preferred_model)
+        if not (res and not res.startswith("❌")):
+            return _local_smart_reply(prompt, is_owner=is_owner)
 
-    # 3. Custom Gemini key của Guild
-    res = await _call_gemini_direct(prompt, system_instruction, key, image_url=image_url, preferred_model=preferred_model)
-    if res and not res.startswith("❌"):
-        return res
-    return _local_smart_reply(prompt, is_owner=is_owner)
+    lat = int((time.time() - t0) * 1000)
+    try:
+        from ai_logger import ai_logger
+        stat = "ERROR" if res.startswith("❌") else "OK"
+        ai_logger.log_event(
+            source="model1",
+            model=model_used,
+            provider=f"guild-custom ({prov})",
+            latency_ms=lat,
+            status=stat,
+            message=f"Guild custom key response: {res[:80]}"
+        )
+    except Exception:
+        pass
+
+    return res
 
 
 # Alias backwards compatibility
