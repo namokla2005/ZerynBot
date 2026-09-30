@@ -24,7 +24,7 @@ import aiohttp
 import discord
 import yt_dlp
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from datetime import datetime, timezone
 from cache import cache
@@ -712,7 +712,13 @@ class MusicPlayer:
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
-        self._recovery_lock = asyncio.Lock()
+        self._is_reconnecting : bool = False
+
+    def set_reconnecting(self, status: bool):
+        """Cập nhật trạng thái reconnecting an toàn và xóa cờ recovery nếu tắt."""
+        self._is_reconnecting = bool(status)
+        if not status:
+            self._recovering = False
 
     def _get_loop(self):
         """Lấy event loop an toàn tại thời điểm gọi để tránh stale loop."""
@@ -789,7 +795,8 @@ class MusicPlayer:
 
     def _after_play(self, error=None):
         """Callback từ audio thread của discord.py khi stream dừng (chuyển sang event loop an toàn)."""
-        if self._manual_stopped or self._recovering:
+        if self._manual_stopped or self._recovering or self._is_reconnecting:
+            log.debug(f"[Music] _after_play ignored (stopped={self._manual_stopped}, recovering={self._recovering}, reconnecting={self._is_reconnecting})")
             return
 
         try:
@@ -807,100 +814,115 @@ class MusicPlayer:
 
     async def _handle_after_play_async(self, error, elapsed: int, track: Track):
         """Xử lý kết thúc phát nhạc trên Main Event Loop (100% thread-safe)."""
-        async with self._recovery_lock:
-            if self._manual_stopped or self._recovering:
-                return
+        if self._manual_stopped or self._skipped or self._is_reconnecting or self._recovering:
+            return
 
-            is_live_track = getattr(track, "is_live", False)
-            now = time.time()
+        is_live_track = getattr(track, "is_live", False)
+        now = time.time()
 
-            # 1. LIVE STREAM AUTO-RECOVERY (Lofi Girl 24/7, Radio, YouTube Live)
-            if is_live_track and not self._skipped:
-                # Reset recovery counter chỉ khi đã phát ổn định >= 180s (3 phút)
-                if elapsed >= 180 or (self._last_recovery_time > 0 and (now - self._last_recovery_time) >= 180):
-                    track.recovery_attempts = 0
+        # 1. LIVE STREAM AUTO-RECOVERY (Lofi Girl 24/7, Radio, YouTube Live)
+        if is_live_track and not self._skipped:
+            # Reset recovery counter chỉ khi đã phát ổn định >= 180s (3 phút)
+            if elapsed >= 180 or (self._last_recovery_time > 0 and (now - self._last_recovery_time) >= 180):
+                track.recovery_attempts = 0
 
-                if getattr(track, "recovery_attempts", 0) < 5:
-                    track.recovery_attempts = getattr(track, "recovery_attempts", 0) + 1
-                    self._last_recovery_time = now
-                    self._recovering = True
-                    log.warning(
-                        f"[Music] Live stream 24/7 '{track.title}' ngắt kết nối tại {elapsed}s (lần {track.recovery_attempts}/5). "
-                        f"Đang tự động làm mới stream URL và tiếp tục phát sau 2s backoff..."
-                    )
-                    try:
-                        track.stream_url = None
-                        await asyncio.sleep(2)
-                        await self._play(track, seek_offset=0)
-                    except Exception as rec_err:
-                        log.error(f"[Music] Lỗi khôi phục live stream '{track.title}': {rec_err}")
-                        await self._on_queue_empty()
-                    finally:
-                        self._recovering = False
-                    return
-                else:
-                    log.error(f"[Music] Live stream '{track.title}' lỗi liên tục 5 lần, dừng stream.")
-                    try:
-                        if self.text_channel:
-                            await self.text_channel.send(
-                                embed=discord.Embed(
-                                    description=f"⚠️ Live stream **{track.title}** bị gián đoạn và không thể kết nối lại sau 5 lần thử.",
-                                    color=0xED4245
-                                )
-                            )
-                    except Exception:
-                        pass
-                    await self.stop()
-                    return
-
-            # 2. Regular song premature disconnect auto-recovery (403 Forbidden / rớt mạng)
-            is_premature = (
-                not self._skipped
-                and not is_live_track
-                and track.duration
-                and track.duration > 30
-                and elapsed < (track.duration - 15)
-            )
-            if (error or is_premature) and getattr(track, "recovery_attempts", 0) < 1 and not self._skipped:
-                track.recovery_attempts = 1
-                self._recovering = True
+            if getattr(track, "recovery_attempts", 0) < 3:
+                track.recovery_attempts = getattr(track, "recovery_attempts", 0) + 1
+                self._last_recovery_time = now
                 log.warning(
-                    f"[Music] Bài hát '{track.title}' đứt kết nối tại {elapsed}s (error={error}, premature={is_premature}). "
-                    f"Đang tự động làm mới URL và phát tiếp từ {elapsed}s..."
+                    f"[Music] Live stream 24/7 '{track.title}' ngắt kết nối tại {elapsed}s (lần {track.recovery_attempts}/3). "
+                    f"Đang tự động làm mới stream URL và tiếp tục phát sau 2s..."
                 )
+                self._recovering = True
                 try:
+                    await asyncio.sleep(2)
+                    if self._skipped or self._manual_stopped or self._is_reconnecting:
+                        return
                     track.stream_url = None
-                    await self._play(track, seek_offset=elapsed)
+                    await self._play(track, seek_offset=0)
                 except Exception as rec_err:
-                    log.error(f"[Music] Lỗi khôi phục bài hát '{track.title}': {rec_err}")
+                    log.error(f"[Music] Lỗi khôi phục live stream '{track.title}': {rec_err}")
                     await self._on_queue_empty()
                 finally:
                     self._recovering = False
                 return
+            else:
+                log.error(f"[Music] Live stream '{track.title}' lỗi liên tục 3 lần, dừng stream.")
+                try:
+                    if self.text_channel:
+                        await self.text_channel.send(
+                            embed=discord.Embed(
+                                description=f"⚠️ Live stream **{track.title}** bị gián đoạn và không thể kết nối lại sau 3 lần thử.",
+                                color=0xED4245
+                            )
+                        )
+                except Exception:
+                    pass
+                await self.stop()
+                return
 
-            if error:
-                log.warning(f"[Music] Player error: {error}")
-                self._consecutive_errors += 1
-                if self._consecutive_errors >= 3:
-                    log.error(f"[Music] Gặp {self._consecutive_errors} lỗi phát nhạc liên tiếp, dừng autoplay để chống lặp.")
-                    self._consecutive_errors = 0
-                    self.autoplay = False
-                    await self._on_queue_empty()
+        # 2. Regular song premature disconnect auto-recovery (403 Forbidden / rớt mạng)
+        is_premature = (
+            not self._skipped
+            and not is_live_track
+            and track.duration
+            and track.duration > 30
+            and elapsed < (track.duration - 15)
+        )
+        # Reset recovery counter nếu sự cố trước đó đã diễn ra cách đây hơn 2 phút (120s)
+        if self._last_recovery_time > 0 and (now - self._last_recovery_time) >= 120:
+            track.recovery_attempts = 0
+
+        if (error or is_premature) and getattr(track, "recovery_attempts", 0) < 2 and not self._skipped:
+            track.recovery_attempts = getattr(track, "recovery_attempts", 0) + 1
+            self._last_recovery_time = now
+            backoff_delay = 2
+            log.warning(
+                f"[Music] Bài hát '{track.title}' đứt kết nối tại {elapsed}s (lần {track.recovery_attempts}/2, error={error}, premature={is_premature}). "
+                f"Tự động làm mới URL và phát tiếp sau {backoff_delay}s..."
+            )
+            self._recovering = True
+            try:
+                await asyncio.sleep(backoff_delay)
+                if self._skipped or self._manual_stopped or self._is_reconnecting:
                     return
-            else:
+                if track.is_stream_expired or error:
+                    track.stream_url = None
+                await self._play(track, seek_offset=elapsed)
+            except Exception as rec_err:
+                log.error(f"[Music] Lỗi khôi phục bài hát '{track.title}': {rec_err}")
+                await self._report_play_failure(track, "music.cannot_decode")
+            finally:
+                self._recovering = False
+            return
+        elif (error or is_premature) and getattr(track, "recovery_attempts", 0) >= 2 and not self._skipped:
+            log.warning(f"[Music] Bài hát '{track.title}' vượt quá 2 lần khôi phục, bỏ qua và phát bài tiếp theo.")
+            await self._report_play_failure(track, "music.cannot_decode")
+            return
+
+        if error:
+            log.warning(f"[Music] Player error: {error}")
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= 3:
+                log.error(f"[Music] Gặp {self._consecutive_errors} lỗi phát nhạc liên tiếp, dừng autoplay để chống lặp.")
                 self._consecutive_errors = 0
+                self.autoplay = False
+                await self._on_queue_empty()
+                return
+        else:
+            self._consecutive_errors = 0
 
-            self._record_played(track.title)
+        self._record_played(track.title)
 
-            if self.loop_mode == 1:
-                track.recovery_attempts = 0
-                await self._play(track)
-            elif self.loop_mode == 2:
-                track.recovery_attempts = 0
-                self.queue.append(track)
-                await self._dispatch_next_async()
-            else:
-                await self._dispatch_next_async()
+        if self.loop_mode == 1:
+            track.recovery_attempts = 0
+            await self._play(track)
+        elif self.loop_mode == 2:
+            track.recovery_attempts = 0
+            self.queue.append(track)
+            await self._dispatch_next_async()
+        else:
+            await self._dispatch_next_async()
 
     def _dispatch_next(self):
         """Dispatch bài tiếp theo an toàn (hỗ trợ gọi đồng bộ từ bên ngoài)."""
@@ -1007,6 +1029,11 @@ class MusicPlayer:
         async with self._play_lock:
             if not self.vc or not self.vc.is_connected():
                 return
+            if self._manual_stopped or self._skipped:
+                return
+
+            if self.vc.is_playing() or self.vc.is_paused():
+                self.vc.stop()
 
             self._reset_inactivity_timer()
             self._skipped = False
@@ -1148,7 +1175,14 @@ class MusicPlayer:
 
     def skip(self):
         self._skipped = True
-        if self.vc.is_playing() or self.vc.is_paused():
+        self._is_reconnecting = False
+        cog = getattr(self, "cog", None)
+        if cog and hasattr(cog, "_cancel_reconnect_task"):
+            try:
+                cog._cancel_reconnect_task(self.guild.id)
+            except Exception:
+                pass
+        if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
             self.vc.stop()
 
     def shuffle(self):
@@ -1176,9 +1210,70 @@ class MusicPlayer:
         except Exception as e:
             log.debug(f"[Music] update_now_playing error: {e}")
 
+    async def resume_after_reconnect(self):
+        """Phục hồi phát nhạc an toàn sau khi bot reconnect lại voice channel."""
+        if self._recovering or self._manual_stopped or self._skipped or not self._is_reconnecting:
+            return
+
+        self._recovering = True
+        try:
+            # Đệm 1s để Discord Voice UDP socket ổn định
+            await asyncio.sleep(1)
+            if self._manual_stopped or self._skipped or not self._is_reconnecting:
+                return
+
+            target_track = self.current
+            if not target_track:
+                return
+
+            # Cập nhật self.vc từ guild nếu instance cũ bị stale
+            g_vc = self.guild.voice_client
+            if g_vc and g_vc.is_connected():
+                self.vc = g_vc
+
+            if not self.vc or not self.vc.is_connected():
+                log.warning(f"[Music] Không thể resume: vc chưa kết nối tại guild {self.guild.id}")
+                return
+
+            if self.vc.is_playing():
+                log.info(f"[Music] Stream vẫn đang chạy tại guild {self.guild.id}, không cần resume.")
+                return
+
+            target_elapsed = self.get_elapsed()
+            track_title = getattr(target_track, "title", "Không rõ")
+            log.info(f"[Music] Phục hồi bài hát '{track_title}' tại {target_elapsed}s sau khi voice reconnect...")
+
+            # Kiểm tra URL còn hạn không trước khi stream
+            if target_track.is_stream_expired:
+                log.info(f"[Music] Stream URL cho '{track_title}' đã hết hạn, trích xuất URL mới...")
+                target_track.stream_url = None
+
+            if self._manual_stopped or self._skipped:
+                return
+
+            await self._play(target_track, seek_offset=target_elapsed)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            track = getattr(self, "current", None)
+            track_title = getattr(track, "title", "Không rõ") if track else "Không rõ"
+            log.error(f"[Music] Lỗi khi resume_after_reconnect cho '{track_title}': {e}")
+            if track:
+                await self._report_play_failure(track, "music.cannot_decode")
+        finally:
+            self._recovering = False
+            self._is_reconnecting = False
+
     async def stop(self):
         self._manual_stopped = True
+        self._is_reconnecting = False
         self._reset_inactivity_timer()
+        cog = getattr(self, "cog", None)
+        if cog and hasattr(cog, "_cancel_reconnect_task"):
+            try:
+                cog._cancel_reconnect_task(self.guild.id)
+            except Exception:
+                pass
         self.queue.clear()
         self.current   = None
         self.loop_mode = 0
@@ -1774,25 +1869,153 @@ class Music(commands.Cog, name="Music"):
         self._players: dict[int, MusicPlayer] = {}
         self._bg_tasks: set[asyncio.Task] = set()
         self._empty_voice_tasks: dict[int, asyncio.Task] = {}
+        self._reconnect_tasks: dict[int, asyncio.Task] = {}
+        self._grace_tasks: dict[int, asyncio.Task] = {}
+        self.task_cleanup_loop.start()
 
     def cog_unload(self):
         """Cancel tất cả background tasks khi cog bị unload."""
+        self.task_cleanup_loop.cancel()
         for task in self._bg_tasks:
             task.cancel()
         self._bg_tasks.clear()
         for task in self._empty_voice_tasks.values():
             task.cancel()
         self._empty_voice_tasks.clear()
+        for task in self._reconnect_tasks.values():
+            task.cancel()
+        self._reconnect_tasks.clear()
+        for task in self._grace_tasks.values():
+            task.cancel()
+        self._grace_tasks.clear()
         global _spotify_session
         if _spotify_session and not _spotify_session.closed:
             asyncio.create_task(_spotify_session.close())
+
+    @tasks.loop(seconds=60)
+    async def task_cleanup_loop(self):
+        """Định kỳ 60s dọn dẹp triệt để các background tasks đã hoàn thành khỏi dict, chống rò rỉ RAM trên Termux ARM64."""
+        self._cleanup_stale_tasks()
+
+    @task_cleanup_loop.before_loop
+    async def before_task_cleanup(self):
+        await self.bot.wait_until_ready()
 
     # ── Helpers ────────────────────────────────────────────────────────────
     def _get(self, guild_id: int) -> MusicPlayer | None:
         return self._players.get(guild_id)
 
     def _drop(self, guild_id: int):
-        self._players.pop(guild_id, None)
+        self._cancel_reconnect_task(guild_id)
+        self._cancel_grace_task(guild_id)
+        self._cancel_empty_voice_task(guild_id)
+        player = self._players.pop(guild_id, None)
+        if player:
+            player._is_reconnecting = False
+            try:
+                loop = getattr(self.bot, "loop", None)
+                if loop and loop.is_running():
+                    asyncio.create_task(player.stop())
+            except Exception:
+                pass
+
+    def _cleanup_stale_tasks(self):
+        """Dọn dẹp triệt để các task đã hoàn thành để chống rò rỉ RAM trên Termux ARM64."""
+        for gid in list(self._reconnect_tasks.keys()):
+            t = self._reconnect_tasks.get(gid)
+            if not t or t.done():
+                self._reconnect_tasks.pop(gid, None)
+        for gid in list(self._grace_tasks.keys()):
+            t = self._grace_tasks.get(gid)
+            if not t or t.done():
+                self._grace_tasks.pop(gid, None)
+        for gid in list(self._empty_voice_tasks.keys()):
+            t = self._empty_voice_tasks.get(gid)
+            if not t or t.done():
+                self._empty_voice_tasks.pop(gid, None)
+
+    def _cancel_grace_task(self, guild_id: int):
+        task = self._grace_tasks.pop(guild_id, None)
+        if task and not task.done():
+            try:
+                loop = getattr(self.bot, "loop", None)
+                if loop and loop.is_running():
+                    try:
+                        cur_loop = asyncio.get_running_loop()
+                        if cur_loop == loop:
+                            task.cancel()
+                        else:
+                            loop.call_soon_threadsafe(task.cancel)
+                    except RuntimeError:
+                        loop.call_soon_threadsafe(task.cancel)
+                else:
+                    task.cancel()
+            except Exception:
+                pass
+
+    def _cancel_reconnect_task(self, guild_id: int):
+        task = self._reconnect_tasks.pop(guild_id, None)
+        if task and not task.done():
+            try:
+                loop = getattr(self.bot, "loop", None)
+                if loop and loop.is_running():
+                    try:
+                        cur_loop = asyncio.get_running_loop()
+                        if cur_loop == loop:
+                            task.cancel()
+                        else:
+                            loop.call_soon_threadsafe(task.cancel)
+                    except RuntimeError:
+                        loop.call_soon_threadsafe(task.cancel)
+                else:
+                    task.cancel()
+            except Exception:
+                pass
+        player = self._players.get(guild_id)
+        if player:
+            player.set_reconnecting(False)
+
+    def _schedule_reconnect_task(self, guild_id: int, player: MusicPlayer):
+        """Khởi tạo và quản lý vòng đời của reconnect task an toàn với timeout 30s chống rò rỉ bộ nhớ."""
+        self._cancel_reconnect_task(guild_id)
+        try:
+            async def _safe_resume_wrapper():
+                try:
+                    await asyncio.wait_for(player.resume_after_reconnect(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    log.warning(f"[Music] Reconnect task bị timeout sau 30s tại guild {guild_id}")
+                    player.set_reconnecting(False)
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    log.error(f"[Music] Lỗi trong reconnect task tại guild {guild_id}: {e}")
+                    player.set_reconnecting(False)
+
+            rec_task = asyncio.create_task(_safe_resume_wrapper())
+            self._reconnect_tasks[guild_id] = rec_task
+            rec_task.add_done_callback(lambda t, gid=guild_id: self._reconnect_tasks.pop(gid, None))
+        except Exception as e:
+            log.error(f"[Music] Không thể tạo reconnect task tại guild {guild_id}: {e}")
+            player.set_reconnecting(False)
+
+    def _cancel_empty_voice_task(self, guild_id: int):
+        task = self._empty_voice_tasks.pop(guild_id, None)
+        if task and not task.done():
+            try:
+                loop = getattr(self.bot, "loop", None)
+                if loop and loop.is_running():
+                    try:
+                        cur_loop = asyncio.get_running_loop()
+                        if cur_loop == loop:
+                            task.cancel()
+                        else:
+                            loop.call_soon_threadsafe(task.cancel)
+                    except RuntimeError:
+                        loop.call_soon_threadsafe(task.cancel)
+                else:
+                    task.cancel()
+            except Exception:
+                pass
 
     async def _ensure(self, ctx: commands.Context) -> MusicPlayer | None:
         _t0 = time.time()
@@ -1872,22 +2095,57 @@ class Music(commands.Cog, name="Music"):
         after: discord.VoiceState,
     ):
         """Xử lý sự kiện voice channel: dọn dẹp tức thì khi bot bị kick, và tự động rời phòng sau 30s nếu không còn ai."""
+        self._cleanup_stale_tasks()
         guild = member.guild
         guild_id = guild.id
 
-        # 1. Dọn dẹp tức thì nếu chính bot bị ngắt kết nối voice (bị kick hoặc disconnect)
+        # 1. Xử lý khi chính bot bị thay đổi voice state
         if self.bot.user and member.id == self.bot.user.id:
             if before.channel and after.channel is None:
-                log.info(f"[Music] Bot bị ngắt kết nối khỏi kênh voice tại guild {guild_id}. Dọn dẹp player tức thì.")
-                task = self._empty_voice_tasks.pop(guild_id, None)
-                if task and not task.done():
-                    task.cancel()
+                # Bot tạm thời rời kênh voice (có thể do Discord voice WS 1006 reconnect hoặc bị kick)
                 player = self._players.get(guild_id)
-                if player:
-                    await player.stop()
-                    self._drop(guild_id)
+                if not player or player._manual_stopped:
+                    return
+
+                log.info(f"[Music] Bot tạm thời rời kênh voice tại guild {guild_id}. Khởi động Grace Period 6s chờ reconnect...")
+                player.set_reconnecting(True)
+
+                # Hủy task cũ nếu có
+                self._cancel_grace_task(guild_id)
+                self._cancel_reconnect_task(guild_id)
+                self._cancel_empty_voice_task(guild_id)
+
+                async def _safe_grace_wrapper():
+                    try:
+                        await asyncio.wait_for(
+                            self._handle_voice_disconnect_grace(guild_id),
+                            timeout=15.0
+                        )
+                    except asyncio.TimeoutError:
+                        log.warning(f"[Music] Grace task bị timeout 15s tại guild {guild_id}")
+                        self._drop(guild_id)
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as ge:
+                        log.error(f"[Music] Lỗi trong grace task tại guild {guild_id}: {ge}")
+
+                grace_task = asyncio.create_task(_safe_grace_wrapper())
+                self._grace_tasks[guild_id] = grace_task
+                grace_task.add_done_callback(lambda t, gid=guild_id: self._grace_tasks.pop(gid, None))
+                return
+
             elif after.channel:
-                # Bot vừa join kênh voice hoặc chuyển kênh: kiểm tra nếu kênh mới trống
+                # Bot vừa join kênh voice hoặc reconnect xong
+                self._cancel_grace_task(guild_id)
+
+                player = self._players.get(guild_id)
+                if player and player._is_reconnecting:
+                    log.info(f"[Music] Bot đã kết nối lại voice tại guild {guild_id}. Lên lịch phục hồi phát nhạc...")
+                    self._schedule_reconnect_task(guild_id, player)
+                else:
+                    self._cancel_reconnect_task(guild_id)
+
+                # Kiểm tra nếu kênh mới trống
                 self._check_and_schedule_empty_voice(guild)
             return
 
@@ -1982,6 +2240,42 @@ class Music(commands.Cog, name="Music"):
             log.debug(f"[Music] empty voice handler error: {e}")
         finally:
             self._empty_voice_tasks.pop(guild_id, None)
+
+    async def _handle_voice_disconnect_grace(self, guild_id: int):
+        """Grace Period 6s: chờ discord.py reconnect voice websocket trước khi quyết định dọn dẹp player."""
+        player = self._players.get(guild_id)
+        try:
+            await asyncio.sleep(6)
+            guild = self.bot.get_guild(guild_id)
+            if not guild:
+                if player:
+                    player.set_reconnecting(False)
+                return
+
+            vc = guild.voice_client
+            me = getattr(guild, "me", None)
+            me_voice = getattr(me, "voice", None) if me else None
+            bot_channel = vc.channel if (vc and vc.is_connected()) else (me_voice.channel if me_voice else None)
+
+            # Nếu sau 6s bot không còn ở trong bất kỳ kênh voice nào -> Xác nhận bot đã thực sự bị kick / disconnect
+            if not bot_channel:
+                log.info(f"[Music] Hết 6s Grace Period, bot không còn ở trong kênh voice nào tại guild {guild_id}. Dọn dẹp player.")
+                if player:
+                    player.set_reconnecting(False)
+                self._drop(guild_id)
+            else:
+                log.info(f"[Music] Bot vẫn duy trì/tái kết nối tại guild {guild_id} ({bot_channel.name}).")
+                active_player = self._players.get(guild_id)
+                if active_player and active_player.current and not (vc and (vc.is_playing() or vc.is_paused())):
+                    self._schedule_reconnect_task(guild_id, active_player)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            log.error(f"[Music] Lỗi trong _handle_voice_disconnect_grace: {e}")
+            if player:
+                player.set_reconnecting(False)
+            self._cancel_reconnect_task(guild_id)
+            self._cancel_grace_task(guild_id)
 
     # ── Basic commands ─────────────────────────────────────────────────────
     @commands.hybrid_command(name="join", description="Gọi bot vào kênh voice")
