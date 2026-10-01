@@ -33,19 +33,19 @@
         <!-- GENERAL -->
         <div class="nav-section">
           <div class="nav-section-title">{{ t('nav.sec_general') | default('General') }}</div>
-          <a href="{{ url_for('server_overview', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_overview', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'overview' %}active{% endif %}">
             <i class="nav-icon bi bi-grid-fill"></i> {{ t('nav.overview') | default('Overview') }}
           </a>
-          <a href="{{ url_for('server_embeds', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_embeds', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'embeds' %}active{% endif %}">
             <i class="nav-icon bi bi-chat-square-text-fill"></i> {{ t('nav.embeds') | default('Embed Messages') }}
           </a>
-          <a href="{{ url_for('server_commands', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'commands' %}active{% endif %}">
             <i class="nav-icon bi bi-terminal-fill"></i> {{ t('nav.commands') | default('Commands') }}
           </a>
-          <a href="{{ url_for('server_modules', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'modules' %}active{% endif %}">
             <i class="nav-icon bi bi-toggles"></i> {{ t('nav.modules') | default('Modules Manager') }}
           </a>
@@ -54,37 +54,37 @@
         <!-- 1. QUẢN TRỊ CỐT LÕI (CORE & MODERATION) -->
         <div class="nav-section">
           <div class="nav-section-title">{{ t('nav.sec_core') | default('Core Moderation') }}</div>
-          <a href="{{ url_for('server_moderation', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_moderation', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'moderation' %}active{% endif %}">
             <i class="nav-icon bi bi-shield-fill-check"></i> {{ t('nav.moderation') | default('Moderation') }}
             <span class="status-dot nav-dot-moderation
             {% if modules.get('moderation', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_automod', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_automod', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'automod' %}active{% endif %}">
             <i class="nav-icon bi bi-shield-lock-fill"></i> {{ t('nav.automods') | default('Automods') }}
             <span class="status-dot nav-dot-automods
             {% if modules.get('automods', False) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_verify', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_verify', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'verify' %}active{% endif %}">
             <i class="nav-icon bi bi-shield-check"></i> {{ t('nav.verify') | default('Verify Gate') }}
             <span class="status-dot nav-dot-verify
             {% if modules.get('verify', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_welcome', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_welcome', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'welcome' %}active{% endif %}">
             <i class="nav-icon bi bi-emoji-smile-fill"></i> {{ t('nav.welcome_goodbye') | default('Welcome & Goodbye') }}
             <span class="status-dot nav-dot-welcome_goodbye
             {% if modules.get('welcome_goodbye', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_autoroles', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'autoroles' %}active{% endif %}">
             <i class="nav-icon bi bi-person-badge-fill"></i> {{ t('nav.autoroles') | default('Auto Roles') }}
             <span class="status-dot nav-dot-autoroles
             {% if modules.get('autoroles', False) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_logger', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_logger', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'logger' %}active{% endif %}">
             <i class="nav-icon bi bi-journal-text"></i> {{ t('nav.logger') | default('Logging') }}
             <span class="status-dot nav-dot-logger
@@ -95,48 +95,48 @@
         <!-- 2. CỘNG ĐỒNG & GIẢI TRÍ (COMMUNITY & SOCIAL) -->
         <div class="nav-section">
           <div class="nav-section-title">{{ t('nav.sec_community') | default('Community & Social') }}</div>
-          <a href="{{ url_for('server_ai', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_ai', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'ai' %}active{% endif %}">
             <i class="nav-icon bi bi-robot"></i> {{ t('nav.ai') | default('AI Assistant') }}
             <span class="status-dot nav-dot-ai
             {% if modules.get('ai', False) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_leveling', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_leveling', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'leveling' %}active{% endif %}">
             <i class="nav-icon bi bi-star-fill"></i> {{ t('nav.leveling') | default('Leveling & XP') }}
             <span class="status-dot nav-dot-leveling
             {% if modules.get('leveling', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_economy', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_economy', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'economy' %}active{% endif %}">
             <i class="nav-icon bi bi-coin"></i> {{ t('nav.economy') | default('Economy & Shop') }}
             <span class="status-dot nav-dot-economy
             {% if modules.get('economy', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_birthday', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_birthday', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'birthday' %}active{% endif %}">
             <i class="nav-icon bi bi-cake2-fill"></i> {{ t('nav.birthday') | default('Birthday') }}
             <span class="status-dot nav-dot-birthday
             {% if modules.get('birthday', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="nav-item">
+          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="nav-item">
             <i class="nav-icon bi bi-emoji-heart-eyes-fill"></i> {{ t('nav.fun') | default('Fun & Social') }}
             <span class="status-dot nav-dot-fun
             {% if modules.get('fun', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_tempvoice', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'tempvoice' %}active{% endif %}">
             <i class="nav-icon bi bi-mic-fill"></i> {{ t('nav.tempvoice') | default('Temp Voice Hub') }}
             <span class="status-dot nav-dot-tempvoice
             {% if modules.get('tempvoice', False) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_music', guild_id=guild_id) }}"
+          <a href="{{ url_for('music.server_music', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'music' %}active{% endif %}">
             <i class="nav-icon bi bi-music-note-beamed"></i> {{ t('nav.music') | default('Music') }}
             <span class="status-dot nav-dot-music
             {% if modules.get('music', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_reactionroles', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'reactionroles' %}active{% endif %}">
             <i class="nav-icon bi bi-ui-radios"></i> {{ t('nav.reactionroles') | default('Reaction Roles') }}
             <span class="status-dot nav-dot-reactionroles
@@ -147,29 +147,29 @@
         <!-- 3. TIỆN ÍCH & CÔNG CỤ (TOOLS & UTILITIES) -->
         <div class="nav-section">
           <div class="nav-section-title">{{ t('nav.sec_tools') | default('Tools & Utilities') }}</div>
-          <a href="{{ url_for('server_tickets', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_tickets', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'tickets' %}active{% endif %}">
             <i class="nav-icon bi bi-ticket-detailed-fill"></i> {{ t('nav.tickets') | default('Tickets') }}
             <span class="status-dot nav-dot-tickets
             {% if modules.get('tickets', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="nav-item">
+          <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="nav-item">
             <i class="nav-icon bi bi-gift-fill"></i> {{ t('nav.giveaways') | default('Giveaways') }}
             <span class="status-dot nav-dot-giveaways
             {% if modules.get('giveaways', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}"
+          <a href="{{ url_for('guild.server_customcommands', guild_id=guild_id) }}"
             class="nav-item {% if active_page == 'customcommands' %}active{% endif %}">
             <i class="nav-icon bi bi-lightning-charge-fill"></i> {{ t('nav.customcommands') | default('Custom Commands') }}
             <span class="status-dot nav-dot-customcommands
             {% if modules.get('customcommands', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="nav-item">
+          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="nav-item">
             <i class="nav-icon bi bi-info-circle-fill"></i> {{ t('nav.info') | default('Info Commands') }}
             <span class="status-dot nav-dot-info
             {% if modules.get('info', True) %}on{% else %}off{% endif %}"></span>
           </a>
-          <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="nav-item">
+          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="nav-item">
             <i class="nav-icon bi bi-gear-fill"></i> {{ t('nav.utility') | default('Utility') }}
             <span class="status-dot nav-dot-utility
             {% if modules.get('utility', True) %}on{% else %}off{% endif %}"></span>
@@ -188,7 +188,7 @@
           <div class="lang-dropdown" style="right:0;left:0;bottom:calc(100% + 8px);top:unset;z-index:10000;">
             <div class="lang-header">{{ t('nav.select_language') }}</div>
             {% for code, name in available_languages.items() %}
-            <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+            <a href="{{ url_for('public.set_ui_language', lang_code=code) }}"
                class="lang-option {% if current_ui_lang == code %}active{% endif %}">
               <span>{{ name }}</span>
               {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
@@ -196,12 +196,12 @@
             {% endfor %}
           </div>
         </div>
-        <a class="sidebar-user" href="{{ url_for('home') }}">
+        <a class="sidebar-user" href="{{ url_for('guild.home') }}">
           {% if avatar %}
           <img class="sidebar-avatar" src="{{ avatar }}" alt="avatar">
           {% endif %}
           <span class="sidebar-username">{{ user.get('username','User') }}</span>
-          <a href="{{ url_for('logout') }}" class="sidebar-logout" title="{{ t('nav.logout') }}" onclick="event.stopPropagation()">
+          <a href="{{ url_for('public.logout') }}" class="sidebar-logout" title="{{ t('nav.logout') }}" onclick="event.stopPropagation()">
             <i class="bi bi-box-arrow-right"></i>
           </a>
         </a>

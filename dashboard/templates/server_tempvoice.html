@@ -26,7 +26,7 @@
       {{ t('tempvoice.sec_config_desc') | default('Chọn kênh kích hoạt (Hub) và quy tắc tạo phòng tự động cho thành viên.') }}
     </div>
 
-    <form id="tempvoice-settings-form" method="POST" action="{{ url_for('server_tempvoice', guild_id=guild_id) }}">
+    <form id="tempvoice-settings-form" method="POST" action="{{ url_for('guild.server_tempvoice', guild_id=guild_id) }}">
       <!-- Toggle switch -->
       <div class="toggle-row" style="margin-bottom:18px;">
         <div class="toggle-info">
@@ -109,7 +109,7 @@
               {% endif %}
             </td>
             <td style="padding:12px 8px; text-align:right;">
-              <form method="POST" action="{{ url_for('server_tempvoice_delete_channel', guild_id=guild_id, channel_id=ch.channel_id) }}" style="display:inline;">
+              <form method="POST" action="{{ url_for('guild.server_tempvoice_delete_channel', guild_id=guild_id, channel_id=ch.channel_id) }}" style="display:inline;">
                 <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="{{ t('common.delete') | default('Xóa phòng') }}">
                   <i class="bi bi-trash"></i>
                 </button>

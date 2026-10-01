@@ -31,7 +31,7 @@
   </div>
 </div>
 
-<form id="moderation-form" method="POST" action="{{ url_for('server_moderation', guild_id=guild_id) }}">
+<form id="moderation-form" method="POST" action="{{ url_for('guild.server_moderation', guild_id=guild_id) }}">
   <div class="card">
     <div class="card-title">
       <i class="bi bi-journal-bookmark-fill" style="color:var(--accent);"></i> {{ t('mod.modlog_channel_title') | default('Kênh Ghi Nhật Ký Điều Hành') }}

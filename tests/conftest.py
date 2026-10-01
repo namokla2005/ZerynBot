@@ -22,14 +22,23 @@ for p in (BASE_DIR, os.path.join(BASE_DIR, "bot"), os.path.join(BASE_DIR, "dashb
 # ─── DB tạm (per-test) ─────────────────────────────────────────────────────────
 
 @pytest.fixture()
-def temp_db(tmp_path, monkeypatch):
-    """Trỏ database.DB_PATH sang file tạm rồi init schema."""
+def temp_db(tmp_path):
+    """Trỏ database sang file DB tạm rồi init schema.
+
+    Dùng `set_db_path()` (API chính thức) thay vì monkeypatch thẳng biến
+    `DB_PATH` — nhờ vậy test vẫn đúng sau khi database.py tách thành package,
+    nơi `DB_PATH` chỉ còn tồn tại ở MỘT chỗ duy nhất.
+    """
     import database
 
     db_file = tmp_path / "bot.db"
-    monkeypatch.setattr(database, "DB_PATH", str(db_file))
-    database.init_db()
-    return str(db_file)
+    old_path = database.get_db_path()
+    database.set_db_path(str(db_file))
+    try:
+        database.init_db()
+        yield str(db_file)
+    finally:
+        database.set_db_path(old_path)
 
 
 # ─── Flask app + session mock (theo E2E_TESTING.md) ───────────────────────────

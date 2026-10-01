@@ -4,7 +4,7 @@ Script: check_db_schema.py — Kiểm tra tính toàn vẹn CSDL SQLite & An To�
 Kiểm tra:
 1. Đảm bảo tất cả bảng chính trong schema đều được khai báo trong init_db().
 2. Kiểm tra các câu lệnh ALTER TABLE đều được bọc try...except an toàn.
-3. Đảm bảo WAL mode và PRAGMA busy_timeout = 15000 được thiết lập.
+3. Đảm bảo WAL mode và PRAGMA busy_timeout = 15000 được thiết lập trong package database/.
 """
 
 import sys
@@ -15,18 +15,26 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-DB_PY_PATH = os.path.join(REPO_ROOT, "database.py")
+DB_DIR = os.path.join(REPO_ROOT, "database")
+SCHEMA_PY_PATH = os.path.join(DB_DIR, "schema.py")
+CONN_PY_PATH = os.path.join(DB_DIR, "conn.py")
 
 PASS_ICON = "✅"
 FAIL_ICON = "❌"
 WARN_ICON = "⚠️"
 
 print("=" * 65)
-print("🗄️ KIỂM TRA TÍNH TOÀN VẸN CƠ SỞ DỮ LIỆU SQLITE (database.py)")
+print("🗄️ KIỂM TRA TÍNH TOÀN VẸN CƠ SỞ DỮ LIỆU SQLITE (database/)")
 print("=" * 65)
 
-with open(DB_PY_PATH, "r", encoding="utf-8") as f:
-    db_code = f.read()
+# Đọc mã nguồn schema và conn
+db_code = ""
+if os.path.exists(SCHEMA_PY_PATH):
+    with open(SCHEMA_PY_PATH, "r", encoding="utf-8") as f:
+        db_code += f.read() + "\n"
+if os.path.exists(CONN_PY_PATH):
+    with open(CONN_PY_PATH, "r", encoding="utf-8") as f:
+        db_code += f.read() + "\n"
 
 # 1. Check PRAGMAs
 print("\n[1/3] ⚙️ Kiểm tra PRAGMA kết nối WAL & Timeout...")
@@ -35,7 +43,7 @@ if "PRAGMA journal_mode = WAL" in db_code or "PRAGMA journal_mode=WAL" in db_cod
 else:
     print(f"  {WARN_ICON} Chưa tìm thấy PRAGMA journal_mode = WAL!")
 
-if "PRAGMA busy_timeout = 15000" in db_code or "PRAGMA busy_timeout=15000" in db_code:
+if "PRAGMA busy_timeout = 15000" in db_code or "PRAGMA busy_timeout=15000" in db_code or "DB_BUSY_TIMEOUT_MS = 15000" in db_code:
     print(f"  {PASS_ICON} PRAGMA busy_timeout = 15000: Đã cấu hình chống deadlock.")
 else:
     print(f"  {WARN_ICON} Chưa tìm thấy PRAGMA busy_timeout = 15000!")
@@ -58,4 +66,3 @@ print(f"  {PASS_ICON} Các migration đều tuân thủ nguyên tắc không ph�
 
 print("\n" + "=" * 65)
 print("🎉 KẾT QUẢ: CƠ SỞ DỮ LIỆU ĐẠT CHUẨN AN TOÀN 100%!")
-print("=" * 65)

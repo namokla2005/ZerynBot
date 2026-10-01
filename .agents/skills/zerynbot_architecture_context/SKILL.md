@@ -33,7 +33,7 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │ 1. Logic Cog    │ ──► │ 2. CSDL SQLite  │ ──► │ 3. Đa Ngôn Ngữ  │
-│ (bot/cogs/*.py) │     │ (database.py)   │     │ (locales/*.json)│
+│ (bot/cogs/*.py) │     │ (database/)     │     │ (locales/*.json)│
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                          │
                         ┌─────────────────┐              ▼
@@ -49,8 +49,9 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
    - Sử dụng hàm `tr(settings, key, **kwargs)` cho mọi phản hồi hiển thị.
    - Bắt lỗi và log chi tiết.
 
-2. **Bước 2: Triển khai CSDL SQLite (`database.py`)**:
-   - Viết các hàm `async_*` (dùng `aiosqlite`) cho Bot và hàm đồng bộ (dùng `sqlite3`) cho Dashboard.
+2. **Bước 2: Triển khai CSDL SQLite (`database/`)**:
+   - Viết các hàm `async_*` (dùng `aiosqlite`) cho Bot và hàm đồng bộ (dùng `sqlite3`) cho Dashboard, luôn qua `_connect_sync` / `_connect_async` trong `database/conn.py`.
+   - Khai báo bảng mới trong `database/schema.py` hoặc submodule tương ứng.
    - Nếu cần thêm cột vào bảng có sẵn, sử dụng cơ chế **Migration an toàn**:
      ```python
      try:
@@ -61,11 +62,11 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
 
 3. **Bước 3: Bổ sung Từ Điển Đa Ngôn Ngữ (`locales/*.json`)**:
    - Bổ sung bộ key mới vào **TOÀN BỘ 6 TỆP** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1605 keys/file**).
+   - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1694 keys/file**).
    - Chạy script kiểm tra: `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
 
 4. **Bước 4: Đồng bộ Dashboard Command Registry**:
-   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `dashboard/app.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **107 lệnh** thuộc **17 danh mục**).
+   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `dashboard/app.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **110 lệnh** thuộc **17 danh mục**).
 
 5. **Bước 5: Đồng bộ Tài liệu Kiến trúc**:
    - Cập nhật số lượng lệnh và chức năng mới trong `ARCHITECTURE.md`, `README.md`, `llms.txt`.

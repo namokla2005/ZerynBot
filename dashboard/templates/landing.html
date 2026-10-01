@@ -662,7 +662,7 @@
 <header class="landing-header">
   <div class="landing-nav">
     <div style="display:flex; align-items:center; gap:36px;">
-      <a href="{{ url_for('index') }}" class="landing-brand">
+      <a href="{{ url_for('public.index') }}" class="landing-brand">
         <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
         Zeryn
       </a>
@@ -670,8 +670,8 @@
         <a href="#features">{{ t('nav.features') }}</a>
         <a href="#all-in-one">{{ t('landing.all_in_one') }}</a>
         <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer"><i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}</a>
-        <a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a>
-        <a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a>
+        <a href="{{ url_for('public.tos') }}">{{ t('nav.tos') }}</a>
+        <a href="{{ url_for('public.privacy') }}">{{ t('nav.privacy') }}</a>
       </nav>
     </div>
     
@@ -685,7 +685,7 @@
         <div class="lang-dropdown">
           <div style="font-size:0.75rem; color:var(--text-muted); padding:4px 10px; font-weight:700; text-transform:uppercase;">{{ t('nav.select_language') }}</div>
           {% for code, name in available_languages.items() %}
-          <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+          <a href="{{ url_for('public.set_ui_language', lang_code=code) }}"
              class="lang-item {% if current_ui_lang == code %}active{% endif %}">
             <span>{{ name }}</span>
             {% if current_ui_lang == code %}<i class="bi bi-check2"></i>{% endif %}
@@ -695,11 +695,11 @@
       </div>
 
       {% if session.get('user') %}
-        <a href="{{ url_for('home') }}" class="btn-pink-pill">
+        <a href="{{ url_for('guild.home') }}" class="btn-pink-pill">
           <i class="bi bi-speedometer2"></i> {{ t('nav.dashboard') }}
         </a>
       {% else %}
-        <a href="{{ url_for('login') }}" class="btn-pink-pill">
+        <a href="{{ url_for('public.login') }}" class="btn-pink-pill">
           <i class="bi bi-discord"></i> {{ t('nav.login') }}
         </a>
       {% endif %}
@@ -1158,17 +1158,17 @@
   <p class="guides-subtitle">{{ t('landing.guides_sub') }}</p>
 
   <div class="guides-grid">
-    <a href="{{ url_for('docs_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
+    <a href="{{ url_for('public.docs_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
       <div class="guide-icon"><i class="bi bi-journal-bookmark-fill"></i></div>
       <h3>{{ t('landing.guide1_title') }}</h3>
       <p>{{ t('landing.guide1_desc') }}</p>
     </a>
-    <a href="{{ url_for('home') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
+    <a href="{{ url_for('guild.home') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
       <div class="guide-icon"><i class="bi bi-sliders"></i></div>
       <h3>{{ t('landing.guide2_title') }}</h3>
       <p>{{ t('landing.guide2_desc') }}</p>
     </a>
-    <a href="{{ url_for('support_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
+    <a href="{{ url_for('support.support_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
       <div class="guide-icon"><i class="bi bi-people-fill"></i></div>
       <h3>{{ t('landing.guide3_title') }}</h3>
       <p>{{ t('landing.guide3_desc') }}</p>
@@ -1222,16 +1222,16 @@
       <h4>{{ t('nav.resources') }}</h4>
       <ul>
         <li><a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer"><i class="bi bi-github" style="margin-right:4px;"></i> {{ t('nav.github_repo') | default('GitHub Repository') }}</a></li>
-        <li><a href="{{ url_for('tos') }}">{{ t('nav.tos') }}</a></li>
-        <li><a href="{{ url_for('privacy') }}">{{ t('nav.privacy') }}</a></li>
+        <li><a href="{{ url_for('public.tos') }}">{{ t('nav.tos') }}</a></li>
+        <li><a href="{{ url_for('public.privacy') }}">{{ t('nav.privacy') }}</a></li>
       </ul>
     </div>
 
     <div class="footer-column">
       <h4>{{ t('nav.dashboard') }}</h4>
       <ul>
-        <li><a href="{{ url_for('home') }}">{{ t('nav.dashboard') }}</a></li>
-        <li><a href="{{ url_for('login') }}">{{ t('nav.login') }}</a></li>
+        <li><a href="{{ url_for('guild.home') }}">{{ t('nav.dashboard') }}</a></li>
+        <li><a href="{{ url_for('public.login') }}">{{ t('nav.login') }}</a></li>
       </ul>
     </div>
   </div>

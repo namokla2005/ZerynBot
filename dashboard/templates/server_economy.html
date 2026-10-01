@@ -45,7 +45,7 @@
       {{ t('economy.sec_settings_desc') | default('Thiết lập giá trị tiền thưởng điểm danh và đơn vị tiền tệ cho server.') }}
     </div>
 
-    <form id="economy-settings-form" method="POST" action="{{ url_for('server_economy', guild_id=guild_id) }}">
+    <form id="economy-settings-form" method="POST" action="{{ url_for('guild.server_economy', guild_id=guild_id) }}">
       <div class="form-group">
         <label class="form-label">{{ t('economy.label_daily') | default('Tiền thưởng Daily cơ bản') }}</label>
         <input type="number" name="daily_amount" class="form-control" value="{{ eco_settings.daily_amount }}" min="1" required>
@@ -127,7 +127,7 @@
               {% endif %}
             </td>
             <td style="padding:12px 8px; text-align:right;">
-              <form method="POST" action="{{ url_for('server_economy_delete_item', guild_id=guild_id, item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('economy.confirm_delete_item') | default('Bạn có chắc muốn xóa vật phẩm Role này?') }}');">
+              <form method="POST" action="{{ url_for('guild.server_economy_delete_item', guild_id=guild_id, item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('economy.confirm_delete_item') | default('Bạn có chắc muốn xóa vật phẩm Role này?') }}');">
                 <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="{{ t('common.delete') | default('Xóa') }}">
                   <i class="bi bi-trash"></i>
                 </button>
@@ -156,7 +156,7 @@
       <span class="modal-title"><i class="bi bi-plus-circle-fill" style="color:var(--accent); margin-right:6px;"></i>{{ t('economy.modal_add_title') | default('Thêm Role Vào Cửa Hàng') }}</span>
       <button type="button" class="modal-close-btn" onclick="closeModal('addItemModal')">×</button>
     </div>
-    <form method="POST" action="{{ url_for('server_economy_add_item', guild_id=guild_id) }}">
+    <form method="POST" action="{{ url_for('guild.server_economy_add_item', guild_id=guild_id) }}">
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">{{ t('economy.modal_item_name') | default('Tên hiển thị vật phẩm') }}</label>

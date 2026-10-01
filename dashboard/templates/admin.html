@@ -133,13 +133,13 @@
     </div>
     <span style="color:var(--text-muted);font-size:.8rem;background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.3);padding:3px 10px;border-radius:20px;font-weight:600;">OWNER ONLY</span>
     <div class="admin-topbar-right">
-      <a href="{{ url_for('home') }}" class="btn-icon broadcast" style="text-decoration:none;padding:6px 14px;"><i class="bi bi-grid-fill"></i> Dashboard</a>
+      <a href="{{ url_for('guild.home') }}" class="btn-icon broadcast" style="text-decoration:none;padding:6px 14px;"><i class="bi bi-grid-fill"></i> Dashboard</a>
       <div class="topbar-user-mini">
         {% if avatar %}<img src="{{ avatar }}" alt="avatar">{% endif %}
         <span>{{ user.get('global_name') or user.get('username','User') }}</span>
       </div>
-      <a href="{{ url_for('logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
-      <a href="{{ url_for('logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
+      <a href="{{ url_for('public.logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
+      <a href="{{ url_for('public.logout') }}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:flex;align-items:center;gap:5px;">
         <i class="bi bi-box-arrow-right"></i> {{ t('admin.logout') }}
       </a>
     </div>
@@ -256,7 +256,7 @@
       <button class="admin-tab" onclick="switchTab('terminal',this)">
         <i class="bi bi-terminal-fill"></i> {{ t('admin.tab_terminal') }}
       </button>
-      <a href="{{ url_for('admin_support_center') }}" class="admin-tab" style="text-decoration:none; color:inherit; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.3); color:#fde047;">
+      <a href="{{ url_for('admin.admin_support_center') }}" class="admin-tab" style="text-decoration:none; color:inherit; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.3); color:#fde047;">
         <i class="bi bi-chat-dots-fill"></i> Hỗ Trợ 24/7 (Messenger)
       </a>
     </div>
@@ -355,7 +355,7 @@
               <td style="color:var(--text-muted);font-size:.82rem;">{{ item.kicked_at or '—' }}</td>
               <td>
                 <div class="action-btns" style="justify-content:flex-end;">
-                  <form method="POST" action="{{ url_for('admin_unblacklist', guild_id=item.guild_id) }}" onsubmit="return confirm('{{ t('admin.confirm_unblacklist') }}')">
+                  <form method="POST" action="{{ url_for('admin.admin_unblacklist', guild_id=item.guild_id) }}" onsubmit="return confirm('{{ t('admin.confirm_unblacklist') }}')">
                     <button type="submit" class="btn-icon unblacklist"><i class="bi bi-unlock-fill"></i> {{ t('admin.remove_from_blacklist') }}</button>
                   </form>
                 </div>
@@ -555,7 +555,7 @@
         </div>
 
         <!-- Form save Multi-Provider Key Pools & Model -->
-        <form method="POST" action="{{ url_for('admin_save_ai_key') }}">
+        <form method="POST" action="{{ url_for('admin.admin_save_ai_key') }}">
           
           <!-- Key Pools Grid -->
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-bottom:24px;">
@@ -856,7 +856,7 @@
   <div class="modal-box broadcast-box">
     <div class="modal-title broadcast"><i class="bi bi-megaphone-fill"></i> {{ t('admin.broadcast_title_modal') }}</div>
     <p class="modal-subtitle" id="broadcastSubtitle">{{ t('admin.broadcast_sub_modal') }}</p>
-    <form method="POST" action="{{ url_for('admin_broadcast') }}" id="broadcastForm">
+    <form method="POST" action="{{ url_for('admin.admin_broadcast') }}" id="broadcastForm">
       <input type="hidden" name="send_all" id="broadcastSendAll" value="0">
       <div id="broadcastTargetInputs"></div>
       <div class="modal-field">

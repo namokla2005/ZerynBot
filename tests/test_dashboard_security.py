@@ -118,15 +118,18 @@ def test_callback_rejects_missing_or_wrong_state(client):
 
 
 def test_callback_success_with_valid_state(client, monkeypatch):
-    import dashboard.app as dapp
+    # Giai đoạn 3.2: route /callback nằm ở dashboard/blueprints/public.py nên phải
+    # patch tại đúng namespace của module đó (không còn trong dashboard.app).
+    import dashboard.blueprints.public as pub
+    import dashboard.app  # noqa: F401 — đảm bảo app đã dựng xong
 
-    monkeypatch.setattr(dapp, "exchange_code", lambda code: {"access_token": "tok"})
-    monkeypatch.setattr(dapp, "get_user", lambda tok: {"id": "111111111111111111", "username": "TestAdmin"})
-    monkeypatch.setattr(dapp, "get_manageable_guilds", lambda tok: [{
+    monkeypatch.setattr(pub, "exchange_code", lambda code: {"access_token": "tok"})
+    monkeypatch.setattr(pub, "get_user", lambda tok: {"id": "111111111111111111", "username": "TestAdmin"})
+    monkeypatch.setattr(pub, "get_manageable_guilds", lambda tok: [{
         "id": MOCK_GUILD_ID, "name": "Zeryn Support Community", "icon": None,
         "permissions": 8, "bot_in_guild": True,
     }])
-    monkeypatch.setattr(dapp, "get_avatar_url", lambda u: "https://cdn.discordapp.com/embed/avatars/0.png")
+    monkeypatch.setattr(pub, "get_avatar_url", lambda u: "https://cdn.discordapp.com/embed/avatars/0.png")
 
     client.get("/login")
     with client.session_transaction() as s:

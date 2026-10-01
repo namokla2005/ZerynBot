@@ -37,7 +37,7 @@ if BOT_DIR not in sys.path:
 
 import config
 from cache import cache
-from database import DB_PATH, init_db
+from database import get_db_path, init_db
 
 def _safe_print(text: str):
     """Safe print wrapper preventing UnicodeEncodeError on non-UTF8 terminals."""
@@ -132,7 +132,7 @@ class SystemTester:
             init_db()
             asserts += 1
             def _check():
-                with sqlite3.connect(DB_PATH, timeout=5) as conn:
+                with sqlite3.connect(get_db_path(), timeout=5) as conn:
                     cur = conn.cursor()
                     cur.execute("PRAGMA journal_mode;")
                     jmode = cur.fetchone()[0].lower()
@@ -344,7 +344,7 @@ class SystemTester:
             asserts += 2
 
             # Clean up
-            async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            async with aiosqlite.connect(get_db_path(), timeout=10.0) as db:
                 await db.execute("DELETE FROM user_levels WHERE guild_id = ?", (tg,))
                 await db.commit()
 
@@ -365,7 +365,7 @@ class SystemTester:
             u_bob = "econ_bob_002"
 
             # Clean up test rows first
-            async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            async with aiosqlite.connect(get_db_path(), timeout=10.0) as db:
                 await db.execute("DELETE FROM economy_users WHERE guild_id = ?", (tg,))
                 await db.commit()
 
@@ -442,7 +442,7 @@ class SystemTester:
             asserts += 1
 
             # Clean up
-            async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            async with aiosqlite.connect(get_db_path(), timeout=10.0) as db:
                 await db.execute("DELETE FROM economy_users WHERE guild_id = ?", (tg,))
                 await db.commit()
 
@@ -596,7 +596,7 @@ class SystemTester:
             tg = "test_concurrent_guild_999"
 
             # Pre-clean
-            async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            async with aiosqlite.connect(get_db_path(), timeout=10.0) as db:
                 await db.execute("DELETE FROM economy_users WHERE guild_id = ?", (tg,))
                 await db.commit()
 
@@ -613,7 +613,7 @@ class SystemTester:
             asserts += 11
 
             # Clean up
-            async with aiosqlite.connect(DB_PATH, timeout=10.0) as db:
+            async with aiosqlite.connect(get_db_path(), timeout=10.0) as db:
                 await db.execute("DELETE FROM economy_users WHERE guild_id = ?", (tg,))
                 await db.commit()
 

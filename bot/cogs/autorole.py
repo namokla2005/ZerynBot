@@ -4,7 +4,7 @@ from discord import app_commands
 import json
 import aiosqlite
 
-from database import DB_PATH, async_is_module_enabled, async_get_guild_settings
+from database import async_is_module_enabled, async_get_guild_settings
 import checks
 from i18n import tr
 try:

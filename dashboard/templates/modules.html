@@ -74,7 +74,7 @@
     {{ t('modules.role_whitelist_desc') }}
   </p>
   
-  <form method="POST" action="{{ url_for('server_modules', guild_id=guild_id) }}">
+  <form method="POST" action="{{ url_for('guild.server_modules', guild_id=guild_id) }}">
     <div class="form-group">
       <label class="form-label">{{ t('modules.role_whitelist_title') }}</label>
       <div id="hidden-inputs-bot_admin_roles"></div>
@@ -114,7 +114,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">👋</span> Welcome &amp; Goodbye</div>
       <div class="mod-desc">{{ t('dashboard.welcome_desc') }}</div>
-      <a href="{{ url_for('server_welcome', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_welcome', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -131,7 +131,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🪪</span> Auto Roles</div>
       <div class="mod-desc">{{ t('dashboard.autoroles_desc') }}</div>
-      <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_autoroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -149,7 +149,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🌟</span> {{ t('nav.leveling') | default('Leveling & XP') }}</div>
       <div class="mod-desc">{{ t('dashboard.leveling_desc') }}</div>
-      <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_leveling', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -194,7 +194,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎵</span> {{ t('nav.music') | default('Music') }}</div>
       <div class="mod-desc">{{ t('dashboard.music_desc') }}</div>
-      <a href="{{ url_for('server_music', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('music.server_music', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -211,7 +211,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎫</span> {{ t('nav.tickets') | default('Ticket System') }}</div>
       <div class="mod-desc">{{ t('dashboard.tickets_desc') }}</div>
-      <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_tickets', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -228,7 +228,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">✨</span> {{ t('nav.reactionroles') | default('Reaction Roles') }}</div>
       <div class="mod-desc">{{ t('dashboard.reactionroles_desc') }}</div>
-      <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_reactionroles', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -245,7 +245,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🛡️</span> {{ t('nav.automods') | default('Automods') }}</div>
       <div class="mod-desc">{{ t('dashboard.automod_desc') }}</div>
-      <a href="{{ url_for('server_automod', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_automod', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -262,7 +262,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🔐</span> {{ t('nav.verify') | default('Verify Gate') }}</div>
       <div class="mod-desc">{{ t('dashboard.verify_desc') }}</div>
-      <a href="{{ url_for('server_verify', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_verify', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -279,7 +279,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">📝</span> {{ t('nav.logger') | default('Logging & Audit Log') }}</div>
       <div class="mod-desc">{{ t('dashboard.logger_desc') }}</div>
-      <a href="{{ url_for('server_logger', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_logger', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -314,7 +314,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🪙</span> {{ t('nav.economy') | default('Economy & Shop') }}</div>
       <div class="mod-desc">{{ t('economy.page_subtitle') | default('Tiền tệ server, điểm danh hàng ngày, trò chơi và cửa hàng Role.') }}</div>
-      <a href="{{ url_for('server_economy', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_economy', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -331,7 +331,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎙️</span> {{ t('nav.tempvoice') | default('Temp Voice Hub') }}</div>
       <div class="mod-desc">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub.') }}</div>
-      <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_tempvoice', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -348,7 +348,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">⚡</span> {{ t('nav.customcommands') | default('Custom Commands') }}</div>
       <div class="mod-desc">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed theo từ khóa.') }}</div>
-      <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_customcommands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -365,7 +365,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🤖</span> {{ t('nav.ai') | default('AI Assistant') }}</div>
       <div class="mod-desc">{{ t('ai.page_subtitle') | default('Trí tuệ nhân tạo Gemini: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện.') }}</div>
-      <a href="{{ url_for('server_ai', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_ai', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -399,7 +399,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🛡️</span> {{ t('nav.moderation') | default('Điều hành') }}</div>
       <div class="mod-desc">{{ t('dashboard.moderation_desc') | default('Kick, ban, timeout, cảnh cáo và quản lý kênh.') }}</div>
-      <a href="{{ url_for('server_moderation', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_moderation', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -416,7 +416,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎭</span> {{ t('nav.fun') | default('Vui vẻ & Tình cảm') }}</div>
       <div class="mod-desc">{{ t('dashboard.fun_desc') | default('Tương tác anime GIF, ghép đôi, kết hôn và hồ sơ tình cảm.') }}</div>
-      <a href="{{ url_for('server_commands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -433,7 +433,7 @@
     <div class="mod-info">
       <div class="mod-name"><span class="mod-icon">🎂</span> {{ t('nav.birthday') | default('Sinh nhật') }}</div>
       <div class="mod-desc">{{ t('dashboard.birthday_desc') | default('Quản lý và tự động chúc mừng sinh nhật thành viên.') }}</div>
-      <a href="{{ url_for('server_birthday', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
+      <a href="{{ url_for('guild.server_birthday', guild_id=guild_id) }}" style="font-size:0.75rem; color:var(--accent); margin-top:8px; display:inline-flex; align-items:center; gap:4px;">
         {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>

@@ -52,7 +52,7 @@
   <p class="page-subtitle">{{ t('verify.panel_title') }}</p>
 </div>
 
-<form method="POST" action="{{ url_for('server_verify', guild_id=guild_id) }}">
+<form method="POST" action="{{ url_for('guild.server_verify', guild_id=guild_id) }}">
 
   <div class="card">
     <div class="card-title"><i class="bi bi-gear-fill" style="color:var(--accent)"></i> {{ t('verify.field_status') }}</div>

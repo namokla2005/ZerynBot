@@ -67,7 +67,7 @@
             {% endif %}
           </td>
           <td style="padding:12px 8px; text-align:right;">
-            <form method="POST" action="{{ url_for('server_customcommands_delete', guild_id=guild_id, cmd_id=cmd.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm_delete') | default('Bạn có chắc muốn xóa?') }}');">
+            <form method="POST" action="{{ url_for('guild.server_customcommands_delete', guild_id=guild_id, cmd_id=cmd.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('common.confirm_delete') | default('Bạn có chắc muốn xóa?') }}');">
               <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--danger); padding:4px 8px;" title="{{ t('common.delete') | default('Xóa') }}">
                 <i class="bi bi-trash"></i>
               </button>
@@ -94,7 +94,7 @@
       <span class="modal-title"><i class="bi bi-plus-circle-fill" style="color:var(--accent); margin-right:6px;"></i>{{ t('customcmd.modal_title') | default('Tạo Lệnh Tùy Biến / Auto-Responder Mới') }}</span>
       <button type="button" class="modal-close-btn" onclick="closeModal('addCmdModal')">×</button>
     </div>
-    <form method="POST" action="{{ url_for('server_customcommands_add', guild_id=guild_id) }}">
+    <form method="POST" action="{{ url_for('guild.server_customcommands_add', guild_id=guild_id) }}">
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">

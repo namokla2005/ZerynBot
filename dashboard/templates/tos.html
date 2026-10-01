@@ -309,7 +309,7 @@
 
 <!-- Top bar -->
 <header class="topbar">
-  <a href="{{ url_for('index') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
+  <a href="{{ url_for('public.index') }}" class="topbar-brand" style="text-decoration: none; color: inherit;">
     <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo" style="width: 24px; height: 24px; border-radius: 50%;">
     Zeryn
   </a>
@@ -317,8 +317,8 @@
     <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px;">
       <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
     </a>
-    <a href="{{ url_for('tos') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">{{ t('nav.tos') }}</a>
-    <a href="{{ url_for('privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.privacy') }}</a>
+    <a href="{{ url_for('public.tos') }}" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">{{ t('nav.tos') }}</a>
+    <a href="{{ url_for('public.privacy') }}" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ t('nav.privacy') }}</a>
   </div>
   <div class="topbar-right" style="display:flex; gap:16px; align-items:center;">
     <!-- Language Switcher -->
@@ -330,7 +330,7 @@
       <div class="lang-dropdown">
         <div class="lang-header">{{ t('nav.select_language') }}</div>
         {% for code, name in available_languages.items() %}
-        <a href="{{ url_for('set_ui_language', lang_code=code) }}"
+        <a href="{{ url_for('public.set_ui_language', lang_code=code) }}"
            class="lang-option {% if current_ui_lang == code %}active{% endif %}">
           <span>{{ name }}</span>
           {% if current_ui_lang == code %}<i class="bi bi-check2" style="color:var(--accent);"></i>{% endif %}
@@ -340,9 +340,9 @@
     </div>
 
     {% if session.get('user') %}
-      <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">{{ t('nav.dashboard') }}</a>
+      <a href="{{ url_for('guild.home') }}" class="btn btn-primary btn-sm">{{ t('nav.dashboard') }}</a>
     {% else %}
-      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">{{ t('nav.login') }}</a>
+      <a href="{{ url_for('public.login') }}" class="btn btn-primary btn-sm">{{ t('nav.login') }}</a>
     {% endif %}
   </div>
 </header>

@@ -13,6 +13,7 @@ Bảo vệ những thứ rất dễ bị vô hiệu hoá khi refactor:
   support 24/7.
 - Chu kỳ task ngầm đã giãn lên 60s để giảm số lần đánh thức CPU.
 """
+import asyncio
 import os
 import sys
 import time
@@ -48,18 +49,36 @@ async def test_async_connection_applies_tuned_pragmas(temp_db):
             assert (await cur.fetchone())[0] == 2
 
 
-def test_connect_helpers_read_db_path_at_call_time(temp_db, tmp_path, monkeypatch):
-    """DB_PATH bị monkeypatch phải có hiệu lực cho kết nối mở sau đó."""
+def test_connect_helpers_read_db_path_at_call_time(temp_db, tmp_path):
+    """Đổi DB bằng set_db_path() phải có hiệu lực ngay cho kết nối mở sau đó.
+
+    Giai đoạn 3.3: `database` là package nên `DB_PATH` chỉ tồn tại thật ở
+    `database/conn.py`; API chính thức để đổi DB là `set_db_path()` (đồng bộ cả
+    `database.DB_PATH` lẫn conn). Test này khoá đúng hành vi "đọc tại thời điểm
+    gọi, không cache" — nếu ai đó cache đường dẫn trong helper, test sẽ đỏ.
+    """
     import database
 
     other = tmp_path / "other.db"
-    monkeypatch.setattr(database, "DB_PATH", str(other))
+    database.set_db_path(str(other))
 
     with database._connect_sync() as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS pragma_probe (x INTEGER)")
         conn.commit()
 
     assert other.exists(), "helper phải dùng DB_PATH tại thời điểm gọi, không cache"
+    assert database.DB_PATH == str(other), "database.DB_PATH phải phản ánh giá trị mới"
+    asyncio.run(_async_probe_uses_new_db(str(other)))
+
+
+async def _async_probe_uses_new_db(path: str):
+    """Đường async cũng phải theo DB mới (không dùng bản sao DB_PATH cũ)."""
+    import database
+
+    assert database.get_db_path() == path
+    async with database._connect_async() as db:
+        async with db.execute("SELECT COUNT(*) FROM pragma_probe;") as cur:
+            assert (await cur.fetchone())[0] == 0
 
 
 async def test_vacuum_stays_safe_and_forcible(temp_db):

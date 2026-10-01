@@ -323,9 +323,9 @@ File cấu hình tại `C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`:
 ZerynBot/
 ├── main.py              # Điểm vào điều khiển trung tâm (start/stop/restart/status/test)
 ├── config.py            # Quản lý cấu hình & biến môi trường
-├── database.py          # Xử lý cơ sở dữ liệu SQLite (WAL mode, async & sync, timeout 15s)
+├── database/            # Package cơ sở dữ liệu SQLite (14 modules, WAL mode, async & sync, PRAGMA tuning)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
-├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1604 keys/file)
+├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1694 keys/file)
 ├── requirements.txt     # Danh sách thư viện Python chạy production
 ├── requirements-dev.txt # Danh sách thư viện dev & test (pytest, ruff)
 ├── LICENSE              # Giấy phép nguồn mở MIT
@@ -333,9 +333,12 @@ ZerynBot/
 │   ├── bot.py           # Entry point của Discord Bot & Webhook Logger
 │   ├── card_generator.py# Render ảnh Rank Card, Welcome/Goodbye Banner bằng Pillow
 │   ├── checks.py        # Kiểm tra quyền hạn & Bot Admin
+│   ├── music/           # Hệ thống Audio Pipeline module hóa (extractor, player, views, embeds, voice mixin)
 │   └── cogs/            # 22 Cogs chức năng (moderation, fun, birthday, remind, ai, tempvoice, economy, customcommands, music, automod, ...)
 ├── dashboard/           # 🌐 Flask Web Dashboard
-│   ├── app.py           # Routes chính của Dashboard
+│   ├── app.py           # Facade entrypoint & _COMMANDS_DATA registry
+│   ├── app_factory.py   # Factory khởi tạo ứng dụng Flask & nạp Blueprints
+│   ├── blueprints/      # Các Blueprint chức năng: public, guild, music, admin, support
 │   ├── api.py           # AJAX API Endpoints
 │   ├── auth.py          # Discord OAuth2 Session Manager & SSRF filter
 │   ├── static/          # CSS (v9.2), JS, Branding Images
@@ -343,7 +346,7 @@ ZerynBot/
 ├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1694 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 78 tests (cache, i18n, database, permissions, Termux optimizations, dashboard)
+├── tests/               # 🧪 154 tests (cache, i18n, database, permissions, Termux optimizations, dashboard)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```

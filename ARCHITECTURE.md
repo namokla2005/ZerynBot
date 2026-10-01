@@ -56,7 +56,21 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 ├── ARCHITECTURE.md             # This document (AI Context Map & System Reference)
 ├── main.py                     # Primary process orchestrator & CLI control (start/stop/restart/status)
 ├── config.py                   # Centralized environment variables, credentials, and constants
-├── database.py                 # SQLite schema, sync (Flask) & async (Bot) database helper methods
+├── database/                   # Modular SQLite database package (14 modules, WAL mode, async & sync)
+│   ├── __init__.py             # Public API facade (100% backward-compatible re-exports)
+│   ├── conn.py                 # Central DB_PATH, set_db_path(), _connect_sync(), _connect_async(), PRAGMA tuning
+│   ├── schema.py               # init_db(), CREATE TABLE IF NOT EXISTS (46 tables), safe ALTER TABLE migrations
+│   ├── guilds.py               # Guild settings, module toggles, channels/roles cache, blacklist
+│   ├── economy.py              # Wallet, bank, shop, inventory, transfer, atomic cooldowns & transactions
+│   ├── leveling.py             # Chat/voice XP formulas, rank calculations, level roles
+│   ├── music.py                # Music playlists, song cache, top played songs
+│   ├── activity.py             # Activity logs, guild stats aggregation
+│   ├── community.py            # Giveaways, marriages, birthdays, custom commands, tempvoice
+│   ├── events.py               # Automod settings & warnings, audit logger settings
+│   ├── tickets.py              # Ticket panels, buttons, reaction roles panels & items
+│   ├── ai.py                   # AI settings, global settings, AI activity logs
+│   ├── maintenance.py          # Auto-prune jobs, threshold VACUUM, WAL checkpoints
+│   └── embeds.py               # Saved rich embeds registry
 ├── cache.py                    # Thread-safe & async-safe In-Memory RAM Cache manager
 ├── i18n.py                     # Singleton O(1) multi-language translation engine
 ├── requirements.txt            # Python package dependencies
@@ -69,56 +83,55 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── tester.py               # Standalone test/debug helper script
 │   ├── fonts/                  # Custom TrueType fonts (.ttf) for card rendering
 │   ├── emojis.py               # Custom Discord Application Emojis registry & helpers (e, partial)
+│   ├── music/                  # Modular Audio Pipeline Package
+│   │   ├── __init__.py         # Re-exports config, Track, MusicPlayer, views
+│   │   ├── config.py           # FFmpeg flags, yt-dlp options, MAX_PLAYERS=6, MAX_QUEUE_SIZE
+│   │   ├── extractor.py        # yt-dlp thread-local, disk cache, Spotify/SoundCloud resolver
+│   │   ├── player.py           # Track metadata, MusicPlayer queue, 403 stream auto-recovery
+│   │   ├── views.py            # MusicControlView (5 buttons), SearchSelectView, lyrics paginator
+│   │   ├── embeds.py           # Now Playing & Queue Rich Embed generators
+│   │   └── cog_voice.py        # MusicVoiceMixin (voice client lifecycle, queue actions, inactivity)
 │   └── cogs/                   # Modular Bot Feature Cogs (24 total)
 │       ├── admin.py            # Bot owner global administration, slash command sync, /backup & 24h auto-backup
-│       ├── ai.py               # Multi-provider AI assistant (Groq Qwen 3.8 27B / Gemini / OpenRouter), /ask, /summarize, #ai-chat, Owner Persona
+│       ├── ai.py               # Multi-provider AI assistant (Groq Qwen 3.8 27B / Gemini / OpenRouter), /ask, /summarize
 │       ├── automod.py          # Real-time message filter (spam, bad words, fake links, caps, pings, anti-raid/nuke)
 │       ├── autorole.py         # On-member-join role auto-assignment
 │       ├── birthday.py         # Birthday system (/birthday set/check/list/remove, midnight loop, VIP role, rewards)
 │       ├── customcommands.py   # Custom commands & Auto-responders with variable replacements
-│       ├── economy.py          # /daily streak, wallet, bank, /pay, /slots, /coinflip, /blackjack, /shop, /work, /fish, /hunt, /inventory, /sell
+│       ├── economy.py          # /daily streak, wallet, bank, /pay, /slots, /coinflip, /blackjack, /shop, /work...
 │       ├── events.py           # Join/leave event listeners, guild cache, banner delivery
 │       ├── fun.py              # Anime GIF interactions (10 actions via nekos.best), /ship, /marry, /divorce, /profile
-│       ├── giveaway.py         # Essential Bot style Giveaway (banner header, key-value fields, role requirements, live counter)
+│       ├── giveaway.py         # Essential Bot style Giveaway (banner header, key-value fields, live counter)
 │       ├── info.py             # Server, user, avatar, bot, role, channel info embeds
 │       ├── lang.py             # /lang language picker slash command
 │       ├── leveling.py         # Chat & Voice XP engine, rank calculation, level rewards
 │       ├── logger.py           # Server audit log events listener & embed logger
 │       ├── maintenance.py      # Scheduled auto-prune background task (old logs, stats, warnings)
-│       ├── moderation.py       # Moderation suite (/kick, /ban, /unban, /timeout, /warn, /clear, /slowmode, /lock...)
-│       ├── music.py            # Music | 2 style audio player (compact card, right thumbnail, progress bar, 5 interactive buttons, /nowplaying)
+│       ├── moderation.py       # Moderation suite (/kick, /ban, /unban, /timeout, /warn, /clear, /slowmode...)
+│       ├── music.py            # Music Cog controller inheriting MusicVoiceMixin (11 slash commands)
 │       ├── reactionroles.py    # Reaction role listener & interactive button handler
 │       ├── remind.py           # Smart Reminders & Scheduling (/remindme, /reminders, /delreminder)
 │       ├── stats.py            # Hourly event metrics collector for dashboard analytics
 │       ├── tempvoice.py        # Temporary Voice channels (Join-to-Create hub, in-chat button controls)
 │       ├── ticket.py           # Support ticket panel creation, persistent views, channel setup
-│       ├── utility.py          # Ping, membercount, 17-category interactive /help Command Center, poll, roll, choose
+│       ├── utility.py          # Ping, membercount, 17-category interactive /help Command Center, poll...
 │       └── verify.py           # Verification gate (/setup_verify, /verify panel, anti-raid & anti-nuke)
 │
 ├── dashboard/                  # Flask Web Management Dashboard
-│   ├── app.py                  # Flask routes, OAuth2 handlers, server module controllers
+│   ├── app.py                  # Entrypoint facade (`app = create_app()`), `_COMMANDS_DATA` central registry
+│   ├── app_factory.py          # Flask application factory, error handlers, blueprint registration
+│   ├── extensions.py           # Flask-Limiter and shared extensions initialization
+│   ├── web_helpers.py          # Server context builder, channel sanitizers, auth decorators
 │   ├── api.py                  # AJAX JSON endpoints for live previews, roles, channels
 │   ├── auth.py                 # Discord OAuth2 session token exchange & helper functions
+│   ├── blueprints/             # Modular route blueprints
+│   │   ├── public.py           # Landing, login/logout, OAuth2 callback, /docs, /stats, status
+│   │   ├── guild.py            # Guild modules toggle, settings, welcome/autorole/automod/embed builder
+│   │   ├── music.py            # Web music player & playlist manager
+│   │   ├── admin.py            # Bot Owner Admin panel, terminal, AI settings, activity console
+│   │   └── support.py          # 24/7 Web Messenger Support ticket thread system
 │   ├── static/                 # CSS styles, JS assets, branding images
 │   └── templates/              # Jinja2 HTML templates
-│       ├── base_server.html    # Primary dashboard layout shell
-│       ├── admin.html          # Bot owner global control panel
-│       ├── server_ai.html      # AI Assistant & Chatbot configuration page
-│       ├── server_automod.html # Automod configuration page
-│       ├── server_autoroles.html# Auto Roles configuration page
-│       ├── server_birthday.html # Birthday & auto-celebrations configuration page
-│       ├── server_customcommands.html # Custom Commands & Auto-Responders manager
-│       ├── server_economy.html # Economy, Currency settings & Role Shop page
-│       ├── server_moderation.html # Server Moderation & Mod-log configuration page
-│       ├── server_leveling.html# Leveling & XP rewards page
-│       ├── server_logger.html  # Audit Logger configuration page
-│       ├── server_tempvoice.html# Temporary Voice Hub configuration page
-│       ├── server_verify.html  # Verification Gate & Anti-Raid/Nuke configuration page
-│       ├── tickets.html        # Ticket System panel builder page
-│       ├── reactionroles.html  # Reaction Roles panel builder page
-│       ├── music.html          # Server music playlists & settings page
-│       ├── welcome.html        # Welcome & Goodbye card preview & settings page
-│       └── ...                 # Additional templates (home, login, embeds, commands, tos, privacy)
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
 │   ├── vi.json                 # Vietnamese (Default) — 1694 keys
@@ -274,7 +287,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 
 ## 6. Dashboard Architecture (Flask)
 
-The web dashboard is hosted via Flask in `dashboard/app.py` and `dashboard/api.py`.
+The web dashboard is hosted via Flask in `dashboard/app.py` (facade), `dashboard/app_factory.py`, `dashboard/blueprints/`, and `dashboard/api.py`.
 
 ```
                     ┌──────────────────────────────┐
@@ -379,16 +392,19 @@ ZerynBot V2 is optimized to run reliably on weak ARM devices (such as 4GB/6GB RA
 4. **Web Terminal Detached Execution:**
    - In Web Dashboard Terminal (`/admin/system/terminal`), commands like `restart`, `start`, or `bot` must be spawned as detached background processes (`subprocess.Popen`) so Flask returns HTTP 200 immediately and does not terminate itself mid-request (preventing HTTP 502 Bad Gateway).
 5. **Concurrency Limits:**
-   - `MAX_PLAYERS = 6` limit in `music.py` prevents out-of-memory crashes when multiple servers request music simultaneously.
+   - `MAX_PLAYERS = 6` limit in `bot/music/config.py` prevents out-of-memory crashes when multiple servers request music simultaneously.
 6. **Database I/O:**
    - SQLite uses `PRAGMA journal_mode=WAL` and `synchronous=NORMAL`.
    - Bot functions **must** use `aiosqlite` thread pool executors (`database.py` async methods) to keep the Discord gateway heartbeats responsive.
    - **PER-CONNECTION PRAGMA RULE:** `cache_size=-8000` (~8MB), `temp_store=MEMORY`,
      `mmap_size=64MB` and `busy_timeout=15000` are set on **every** connection by
-     `_connect_sync()` / `_connect_async()` in `database.py`. These PRAGMAs are not
-     stored in the DB file, so **never** call `sqlite3.connect(DB_PATH, ...)` /
-     `aiosqlite.connect(DB_PATH, ...)` directly — route through the helpers, otherwise
-     the RAM/IO tuning silently disappears.
+     `_connect_sync()` / `_connect_async()` in `database/conn.py`. These PRAGMAs are not
+      stored in the DB file, so **never** call `sqlite3.connect(DB_PATH, ...)` /
+      `aiosqlite.connect(DB_PATH, ...)` directly — route through the helpers in `database.conn`, otherwise
+      the RAM/IO tuning silently disappears.
+    - **CENTRAL DB PATH & TEST ISOLATION:** All database modules import `_connect_sync`, `_connect_async`,
+      `get_db_path` from `database.conn`. `set_db_path(path)` dynamically rebinds the path for both
+      the package and test runners (`tests/conftest.py`), eliminating cross-contamination between test databases and production.
    - `async_vacuum_db()` only runs the expensive `VACUUM` when freelist pages exceed
      `VACUUM_FREELIST_THRESHOLD` (15%); it always runs the cheap `PRAGMA optimize`.
      `VACUUM` intentionally uses a raw connection (temp_store in file, not MEMORY) so a
@@ -532,6 +548,11 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 ## 12. System Changelog & Evolution Highlights
 
+- **v3.2 (2026-10)**:
+  - **Modular Architecture Refactor (Phase 3)**:
+    - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4263 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.
+    - **Modular Music Pipeline (`bot/music/`)**: Decomposed `bot/cogs/music.py` (3025 lines) into `bot/music/` (`config`, `extractor`, `player`, `views`, `embeds`, `cog_voice`), keeping `bot/cogs/music.py` as a concise Cog controller inheriting `MusicVoiceMixin`.
+    - **Dashboard Blueprints (`dashboard/blueprints/`)**: Decomposed `dashboard/app.py` (2215 lines, 64 routes) into domain blueprints (`public`, `guild`, `music`, `admin`, `support`) initialized via `dashboard/app_factory.py:create_app()`. `dashboard/app.py` retained as the entrypoint facade (`app = create_app()`).
 - **v3.1 (2026-10)**:
   - **Termux 24/7 Resource Hardening**: dashboard logging with `RotatingFileHandler` (+fixed
     an undefined `logger` that made `/api/admin/ai/activity-feed` raise), separate

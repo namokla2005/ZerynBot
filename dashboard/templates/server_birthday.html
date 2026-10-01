@@ -31,7 +31,7 @@
   </div>
 </div>
 
-<form id="birthday-form" method="POST" action="{{ url_for('server_birthday', guild_id=guild_id) }}">
+<form id="birthday-form" method="POST" action="{{ url_for('guild.server_birthday', guild_id=guild_id) }}">
   <div class="card">
     <div class="card-title">
       <i class="bi bi-megaphone-fill" style="color:var(--accent);"></i> {{ t('birthday.announce_channel') | default('Kênh Chúc Mừng & Role Quà Tặng') }}

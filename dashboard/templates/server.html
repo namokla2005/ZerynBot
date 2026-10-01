@@ -198,7 +198,7 @@
     <div class="fast-card-icon">🔍</div>
     <div class="fast-card-title">{{ t('nav.overview') }}</div>
     <div class="fast-card-desc">{{ t('dashboard.overview_desc') }}</div>
-    <a href="{{ url_for('server_overview', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_overview', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -206,7 +206,7 @@
     <div class="fast-card-icon">💬</div>
     <div class="fast-card-title">{{ t('nav.embeds') }}</div>
     <div class="fast-card-desc">{{ t('dashboard.embeds_desc') }}</div>
-    <a href="{{ url_for('server_embeds', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_embeds', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -214,7 +214,7 @@
     <div class="fast-card-icon">🧩</div>
     <div class="fast-card-title">{{ t('nav.modules') }}</div>
     <div class="fast-card-desc">{{ t('dashboard.modules_desc') }}</div>
-    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('dashboard.manage') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -236,7 +236,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.welcome_desc') }}</div>
-    <a href="{{ url_for('server_welcome', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_welcome', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -250,7 +250,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.info_desc') }}</div>
-    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -264,7 +264,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.utility_desc') }}</div>
-    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -278,7 +278,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.music_desc') }}</div>
-    <a href="{{ url_for('server_music', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('music.server_music', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -292,7 +292,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.tickets_desc') }}</div>
-    <a href="{{ url_for('server_tickets', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_tickets', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -306,7 +306,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.autoroles_desc') }}</div>
-    <a href="{{ url_for('server_autoroles', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_autoroles', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -320,7 +320,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.reactionroles_desc') }}</div>
-    <a href="{{ url_for('server_reactionroles', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_reactionroles', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -334,7 +334,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.automod_desc') }}</div>
-    <a href="{{ url_for('server_automod', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_automod', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -349,7 +349,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.leveling_desc') }}</div>
-    <a href="{{ url_for('server_leveling', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_leveling', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -363,7 +363,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.logger_desc') }}</div>
-    <a href="{{ url_for('server_logger', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_logger', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -377,7 +377,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.giveaway_desc') }}</div>
-    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -392,7 +392,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('economy.page_subtitle') | default('Tiền tệ server, điểm danh hàng ngày, trò chơi và cửa hàng Role.') }}</div>
-    <a href="{{ url_for('server_economy', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_economy', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -407,7 +407,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub.') }}</div>
-    <a href="{{ url_for('server_tempvoice', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_tempvoice', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -422,7 +422,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed theo từ khóa.') }}</div>
-    <a href="{{ url_for('server_customcommands', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_customcommands', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -437,7 +437,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('ai.page_subtitle') | default('Trí tuệ nhân tạo Gemini: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện.') }}</div>
-    <a href="{{ url_for('server_ai', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_ai', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -452,7 +452,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.remind_desc') | default('Hẹn giờ và gửi thông báo nhắc nhở công việc, lịch trình thông minh.') }}</div>
-    <a href="{{ url_for('server_modules', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -467,7 +467,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.moderation_desc') | default('Kick, ban, timeout, cảnh cáo và quản lý kênh.') }}</div>
-    <a href="{{ url_for('server_moderation', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_moderation', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -482,7 +482,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.fun_desc') | default('Tương tác anime GIF, ghép đôi, kết hôn và hồ sơ tình cảm.') }}</div>
-    <a href="{{ url_for('server_commands', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.view') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>
@@ -497,7 +497,7 @@
       </span>
     </div>
     <div class="fast-card-desc">{{ t('dashboard.birthday_desc') | default('Quản lý và tự động chúc mừng sinh nhật thành viên.') }}</div>
-    <a href="{{ url_for('server_birthday', guild_id=guild_id) }}" class="fast-card-link">
+    <a href="{{ url_for('guild.server_birthday', guild_id=guild_id) }}" class="fast-card-link">
       {{ t('common.configure') }} <i class="bi bi-arrow-right-short"></i>
     </a>
   </div>

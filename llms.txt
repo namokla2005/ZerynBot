@@ -52,12 +52,14 @@
 
 - `main.py`: Primary controller and process supervisor.
 - `config.py`: Environment configuration and security constants.
-- `database.py`: Dual-mode SQLite engine (sync for Flask, async for Bot).
+- `database/`: Modular SQLite engine (14 modules, WAL mode, sync for Flask, async for Bot, PRAGMA tuning).
 - `cache.py`: In-memory thread-safe caching.
 - `i18n.py`: O(1) RAM translation engine.
 - `bot/bot.py`: Main Discord bot entry point.
+- `bot/music/`: Modular audio pipeline (extractor, player, views, embeds, voice mixin).
 - `bot/cogs/`: 24 functional cogs containing 110 total commands across 17 categories.
-- `dashboard/app.py`: Web dashboard routes and `_COMMANDS_DATA` central registry.
+- `dashboard/app.py`: Web dashboard entrypoint facade and `_COMMANDS_DATA` central registry.
+- `dashboard/blueprints/`: Modular Flask blueprints (public, guild, music, admin, support).
 - `dashboard/api.py`: AJAX JSON endpoints for real-time dashboard updates.
 - `scripts/termux_mcp.py`: MCP Server for remote Termux SSH operations and automated diagnostics.
 - `locales/`: 6 locale dictionary files (1694 keys each).
