@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13.0">
   <style>
     body { background: #060709; color: #94a3b8; font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -87,11 +87,11 @@
       gap: 20px;
     }
     .toc-card {
-      background: rgba(18, 13, 28, 0.85);
+      background: rgba(18, 13, 28, 0.95);
       border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       padding: 20px;
-      backdrop-filter: blur(16px);
+      contain: paint;
     }
     .toc-title {
       font-size: 0.85rem;
@@ -184,11 +184,11 @@
 
     /* Summary Card */
     .summary-box {
-      background: linear-gradient(135deg, rgba(88, 101, 242, 0.12) 0%, rgba(30, 20, 50, 0.8) 100%);
+      background: linear-gradient(135deg, rgba(88, 101, 242, 0.15) 0%, rgba(30, 20, 50, 0.95) 100%);
       border: 1px solid rgba(88, 101, 242, 0.3);
       border-radius: 16px;
       padding: 24px 28px;
-      backdrop-filter: blur(16px);
+      contain: paint;
     }
     .summary-title {
       font-size: 1.1rem;
@@ -209,13 +209,13 @@
 
     /* Section Card */
     .section-card {
-      background: rgba(18, 13, 28, 0.85);
+      background: rgba(18, 13, 28, 0.95);
       border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       padding: 32px;
-      backdrop-filter: blur(20px);
+      contain: paint;
       scroll-margin-top: 90px;
-      transition: border-color 0.3s;
+      transition: border-color 0.2s ease;
     }
     .section-card:hover {
       border-color: rgba(88, 101, 242, 0.3);

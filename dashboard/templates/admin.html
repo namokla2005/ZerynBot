@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13.0">
   <style>
     .admin-wrapper{display:flex;flex-direction:column;min-height:100vh;width:100%;}
-    .admin-topbar{display:flex;align-items:center;gap:16px;padding:0 32px;height:60px;background:rgba(10,5,15,.85);border-bottom:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px);position:sticky;top:0;z-index:50;}
+    .admin-topbar{display:flex;align-items:center;gap:16px;padding:0 32px;height:60px;background:rgba(10,5,15,.96);border-bottom:1px solid rgba(255,255,255,.1);position:sticky;top:0;z-index:50;}
     .admin-topbar-brand{font-weight:800;font-size:1.05rem;color:var(--text-primary);display:flex;align-items:center;gap:10px;}
     .shield-icon{width:32px;height:32px;background:linear-gradient(135deg,#ff4757,#c0392b);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px rgba(255,71,87,.4);}
     .admin-topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
@@ -21,7 +21,7 @@
     .topbar-user-mini img{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,71,87,.5);}
     .admin-main{padding:32px 40px;max-width:1400px;width:100%;margin:0 auto;}
     .admin-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px;}
-    .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;display:flex;align-items:center;gap:16px;backdrop-filter:blur(12px);transition:var(--transition);}
+    .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;display:flex;align-items:center;gap:16px;transition:border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;contain:paint;}
     .stat-card:hover{border-color:rgba(255,71,87,.4);transform:translateY(-2px);}
     .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
     .stat-icon.green{background:rgba(67,181,129,.2);color:#43b581;}
@@ -39,7 +39,7 @@
     .flash-msg.success{background:var(--success-bg);border:1px solid var(--success);color:var(--success);}
     .flash-msg.error{background:var(--danger-bg);border:1px solid var(--danger);color:var(--danger);}
     .flash-close{margin-left:auto;cursor:pointer;background:none;border:none;color:inherit;font-size:1.1rem;padding:0;}
-    .server-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;backdrop-filter:blur(12px);}
+    .server-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;contain:paint;}
     .server-table-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
     .server-table-title{font-weight:700;font-size:1rem;display:flex;align-items:center;gap:8px;}
     .search-input{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);padding:7px 12px;font-size:.85rem;width:240px;transition:var(--transition);}
@@ -92,7 +92,7 @@
     .btn-icon.unblacklist:hover{background:rgba(67,181,129,.2);border-color:#43b581;}
     .broadcast-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;background:rgba(88,101,242,.07);border-bottom:1px solid rgba(88,101,242,.15);}
     .selected-count{background:rgba(88,101,242,.2);color:#5865f2;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:700;}
-    .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+    .modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;}
     .modal-overlay.open, .modal-overlay.active{display:flex;}
     .modal-box{background:#1a1624;border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);padding:28px 32px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,.8);animation:modalIn .2s ease;}
     .modal-box.broadcast-box{max-width:560px;}
@@ -1825,7 +1825,7 @@
         chk.checked = isBottom;
         aiLogAutoScroll = isBottom;
       }
-    });
+    }, { passive: true });
   }
 
   // Switch tab hook to trigger poll immediately

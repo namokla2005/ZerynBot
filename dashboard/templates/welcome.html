@@ -13,7 +13,7 @@
     flex-direction: column;
     align-items: center;
     gap: 16px;
-    backdrop-filter: blur(14px);
+    contain: paint;
   }
   .card-preview-label {
     font-size: 0.75rem;
@@ -56,7 +56,7 @@
   .banner-badge {
     position: relative;
     z-index: 1;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.75);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 20px;
     padding: 4px 16px;
@@ -64,7 +64,7 @@
     font-weight: 700;
     color: #fff;
     white-space: nowrap;
-    backdrop-filter: blur(8px);
+    contain: paint;
   }
   .banner-avatar {
     position: relative;

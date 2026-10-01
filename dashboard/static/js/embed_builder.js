@@ -324,7 +324,7 @@ function loadEmbed(embedData) {
     (e.fields || []).forEach(f => addField(f.name, f.value, f.inline));
 
     updatePreview();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
     showToast('📥 Đã tải embed vào editor', 'success');
   } catch {
     showToast('❌ Lỗi khi tải embed', 'error');
