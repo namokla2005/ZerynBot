@@ -36,7 +36,7 @@ _last_known_models_stats: Dict[str, Any] = {
     "model2": {
         "name": "Model 2: Dual Model MCP Critic",
         "provider": "openrouter",
-        "model": "google/gemma-4-31b-it:free",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
         "fallback_model": "qwen/qwen3.8-27b",
         "fallback": "qwen/qwen3.8-27b",
         "status": "READY",

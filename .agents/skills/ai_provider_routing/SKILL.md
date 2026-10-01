@@ -24,7 +24,7 @@ Hệ thống quản lý AI trung tâm hỗ trợ Multi-Key Pool và tự động
    │     └─ 429 / Quota Exceeded? ──► Tự động xoay key tiếp theo hoặc chuyển tầng sang Groq
    ├─ Groq Cloud Pool (qwen/qwen3.8-27b, openai/gpt-oss-120b, openai/gpt-oss-20b)
    │     └─ 429 / Quota Exceeded? ──► Tự động xoay key tiếp theo hoặc chuyển tầng sang OpenRouter
-   ├─ OpenRouter Pool (google/gemma-4-31b-it:free, openrouter/free)
+   ├─ OpenRouter Pool (nvidia/nemotron-3-ultra-550b-a55b:free, openrouter/free)
    │     └─ Hết hạn ngạch? ─────────► Smart Local Responder (_local_smart_reply)
    └─ Không có Key? ────────────────► Smart Local Responder (_local_smart_reply)
 ```
@@ -36,7 +36,7 @@ Hệ thống quản lý AI trung tâm hỗ trợ Multi-Key Pool và tự động
 Trong Developer Harness (`scripts/dual_model_mcp.py`), **Model 2 (Independent Reviewer & Security Critic)** vận hành theo chuỗi phân tầng nghiêm ngặt:
 
 1. 🥇 **Tier 1 (Ưu tiên số 1 - Khởi đầu)**:
-   - **Model**: `google/gemma-4-31b-it:free` (Google: Gemma 4 31B Free) qua OpenRouter.
+   - **Model**: `nvidia/nemotron-3-ultra-550b-a55b:free` (NVIDIA: Nemotron 3 Ultra 550B Free) qua OpenRouter.
    - **Mục đích**: Suy luận chuyên sâu, phản biện sắc sảo, không tốn chi phí.
 2. 🥈 **Tier 2 (Fallback 1 khi hết Token / HTTP 429)**:
    - **Model**: `qwen/qwen3.8-27b` qua Groq Cloud LPU.

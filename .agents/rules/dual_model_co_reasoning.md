@@ -11,7 +11,7 @@ Tài liệu này hướng dẫn cách Antigravity AI kết hợp đồng thời 
 
 - **Agent Chính (Primary Agent - Gemini 3.8 Flash)**: Đóng vai trò **Lead Architect & Coordinator** trong Antigravity IDE (suy luận ngữ cảnh lớn 1M+ tokens, lập kế hoạch, chỉnh sửa code và điều phối công việc).
 - **Model Thứ 2 (Secondary Model - Independent Reviewer & Security Auditor)**:
-  - 🥇 **Tier 1 (Ưu tiên số 1 - Khởi đầu)**: `Google: Gemma 4 31B (free)` (`google/gemma-4-31b-it:free` qua OpenRouter Free API).
+  - 🥇 **Tier 1 (Ưu tiên số 1 - Khởi đầu)**: `NVIDIA: Nemotron 3 Ultra 550B (free)` (`nvidia/nemotron-3-ultra-550b-a55b:free` qua OpenRouter Free API).
   - 🥈 **Tier 2 (Fallback 1 khi hết Token / HTTP 429)**: `Qwen 3.8 27B` (`qwen/qwen3.8-27b` qua Groq Cloud siêu tốc ~300 tps).
   - 🥉 **Tier 3 (Fallback 2 khi hết Token tiếp)**: `GPT-OSS 120B` (`openai/gpt-oss-120b` qua Groq Cloud).
   - 🛡️ **Tier 4 (Dự phòng an toàn mở rộng)**: `openai/gpt-oss-20b` (Groq), `openrouter/free` (OpenRouter), hoặc `gemini-3.6-flash`.
@@ -142,7 +142,7 @@ Trước khi thực hiện `git push origin main` lên máy chủ Termux, quy tr
 
 1. 🏛️ **Model 1 — Lead Architect (Gemini 3.8)**:
    - Phân tích nguyên nhân gốc rễ (kèm dữ liệu chẩn đoán Termux), luồng dữ liệu, kiến trúc tổng thể và đề xuất giải pháp.
-2. 🛡️ **Model 2 — Security & Systems Critic (Google: Gemma 4 31B Free -> fallback Groq Qwen 3.8 27B -> fallback Groq GPT-OSS 120B)**:
+2. 🛡️ **Model 2 — Security & Systems Critic (NVIDIA: Nemotron 3 Ultra 550B Free -> fallback Groq Qwen 3.8 27B -> fallback Groq GPT-OSS 120B)**:
    - Phản biện độc lập: các rủi ro bảo mật (SSRF, IDOR, XSS), rủi ro SQLite WAL, tắc nghẽn tài nguyên trên Termux ARM64 (Helio G85, 6GB RAM).
 3. 🤝 **Đồng Thuận Kỹ Thuật (Consensus & Final Verdict)**:
    - Kết luận thống nhất giữa 2 Model, giải pháp được cả 2 Model thông qua (`APPROVED`) và các bước hành động cụ thể.

@@ -55,7 +55,7 @@ try:
 except ImportError:
     ai_logger = None
 
-MODEL2_PRIMARY_MODEL = "google/gemma-4-31b-it:free"
+MODEL2_PRIMARY_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
 GROQ_FALLBACK_MODELS = [
     "qwen/qwen3.8-27b",
@@ -449,13 +449,13 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
                         return res
 
     # 2. Quy trình phân tầng mặc định cho Model 2:
-    # Tier 1: Google: Gemma 4 31B (free) qua OpenRouter
+    # Tier 1: NVIDIA: Nemotron 3 Ultra 550B (free) qua OpenRouter
     # Tier 2: Qwen 3.8 27B qua Groq
     # Tier 3: GPT-OSS 120B qua Groq
     # Tier 4: Safe Fallbacks (Groq GPT-OSS 20B -> OpenRouter Free -> Gemini Flash)
     err_log = []
 
-    # --- TIER 1 (Ưu tiên số 1): Google: Gemma 4 31B (free) qua OpenRouter ---
+    # --- TIER 1 (Ưu tiên số 1): NVIDIA: Nemotron 3 Ultra 550B (free) qua OpenRouter ---
     openrouter_keys = keys.get("all_openrouter", [])
     if openrouter_keys:
         for k in openrouter_keys:
@@ -472,7 +472,7 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
                         message=f"Tư vấn vai trò '{role}': Phản hồi trong {lat_ms}ms"
                     )
                 return res
-            err_log.append(f"Tier 1 (Gemma 4 31B Free): {res}")
+            err_log.append(f"Tier 1 (Nemotron 3 Ultra 550B Free): {res}")
 
     # --- TIER 2 (Fallback 1 khi hết Token / 429): Qwen 3.8 27B qua Groq ---
     groq_keys = keys.get("all_groq", [])
