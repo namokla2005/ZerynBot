@@ -40,17 +40,11 @@
     }
 
     html {
-      scroll-behavior: smooth;
+      overflow-x: hidden;
     }
 
     body.landing-body {
       background-color: var(--bg-main);
-      background-image: 
-        radial-gradient(circle at 15% 15%, rgba(244, 167, 187, 0.09) 0%, transparent 45%),
-        radial-gradient(circle at 85% 20%, rgba(157, 141, 241, 0.09) 0%, transparent 40%),
-        radial-gradient(circle at 50% 60%, rgba(244, 167, 187, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 80% 85%, rgba(157, 141, 241, 0.06) 0%, transparent 45%);
-      background-attachment: fixed;
       color: var(--text-primary);
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
@@ -58,6 +52,25 @@
       flex-direction: column;
       overflow-x: hidden;
       line-height: 1.6;
+      position: relative;
+      z-index: 0;
+    }
+
+    /* GPU Isolated Background Layer cho Landing Page */
+    body.landing-body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(244, 167, 187, 0.09) 0%, transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(157, 141, 241, 0.09) 0%, transparent 40%),
+        radial-gradient(circle at 50% 60%, rgba(244, 167, 187, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 85%, rgba(157, 141, 241, 0.06) 0%, transparent 45%);
+      transform: translateZ(0);
+      will-change: transform;
     }
 
     /* ─── Header & Navigation ─────────────────────────────────────────────────── */
@@ -66,6 +79,8 @@
       background: rgba(19, 18, 23, 0.85);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      transform: translateZ(0);
+      backface-visibility: hidden;
       border-bottom: 1px solid var(--border-subtle);
       padding: 14px 32px;
     }
@@ -182,7 +197,6 @@
       text-decoration: none;
       border: 1px solid var(--border-subtle);
       cursor: pointer;
-      backdrop-filter: blur(10px);
       transition: all 0.25s ease;
     }
     .btn-outline-pill:hover {
@@ -571,11 +585,11 @@
       text-align: center;
     }
     .cta-card {
-      background: linear-gradient(135deg, rgba(244, 167, 187, 0.12) 0%, rgba(157, 141, 241, 0.12) 100%);
+      background: #191823;
       border: 1px solid rgba(244, 167, 187, 0.25);
       border-radius: 28px;
       padding: 60px 32px;
-      backdrop-filter: blur(20px);
+      contain: paint;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
       position: relative;
       overflow: hidden;

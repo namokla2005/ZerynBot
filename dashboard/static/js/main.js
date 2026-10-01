@@ -134,16 +134,22 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
   });
 });
 
-// ─── Midnight Obsidian Bento Spotlight Effect ─────────────────────────────────
-document.addEventListener('mousemove', e => {
-  const cards = document.querySelectorAll('.bento-card, .stat-card, .fast-card');
-  cards.forEach(card => {
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (x >= -30 && x <= rect.width + 30 && y >= -30 && y <= rect.height + 30) {
-      card.style.setProperty('--mouse-x', `${x}px`);
-      card.style.setProperty('--mouse-y', `${y}px`);
+// ─── Midnight Obsidian Bento Spotlight Effect (Reflow-Free, rAF-throttled) ────
+document.querySelectorAll('.bento-card, .stat-card, .fast-card').forEach(card => {
+  let rafId = null;
+  card.addEventListener('mousemove', e => {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+      card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+      rafId = null;
+    });
+  });
+  card.addEventListener('mouseleave', () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
     }
   });
 });

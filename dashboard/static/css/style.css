@@ -2,9 +2,9 @@
 :root {
   --bg-body:        #131217;
   --bg-sidebar:     rgba(19, 18, 23, 0.94);
-  --bg-card:        rgba(25, 24, 34, 0.85);
-  --bg-card2:       rgba(35, 33, 46, 0.90);
-  --bg-card-hover:  rgba(38, 36, 50, 0.95);
+  --bg-card:        rgba(25, 24, 34, 0.95);
+  --bg-card2:       rgba(35, 33, 46, 0.95);
+  --bg-card-hover:  rgba(38, 36, 50, 0.98);
   --bg-input:       rgba(18, 17, 24, 0.85);
   --bg-hover:       rgba(255, 255, 255, 0.08);
   --bg-active:      rgba(244, 167, 187, 0.18);
@@ -54,7 +54,10 @@
 
 /* ─── Reset ─────────────────────────────────────────────────────────────────── */
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html {
+  /* Khôi phục native OS compositor wheel dispatch cho màn hình 100Hz/144Hz */
+  overflow-x: hidden;
+}
 body {
   font-family: var(--font-sans);
   color: var(--text-primary);
@@ -64,14 +67,27 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   position: relative;
+  z-index: 0;
+  background-color: var(--bg-body);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* GPU Isolated Background Layer (Rasterize 1 lần vào VRAM, triệt tiêu 100% repaint khi cuộn) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-color: var(--bg-body);
   background-image: 
     radial-gradient(circle at 15% 10%, rgba(244, 167, 187, 0.09) 0%, transparent 42%),
     radial-gradient(circle at 85% 20%, rgba(157, 141, 241, 0.10) 0%, transparent 45%),
     radial-gradient(circle at 50% 60%, rgba(88, 101, 242, 0.06) 0%, transparent 50%),
     radial-gradient(circle at 80% 90%, rgba(244, 167, 187, 0.07) 0%, transparent 42%);
-  background-attachment: fixed;
-  line-height: 1.5;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -97,6 +113,8 @@ button { cursor: pointer; }
   border-right: 1px solid var(--border);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  transform: translateZ(0);
+  backface-visibility: hidden;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -210,8 +228,7 @@ button { cursor: pointer; }
   border-radius: var(--radius-lg);
   padding: 26px;
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  contain: paint;
   transition: var(--transition);
   margin-bottom: 22px;
   position: relative;
@@ -230,7 +247,7 @@ button { cursor: pointer; }
   border-radius: var(--radius-lg); padding: 22px;
   display: flex; flex-direction: column; gap: 8px;
   transition: var(--transition);
-  backdrop-filter: blur(14px);
+  contain: paint;
   position: relative;
   overflow: hidden;
 }
@@ -278,8 +295,7 @@ button { cursor: pointer; }
   padding: 24px;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  contain: paint;
   transition: var(--transition);
   display: flex;
   flex-direction: column;
@@ -333,7 +349,7 @@ button { cursor: pointer; }
   border-radius: var(--radius-lg); padding: 22px;
   display: flex; flex-direction: column; gap: 8px;
   transition: var(--transition);
-  backdrop-filter: blur(12px);
+  contain: paint;
   position: relative;
   overflow: hidden;
 }
@@ -479,7 +495,7 @@ button { cursor: pointer; }
   display: flex;
   align-items: center;
   gap: 20px;
-  backdrop-filter: blur(16px);
+  contain: paint;
   position: relative;
   overflow: hidden;
   transition: var(--transition);
@@ -582,7 +598,7 @@ button { cursor: pointer; }
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  backdrop-filter: blur(16px);
+  contain: paint;
   position: relative;
 }
 .activity-table-header {
@@ -730,7 +746,7 @@ select.form-control option { background: #191822; color: #fff; }
   border-radius: var(--radius-lg); padding: 22px;
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
   transition: var(--transition);
-  backdrop-filter: blur(12px);
+  contain: paint;
 }
 .module-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
 .module-card.mod-on  { border-left: 4px solid var(--success); }
@@ -763,7 +779,6 @@ select.form-control option { background: #191822; color: #fff; }
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
   border: 1px solid var(--border);
-  backdrop-filter: blur(8px);
 }
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -801,7 +816,6 @@ select.form-control option { background: #191822; color: #fff; }
   padding: 14px 18px; border-radius: var(--radius-md);
   font-size: 0.9rem; font-weight: 600; margin-bottom: 22px;
   animation: slideDown 0.3s ease;
-  backdrop-filter: blur(12px);
 }
 .alert-success { background: var(--success-bg); color: var(--success); border: 1px solid rgba(87,242,135,0.3); }
 .alert-error   { background: var(--danger-bg);  color: var(--danger);  border: 1px solid rgba(237,66,69,0.3); }
@@ -857,6 +871,9 @@ select.form-control option { background: #191822; color: #fff; }
   display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 90;
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 .topbar-brand { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 10px; color: #fff; }
 .topbar-right { display: flex; align-items: center; gap: 14px; }
@@ -872,7 +889,7 @@ select.form-control option { background: #191822; color: #fff; }
   border-radius: var(--radius-lg); padding: 24px 18px;
   display: flex; flex-direction: column; align-items: center;
   gap: 12px; text-align: center; transition: var(--transition);
-  backdrop-filter: blur(14px);
+  contain: paint;
 }
 .server-card:hover {
   border-color: var(--border-hover);
@@ -903,7 +920,6 @@ select.form-control option { background: #191822; color: #fff; }
 .builder-panel {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 26px;
-  backdrop-filter: blur(14px);
 }
 .builder-panel-title { font-size: 1rem; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: #fff; }
 
@@ -967,6 +983,9 @@ select.form-control option { background: #191822; color: #fff; }
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(0,0,0,0.85);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transform: translateZ(0);
+  backface-visibility: hidden;
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
   animation: fadeIn 0.2s ease;
@@ -1022,7 +1041,6 @@ select.form-control option { background: #191822; color: #fff; }
   cursor: pointer;
   transition: var(--transition);
   font-family: inherit;
-  backdrop-filter: blur(10px);
 }
 .tab-btn:hover {
   background: rgba(35, 33, 46, 0.95);
@@ -1062,7 +1080,6 @@ select.form-control option { background: #191822; color: #fff; }
   color: var(--text-secondary);
   line-height: 1.8;
   margin-bottom: 24px;
-  backdrop-filter: blur(12px);
 }
 .vars-box strong {
   color: #ffffff;
@@ -1126,7 +1143,6 @@ select.form-control option { background: #191822; color: #fff; }
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
-  backdrop-filter: blur(10px);
 }
 .lang-switcher-btn:hover {
   border-color: var(--accent);
@@ -1145,6 +1161,9 @@ select.form-control option { background: #191822; color: #fff; }
   min-width: 210px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transform: translateZ(0);
+  backface-visibility: hidden;
   z-index: 1001;
   animation: langPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
