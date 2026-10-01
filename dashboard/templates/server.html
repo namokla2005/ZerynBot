@@ -2,7 +2,7 @@
 {% block title %}Overview{% endblock %}
 
 {% block head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <style>
   .chart-container {
     background: var(--bg-card);
@@ -503,11 +503,26 @@
   </div>
 </div>
 
+<script id="raw-stats-data" type="application/json">{{ (raw_stats or []) | tojson }}</script>
+<script id="channel-map-data" type="application/json">{{ (channel_map or {}) | tojson }}</script>
+
 <script>
-  // Parse JSON data from backend
-  const rawStats = JSON.parse('{{ raw_stats_json | safe }}');
-  const channelMap = JSON.parse('{{ channel_map_json | safe }}');
-  
+window.addEventListener('load', () => {
+  if (typeof Chart === 'undefined') return;
+  // Parse JSON data safely from tojson application/json script tags (100% immune to XSS)
+  const statsEl = document.getElementById('raw-stats-data');
+  const mapEl = document.getElementById('channel-map-data');
+  let rawStats = [];
+  let channelMap = {};
+  try {
+    rawStats = statsEl ? JSON.parse(statsEl.textContent || '[]') : [];
+  } catch (e) { rawStats = []; }
+  try {
+    channelMap = mapEl ? JSON.parse(mapEl.textContent || '{}') : {};
+  } catch (e) { channelMap = {}; }
+
+  if (typeof Chart === 'undefined') return;
+
   // Chart.js Default styling for Dark mode
   Chart.defaults.color = '#b9bbbe';
   Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
@@ -642,7 +657,7 @@
       plugins: { title: { display: true, text: "{{ t('dashboard.chart_module_stats') }}" } }
     }
   });
-
+});
 
   async function saveGuildLanguage() {
     const lang = document.getElementById('guildBotLangSelect').value;

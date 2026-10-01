@@ -78,6 +78,50 @@ def create_app() -> Flask:
 
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+    # ─── Security Headers & Static Cache-Control ──────────────────────────────
+    @app.after_request
+    def set_security_and_cache_headers(response):
+        # 1. Bảo mật: Chống MIME sniffing, clickjacking, rò rỉ referrer và XSS
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        csp = (
+            "default-src 'self'; "
+            "base-uri 'self'; "
+            "object-src 'none'; "
+            "form-action 'self' https://discord.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
+            "img-src 'self' data: https://cdn.discordapp.com https://discord.com https://*.discordapp.com; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none';"
+        )
+        response.headers.setdefault("Content-Security-Policy", csp)
+
+        # 2. Cache-Control: Tối ưu hóa Cloudflare Edge & Browser Caching
+        from flask import request
+        path = request.path or ""
+        if path.startswith("/static/"):
+            if any(path.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg", ".woff2", ".ttf")):
+                response.headers["Cache-Control"] = "public, max-age=86400"
+            elif any(path.endswith(ext) for ext in (".css", ".js")):
+                response.headers["Cache-Control"] = "public, max-age=3600, must-revalidate"
+        elif path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
+        return response
+
+    # ─── Template Filters ──────────────────────────────────────────────────────
+    @app.template_filter("guild_icon_url")
+    def guild_icon_url_filter(guild):
+        if not isinstance(guild, dict):
+            return None
+        if guild.get("icon_url"):
+            return guild["icon_url"]
+        from dashboard.auth import get_guild_icon_url
+        return get_guild_icon_url(guild.get("id"), guild.get("icon"))
+
     # ─── Blueprints ────────────────────────────────────────────────────────────
     # Endpoint sau khi tách có dạng `<blueprint>.<tên_hàm>`; URL giữ nguyên 100%.
     app.register_blueprint(api)

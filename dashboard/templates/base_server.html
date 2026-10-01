@@ -21,10 +21,11 @@
     <!-- ─── Sidebar ─────────────────────────────────────────────────────────── -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        {% if guild.get('icon_url') %}
-        <img class="sidebar-guild-icon" src="{{ guild.get('icon_url') }}" alt="icon" loading="lazy">
+        {% set sidebar_icon = guild | guild_icon_url %}
+        {% if sidebar_icon %}
+        <img class="sidebar-guild-icon" src="{{ sidebar_icon }}" alt="icon" loading="lazy">
         {% else %}
-        <div class="sidebar-guild-placeholder">{{ guild.get('name','?')[0].upper() }}</div>
+        <div class="sidebar-guild-placeholder">{{ (guild.get('name','?') or '?')[:1] | upper }}</div>
         {% endif %}
         <div class="sidebar-guild-name">{{ guild.get('name', 'Server') }}</div>
       </div>

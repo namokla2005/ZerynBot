@@ -36,24 +36,42 @@ bp = Blueprint("guild", __name__)
 @bp.route("/dashboard")
 @login_required
 def home():
-    try:
-        from dashboard.auth import get_manageable_guilds
-        guilds = get_manageable_guilds(session["access_token"])
-        session["guilds"] = guilds
-    except Exception as e:
-        logger.warning("Lỗi làm mới danh sách guild khi tải trang: %s", e)
-        guilds = session.get("guilds", [])
+    now = time.time()
+    fetched_at = session.get("guilds_fetched_at", 0) or 0
+    guilds = session.get("guilds") or []
+    # Tối ưu: Nếu session đã có danh sách server và chưa quá 120s, phản hồi tức thì (<20ms).
+    # Chỉ gọi Discord REST API khi session trống, quá 120s, hoặc có tham số ?refresh=1.
+    if not guilds or (now - fetched_at > 120) or request.args.get("refresh"):
+        try:
+            from dashboard.auth import get_manageable_guilds
+            fresh_guilds = get_manageable_guilds(session["access_token"])
+            if fresh_guilds:
+                guilds = fresh_guilds
+                session["guilds"] = guilds
+                session["guilds_fetched_at"] = now
+                session.modified = True
+        except Exception as e:
+            logger.warning("Lỗi làm mới danh sách guild khi tải trang: %s", e)
+
+    bot_guilds = [g for g in guilds if g.get("bot_in_guild")]
+    no_bot_guilds = [g for g in guilds if not g.get("bot_in_guild")]
 
     return render_template("home.html",
         user=session["user"],
         avatar=session.get("avatar"),
         guilds=guilds,
+        bot_guilds=bot_guilds,
+        no_bot_guilds=no_bot_guilds,
+        bot_client_id=str(config.CLIENT_ID),
         owner_id=str(config.BOT_OWNER_ID),
     )
 
 @bp.route("/dashboard/<guild_id>")
 @guild_access_required
 def server_overview(guild_id: str):
+    if not str(guild_id).isdigit():
+        flash("Server ID không hợp lệ.", "error")
+        return redirect(url_for("guild.home"))
     guild_info = _get_guild_from_session(guild_id)
     meta       = db.get_guild_meta(guild_id) or {}
     modules    = db.get_guild_modules(guild_id)
@@ -78,8 +96,8 @@ def server_overview(guild_id: str):
         modules=modules,
         guild_settings=db.get_guild_settings(guild_id),
         active_page="overview",
-        raw_stats_json=json.dumps(raw_stats),
-        channel_map_json=json.dumps(channel_map),
+        raw_stats=raw_stats,
+        channel_map=channel_map,
         recent_events=recent_events,
     )
 

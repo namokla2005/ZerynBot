@@ -6,8 +6,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import ipaddress
 import socket
+import threading
 import time
 from urllib.parse import urlencode, urlparse, urljoin
+import re
 
 import requests
 import config
@@ -57,14 +59,20 @@ def exchange_code(code: str) -> dict:
 
 
 def get_user(access_token: str) -> dict:
-    """Fetch current user from Discord API."""
+    """Fetch current user from Discord API (thu gọn tối đa để giữ session cookie < 1KB)."""
     resp = requests.get(
         f"{config.DISCORD_API_BASE}/users/@me",
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=10,
     )
     resp.raise_for_status()
-    return resp.json()
+    raw = resp.json()
+    return {
+        "id": str(raw.get("id", "")),
+        "username": str(raw.get("username", "")),
+        "global_name": raw.get("global_name"),
+        "avatar": raw.get("avatar"),
+    }
 
 
 def get_user_guilds(access_token: str) -> list:
@@ -78,16 +86,32 @@ def get_user_guilds(access_token: str) -> list:
     return resp.json()
 
 
+_bot_guilds_cache_box = {"ts": 0.0, "data": []}
+_BOT_GUILDS_CACHE_TTL = 120.0
+_bot_guilds_lock = threading.Lock()
+
 def get_bot_guilds() -> list:
-    """Fetch guilds the bot is in (using bot token)."""
-    resp = requests.get(
-        f"{config.DISCORD_API_BASE}/users/@me/guilds",
-        headers={"Authorization": f"Bot {config.TOKEN}"},
-        timeout=10,
-    )
-    if not resp.ok:
-        return []
-    return resp.json()
+    """Fetch guilds the bot is in (using bot token), cached 120s with thread lock."""
+    with _bot_guilds_lock:
+        now = time.time()
+        if _bot_guilds_cache_box["data"] and (now - _bot_guilds_cache_box["ts"] < _BOT_GUILDS_CACHE_TTL):
+            return _bot_guilds_cache_box["data"]
+
+        try:
+            resp = requests.get(
+                f"{config.DISCORD_API_BASE}/users/@me/guilds",
+                headers={"Authorization": f"Bot {config.TOKEN}"},
+                timeout=5,
+            )
+            if resp.ok:
+                data = resp.json()
+                _bot_guilds_cache_box["ts"] = time.time()
+                _bot_guilds_cache_box["data"] = data
+                return data
+        except Exception as e:
+            logger.warning("Lỗi fetch bot guilds từ Discord API: %s", e)
+
+        return _bot_guilds_cache_box["data"]
 
 _MEMBER_ROLES_TTL = 60.0
 _member_roles_cache: dict = {}  # (guild_id, user_id) -> (timestamp, list_of_roles)
@@ -120,12 +144,27 @@ def get_member_roles(guild_id: str, user_id: str) -> list:
         return cached[1] if cached else []
 
 
+def get_guild_icon_url(guild_id: str | None, icon_hash: str | None) -> str | None:
+    """Xây dựng Discord CDN URL an toàn cho Server Icon, validate chặt chống injection."""
+    if not guild_id or not icon_hash:
+        return None
+    s_id = str(guild_id).strip()
+    s_icon = str(icon_hash).strip()
+    if not s_id.isdigit():
+        return None
+    if not re.match(r"^[a-zA-Z0-9_]+$", s_icon):
+        return None
+    ext = "gif" if s_icon.startswith("a_") else "png"
+    return f"https://cdn.discordapp.com/icons/{s_id}/{s_icon}.{ext}"
+
+
 def get_manageable_guilds(access_token: str) -> list:
     """
     Return guilds where:
     - The user has MANAGE_GUILD permission, AND
     - The bot is present in that guild.
     Each guild dict gets an extra 'bot_in_guild' key.
+    Giới hạn tối đa 15 guild và làm sạch trường dữ liệu để cookie Flask luôn < 1.5KB.
     """
     user_guilds = get_user_guilds(access_token)
     bot_guild_ids = {g["id"] for g in get_bot_guilds()}
@@ -134,12 +173,21 @@ def get_manageable_guilds(access_token: str) -> list:
     for g in user_guilds:
         perms = int(g.get("permissions", 0))
         if perms & MANAGE_GUILD:
-            g["bot_in_guild"] = g["id"] in bot_guild_ids
-            g["icon_url"] = (
-                f"https://cdn.discordapp.com/icons/{g['id']}/{g['icon']}.png"
-                if g.get("icon") else None
-            )
-            result.append(g)
+            raw_id = str(g.get("id", "")).strip()
+            if not raw_id.isdigit():
+                continue
+            raw_icon = g.get("icon")
+            clean_icon = str(raw_icon).strip() if (raw_icon and re.match(r"^[a-zA-Z0-9_]+$", str(raw_icon).strip())) else None
+
+            result.append({
+                "id": raw_id,
+                "name": str(g.get("name", "Server"))[:25],
+                "icon": clean_icon,
+                "bot_in_guild": raw_id in bot_guild_ids,
+                "owner": bool(g.get("owner", False)),
+            })
+            if len(result) >= 15:
+                break
     return result
 
 

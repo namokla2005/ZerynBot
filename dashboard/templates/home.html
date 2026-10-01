@@ -80,10 +80,11 @@
     <div class="servers-grid" style="margin-bottom: 40px;">
       {% for guild in bot_guilds %}
         <a href="{{ url_for('guild.server_overview', guild_id=guild.id) }}" class="server-card">
-          {% if guild.get('icon_url') %}
-            <img class="server-icon" src="{{ guild.icon_url }}" alt="icon" loading="lazy">
+          {% set icon_src = guild | guild_icon_url %}
+          {% if icon_src %}
+            <img class="server-icon" src="{{ icon_src }}" alt="icon" loading="lazy">
           {% else %}
-            <div class="server-icon-placeholder">{{ guild.name[0].upper() }}</div>
+            <div class="server-icon-placeholder">{{ (guild.name or '?')[:1] | upper }}</div>
           {% endif %}
           <div class="server-name">{{ guild.name }}</div>
           <span class="server-chip chip-bot"><i class="bi bi-robot"></i> {{ t('dashboard.bot_active') }}</span>
@@ -105,16 +106,17 @@
     <div class="servers-grid">
       {% for guild in no_bot_guilds %}
         <div class="server-card" style="opacity: 0.65;">
-          {% if guild.get('icon_url') %}
-            <img class="server-icon" src="{{ guild.icon_url }}" alt="icon" loading="lazy">
+          {% set icon_src = guild | guild_icon_url %}
+          {% if icon_src %}
+            <img class="server-icon" src="{{ icon_src }}" alt="icon" loading="lazy">
           {% else %}
             <div class="server-icon-placeholder" style="background: linear-gradient(135deg,#3a3d44,#52555d)">
-              {{ guild.name[0].upper() }}
+              {{ (guild.name or '?')[:1] | upper }}
             </div>
           {% endif %}
           <div class="server-name">{{ guild.name }}</div>
           <span class="server-chip chip-invite"><i class="bi bi-plus-circle"></i> {{ t('dashboard.no_bot') }}</span>
-          <a href="https://discord.com/oauth2/authorize?client_id={{ user.get('id','') }}&scope=bot&permissions=395137336320&guild_id={{ guild.id }}"
+          <a href="https://discord.com/oauth2/authorize?client_id={{ bot_client_id }}&scope=bot&permissions=395137336320&guild_id={{ guild.id }}"
              target="_blank" class="btn btn-secondary btn-sm server-btn">
             {{ t('dashboard.invite_bot') }} <i class="bi bi-box-arrow-up-right"></i>
           </a>
