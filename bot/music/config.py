@@ -50,6 +50,7 @@ FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 MAX_PLAYERS = 6  # Giới hạn player đồng thời (tối ưu cho tablet/phone 4-6GB, 10+ server)
 MAX_BG_LOAD = 50  # Giới hạn số bài nạp ngầm từ playlist (bảo vệ RAM/CPU)
 MAX_QUEUE_SIZE = 100  # Giới hạn hàng đợi tối đa mỗi server (chống DoS / tràn RAM)
+INACTIVITY_TIMEOUT = int(os.getenv("MUSIC_INACTIVITY_TIMEOUT", "180"))  # Mặc định 180s (3 phút) theo yêu cầu người dùng
 
 def _lower_process_priority(proc, niceness: int = 10) -> None:
     """Hạ độ ưu tiên CPU của tiến trình ffmpeg con trên Linux/Termux để không tranh chấp với Bot event loop."""

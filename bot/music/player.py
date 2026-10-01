@@ -29,6 +29,7 @@ from .config import (
     FFMPEG_BEFORE,
     FFMPEG_OPTS_COPY,
     FFMPEG_OPTS_ENCODE,
+    INACTIVITY_TIMEOUT,
     MAX_PLAYERS,
     _lower_process_priority,
     load_opus_library,
@@ -171,19 +172,38 @@ class MusicPlayer:
         self._inactivity_task = asyncio.create_task(self._inactivity_countdown())
 
     async def _inactivity_countdown(self):
-        """Tự động rời phòng voice sau 30s nếu không có bài hát nào được phát."""
+        """Tự động rời phòng voice sau INACTIVITY_TIMEOUT (mặc định 180s = 3 phút) nếu không có bài hát nào được phát.
+        Dùng time.monotonic() chống drift thời gian trên Helio G85 và kiểm tra heartbeat mỗi 15s."""
         try:
-            await asyncio.sleep(30)
+            start_t = time.monotonic()
+            timeout = max(30, INACTIVITY_TIMEOUT)
+            while (time.monotonic() - start_t) < timeout:
+                await asyncio.sleep(min(15.0, timeout - (time.monotonic() - start_t)))
+                if self.current or self.queue:
+                    return
+                # Heartbeat check: nếu voice client bị ngắt hoặc không còn kết nối -> dọn dẹp ngay
+                if not self.vc or not self.vc.is_connected():
+                    try:
+                        await self.stop()
+                    except Exception as stop_err:
+                        log.error(f"[Music] Lỗi dọn dẹp player khi voice disconnected: {stop_err}")
+                    return
+
             if not self.current and not self.queue and self.vc and self.vc.is_connected():
                 if self.text_channel:
                     try:
                         s = await async_get_guild_settings(str(self.guild.id))
                         await self.text_channel.send(tr(s, "music.auto_leave_inactivity"), delete_after=60)
-                    except Exception:
-                        pass
-                await self.stop()
+                    except Exception as send_err:
+                        log.debug(f"[Music] Lỗi gửi thông báo auto_leave_inactivity: {send_err}")
+                try:
+                    await self.stop()
+                except Exception as stop_err:
+                    log.error(f"[Music] Lỗi stop player trong inactivity timeout: {stop_err}")
         except asyncio.CancelledError:
             pass
+        except Exception as e:
+            log.error(f"[Music] Lỗi trong _inactivity_countdown: {e}", exc_info=e)
 
     # ── Internal ───────────────────────────────────────────────────────────
     async def _preload_next(self):
