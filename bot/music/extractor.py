@@ -24,6 +24,8 @@ from .config import _extract_semaphore, _get_ydl, _get_ydl_flat
 
 log = logging.getLogger("BotV2.Music")
 
+_EXPIRE_PATH_RE = re.compile(r"/expire/(\d{9,12})")
+
 
 def _fmt_duration(seconds) -> str:
     if seconds is None or not isinstance(seconds, (int, float)) or seconds <= 0:
@@ -315,37 +317,59 @@ def _get_best_thumbnail(info: dict) -> str:
     return info.get("thumbnail") or ""
 
 def _extract_stream_expire(stream_url: str | None, info: dict) -> float:
-    """Trích xuất expire timestamp thật từ format/info yt-dlp hoặc query parameter của stream URL."""
+    """Trích xuất expire timestamp thật từ format/info yt-dlp hoặc query parameter / path của stream URL."""
+    now = time.time()
     if not stream_url:
         return 0.0
-    # 1. Trực tiếp từ trường expire của info
-    if info.get("stream_expire"):
+
+    def _val(cand) -> float | None:
+        if cand is None:
+            return None
         try:
-            return float(info["stream_expire"])
+            f = float(cand)
+            if now < f <= (now + 86400 * 7):
+                return f
+            elif f <= now:
+                return f
+            elif f > (now + 86400 * 7):
+                return now + (5.5 * 3600)
         except (ValueError, TypeError):
             pass
-    if info.get("expire"):
-        try:
-            return float(info["expire"])
-        except (ValueError, TypeError):
-            pass
+        return None
+
+    # 1. Trực tiếp từ trường info
+    for k in ("stream_expire", "expire"):
+        v = _val(info.get(k))
+        if v is not None:
+            return v
+
     # 2. Kiểm tra formats array
-    if info.get("formats"):
-        for fmt in info["formats"]:
-            if fmt.get("url") == stream_url and fmt.get("expire"):
-                try:
-                    return float(fmt["expire"])
-                except (ValueError, TypeError):
-                    pass
-    # 3. Regex param ?expire=... từ stream_url (chuẩn của Google video / YouTube stream CDN)
-    m = re.search(r"[?&]expire=(\d+)", stream_url)
-    if m:
-        try:
-            return float(m.group(1))
-        except (ValueError, TypeError):
-            pass
-    # 4. Fallback: 5.5 giờ nếu có stream_url
-    return time.time() + (5.5 * 3600)
+    for fmt in info.get("formats") or []:
+        if fmt.get("url") == stream_url:
+            v = _val(fmt.get("expire"))
+            if v is not None:
+                return v
+
+    # 3. urllib.parse query parameter (?expire=...) & path (/expire/...)
+    try:
+        from urllib.parse import parse_qs, urlparse
+        parsed = urlparse(stream_url)
+        qs = parse_qs(parsed.query)
+        if "expire" in qs and qs["expire"]:
+            v = _val(qs["expire"][0])
+            if v is not None:
+                return v
+
+        m = _EXPIRE_PATH_RE.search(parsed.path)
+        if m:
+            v = _val(m.group(1))
+            if v is not None:
+                return v
+    except Exception:
+        pass
+
+    # Fallback: 5.5 giờ nếu có stream_url
+    return now + (5.5 * 3600)
 
 def _compact_song_info(info: dict) -> dict:
     """Rút gọn thông tin bài hát chỉ còn các trường cần thiết (< 0.5 KB).

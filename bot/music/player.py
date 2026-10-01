@@ -122,6 +122,8 @@ class MusicPlayer:
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
+        self._stop_lock    = asyncio.Lock()
+        self._cleanup_done : bool = False
         self._is_reconnecting : bool = False
 
     def set_reconnecting(self, status: bool):
@@ -505,11 +507,6 @@ class MusicPlayer:
                 await self._report_play_failure(track)
                 return
 
-            self.current = track
-            self.start_time = time.time() - seek_offset
-            self.pause_start = 0.0
-            self.total_paused_time = 0.0
-
             # Ghi nhận thống kê bài hát được phát vào DB.
             # Đây là NGUỒN DUY NHẤT cho `/topmusic` + dashboard (event_type="music_play",
             # label = tên bài). Trước đây còn một dòng ghi `event_type="music"` với
@@ -569,6 +566,10 @@ class MusicPlayer:
                     load_opus_library()
 
                 self.vc.play(source, after=self._after_play)
+                self.current = track
+                self.start_time = time.time() - seek_offset
+                self.pause_start = 0.0
+                self.total_paused_time = 0.0
                 self._consecutive_errors = 0
                 log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus}, seek={seek_offset}s)")
             except Exception as e:
@@ -714,56 +715,68 @@ class MusicPlayer:
             self._is_reconnecting = False
 
     async def stop(self):
-        self._manual_stopped = True
-        self._is_reconnecting = False
-        self._reset_inactivity_timer()
-        cog = getattr(self, "cog", None)
-        if cog and hasattr(cog, "_cancel_reconnect_task"):
-            try:
-                cog._cancel_reconnect_task(self.guild.id)
-            except Exception:
-                pass
-        self.queue.clear()
-        self.current   = None
-        self.loop_mode = 0
-        self.autoplay  = False
-        self._played_history.clear()
-        self._played_history_set.clear()
-        if self._preload_task:
-            self._preload_task.cancel()
+        async with self._stop_lock:
+            if self._cleanup_done:
+                return
+            self._cleanup_done = True
+            self._manual_stopped = True
+            self._is_reconnecting = False
+            self._reset_inactivity_timer()
+            cog = getattr(self, "cog", None)
+            if cog and hasattr(cog, "_cancel_reconnect_task"):
+                try:
+                    cog._cancel_reconnect_task(self.guild.id)
+                except Exception:
+                    pass
+            self.queue.clear()
+            self.current   = None
+            self.loop_mode = 0
+            self.autoplay  = False
+            self._played_history.clear()
+            self._played_history_set.clear()
+            if self._preload_task:
+                self._preload_task.cancel()
 
-        # 1. Dọn dẹp self.vc
-        if self.vc:
+            # 0. Giải phóng AudioSource & đóng pipes trong worker thread (chống block event loop 100-300ms trên Termux)
+            source = getattr(self.vc, "source", None)
+            if source and hasattr(source, "cleanup"):
+                try:
+                    await asyncio.to_thread(source.cleanup)
+                except Exception as src_err:
+                    log.debug(f"[Music] source cleanup error: {src_err}")
+
+            # 1. Dọn dẹp self.vc
+            if self.vc:
+                try:
+                    if self.vc.is_playing() or self.vc.is_paused():
+                        self.vc.stop()
+                    if self.vc.is_connected():
+                        await self.vc.disconnect(force=True)
+                except Exception as e:
+                    log.debug(f"[Music] voice disconnect error: {e}")
+
+            # 2. Dọn dẹp guild.voice_client trực tiếp (chống ghost voice desync)
             try:
-                if self.vc.is_playing() or self.vc.is_paused():
-                    self.vc.stop()
-                if self.vc.is_connected():
-                    await self.vc.disconnect(force=True)
+                g_vc = self.guild.voice_client
+                if g_vc and g_vc.is_connected():
+                    if g_vc.is_playing() or g_vc.is_paused():
+                        g_vc.stop()
+                    await g_vc.disconnect(force=True)
             except Exception as e:
-                log.debug(f"[Music] voice disconnect error: {e}")
+                log.debug(f"[Music] guild voice_client disconnect error: {e}")
 
-        # 2. Dọn dẹp guild.voice_client trực tiếp (chống ghost voice desync)
-        try:
-            g_vc = self.guild.voice_client
-            if g_vc and g_vc.is_connected():
-                if g_vc.is_playing() or g_vc.is_paused():
-                    g_vc.stop()
-                await g_vc.disconnect(force=True)
-        except Exception as e:
-            log.debug(f"[Music] guild voice_client disconnect error: {e}")
-
-        # 3. Dọn dẹp voice state nếu bot vẫn còn kẹt trong channel
-        try:
-            if self.guild.me and self.guild.me.voice and self.guild.me.voice.channel:
-                await self.guild.change_voice_state(channel=None)
-        except Exception as e:
-            log.debug(f"[Music] guild change_voice_state error: {e}")
-
-        if self.now_playing_msg:
+            # 3. Dọn dẹp voice state nếu bot vẫn còn kẹt trong channel
             try:
-                await self.now_playing_msg.delete()
+                if self.guild.me and self.guild.me.voice and self.guild.me.voice.channel:
+                    await self.guild.change_voice_state(channel=None)
             except Exception as e:
-                log.debug(f"[Music] delete NP message (stop) error: {e}")
-        self.now_playing_msg = None
-        if self.cog:
-            self.cog._drop(self.guild.id)
+                log.debug(f"[Music] guild change_voice_state error: {e}")
+
+            if self.now_playing_msg:
+                try:
+                    await self.now_playing_msg.delete()
+                except Exception as e:
+                    log.debug(f"[Music] delete NP message (stop) error: {e}")
+            self.now_playing_msg = None
+            if self.cog:
+                self.cog._drop(self.guild.id)

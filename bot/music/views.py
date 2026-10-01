@@ -90,6 +90,11 @@ class MusicControlView(discord.ui.View):
             self.btn_loop.style = discord.ButtonStyle.primary
 
     async def _check(self, interaction: discord.Interaction) -> bool:
+        if not self.player or not self.player.vc or not self.player.vc.channel:
+            await interaction.response.send_message(
+                tr(self.settings, "music.not_in_voice"), ephemeral=True
+            )
+            return False
         if not interaction.user.voice or interaction.user.voice.channel != self.player.vc.channel:
             await interaction.response.send_message(
                 tr(self.settings, "music.same_voice_err"), ephemeral=True
@@ -131,14 +136,14 @@ class MusicControlView(discord.ui.View):
         if not await self._check(interaction):
             return
         await interaction.response.defer()
-        if self.player.vc.is_paused():
+        if self.player.vc and self.player.vc.is_paused():
             self.player.vc.resume()
             if self.player.pause_start > 0:
                 self.player.total_paused_time += time.time() - self.player.pause_start
                 self.player.pause_start = 0.0
             button.label = tr(self.settings, "music.btn_pause")
             button.emoji = partial("zb_pause", "⏸️")
-        else:
+        elif self.player.vc:
             self.player.vc.pause()
             self.player.pause_start = time.time()
             button.label = tr(self.settings, "music.btn_resume")
@@ -306,7 +311,8 @@ class SearchSelect(discord.ui.Select):
             return await interaction.followup.send(tr(self.settings, "music.not_found", query=query), ephemeral=True)
 
         track = Track(info, requester=self.requester)
-        if self.player.vc.is_playing() or self.player.vc.is_paused() or self.player.current:
+        is_active = self.player.vc and (self.player.vc.is_playing() or self.player.vc.is_paused())
+        if is_active or self.player.current:
             if len(self.player.queue) >= MAX_QUEUE_SIZE:
                 return await interaction.followup.send(tr(self.settings, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
             self.player.queue.append(track)

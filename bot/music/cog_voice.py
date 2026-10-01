@@ -23,7 +23,7 @@ from discord.ext import commands
 from database import async_get_guild_settings
 from i18n import tr
 
-from .config import MAX_PLAYERS
+from .config import INACTIVITY_TIMEOUT, MAX_PLAYERS
 from .player import MusicPlayer
 
 log = logging.getLogger("BotV2.Music")
@@ -44,12 +44,13 @@ class VoiceLifecycleMixin:
         player = self._players.pop(guild_id, None)
         if player:
             player._is_reconnecting = False
-            try:
-                loop = getattr(self.bot, "loop", None)
-                if loop and loop.is_running():
-                    asyncio.create_task(player.stop())
-            except Exception:
-                pass
+            if not getattr(player, "_cleanup_done", False) and not getattr(player, "_is_stopping", False):
+                try:
+                    loop = getattr(self.bot, "loop", None)
+                    if loop and loop.is_running():
+                        asyncio.create_task(player.stop())
+                except Exception:
+                    pass
 
 
     def _cleanup_stale_tasks(self):
@@ -226,7 +227,10 @@ class VoiceLifecycleMixin:
 
 
     def _check_and_schedule_empty_voice(self, guild: discord.Guild):
-        """Kiểm tra kênh voice của bot, nếu không còn ai nghe nhạc (trống hoặc tất cả đều deafen) thì đếm 30s tự động rời kênh."""
+        """Kiểm tra kênh voice của bot, nếu không còn ai nghe nhạc (trống hoặc tất cả đều deafen) thì đếm INACTIVITY_TIMEOUT (180s) tự động rời kênh."""
+        if not guild or getattr(guild, "unavailable", False) or not self.bot.get_guild(guild.id):
+            return
+
         guild_id = guild.id
         vc = guild.voice_client
         bot_channel = vc.channel if (vc and vc.is_connected()) else (guild.me.voice.channel if (guild.me and guild.me.voice) else None)
@@ -245,43 +249,87 @@ class VoiceLifecycleMixin:
         )
 
         if has_listener:
-            # Có người đang nghe nhạc trong phòng -> Hủy bộ đếm 30s nếu đang chạy
+            # Có người đang nghe nhạc trong phòng -> Hủy bộ đếm nếu đang chạy
             task = self._empty_voice_tasks.pop(guild_id, None)
             if task and not task.done():
                 task.cancel()
-                log.debug(f"[Music] Người dùng đang nghe trong phòng '{bot_channel.name}' tại guild {guild_id}. Đã hủy timer 30s.")
+                log.debug(f"[Music] Người dùng đang nghe trong phòng '{bot_channel.name}' tại guild {guild_id}. Đã hủy empty voice timer.")
             return
 
-        # Phòng không có ai nghe nhạc -> Khởi động bộ đếm 30s tự động rời phòng
+        # Phòng không có ai nghe nhạc -> Khởi động bộ đếm INACTIVITY_TIMEOUT (180s) tự động rời phòng
         existing_task = self._empty_voice_tasks.get(guild_id)
-        if existing_task and not existing_task.done():
-            return  # Đã có timer 30s đang đếm ngược
+        if existing_task:
+            if not existing_task.done():
+                return  # Đã có timer đang đếm ngược
+            self._empty_voice_tasks.pop(guild_id, None)
 
-        log.info(f"[Music] Kênh voice '{bot_channel.name}' không còn ai nghe nhạc (guild {guild_id}). Bắt đầu đếm ngược 30s tự động out.")
+        log.info(f"[Music] Kênh voice '{bot_channel.name}' không còn ai nghe nhạc (guild {guild_id}). Bắt đầu đếm ngược {INACTIVITY_TIMEOUT}s tự động out.")
         task = asyncio.create_task(self._handle_empty_voice(guild_id, bot_channel.id))
         self._empty_voice_tasks[guild_id] = task
+        task.add_done_callback(lambda t, gid=guild_id: self._empty_voice_tasks.pop(gid, None))
 
 
     async def _handle_empty_voice(self, guild_id: int, channel_id: int):
-        """Xử lý rời kênh khi phòng voice trống hoặc không ai nghe sau 30 giây (không block event loop)."""
+        """Xử lý rời kênh khi phòng voice trống hoặc không ai nghe sau INACTIVITY_TIMEOUT (180s = 3 phút).
+        Dùng time.monotonic() chống clock drift trên Helio G85 và kiểm tra heartbeat mỗi 15s."""
         try:
-            await asyncio.sleep(30)
-            guild = self.bot.get_guild(guild_id)
-            if not guild:
+            start_t = time.monotonic()
+            timeout = max(30, INACTIVITY_TIMEOUT)
+            while (time.monotonic() - start_t) < timeout:
+                await asyncio.sleep(min(15.0, timeout - (time.monotonic() - start_t)))
+                guild = getattr(self.bot, "get_guild", lambda _: None)(guild_id)
+                if not guild or getattr(guild, "unavailable", False):
+                    return
+                vc = getattr(guild, "voice_client", None)
+                me = getattr(guild, "me", None)
+                me_voice = getattr(me, "voice", None) if me else None
+                bot_channel = (
+                    getattr(vc, "channel", None)
+                    if (vc and getattr(vc, "is_connected", lambda: False)())
+                    else (getattr(me_voice, "channel", None) if me_voice else None)
+                )
+                if not bot_channel or getattr(bot_channel, "id", None) != channel_id:
+                    return
+                # Heartbeat: nếu có người nghe quay trở lại hoặc undeafen -> dừng đếm
+                members = getattr(bot_channel, "members", [])
+                if any(
+                    not getattr(m, "bot", True)
+                    and not (getattr(m, "voice", None) and (getattr(m.voice, "self_deaf", False) or getattr(m.voice, "deaf", False)))
+                    for m in members
+                ):
+                    return
+
+            guild = getattr(self.bot, "get_guild", lambda _: None)(guild_id)
+            if not guild or getattr(guild, "unavailable", False):
                 return
-            vc = guild.voice_client
-            bot_channel = vc.channel if (vc and vc.is_connected()) else (guild.me.voice.channel if (guild.me and guild.me.voice) else None)
+            vc = getattr(guild, "voice_client", None)
+            me = getattr(guild, "me", None)
+            me_voice = getattr(me, "voice", None) if me else None
+            bot_channel = (
+                getattr(vc, "channel", None)
+                if (vc and getattr(vc, "is_connected", lambda: False)())
+                else (getattr(me_voice, "channel", None) if me_voice else None)
+            )
 
             # Nếu bot không còn ở trong kênh ban đầu hoặc đã rời
-            if not bot_channel or bot_channel.id != channel_id:
+            if not bot_channel or getattr(bot_channel, "id", None) != channel_id:
                 return
 
             # Kiểm tra lần cuối xem có người nghe nào không
-            if any(not m.bot and not (m.voice and (m.voice.self_deaf or m.voice.deaf)) for m in bot_channel.members):
+            members = getattr(bot_channel, "members", [])
+            if any(
+                not getattr(m, "bot", True)
+                and not (getattr(m, "voice", None) and (getattr(m.voice, "self_deaf", False) or getattr(m.voice, "deaf", False)))
+                for m in members
+            ):
                 return
 
             player = self._players.get(guild_id)
-            log.info(f"[Music] Phòng voice '{bot_channel.name}' đã trống 30s tại guild {guild_id}. Bot tự động rời kênh.")
+            if player and getattr(player, "_cleanup_done", False):
+                return
+
+            ch_name = getattr(bot_channel, "name", "Voice")
+            log.info(f"[Music] Phòng voice '{ch_name}' đã trống {int(timeout)}s tại guild {guild_id}. Bot tự động rời kênh.")
 
             # Gửi thông báo nếu có kênh text
             channel_to_notify = player.text_channel if player else None
@@ -289,12 +337,15 @@ class VoiceLifecycleMixin:
                 try:
                     s = await async_get_guild_settings(str(guild_id))
                     await channel_to_notify.send(tr(s, "music.empty_voice_left"), delete_after=60)
-                except Exception:
-                    pass
+                except Exception as send_err:
+                    log.debug(f"[Music] send empty_voice_left error: {send_err}")
 
             # Dừng và rời kênh an toàn
             if player:
-                await player.stop()
+                try:
+                    await player.stop()
+                except Exception as stop_err:
+                    log.error(f"[Music] player.stop in empty_voice error: {stop_err}")
                 self._drop(guild_id)
             elif vc and vc.is_connected():
                 try:
@@ -311,7 +362,7 @@ class VoiceLifecycleMixin:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            log.debug(f"[Music] empty voice handler error: {e}")
+            log.error(f"[Music] empty voice handler error: {e}", exc_info=e)
         finally:
             self._empty_voice_tasks.pop(guild_id, None)
 

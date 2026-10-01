@@ -150,15 +150,35 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
     # ── Events ─────────────────────────────────────────────────────────────
     @commands.Cog.listener()
+    async def on_guild_unavailable(self, guild: discord.Guild):
+        """Dọn dẹp player tránh ghost connection khi server Discord gateway báo unavailable."""
+        if guild:
+            self._cancel_empty_voice_task(guild.id)
+            self._cancel_grace_task(guild.id)
+            self._cancel_reconnect_task(guild.id)
+            self._drop(guild.id)
+
+    @commands.Cog.listener()
     async def on_voice_state_update(
         self,
         member: discord.Member,
         before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        """Xử lý sự kiện voice channel: dọn dẹp tức thì khi bot bị kick, và tự động rời phòng sau 30s nếu không còn ai."""
-        self._cleanup_stale_tasks()
+        """Xử lý sự kiện voice channel: dọn dẹp tức thì khi bot bị kick, và tự động rời phòng sau 3 phút nếu không còn ai."""
         guild = member.guild
+        if not guild or getattr(guild, "unavailable", False) or not self.bot.get_guild(guild.id):
+            return
+
+        channel_changed = (before.channel != after.channel)
+        deaf_changed = (before.self_deaf != after.self_deaf or before.deaf != after.deaf)
+        mute_changed = (before.self_mute != after.self_mute or before.mute != after.mute)
+
+        # Tối ưu CPU Helio G85: bỏ qua nếu không thay đổi channel và không thay đổi trạng thái deafen/mute
+        if not channel_changed and not deaf_changed and not mute_changed:
+            return
+
+        self._cleanup_stale_tasks()
         guild_id = guild.id
 
         # 1. Xử lý khi chính bot bị thay đổi voice state
@@ -197,24 +217,23 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                 return
 
             elif after.channel:
-                # Bot vừa join kênh voice hoặc reconnect xong
+                # Bot vừa join kênh voice, reconnect xong, hoặc thay đổi deafen
                 self._cancel_grace_task(guild_id)
-
                 player = self._players.get(guild_id)
                 if player and player._is_reconnecting:
                     log.info(f"[Music] Bot đã kết nối lại voice tại guild {guild_id}. Lên lịch phục hồi phát nhạc...")
                     self._schedule_reconnect_task(guild_id, player)
-                else:
+                elif channel_changed:
                     self._cancel_reconnect_task(guild_id)
 
-                # Kiểm tra nếu kênh mới trống
+                # Luôn kiểm tra tình trạng người nghe trong kênh
                 self._check_and_schedule_empty_voice(guild)
             return
 
         if member.bot:
             return
 
-        # 2. Xử lý khi người dùng (user) vào/ra/chuyển kênh
+        # 2. Xử lý khi người dùng (user) vào/ra/chuyển kênh hoặc thay đổi trạng thái nghe (deaf)
         self._check_and_schedule_empty_voice(guild)
 
     # ── Basic commands ─────────────────────────────────────────────────────
@@ -375,7 +394,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
     async def volume(self, ctx: commands.Context, level: int = None):
         s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
-        if not player or not (player.vc.is_playing() or player.vc.is_paused()):
+        if not player or not player.vc or not (player.vc.is_playing() or player.vc.is_paused()):
             await ctx.send(tr(s, "music.not_playing"))
             return
 
@@ -441,7 +460,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
     async def skip(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
-        if not player or not (player.vc.is_playing() or player.vc.is_paused()):
+        if not player or not player.vc or not (player.vc.is_playing() or player.vc.is_paused()):
             await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.skip()
@@ -451,7 +470,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
     async def pause(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
-        if not player or not player.vc.is_playing():
+        if not player or not player.vc or not player.vc.is_playing():
             await ctx.send(tr(s, "music.no_song_playing"))
             return
         player.vc.pause()
@@ -462,7 +481,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
     async def resume(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
         player = self._get(ctx.guild.id)
-        if not player or not player.vc.is_paused():
+        if not player or not player.vc or not player.vc.is_paused():
             await ctx.send(tr(s, "music.not_paused"))
             return
         player.vc.resume()
@@ -770,7 +789,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             batch_results = await asyncio.gather(*[_load_one(t) for t in chunk])
             for trk in batch_results:
                 if trk:
-                    if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
+                    if player.vc and not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
                         await player.add_and_play(trk)
                     else:
                         if len(player.queue) >= MAX_QUEUE_SIZE:
@@ -824,7 +843,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                 break
 
         if first_track:
-            if not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
+            if player.vc and not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
                 await player.add_and_play(first_track)
             else:
                 if len(player.queue) >= MAX_QUEUE_SIZE:
