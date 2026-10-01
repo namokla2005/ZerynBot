@@ -226,7 +226,7 @@ class VoiceLifecycleMixin:
 
 
     def _check_and_schedule_empty_voice(self, guild: discord.Guild):
-        """Kiểm tra kênh voice của bot, nếu không còn ai ngoài bot thì lên lịch tự động out sau 30s."""
+        """Kiểm tra kênh voice của bot, nếu không còn ai nghe nhạc (trống hoặc tất cả đều deafen) thì đếm 30s tự động rời kênh."""
         guild_id = guild.id
         vc = guild.voice_client
         bot_channel = vc.channel if (vc and vc.is_connected()) else (guild.me.voice.channel if (guild.me and guild.me.voice) else None)
@@ -238,29 +238,32 @@ class VoiceLifecycleMixin:
                 task.cancel()
             return
 
-        # Kiểm tra xem có người thật (không phải bot) trong kênh của bot không
-        has_human = any(not m.bot for m in bot_channel.members)
+        # Kiểm tra xem có người đang nghe nhạc không (người thật và KHÔNG tắt tai nghe / deafen)
+        has_listener = any(
+            not m.bot and not (m.voice and (m.voice.self_deaf or m.voice.deaf))
+            for m in bot_channel.members
+        )
 
-        if has_human:
-            # Có người trong phòng -> Hủy bộ đếm 30s nếu đang chạy
+        if has_listener:
+            # Có người đang nghe nhạc trong phòng -> Hủy bộ đếm 30s nếu đang chạy
             task = self._empty_voice_tasks.pop(guild_id, None)
             if task and not task.done():
                 task.cancel()
-                log.debug(f"[Music] Người dùng đã vào lại phòng '{bot_channel.name}' tại guild {guild_id}. Đã hủy timer 30s.")
+                log.debug(f"[Music] Người dùng đang nghe trong phòng '{bot_channel.name}' tại guild {guild_id}. Đã hủy timer 30s.")
             return
 
-        # Phòng không có người nào ngoài bot -> Khởi động bộ đếm 30s tự động rời phòng
+        # Phòng không có ai nghe nhạc -> Khởi động bộ đếm 30s tự động rời phòng
         existing_task = self._empty_voice_tasks.get(guild_id)
         if existing_task and not existing_task.done():
             return  # Đã có timer 30s đang đếm ngược
 
-        log.info(f"[Music] Kênh voice '{bot_channel.name}' không còn ai (guild {guild_id}). Bắt đầu đếm ngược 30s tự động out.")
+        log.info(f"[Music] Kênh voice '{bot_channel.name}' không còn ai nghe nhạc (guild {guild_id}). Bắt đầu đếm ngược 30s tự động out.")
         task = asyncio.create_task(self._handle_empty_voice(guild_id, bot_channel.id))
         self._empty_voice_tasks[guild_id] = task
 
 
     async def _handle_empty_voice(self, guild_id: int, channel_id: int):
-        """Xử lý rời kênh khi phòng voice trống sau 30 giây (không block event loop)."""
+        """Xử lý rời kênh khi phòng voice trống hoặc không ai nghe sau 30 giây (không block event loop)."""
         try:
             await asyncio.sleep(30)
             guild = self.bot.get_guild(guild_id)
@@ -273,8 +276,8 @@ class VoiceLifecycleMixin:
             if not bot_channel or bot_channel.id != channel_id:
                 return
 
-            # Kiểm tra lần cuối xem có người nào vào lại không
-            if any(not m.bot for m in bot_channel.members):
+            # Kiểm tra lần cuối xem có người nghe nào không
+            if any(not m.bot and not (m.voice and (m.voice.self_deaf or m.voice.deaf)) for m in bot_channel.members):
                 return
 
             player = self._players.get(guild_id)

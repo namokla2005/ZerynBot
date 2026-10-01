@@ -289,7 +289,8 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
         track = Track(info, requester=ctx.author)
 
-        if player.vc.is_playing() or player.vc.is_paused() or player.current:
+        is_actually_playing = player.vc and (player.vc.is_playing() or player.vc.is_paused())
+        if is_actually_playing:
             if len(player.queue) >= MAX_QUEUE_SIZE:
                 await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
                 return
@@ -552,7 +553,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             track.is_live = True
             track.stream_url = stream["url"]
             track.stream_expire = float("inf")  # stream sống mãi, không expire
-            await player.add_and_play(track)
+            await player.add_and_play(track, force_play=True)
             await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_soma_success", name=stream['name']))
         else:
             info = await extract_info(stream["url"], force_refresh=True)
@@ -561,7 +562,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                 return
             track = Track(info, requester=ctx.author)
             track.is_live = True
-            await player.add_and_play(track)
+            await player.add_and_play(track, force_play=True)
             await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_yt_success", name=stream['name']))
 
     # ── Queue & Navigation Management ──────────────────────────────────────

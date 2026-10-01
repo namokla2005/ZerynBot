@@ -97,7 +97,12 @@ class MusicPlayer:
         self.vc            = vc
         self.cog           = cog
         self._manual_stopped = False
-        self.loop          = asyncio.get_running_loop()
+        self._loop = (
+            getattr(getattr(cog, "bot", None), "loop", None)
+            or getattr(getattr(guild, "_state", None), "loop", None)
+            or asyncio.get_running_loop()
+        )
+        self.loop          = self._loop
         self.queue         : list[Track] = []
         self.current       : Track | None = None
         self.loop_mode     = 0   # 0=off  1=loop-one  2=loop-all
@@ -125,11 +130,18 @@ class MusicPlayer:
             self._recovering = False
 
     def _get_loop(self):
-        """Lấy event loop an toàn tại thời điểm gọi để tránh stale loop."""
-        try:
-            return self.vc.client.loop
-        except Exception:
-            return asyncio.get_event_loop()
+        """Lấy event loop an toàn tại thời điểm gọi từ thread con để tránh RuntimeError."""
+        bot = getattr(self.cog, "bot", None)
+        if bot and getattr(bot, "loop", None) and not bot.loop.is_closed():
+            return bot.loop
+        guild_loop = getattr(getattr(self.guild, "_state", None), "loop", None)
+        if guild_loop and not guild_loop.is_closed():
+            return guild_loop
+        if hasattr(self, "_loop") and self._loop and not self._loop.is_closed():
+            return self._loop
+        if hasattr(self, "loop") and self.loop and not self.loop.is_closed():
+            return self.loop
+        return None
 
     def _record_played(self, title: str):
         """Ghi nhận bài đã phát vào history và set hỗ trợ O(1) tra cứu."""
@@ -159,9 +171,9 @@ class MusicPlayer:
         self._inactivity_task = asyncio.create_task(self._inactivity_countdown())
 
     async def _inactivity_countdown(self):
-        """Tự động rời phòng voice sau 180s (3 phút) nếu không có bài hát nào được phát."""
+        """Tự động rời phòng voice sau 30s nếu không có bài hát nào được phát."""
         try:
-            await asyncio.sleep(180)
+            await asyncio.sleep(30)
             if not self.current and not self.queue and self.vc and self.vc.is_connected():
                 if self.text_channel:
                     try:
@@ -205,16 +217,28 @@ class MusicPlayer:
 
         try:
             loop = self._get_loop()
-            if loop.is_closed():
+            if not loop or loop.is_closed():
+                log.error("[Music] _after_play failed: event loop is None or closed!")
                 return
             elapsed = self.get_elapsed()
             curr = self.current
             if not curr:
+                fut = asyncio.run_coroutine_threadsafe(self._dispatch_next_async(), loop)
+                fut.add_done_callback(lambda f: self._log_future_exception(f, "dispatch_next_async"))
                 return
 
-            asyncio.run_coroutine_threadsafe(self._handle_after_play_async(error, elapsed, curr), loop)
+            fut = asyncio.run_coroutine_threadsafe(self._handle_after_play_async(error, elapsed, curr), loop)
+            fut.add_done_callback(lambda f: self._log_future_exception(f, "handle_after_play_async"))
         except Exception as e:
-            log.debug(f"[Music] _after_play dispatch error: {e}")
+            log.error(f"[Music] _after_play dispatch error: {e}", exc_info=True)
+
+    def _log_future_exception(self, future, action_name: str):
+        try:
+            exc = future.exception()
+            if exc:
+                log.error(f"[Music] Exception in async {action_name}: {exc}", exc_info=exc)
+        except Exception:
+            pass
 
     async def _handle_after_play_async(self, error, elapsed: int, track: Track):
         """Xử lý kết thúc phát nhạc trên Main Event Loop (100% thread-safe)."""
@@ -567,15 +591,16 @@ class MusicPlayer:
 
 
     # ── Public API ─────────────────────────────────────────────────────────
-    async def add_and_play(self, track: Track):
+    async def add_and_play(self, track: Track, force_play: bool = False):
         self._reset_inactivity_timer()
-        if self.vc.is_playing() or self.vc.is_paused() or self.current:
+        is_actually_playing = self.vc and (self.vc.is_playing() or self.vc.is_paused())
+        if force_play or not is_actually_playing:
+            await self._play(track)
+        else:
             self.queue.append(track)
             # Preload sớm bài kế tiếp để skip tới là có sẵn ngay
             if self.queue:
                 self._schedule_preload()
-        else:
-            await self._play(track)
 
     def skip(self):
         self._skipped = True
