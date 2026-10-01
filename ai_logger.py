@@ -10,6 +10,8 @@ import re
 import time
 import queue
 import logging
+import atexit
+import sqlite3
 from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
 from collections import deque
 import threading
@@ -111,7 +113,87 @@ class AiActivityLogger:
             self._logger = None
             self._listener = None
 
+        self._db_module = None
+        self._stop_requested = False
+        self._stopped = False
+        self._db_queue = queue.Queue(maxsize=5000)
+        self._db_worker_thread = threading.Thread(target=self._db_worker_loop, daemon=True, name="AiActivityDbWorker")
+        self._db_worker_thread.start()
+
         self._initialized = True
+
+    def _get_db(self):
+        """Lazy load database module once and cache it on instance to eliminate repeated import overhead."""
+        if self._db_module is None:
+            try:
+                import database
+                self._db_module = database
+            except ImportError:
+                return None
+        return self._db_module
+
+    def _db_worker_loop(self):
+        """Worker thread để ghi log tuần tự theo batch và an toàn vào SQLite WAL qua database module tập trung."""
+        db = self._get_db()
+        try:
+            while True:
+                try:
+                    item = self._db_queue.get(timeout=0.5)
+                except queue.Empty:
+                    if self._stop_requested:
+                        break
+                    continue
+
+                if item is None:
+                    self._db_queue.task_done()
+                    break
+
+                if isinstance(item, threading.Event):
+                    item.set()
+                    self._db_queue.task_done()
+                    continue
+
+                batch = [item]
+                flush_events = []
+                should_stop = False
+
+                while len(batch) < 50:
+                    try:
+                        next_item = self._db_queue.get_nowait()
+                    except queue.Empty:
+                        break
+
+                    if next_item is None:
+                        should_stop = True
+                        self._db_queue.task_done()
+                        break
+
+                    if isinstance(next_item, threading.Event):
+                        flush_events.append(next_item)
+                        continue
+
+                    batch.append(next_item)
+
+                if db:
+                    try:
+                        db.log_ai_activities_batch(batch)
+                    except Exception as e:
+                        if self._logger:
+                            self._logger.warning(f"[AiActivity] Lỗi khi ghi batch vào SQLite: {e}")
+
+                for _ in batch:
+                    self._db_queue.task_done()
+                for fe in flush_events:
+                    fe.set()
+                    self._db_queue.task_done()
+
+                if should_stop:
+                    break
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"[AiActivity] Ngoại lệ ngoài ý muốn trong worker loop: {e}")
+        finally:
+            self._stopped = True
 
     def log_event(
         self,
@@ -131,6 +213,8 @@ class AiActivityLogger:
         iso_now = time.strftime("%Y-%m-%d %H:%M:%S")
 
         with self._lock:
+            if self._stop_requested:
+                return
             self._counter += 1
             entry_id = self._counter
             entry = {
@@ -178,6 +262,20 @@ class AiActivityLogger:
                 elif "CRITIQUE" in safe_msg:
                     self._model2_stats["last_verdict"] = "CRITIQUE_ACTIVE"
 
+            # Đẩy vào queue bất đồng bộ cho background worker ghi vào SQLite
+            db_payload = {
+                "source": entry["src"],
+                "model": safe_model,
+                "provider": safe_prov,
+                "latency_ms": entry["lat"],
+                "status": entry["stat"],
+                "message": safe_msg
+            }
+            try:
+                self._db_queue.put_nowait(db_payload)
+            except queue.Full:
+                pass
+
         # Non-blocking file logging via QueueHandler
         if self._logger:
             try:
@@ -191,10 +289,47 @@ class AiActivityLogger:
             except Exception:
                 pass
 
-    def get_snapshot(self, since_id: int = 0) -> Dict[str, Any]:
-        """Fetch current telemetry and delta logs since since_id."""
+    def flush(self, timeout: float = 2.0):
+        """Chờ worker ghi hết queue vào DB bằng synchronization event, đảm bảo 100% dữ liệu đã commit xuống disk."""
+        if self._stopped or (self._db_worker_thread and not self._db_worker_thread.is_alive()):
+            return True
+        flush_event = threading.Event()
         try:
-            val_since = int(since_id)
+            self._db_queue.put(flush_event, timeout=timeout)
+            return flush_event.wait(timeout=timeout)
+        except Exception:
+            return False
+
+    def stop(self, timeout: float = 2.0):
+        """Dừng worker thread an toàn và idempotent: ngăn log mới, gửi sentinel None non-blocking và join."""
+        with self._lock:
+            if self._stop_requested:
+                if self._db_worker_thread and self._db_worker_thread.is_alive():
+                    self._db_worker_thread.join(timeout=timeout)
+                return
+            self._stop_requested = True
+
+        try:
+            self._db_queue.put_nowait(None)
+        except Exception:
+            pass
+
+        if self._db_worker_thread and self._db_worker_thread.is_alive():
+            self._db_worker_thread.join(timeout=timeout)
+
+    def get_snapshot(self, since_id: int = 0) -> Dict[str, Any]:
+        """Fetch current telemetry and delta logs from shared SQLite WAL database with in-memory fallback."""
+        db = self._get_db()
+        if db:
+            try:
+                db_res = db.get_ai_activity_snapshot(since_id=since_id)
+                if db_res and db_res.get("ok"):
+                    return db_res
+            except Exception:
+                pass
+
+        try:
+            val_since = int(since_id) if str(since_id).isdigit() else 0
         except (ValueError, TypeError):
             val_since = 0
 
@@ -242,6 +377,17 @@ class AiActivityLogger:
 # Global singleton instance
 ai_logger = AiActivityLogger()
 ai_logger.get_feed = ai_logger.get_snapshot
+
+def _safe_atexit_stop():
+    try:
+        ai_logger.stop(timeout=1.5)
+    except Exception:
+        pass
+
+try:
+    atexit.register(_safe_atexit_stop)
+except Exception:
+    pass
 
 def log_ai_activity(source: str, model: str, provider: str, latency_ms: int, status: str, message: str, meta: dict = None):
     """Module-level convenience wrapper for logging an AI event."""

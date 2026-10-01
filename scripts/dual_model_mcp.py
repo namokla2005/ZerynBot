@@ -927,5 +927,8 @@ if __name__ == "__main__":
             print(execute_review_code_file(args.review_file))
         elif args.pre_commit_check:
             print(execute_pre_commit_check())
+
+        if ai_logger:
+            ai_logger.flush(timeout=2.0)
     else:
         server.run(transport="stdio")

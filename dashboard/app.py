@@ -1656,17 +1656,23 @@ def admin_save_ai_key():
 @owner_required
 def api_admin_ai_activity_feed():
     """Trả về snapshot hoạt động thời gian thực của cả Model 1 và Model 2."""
-    since_id = request.args.get("since_id", 0)
+    since_raw = request.args.get("since_id", 0)
+    try:
+        since_id = int(since_raw) if str(since_raw).isdigit() else 0
+    except (ValueError, TypeError):
+        since_id = 0
     try:
         from ai_logger import ai_logger
         data = ai_logger.get_snapshot(since_id=since_id)
         cur_model = db.get_global_setting("global_ai_model") or "qwen/qwen3.8-27b"
         cur_prov = db.get_global_setting("global_ai_provider") or "auto"
-        data["models"]["model1"]["model"] = cur_model
-        data["models"]["model1"]["provider"] = cur_prov
+        if isinstance(data.get("models"), dict) and "model1" in data["models"]:
+            data["models"]["model1"]["model"] = cur_model
+            data["models"]["model1"]["provider"] = cur_prov
         return jsonify(data)
     except Exception as e:
-        return jsonify({"ok": False, "message": str(e), "models": {}, "logs": []})
+        logger.error(f"Lỗi api_admin_ai_activity_feed: {e}")
+        return jsonify({"ok": False, "message": "Lỗi truy vấn dữ liệu hoạt động AI", "models": {}, "logs": []})
 
 
 @app.route("/api/admin/test_ai_key", methods=["POST"])
