@@ -383,6 +383,39 @@ ZerynBot V2 is optimized to run reliably on weak ARM devices (such as 4GB/6GB RA
 6. **Database I/O:**
    - SQLite uses `PRAGMA journal_mode=WAL` and `synchronous=NORMAL`.
    - Bot functions **must** use `aiosqlite` thread pool executors (`database.py` async methods) to keep the Discord gateway heartbeats responsive.
+   - **PER-CONNECTION PRAGMA RULE:** `cache_size=-8000` (~8MB), `temp_store=MEMORY`,
+     `mmap_size=64MB` and `busy_timeout=15000` are set on **every** connection by
+     `_connect_sync()` / `_connect_async()` in `database.py`. These PRAGMAs are not
+     stored in the DB file, so **never** call `sqlite3.connect(DB_PATH, ...)` /
+     `aiosqlite.connect(DB_PATH, ...)` directly — route through the helpers, otherwise
+     the RAM/IO tuning silently disappears.
+   - `async_vacuum_db()` only runs the expensive `VACUUM` when freelist pages exceed
+     `VACUUM_FREELIST_THRESHOLD` (15%); it always runs the cheap `PRAGMA optimize`.
+     `VACUUM` intentionally uses a raw connection (temp_store in file, not MEMORY) so a
+     large DB is not rewritten inside the 6GB device's RAM.
+7. **Log Rotation (24/7 on-device):**
+   - `data/bot.log` and `data/dashboard.log` are owned by `RotatingFileHandler`
+     (2MB × 2 backups) in `bot/bot.py` and `dashboard/app.py`.
+   - Process stdout/stderr go to **separate** files (`data/bot.stdout.log`,
+     `data/dashboard.stdout.log`) via `main.py` / `scripts/watchdog.sh`, and the watchdog
+     rotates them past 5MB. Never redirect stdout into the file the app logger owns —
+     rotation desyncs and the log splits into the rotated copy.
+8. **AI Provider Time Budget:**
+   - `ai_manager.call_ai_sync()` is used by the Flask 24/7 support chat, which only has a
+     2-worker `ThreadPoolExecutor`. It is capped by `SYNC_TOTAL_BUDGET` (20s) and
+     `SYNC_MAX_KEY_ATTEMPTS` (2 keys/provider) so one request can never hold a worker for
+     minutes across 3 providers.
+   - All provider HTTP paths (global key pools **and** per-guild custom keys) go through
+     `ai_manager` — there is exactly one implementation of each provider call, including
+     the image-URL SSRF guard (`is_safe_image_url`) and 429 cooldown bookkeeping.
+9. **Background Task Cadence:**
+   - Polling loops are intentionally slow on battery-powered devices: giveaway and
+     reminder loops tick every 60s, stats flush every 60s (with a forced flush on
+     shutdown), guild cache refresh at most every 6h, automod spam cache cleanup every
+     10 min. Raising cadence back to 30s doubles CPU wakeups for no user-visible gain.
+   - `bot/cogs/ai.py` keeps a single shared `aiohttp.ClientSession`
+     (`_get_ai_session()` / `close_ai_session()`), closed in `cog_unload()`, so AI calls
+     do not repeat DNS/TCP/TLS handshakes. Apply the same pattern for new HTTP clients.
 7. **Health Check & External Watchdog:**
    - Bot periodically updates `data/health.json` via non-blocking async executor.
    - External script `scripts/watchdog.sh` polls `data/health.json`. If the timestamp is stale (>5 minutes), it automatically restarts the process.
@@ -499,6 +532,23 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 ## 12. System Changelog & Evolution Highlights
 
+- **v3.1 (2026-10)**:
+  - **Termux 24/7 Resource Hardening**: dashboard logging with `RotatingFileHandler` (+fixed
+    an undefined `logger` that made `/api/admin/ai/activity-feed` raise), separate
+    `*.stdout.log` streams so rotation no longer desyncs, 5MB stdout cap inside
+    `scripts/watchdog.sh`, and per-connection SQLite PRAGMAs routed through
+    `_connect_sync()` / `_connect_async()` (~190 call sites) plus threshold-based `VACUUM`.
+  - **Single AI Stack**: per-guild custom keys now delegate to
+    `ai_manager.call_provider_async()` instead of re-implementing Groq/OpenRouter/Gemini
+    HTTP; the shared image-URL SSRF guard moved into the manager; sync path bounded by a
+    20s budget (also fixed an undefined `t0` in `call_ai_sync`).
+  - **Dashboard Load Reduction**: 5-minute guild role cache (`get_guild_roles`), a shared
+    `_discord_api()` helper for Discord REST calls, and a short-TTL cache for playlist
+    track metadata — all previously blocking one of waitress' four threads for up to 10s.
+  - **Unified Termux CLI**: `python scripts/termux_deploy.py {deploy,cleanup,diag,status}`
+    with `cleanup --dry-run/--local`, stdlib argparse and a guarded paramiko import.
+  - **CI**: GitHub Actions workflow runs the full pytest suite (including dashboard tests)
+    on every push/PR.
 - **v3.0 (2026-09)**:
   - **Full Security & Concurrency Defense-in-Depth Overhaul**:
     - **Stored XSS Immunity**: Replaced all `innerHTML` concatenations with DOM Node creation and `.textContent` in Embed Builder; enforced `http:`/`https:` protocol whitelisting and added `<script type="application/json">` loading.

@@ -340,12 +340,42 @@ ZerynBot/
 │   ├── auth.py          # Discord OAuth2 Session Manager & SSRF filter
 │   ├── static/          # CSS (v9.2), JS, Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme & CSRF bootstrap)
-├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1604 keys/file
-├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py)
-├── tests/               # 🧪 55 Unit tests (cache, i18n, database, dashboard security, smoke-load 22 cogs)
-├── .github/             # CI pipeline & Dependabot
+├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1694 keys/file
+├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py,
+│                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
+├── tests/               # 🧪 78 tests (cache, i18n, database, permissions, Termux optimizations, dashboard)
+├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```
+
+## 🧹 Bảo Trì Termux Định Kỳ (Dọn Dẹp & Chẩn Đoán)
+
+Bot **tự dọn dữ liệu** hằng ngày (`bot/cogs/maintenance.py`): `guild_stats` 60 ngày,
+`automod_warnings` 2 ngày, `fun_interactions` 60 ngày, `reminders` 30 ngày,
+`music_song_cache` 7 ngày, `activity_logs` 7 ngày, `ai_activity_logs` 2 ngày.
+Log cũng **tự xoay vòng**: `data/bot.log` và `data/dashboard.log` (2MB × 2 bản qua
+`RotatingFileHandler`), còn `data/*.stdout.log` bị watchdog cắt khi vượt 5MB.
+
+Phần còn lại (cache build/pip, backup cũ, dung lượng thẻ nhớ) dọn bằng CLI thống nhất:
+
+```bash
+# 1. Xem kế hoạch dọn dẹp (KHÔNG xoá gì) — luôn chạy bước này trước
+python scripts/termux_deploy.py cleanup --dry-run
+
+# 2. Dọn dẹp thật trên máy Termux (tự chọn kênh LAN hoặc Cloudflare Tunnel)
+python scripts/termux_deploy.py cleanup
+
+# 3. Chẩn đoán tài nguyên & xem trạng thái (chỉ đọc, không sửa gì)
+python scripts/termux_deploy.py diag
+python scripts/termux_deploy.py status
+
+# 4. Khi đang ngồi ngay trên máy Termux (không cần SSH)
+python scripts/termux_deploy.py cleanup --local
+```
+
+Gợi ý nhịp: chạy `cleanup` mỗi 2–4 tuần, hoặc khi `du -sh data` vượt ~500MB.
+
+---
 
 ## 🧪 Chạy Kiểm Thử (Tests)
 
@@ -353,9 +383,12 @@ ZerynBot/
 # Cài đặt thư viện dev/test (chỉ cần trên máy dev):
 pip install -r requirements-dev.txt
 
-# Chạy toàn bộ 55 test cases:
+# Chạy toàn bộ test suite (78 test; vài test dashboard tự skip nếu chưa cài flask)
 pytest -q
 ```
+
+CI (`.github/workflows/ci.yml`) tự chạy `pytest` trên mọi push/PR — trong CI có đủ
+`flask`/`flask-limiter` nên chạy được cả nhóm test dashboard.
 
 ---
 

@@ -11,6 +11,8 @@ Features:
 - 👑 Special Bot Owner Persona: Identifies BOT_OWNER_ID and addresses with deep respect as "Cha" / "Bố".
 - Customizable System Prompts & Personalities.
 """
+import asyncio
+import logging
 import os
 import re
 import sys
@@ -37,6 +39,9 @@ from database import (
 )
 from i18n import tr
 
+logger = logging.getLogger("BotV2.AI")
+
+
 # Chống SSRF: tái sử dụng helper đã có ở dashboard/auth.py (không vòng lặp import)
 try:
     from dashboard.auth import is_safe_http_url
@@ -51,6 +56,36 @@ try:
     from ai_knowledge import get_zerynbot_knowledge
 except (ImportError, ModuleNotFoundError):
     from bot.ai_knowledge import get_zerynbot_knowledge
+
+
+# ─── Session aiohttp dùng chung ────────────────────────────────────────────────
+# Trước đây mỗi lần gọi AI / fetch web là một ClientSession mới → phải bắt tay
+# DNS + TCP + TLS mới trên Helio G85 (chậm, tốn pin). Dùng 1 session cho cả cog
+# và đóng lại trong cog_unload.
+_AI_SESSION: aiohttp.ClientSession | None = None
+_AI_SESSION_LOCK = asyncio.Lock()
+
+
+async def _get_ai_session() -> aiohttp.ClientSession:
+    """Trả về ClientSession dùng chung (tạo lazy, tự tạo lại nếu đã bị đóng)."""
+    global _AI_SESSION
+    async with _AI_SESSION_LOCK:
+        if _AI_SESSION is None or _AI_SESSION.closed:
+            _AI_SESSION = aiohttp.ClientSession()
+        return _AI_SESSION
+
+
+async def close_ai_session() -> None:
+    """Đóng session dùng chung (gọi từ cog_unload khi reload/unload cog)."""
+    global _AI_SESSION
+    async with _AI_SESSION_LOCK:
+        sess, _AI_SESSION = _AI_SESSION, None
+    if sess is not None and not sess.closed:
+        try:
+            await sess.close()
+        except Exception:
+            pass
+
 
 GEMINI_MODELS = [
     "gemini-3.6-flash",
@@ -130,194 +165,73 @@ def _local_smart_reply(prompt: str, is_owner: bool = False) -> str:
 
 
 async def _call_groq_api(prompt: str, system_instruction: str = None, api_key: str = "", image_url: str = None, preferred_model: str = None) -> str:
-    """Gọi Groq Cloud API (Miễn phí 100%, siêu nhanh, hỗ trợ Vision ảnh)."""
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    }
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
+    """
+    Gọi Groq Cloud bằng key RIÊNG của guild (khác pool toàn cục).
 
-    if image_url:
-        # Multimodal Vision message format cho Groq
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt or "Hãy mô tả và phân tích bức ảnh này."},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
-        })
-        models = [
-            "groq/compound", "groq/groq/compound",
-            "qwen/qwen3.8-27b", "groq/qwen/qwen3.8-27b",
-            "openai/gpt-oss-120b", "groq/openai/gpt-oss-120b"
-        ]
-    else:
-        messages.append({"role": "user", "content": prompt})
-        models = []
-        if preferred_model:
-            models.append(preferred_model)
-            if preferred_model.startswith("groq/"):
-                models.append(preferred_model.replace("groq/", "", 1))
-            else:
-                models.append(f"groq/{preferred_model}")
+    Uỷ quyền cho AIProviderManager để chỉ còn MỘT bản logic provider duy nhất
+    (SSRF guard, cooldown/circuit breaker, danh sách model fallback, sanitize).
+    """
+    from ai_manager import ai_manager
 
-        for m in [
-            "qwen/qwen3.8-27b",
-            "groq/qwen/qwen3.8-27b",
-            "qwen/qwen3.6-27b",
-            "groq/qwen/qwen3.6-27b",
-            "openai/gpt-oss-20b",
-            "groq/openai/gpt-oss-20b",
-            "groq/compound-mini",
-            "groq/groq/compound-mini",
-            "groq/compound",
-            "groq/groq/compound",
-            "openai/gpt-oss-120b",
-            "groq/openai/gpt-oss-120b",
-            "openai/gpt-oss-safeguard-20b",
-            "groq/openai/gpt-oss-safeguard-20b"
-        ]:
-            if m not in models:
-                models.append(m)
-
-    async with aiohttp.ClientSession() as session:
-        for model in models:
-            payload = {
-                "model": model,
-                "messages": messages,
-                "temperature": 0.7,
-                "max_tokens": 2048
-            }
-            try:
-                async with session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=25)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        choices = data.get("choices", [])
-                        if choices:
-                            return choices[0].get("message", {}).get("content", "").strip()
-            except Exception:
-                continue
-    return "❌ Không thể kết nối tới Groq Cloud API. Vui lòng kiểm tra lại Key."
+    ok, res = await ai_manager.call_provider_async(
+        provider="groq",
+        key=api_key,
+        prompt=prompt,
+        system_instruction=system_instruction or "",
+        image_url=image_url,
+        preferred_model=preferred_model,
+    )
+    if ok and res:
+        return res
+    return f"❌ Không thể kết nối tới Groq Cloud API ({res or 'không rõ lỗi'}). Vui lòng kiểm tra lại Key."
 
 
 async def _call_openrouter_api(prompt: str, system_instruction: str = None, api_key: str = "", image_url: str = None) -> str:
-    """Gọi OpenRouter Free API."""
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://zerynbot.id.vn",
-        "X-Title": "ZerynBot"
-    }
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
+    """
+    Gọi OpenRouter Free bằng key RIÊNG của guild (uỷ quyền cho ai_manager).
 
-    if image_url:
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt or "Hãy mô tả và phân tích bức ảnh này."},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
-        })
-        free_models = ["openrouter/free", "meta-llama/llama-3.2-11b-vision-instruct:free"]
-    else:
-        messages.append({"role": "user", "content": prompt})
-        free_models = [
-            "nvidia/nemotron-3-ultra-550b-a55b:free",
-            "google/gemma-4-31b-it:free",
-            "qwen/qwen3.8-27b:free",
-            "nvidia/nemotron-3.5-lightning:free",
-        ]
+    Trước đây hàm này tự implement HTTP + tự sanitize → dễ lệch hành vi với pool
+    toàn cục. Nay chỉ còn 1 nguồn logic.
+    """
+    from ai_manager import ai_manager
 
-    async with aiohttp.ClientSession() as session:
-        for model in free_models:
-            payload = {"model": model, "messages": messages}
-            try:
-                async with session.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=25)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        choices = data.get("choices", [])
-                        if choices:
-                            raw = choices[0].get("message", {}).get("content", "") or ""
-                            clean = _sanitize_ai_response(raw)
-                            if clean:
-                                return clean
-                    elif resp.status == 529:  # OpenRouter overloaded
-                        import asyncio
-                        await asyncio.sleep(2)
-                        continue
-            except Exception:
-                continue
+    ok, res = await ai_manager.call_provider_async(
+        provider="openrouter",
+        key=api_key,
+        prompt=prompt,
+        system_instruction=system_instruction or "",
+        image_url=image_url,
+    )
+    if ok and res:
+        return res
     return "❌ Không thể kết nối tới OpenRouter Free API."
 
 
 async def _call_gemini_direct(prompt: str, system_instruction: str = None, key: str = "", image_url: str = None, preferred_model: str = None) -> str:
-    """Gọi trực tiếp Google Gemini API khi guild cấu hình key riêng (fail-fast 8s, SSRF guard)."""
-    parts = [{"text": prompt}]
-    if image_url:
-        if is_safe_http_url and not is_safe_http_url(image_url):
-            return "❌ URL ảnh không an toàn (SSRF blocked)."
-        try:
-            import base64
-            async with aiohttp.ClientSession() as img_session:
-                async with img_session.get(image_url, timeout=aiohttp.ClientTimeout(total=5)) as img_resp:
-                    if img_resp.status == 200:
-                        img_bytes = await img_resp.read()
-                        mime = img_resp.headers.get("Content-Type", "image/jpeg")
-                        b64_data = base64.b64encode(img_bytes).decode("utf-8")
-                        parts.append({
-                            "inline_data": {
-                                "mime_type": mime,
-                                "data": b64_data
-                            }
-                        })
-        except Exception:
-            pass
+    """
+    Gọi Google Gemini bằng key RIÊNG của guild (uỷ quyền cho ai_manager).
 
-    payload = {"contents": [{"parts": parts}]}
-    if system_instruction:
-        payload["system_instruction"] = {"parts": [{"text": system_instruction}]}
+    SSRF guard cho URL ảnh được giữ ở đây (message lỗi cũ) VÀ trong
+    ai_manager.is_safe_image_url (bảo vệ cả đường pool toàn cục).
+    """
+    if image_url and is_safe_http_url and not is_safe_http_url(image_url):
+        return "❌ URL ảnh không an toàn (SSRF blocked)."
 
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": key
-    }
+    from ai_manager import ai_manager
 
-    # Chỉ thử tối đa 2 model Gemini hợp lệ, tuyệt đối không dùng model của Groq/OpenRouter
-    gemini_models_to_try = []
-    if preferred_model and preferred_model.startswith("gemini-"):
-        gemini_models_to_try.append(preferred_model)
-    for m in ["gemini-3.6-flash", "gemini-3.5-flash"]:
-        if m not in gemini_models_to_try:
-            gemini_models_to_try.append(m)
-
-    last_error = ""
-    async with aiohttp.ClientSession() as session:
-        for model in gemini_models_to_try[:2]:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-            try:
-                async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=8)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        candidates = data.get("candidates", [])
-                        if candidates:
-                            cparts = candidates[0].get("content", {}).get("parts", [])
-                            if cparts:
-                                return cparts[0].get("text", "").strip()
-                    elif resp.status == 429:
-                        last_error = "Rate limit 429"
-                        break  # Dừng ngay nếu gặp 429, không thử tiếp các model sau
-                    else:
-                        err_text = await resp.text()
-                        last_error = f"HTTP {resp.status}: {err_text[:80]}"
-            except Exception as e:
-                last_error = str(e)
-                continue
-    return f"❌ Lỗi Gemini API: {last_error}"
+    ok, res = await ai_manager.call_provider_async(
+        provider="gemini",
+        key=key,
+        prompt=prompt,
+        system_instruction=system_instruction or "",
+        image_url=image_url,
+        preferred_model=preferred_model,
+    )
+    if ok and res:
+        return res
+    if res == "IMAGE_SSRF_BLOCKED":
+        return "❌ URL ảnh không an toàn (SSRF blocked)."
+    return f"❌ Lỗi Gemini API: {res or 'không rõ lỗi'}"
 
 
 async def call_ai_api(prompt: str, system_instruction: str = None, api_key: str = "", is_owner: bool = False, image_url: str = None, preferred_model: str = None) -> str:
@@ -417,27 +331,28 @@ async def _fetch_duckduckgo_search(query: str, max_results: int = 4) -> list[dic
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7"
     }
-    timeout = aiohttp.ClientTimeout(total=7)
     results = []
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(search_url, headers=headers) as resp:
-                if resp.status == 200:
-                    html = await resp.text()
-                    links = re.findall(r'<a class="result__url"[^>]*href="([^"]+)"', html)
-                    titles = re.findall(r'<a class="result__a"[^>]*>(.*?)</a>', html)
-                    snippets = re.findall(r'<a class="result__snippet[^>]*>(.*?)</a>', html)
-                    for t, s, l in zip(titles[:max_results], snippets[:max_results], links[:max_results]):
-                        t_clean = re.sub(r'<[^>]+>', '', t).strip()
-                        s_clean = re.sub(r'<[^>]+>', '', s).strip()
-                        raw_link = l.strip()
-                        if "uddg=" in raw_link:
-                            parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_link).query)
-                            actual_url = parsed.get("uddg", [raw_link])[0]
-                        else:
-                            actual_url = raw_link
-                        if t_clean and s_clean:
-                            results.append({"title": t_clean, "snippet": s_clean, "url": actual_url})
+        session = await _get_ai_session()
+        async with session.get(
+            search_url, headers=headers, timeout=aiohttp.ClientTimeout(total=7)
+        ) as resp:
+            if resp.status == 200:
+                html = await resp.text()
+                links = re.findall(r'<a class="result__url"[^>]*href="([^"]+)"', html)
+                titles = re.findall(r'<a class="result__a"[^>]*>(.*?)</a>', html)
+                snippets = re.findall(r'<a class="result__snippet[^>]*>(.*?)</a>', html)
+                for t, s, l in zip(titles[:max_results], snippets[:max_results], links[:max_results]):
+                    t_clean = re.sub(r'<[^>]+>', '', t).strip()
+                    s_clean = re.sub(r'<[^>]+>', '', s).strip()
+                    raw_link = l.strip()
+                    if "uddg=" in raw_link:
+                        parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_link).query)
+                        actual_url = parsed.get("uddg", [raw_link])[0]
+                    else:
+                        actual_url = raw_link
+                    if t_clean and s_clean:
+                        results.append({"title": t_clean, "snippet": s_clean, "url": actual_url})
     except Exception:
         pass
     return results
@@ -465,35 +380,37 @@ async def _fetch_url_article_content(url: str, max_chars: int = 4000) -> str | N
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
     }
-    timeout = aiohttp.ClientTimeout(total=8)
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            current_url = url
-            max_redirects = 3
-            for _hop in range(max_redirects + 1):
-                async with session.get(current_url, headers=headers, allow_redirects=False) as resp:
-                    if resp.status in (301, 302, 303, 307, 308):
-                        location = resp.headers.get("Location")
-                        if not location:
-                            return None
-                        next_url = _urlparse.urljoin(current_url, location)
-                        # Kiểm tra SSRF cho cả target redirect
-                        if not _safe(next_url):
-                            return None
-                        current_url = next_url
-                        continue
-                    if resp.status == 200:
-                        ctype = resp.headers.get("Content-Type", "").lower()
-                        if "text/html" in ctype or "application/xhtml" in ctype:
-                            html = await resp.text()
-                            parser = CleanTextParser()
-                            parser.feed(html)
-                            clean = parser.get_text()
-                            if len(clean) > max_chars:
-                                clean = clean[:max_chars]
-                            return clean
+        session = await _get_ai_session()
+        current_url = url
+        max_redirects = 3
+        for _hop in range(max_redirects + 1):
+            async with session.get(
+                current_url, headers=headers, allow_redirects=False,
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                if resp.status in (301, 302, 303, 307, 308):
+                    location = resp.headers.get("Location")
+                    if not location:
                         return None
+                    next_url = _urlparse.urljoin(current_url, location)
+                    # Kiểm tra SSRF cho cả target redirect
+                    if not _safe(next_url):
+                        return None
+                    current_url = next_url
+                    continue
+                if resp.status == 200:
+                    ctype = resp.headers.get("Content-Type", "").lower()
+                    if "text/html" in ctype or "application/xhtml" in ctype:
+                        html = await resp.text()
+                        parser = CleanTextParser()
+                        parser.feed(html)
+                        clean = parser.get_text()
+                        if len(clean) > max_chars:
+                            clean = clean[:max_chars]
+                        return clean
                     return None
+                return None
     except Exception:
         pass
     return None
@@ -504,6 +421,10 @@ class AI(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def cog_unload(self):
+        """Đóng ClientSession dùng chung khi cog bị unload/reload."""
+        await close_ai_session()
 
     async def cog_check(self, ctx: commands.Context) -> bool:
         if not ctx.guild:

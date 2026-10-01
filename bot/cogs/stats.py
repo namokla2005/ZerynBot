@@ -21,10 +21,14 @@ class Stats(commands.Cog):
             asyncio.create_task(self._force_flush())
 
     async def _flush_stats(self):
-        """Gom stats và ghi vào DB mỗi 30 giây thay vì mỗi event."""
+        """Gom stats và ghi vào DB mỗi 60 giây thay vì mỗi event.
+
+        60s (thay vì 30s): giảm một nửa số lần ghi DB trên Termux; buffer vẫn
+        được ghi ngay khi bot tắt (xem _force_flush trong cog_unload).
+        """
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
-            await asyncio.sleep(30)
+            await asyncio.sleep(60)
             if not self._stat_buffer:
                 continue
             buffer = self._stat_buffer.copy()

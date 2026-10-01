@@ -34,6 +34,38 @@ ALLOWED_HOSTS = frozenset({
     "openrouter.ai"
 })
 
+# ─── Ngân sách thời gian cho đường sync (Flask support chat) ──────────────────
+# Support chat chạy trong ThreadPoolExecutor(max_workers=2); nếu không chặn,
+# một request có thể giữ 1/2 worker hàng phút (3 provider × 4 key × timeout 15s).
+SYNC_TOTAL_BUDGET = 20.0      # giây — tổng thời gian tối đa cho 1 lần gọi AI sync
+SYNC_MAX_KEY_ATTEMPTS = 2     # số key tối đa thử trên mỗi provider ở đường sync
+
+_SSRF_HELPER = None
+
+
+def is_safe_image_url(url: str) -> bool:
+    """
+    Chặn SSRF cho URL ảnh do người dùng nhập.
+
+    Dùng lại ``dashboard.auth.is_safe_http_url`` (một nguồn logic duy nhất) và
+    fail-closed nếu không import được helper.
+    """
+    global _SSRF_HELPER
+    if not url or not isinstance(url, str):
+        return False
+    if _SSRF_HELPER is None:
+        try:
+            from dashboard.auth import is_safe_http_url as _helper
+            _SSRF_HELPER = _helper
+        except Exception:
+            _SSRF_HELPER = False  # không kiểm tra được → từ chối (an toàn)
+    if _SSRF_HELPER is False:
+        return False
+    try:
+        return bool(_SSRF_HELPER(url))
+    except Exception:
+        return False
+
 # ─── Supported Default Models ───────────────────────────────────────────────────
 GEMINI_MODELS = [
     "gemini-3.6-flash",
@@ -457,21 +489,34 @@ class AIProviderManager:
             "openrouter": openrouter_pool
         }
 
+        # Ngân sách thời gian: đường sync chạy trong ThreadPoolExecutor của Flask
+        # support chat (chỉ 2 worker) nên tuyệt đối không được giữ thread hàng phút.
+        deadline = time.monotonic() + SYNC_TOTAL_BUDGET
+        t0 = time.monotonic()
+
         # Try providers in chain
         for provider in provider_chain:
+            if time.monotonic() >= deadline:
+                logger.info(
+                    "[AIManager] Hết ngân sách %.0fs cho đường sync — dừng thử provider.",
+                    SYNC_TOTAL_BUDGET,
+                )
+                break
             p_keys = pools_map.get(provider, [])
             if not p_keys:
                 continue
 
-            # Try up to len(p_keys) times to rotate through available keys
-            attempts = min(len(p_keys), 4)
+            # Giới hạn số key thử trên mỗi provider (sync).
+            attempts = min(len(p_keys), SYNC_MAX_KEY_ATTEMPTS)
             for _ in range(attempts):
+                if time.monotonic() >= deadline:
+                    break
                 active_key = self.get_next_available_key(provider, p_keys)
                 if not active_key:
                     break
 
                 # Slight jitter to prevent thundering herd
-                time.sleep(random.uniform(0.01, 0.04))
+                time.sleep(random.uniform(0.005, 0.02))
 
                 if provider == "gemini":
                     ok, res = self._call_gemini_sync(active_key, prompt, system_instruction, model=model)
@@ -483,7 +528,7 @@ class AIProviderManager:
                     ok, res = False, "Unknown provider"
 
                 if ok:
-                    lat_ms = int((time.time() - t0) * 1000)
+                    lat_ms = int((time.monotonic() - t0) * 1000)
                     if ai_logger:
                         ai_logger.log_event(
                             source="model1",
@@ -502,7 +547,7 @@ class AIProviderManager:
                             source="model1",
                             model=model,
                             provider=provider,
-                            latency_ms=int((time.time() - t0) * 1000),
+                            latency_ms=int((time.monotonic() - t0) * 1000),
                             status="WARN",
                             message=f"Key {mask_key(active_key)} bị 429 Rate-Limit, đang xoay tua..."
                         )
@@ -538,6 +583,8 @@ class AIProviderManager:
     async def _call_gemini_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", model: str = "gemini-3.6-flash", image_url: str = None, timeout: int = 15) -> Tuple[bool, str]:
         """Asynchronous Google Gemini call with SSRF defense and Vision support."""
         parts: List[Dict[str, Any]] = [{"text": prompt}]
+        if image_url and not is_safe_image_url(image_url):
+            return False, "IMAGE_SSRF_BLOCKED"
         if image_url:
             try:
                 import base64
@@ -612,6 +659,9 @@ class AIProviderManager:
         if system_instruction:
             messages.append({"role": "system", "content": system_instruction})
 
+        if image_url and not is_safe_image_url(image_url):
+            return False, "IMAGE_SSRF_BLOCKED"
+
         if image_url:
             messages.append({
                 "role": "user",
@@ -670,6 +720,9 @@ class AIProviderManager:
         messages: List[Dict[str, Any]] = []
         if system_instruction:
             messages.append({"role": "system", "content": system_instruction})
+
+        if image_url and not is_safe_image_url(image_url):
+            return False, "IMAGE_SSRF_BLOCKED"
 
         if image_url:
             messages.append({
@@ -803,6 +856,57 @@ class AIProviderManager:
                 message="Toàn bộ AI Providers và Key Pools đều không phản hồi"
             )
         return False, ""
+
+    # ─── Gọi 1 provider với 1 key CỤ THỂ (key riêng của guild) ──────────────────
+
+    async def call_provider_async(
+        self,
+        provider: str,
+        key: str,
+        prompt: str,
+        system_instruction: str = "",
+        image_url: str = None,
+        preferred_model: str = None,
+    ) -> Tuple[bool, str]:
+        """
+        Gọi đúng 1 provider bằng 1 key CỤ THỂ (key riêng từng guild).
+
+        Trước đây bot/cogs/ai.py tự implement lại HTTP cho cả 3 provider → tồn tại
+        hai bản logic AI song song (một bản có cooldown/circuit breaker/sanitize,
+        một bản không). Nay mọi đường đi đều dùng chung implementation tại đây.
+
+        Trả về (ok, text). Bị 429 → (False, "RATE_LIMIT_429") và key vào cooldown
+        như pool toàn cục; URL ảnh không an toàn → (False, "IMAGE_SSRF_BLOCKED").
+
+        Lưu ý: mỗi lần gọi tạo 1 ClientSession riêng (giống call_ai_async) — cố ý
+        không giữ session dài hạn trong singleton vì manager được dùng từ cả bot
+        (event loop) lẫn dashboard (thread), tránh dùng session qua nhiều loop.
+        """
+        k = (key or "").strip()
+        if not k:
+            return False, "EMPTY_KEY"
+        if self.is_in_cooldown(k):
+            return False, "RATE_LIMIT_429"
+
+        model = (preferred_model or self.load_pools().get("model") or "").strip()
+
+        async with aiohttp.ClientSession() as session:
+            if provider == "gemini":
+                gemini_model = model if model.startswith("gemini-") else "gemini-3.6-flash"
+                return await self._call_gemini_async(
+                    session, k, prompt, system_instruction,
+                    model=gemini_model, image_url=image_url,
+                )
+            if provider == "groq":
+                return await self._call_groq_async(
+                    session, k, prompt, system_instruction,
+                    model=model, image_url=image_url,
+                )
+            if provider == "openrouter":
+                return await self._call_openrouter_async(
+                    session, k, prompt, system_instruction, image_url=image_url,
+                )
+        return False, "Unknown provider"
 
     # ─── Multi-Key Diagnostics & Testing ───────────────────────────────────────
 

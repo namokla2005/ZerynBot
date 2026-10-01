@@ -4,7 +4,14 @@ Hỗ trợ Dual-Mode thông minh:
   1. Mạng nội bộ LAN (TERMUX_HOST:8022) khi ở nhà (siêu tốc 0.2s).
   2. Cloudflare Tunnel (ssh.zerynbot.id.vn) khi ở xa / 4G (tự động chuyển đổi).
 
-Sử dụng: python scripts/termux_deploy.py
+Sử dụng (không tham số = deploy, giữ nguyên hành vi cũ):
+    python scripts/termux_deploy.py                 # deploy: git pull + restart + kiểm tra
+    python scripts/termux_deploy.py deploy          # tương đương ở trên
+    python scripts/termux_deploy.py status          # xem tiến trình + log gần nhất (chỉ đọc)
+    python scripts/termux_deploy.py diag [--json]   # chẩn đoán tài nguyên Termux
+    python scripts/termux_deploy.py cleanup --dry-run   # xem kế hoạch dọn dẹp
+    python scripts/termux_deploy.py cleanup             # dọn dẹp thật (qua SSH)
+    python scripts/termux_deploy.py cleanup --local     # dọn dẹp trên máy hiện tại
 """
 import os
 import sys
@@ -12,7 +19,15 @@ import time
 import json
 import socket
 import subprocess
-import paramiko
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+try:
+    import paramiko
+except ImportError:  # chỉ cần cho kênh LAN; kênh Cloudflare dùng ssh CLI
+    paramiko = None
 
 try:
     from dotenv import load_dotenv
@@ -47,6 +62,8 @@ class RemoteExecutor:
         t0 = time.time()
         # 1. Thử kết nối mạng LAN nội bộ trước (khi ở nhà) bằng SSH Key
         try:
+            if paramiko is None:
+                raise RuntimeError("Thiếu thư viện paramiko (pip install paramiko)")
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             conn_args = {
@@ -204,6 +221,81 @@ def run_remote_deploy():
     print("\n🎉 XÁC THỰC HOÀN TẤT 100%: Tất cả tiến trình đều RUNNING, Health Check HEALTHY, và toàn bộ 20/20 modules chức năng đều PASS trên Termux!")
     return True
 
+def run_remote_status() -> bool:
+    """In trạng thái tiến trình + log gần nhất trên Termux (chỉ đọc, không sửa gì)."""
+    cfg = get_config()
+    executor = RemoteExecutor(cfg)
+    ok, info = executor.connect()
+    if not ok:
+        print(f"❌ LỖI KẾT NỐI: {info}")
+        print("💡 Gợi ý: kiểm tra sshd trên Termux hoặc Cloudflare Tunnel.")
+        return False
+
+    print(f"✅ Kết nối qua: {info}\n")
+    checks = (
+        ("Trạng thái tiến trình", f"cd {cfg['bot_dir']} && python main.py --status", 15.0),
+        ("Health endpoint", "curl -s -m 5 http://localhost:5000/health || echo OFFLINE", 10.0),
+        ("Dung lượng data/", f"du -sh {cfg['bot_dir']}/data 2>/dev/null || echo '?'", 10.0),
+        ("Log bot (12 dòng cuối)", f"cd {cfg['bot_dir']} && tail -n 12 data/bot.log 2>/dev/null", 10.0),
+        ("Log dashboard (12 dòng cuối)", f"cd {cfg['bot_dir']} && tail -n 12 data/dashboard.log 2>/dev/null", 10.0),
+    )
+    for label, cmd, timeout in checks:
+        out, err, _code = executor.exec(cmd, timeout=timeout)
+        print(f"── {label} " + "─" * max(4, 52 - len(label)))
+        print((out or err or "(không có dữ liệu)").strip())
+        print()
+
+    executor.close()
+    return True
+
+
+def main(argv=None) -> int:
+    """Entrypoint duy nhất cho các tác vụ Termux (deploy / cleanup / diag / status).
+
+    Không truyền tham số → chạy `deploy` để giữ nguyên hành vi cũ.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="termux_deploy.py",
+        description="Triển khai & bảo trì ZerynBot V2 trên Termux (Tecno Pova 2).",
+    )
+    sub = parser.add_subparsers(dest="action")
+    sub.add_parser("deploy", help="Git pull + restart + kiểm tra sức khỏe (mặc định)")
+
+    p_cleanup = sub.add_parser("cleanup", help="Dọn rác & tối ưu dung lượng Termux")
+    p_cleanup.add_argument("--dry-run", action="store_true", help="Chỉ in kế hoạch, không xoá")
+    p_cleanup.add_argument("--local", action="store_true", help="Chạy trên máy hiện tại (không qua SSH)")
+
+    p_diag = sub.add_parser("diag", help="Chẩn đoán tài nguyên Termux")
+    p_diag.add_argument("--lines", type=int, default=60, help="Số dòng log cần đọc (mặc định 60)")
+    p_diag.add_argument("--json", action="store_true", help="Xuất định dạng JSON thô")
+
+    sub.add_parser("status", help="Xem trạng thái tiến trình + log gần nhất (chỉ đọc)")
+
+    args = parser.parse_args(argv)
+    action = args.action or "deploy"
+
+    if action == "cleanup":
+        from scripts.termux_cleanup import run_termux_cleanup
+
+        return 0 if run_termux_cleanup(dry_run=args.dry_run, local=args.local) else 1
+
+    if action == "diag":
+        from scripts.termux_diag import collect_termux_diagnostics, format_diagnostic_report
+
+        data = collect_termux_diagnostics(log_lines=args.lines)
+        if args.json:
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+        else:
+            print(format_diagnostic_report(data))
+        return 0
+
+    if action == "status":
+        return 0 if run_remote_status() else 1
+
+    return 0 if run_remote_deploy() else 1
+
+
 if __name__ == "__main__":
-    success = run_remote_deploy()
-    sys.exit(0 if success else 1)
+    sys.exit(main())

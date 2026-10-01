@@ -41,6 +41,22 @@ HEALTH_URL="http://127.0.0.1:5000/health"
 HEALTH_INTERVAL=90        # kiểm tra mỗi 90 giây
 HEALTH_FAIL_THRESHOLD=4   # ~6 phút (4 × 90s) → khớp với OFFLINE_THRESHOLD của bot
 
+# ─── Cắt log stdout khi phình quá lớn (chống đầy thẻ nhớ trên Termux) ─────────
+# Log do ứng dụng tự ghi (data/bot.log, data/dashboard.log) đã có
+# RotatingFileHandler tự xoay. Hàm này chỉ chặn phần stdout/stderr của tiến
+# trình — thứ không ai quản lý và có thể phình vô hạn.
+MAX_STDOUT_LOG_BYTES=$((5 * 1024 * 1024))   # 5MB
+rotate_if_big() {
+    for f in data/bot.stdout.log data/dashboard.stdout.log; do
+        [ -f "$f" ] || continue
+        size=$(wc -c < "$f" 2>/dev/null || echo 0)
+        if [ "$size" -gt "$MAX_STDOUT_LOG_BYTES" ]; then
+            mv -f "$f" "$f.1" 2>/dev/null && : > "$f"
+            echo "[Watchdog] Đã xoay $f (vượt 5MB)"
+        fi
+    done
+}
+
 echo "[Watchdog] Đã khởi động (PID $$). (exit-code + health-check)"
 
 # ─── Hàm kiểm tra kết nối mạng/DNS Termux tới Discord Gateway (Fallback 2 tầng) ────
@@ -125,11 +141,13 @@ get_backoff() {
 
 while true; do
     # 0. Kiểm tra cờ dừng toàn bộ (--stopall)
-    if [ -f "$STOPALL_FLAG" ]; then
-        echo "[Watchdog] Đã nhận tín hiệu dừng toàn bộ (stopall.flag). Dừng watchdog."
+    if [ -f "$STOPALL_FLAG" ]; then        echo "[Watchdog] Đã nhận tín hiệu dừng toàn bộ (stopall.flag). Dừng watchdog."
         rm -f "$STOPALL_FLAG" 2>/dev/null
         exit 0
     fi
+
+    # Cắt bớt log stdout nếu phình quá 5MB (rất nhẹ, chạy mỗi vòng lặp)
+    rotate_if_big
 
     # Dọn dẹp tiến trình bot cũ nếu còn sót lại để triệt tiêu 100% duplicate bot
     if [ -f "$BOT_PID_FILE" ]; then
@@ -212,7 +230,7 @@ while true; do
 
     if [ $dash_running -eq 0 ]; then
         echo "[Watchdog] Dashboard đang tắt, khởi động lại Dashboard..."
-        dash_log="data/dashboard.log"
+        dash_log="data/dashboard.stdout.log"
         nohup python main.py --dashboard > "$dash_log" 2>&1 &
         DASH_NEW_PID=$!
         echo "$DASH_NEW_PID" > "$DASH_PID_FILE"

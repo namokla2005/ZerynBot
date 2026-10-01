@@ -359,7 +359,12 @@ def start_all():
 
     # 1. Khởi động Bot (kèm Watchdog)
     print("[1/2] Starting Bot Discord (Watchdog)...")
-    bot_log = os.path.join(PID_DIR, "bot.log")
+    # LƯU Ý: KHÔNG redirect stdout/stderr vào data/bot.log — file đó do
+    # RotatingFileHandler trong bot/bot.py quản lý. Ghi chung một file sẽ làm
+    # việc xoay log lệch nhịp (tiến trình nohup vẫn giữ fd cũ sau khi file bị
+    # rename → log mới rơi vào bản rotated). stdout/stderr đi riêng vào
+    # data/bot.stdout.log và được watchdog cắt theo kích thước.
+    bot_log = os.path.join(PID_DIR, "bot.stdout.log")
     os.makedirs(PID_DIR, exist_ok=True)
     
     if os.name == "nt":
@@ -385,7 +390,9 @@ def start_all():
 
     # 2. Khởi động Dashboard
     print("[2/2] Starting Dashboard...")
-    dash_log = os.path.join(PID_DIR, "dashboard.log")
+    # Tương tự bot: dashboard/app.py tự ghi data/dashboard.log (RotatingFileHandler),
+    # còn stdout/stderr của tiến trình đi vào data/dashboard.stdout.log.
+    dash_log = os.path.join(PID_DIR, "dashboard.stdout.log")
     if os.name == "nt":
         p_dash = subprocess.Popen([sys.executable, "main.py", "--dashboard"], creationflags=subprocess.CREATE_NEW_CONSOLE)
         _write_pid(PID_DASH, p_dash.pid)

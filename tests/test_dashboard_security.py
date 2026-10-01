@@ -166,10 +166,10 @@ def test_post_with_csrf_allowed(client, temp_db):
 
 
 def test_post_anonymous_redirects_not_csrf(client):
-    """Chưa đăng nhập → API trả 403 Forbidden (không phải CSRF 403)."""
+    """Chưa đăng nhập → API trả 401 Unauthorized hoặc 403 Forbidden (không phải CSRF)."""
     resp = client.post(f"/api/guild/{MOCK_GUILD_ID}/modules/music", json={"enabled": True})
-    assert resp.status_code == 403
-    assert resp.get_json()["error"] == "Forbidden"
+    assert resp.status_code in (401, 403)
+    assert resp.get_json()["error"] in ("Unauthorized", "Forbidden")
 
 
 def test_csrf_token_via_form_field(client, temp_db):

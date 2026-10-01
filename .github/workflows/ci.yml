@@ -1,0 +1,44 @@
+name: CI
+
+# Chạy test suite tự động cho mọi push/PR.
+# Bảo vệ các quy tắc bảo mật (phân quyền 27 lệnh con, dual-mode checks) và các
+# tối ưu chạy 24/7 trên Termux (PRAGMA, ngân sách thời gian AI...) khỏi bị vô
+# hiệu hoá âm thầm bởi một PR nào đó.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Cài dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Chạy test suite
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          # Giá trị giả cho CI — test tự quản lý env của nó (xem tests/test_config_security.py)
+          FLASK_SECRET_KEY: "ci-only-secret-key-not-used-in-production"
+          ADMIN_PASSWORD: "ci-only-admin-password"
+        run: python -m pytest tests/ -q

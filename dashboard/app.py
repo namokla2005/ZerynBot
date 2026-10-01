@@ -14,6 +14,8 @@ except AttributeError:
 import secrets
 import shlex
 import time as _time
+import logging
+from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 from functools import wraps
 
@@ -26,9 +28,58 @@ import requests
 from i18n import t, tr, i18n as i18n_manager
 from dashboard.auth import (
     get_oauth2_url, exchange_code, get_user, get_manageable_guilds, get_avatar_url,
-    channel_belongs_to_guild, is_safe_http_url,
+    channel_belongs_to_guild, is_safe_http_url, get_guild_roles,
 )
 from dashboard.api import api
+
+# ─── Logging xoay vòng (dashboard chạy 24/7 trên Termux) ────────────────────────
+# Ghi vào data/dashboard.log (2MB × 2 bản) để log KHÔNG phình vô hạn.
+# stdout/stderr của tiến trình được launcher redirect riêng sang
+# data/dashboard.stdout.log (xem main.py và scripts/watchdog.sh).
+logger = logging.getLogger("BotV2.Dashboard")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _log_fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    try:
+        _log_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+        )
+        os.makedirs(_log_dir, exist_ok=True)
+        _file_handler = RotatingFileHandler(
+            os.path.join(_log_dir, "dashboard.log"),
+            maxBytes=2 * 1024 * 1024,
+            backupCount=2,
+            encoding="utf-8",
+        )
+        _file_handler.setFormatter(_log_fmt)
+        logger.addHandler(_file_handler)
+    except Exception as exc:  # lỗi setup log không được làm chết dashboard
+        sys.stderr.write(f"Failed to setup RotatingFileHandler: {exc}\n")
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(_log_fmt)
+    logger.addHandler(_stream_handler)
+    logger.propagate = False
+
+def _discord_api(method: str, path: str, *, timeout: float = 10.0, headers: dict | None = None, **kwargs):
+    """
+    Gọi Discord REST API bằng bot token với timeout thống nhất, KHÔNG raise.
+
+    Trả về response object (caller tự xử lý status) hoặc None nếu lỗi mạng.
+    Trước đây mỗi route tự gọi requests.get/post/delete với timeout rải rác 5-10s
+    → không thể thêm retry/backoff tập trung và rất dễ quên timeout.
+    """
+    try:
+        hdrs = dict(headers or {})
+        hdrs.setdefault("Authorization", f"Bot {config.TOKEN}")
+        url = path if path.startswith("http") else f"{config.DISCORD_API_BASE}{path}"
+        return requests.request(method, url, headers=hdrs, timeout=timeout, **kwargs)
+    except Exception as e:
+        logger.warning("Discord API %s %s lỗi: %s", method, path, e)
+        return None
+
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = config.FLASK_SECRET_KEY
@@ -329,7 +380,7 @@ def home():
         guilds = get_manageable_guilds(session["access_token"])
         session["guilds"] = guilds
     except Exception as e:
-        print(f"Error refreshing guilds on load: {e}")
+        logger.warning("Lỗi làm mới danh sách guild khi tải trang: %s", e)
         guilds = session.get("guilds", [])
 
     return render_template("home.html",
@@ -918,22 +969,9 @@ def server_tickets(guild_id: str):
     text_channels = db.get_guild_channels(guild_id) or []
     categories = db.get_guild_categories(guild_id) or []
     
-    # Fetch roles dynamically using bot token with fallback
-    roles = []
-    try:
-        if config.TOKEN:
-            resp = requests.get(
-                f"https://discord.com/api/v10/guilds/{guild_id}/roles",
-                headers={"Authorization": f"Bot {config.TOKEN}"},
-                timeout=5
-            )
-            if resp.status_code == 200:
-                roles = [r for r in resp.json() if r.get("name") != "@everyone"]
-    except Exception as e:
-        print(f"Error fetching roles for tickets: {e}")
-
-    if not roles:
-        roles = db.get_guild_roles(guild_id) or []
+    # Roles: cache 5 phút (REST → fallback bảng guild_roles). Trước đây mỗi lần
+    # mở trang là 1 request REST 5s giữ 1 trong 4 thread của waitress.
+    roles = get_guild_roles(guild_id)
 
     return render_template("tickets.html", **_server_ctx(
         guild_id, "tickets",
@@ -950,18 +988,7 @@ def server_reactionroles(guild_id: str):
     panels = db.get_reaction_roles_panels(guild_id)
     text_channels = db.get_guild_channels(guild_id) or []
     
-    # Fetch roles dynamically using bot token
-    roles = []
-    try:
-        resp = requests.get(
-            f"https://discord.com/api/v10/guilds/{guild_id}/roles",
-            headers={"Authorization": f"Bot {config.TOKEN}"},
-            timeout=5
-        )
-        if resp.status_code == 200:
-            roles = [r for r in resp.json() if r["name"] != "@everyone"]
-    except Exception as e:
-        print(f"Error fetching roles: {e}")
+    roles = get_guild_roles(guild_id)
 
     return render_template("reactionroles.html", **_server_ctx(
         guild_id, "reactionroles",
@@ -971,7 +998,31 @@ def server_reactionroles(guild_id: str):
     ))
 
 
+# Cache ngắn cho metadata bài hát: tránh gọi lại YouTube khi nhiều người thêm
+# cùng một bài hoặc bấm lại form. Cap số entry để không phình RAM trên máy 6GB.
+_TRACK_INFO_CACHE_TTL = 600.0
+_TRACK_INFO_CACHE_MAX = 200
+_track_info_cache: dict = {}  # query đã chuẩn hoá -> (timestamp, dict)
+
+
 def fetch_track_info_simple(query: str) -> dict:
+    """Wrapper có cache cho _fetch_track_info_simple_uncached (2 request × 5s mỗi lần)."""
+    key = (query or "").strip().lower()
+    now = _time.time()
+    hit = _track_info_cache.get(key)
+    if hit and now - hit[0] < _TRACK_INFO_CACHE_TTL:
+        return hit[1]
+    if len(_track_info_cache) > _TRACK_INFO_CACHE_MAX:
+        _track_info_cache.clear()
+
+    info = _fetch_track_info_simple_uncached(query)
+    # Chỉ cache kết quả có URL thật (không cache lỗi/rỗng để lần sau còn thử lại).
+    if info and info.get("webpage_url"):
+        _track_info_cache[key] = (now, info)
+    return info
+
+
+def _fetch_track_info_simple_uncached(query: str) -> dict:
     import re
 
     # P1.8: chống SSRF — URL do người dùng nhập phải là http(s) công khai hợp lệ.
@@ -1025,7 +1076,7 @@ def fetch_track_info_simple(query: str) -> dict:
                 "uploader": data.get("author_name", "—")
             }
     except Exception as e:
-        print(f"Web fetch track error: {e}")
+        logger.warning("Lỗi lấy metadata bài hát: %s", e)
 
     return {
         "title": "Video YouTube" if query.startswith("http") else query[:50] + "...",
@@ -1357,22 +1408,18 @@ def _audit_admin_action(action: str, event_type: str = "admin_action", details: 
             details=(str(details)[:500] if details else None),
         )
     except Exception as exc:  # audit log không bao giờ được làm hỏng request
-        print(f"[Admin] audit log error: {exc}")
+        logger.warning("[Admin] lỗi ghi audit log: %s", exc)
 
 
 def _get_all_bot_guilds_detailed() -> list:
     """Lấy danh sách tất cả server bot đang có mặt, kèm thông tin chi tiết."""
     try:
-        resp = requests.get(
-            f"{config.DISCORD_API_BASE}/users/@me/guilds",
-            headers={"Authorization": f"Bot {config.TOKEN}"},
-            timeout=10,
-        )
-        if not resp.ok:
+        resp = _discord_api("GET", "/users/@me/guilds", timeout=10)
+        if resp is None or not resp.ok:
             return []
         guilds = resp.json()
     except Exception as e:
-        print(f"[Admin] Error fetching bot guilds: {e}")
+        logger.warning("[Admin] lỗi lấy danh sách guild của bot: %s", e)
         return []
 
     # Bổ sung thông tin icon_url
@@ -1447,7 +1494,7 @@ def get_system_hardware_stats() -> dict:
                 stats["ram_used_gb"] = round(used_b / (1024**3), 2)
                 stats["ram_percent"] = round(float(stat.dwMemoryLoad), 1)
     except Exception as e:
-        print(f"[Telemetry] Error reading RAM: {e}")
+        logger.warning("[Telemetry] lỗi đọc RAM: %s", e)
 
     # 2. Uptime Telemetry
     try:
@@ -1462,7 +1509,7 @@ def get_system_hardware_stats() -> dict:
                     part = out.split("up ")[1].split(",")[0].strip()
                     stats["uptime"] = part.replace("days", "ngày").replace("day", "ngày")
     except Exception as e:
-        print(f"[Telemetry] Error reading Uptime: {e}")
+        logger.warning("[Telemetry] lỗi đọc uptime: %s", e)
 
     return stats
 
@@ -1740,17 +1787,12 @@ def admin_kick_guild(guild_id: str):
     guild_name = request.form.get("guild_name", "Unknown")
 
     # Gọi Discord API để bot rời server
-    try:
-        resp = requests.delete(
-            f"{config.DISCORD_API_BASE}/users/@me/guilds/{guild_id}",
-            headers={"Authorization": f"Bot {config.TOKEN}"},
-            timeout=10,
-        )
-        if resp.status_code not in (200, 204):
-            flash(f"❌ Discord API trả về lỗi: {resp.status_code} — {resp.text}", "error")
-            return redirect(url_for("admin_panel"))
-    except Exception as e:
-        flash(f"❌ Không thể kết nối đến Discord API: {e}", "error")
+    resp = _discord_api("DELETE", f"/users/@me/guilds/{guild_id}", timeout=10)
+    if resp is None:
+        flash("❌ Không thể kết nối đến Discord API (xem data/dashboard.log).", "error")
+        return redirect(url_for("admin_panel"))
+    if resp.status_code not in (200, 204):
+        flash(f"❌ Discord API trả về lỗi: {resp.status_code} — {resp.text}", "error")
         return redirect(url_for("admin_panel"))
 
     # Thêm vào blacklist
@@ -1772,17 +1814,12 @@ def admin_unblacklist(guild_id: str):
 @owner_required
 def admin_invite_guild(guild_id: str):
     """Tạo instant invite link cho một server để Owner có thể gia nhập."""
-    try:
-        cr = requests.get(
-            f"{config.DISCORD_API_BASE}/guilds/{guild_id}/channels",
-            headers={"Authorization": f"Bot {config.TOKEN}"},
-            timeout=8,
-        )
-        if not cr.ok:
-            return jsonify({"ok": False, "error": f"Không thể lấy danh sách kênh (HTTP {cr.status_code})"}), 400
-        channels = cr.json()
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"Lỗi kết nối Discord API: {e}"}), 500
+    cr = _discord_api("GET", f"/guilds/{guild_id}/channels", timeout=8)
+    if cr is None:
+        return jsonify({"ok": False, "error": "Lỗi kết nối Discord API (xem data/dashboard.log)."}), 500
+    if not cr.ok:
+        return jsonify({"ok": False, "error": f"Không thể lấy danh sách kênh (HTTP {cr.status_code})"}), 400
+    channels = cr.json()
 
     candidate_channels = [c for c in channels if c.get("type") in (0, 5, 2)]
     if not candidate_channels:
@@ -1794,12 +1831,9 @@ def admin_invite_guild(guild_id: str):
     for ch in candidate_channels:
         ch_id = ch["id"]
         try:
-            inv_resp = requests.post(
-                f"{config.DISCORD_API_BASE}/channels/{ch_id}/invites",
-                headers={
-                    "Authorization": f"Bot {config.TOKEN}",
-                    "Content-Type": "application/json"
-                },
+            inv_resp = _discord_api(
+                "POST",
+                f"/channels/{ch_id}/invites",
                 json={
                     "max_age": 86400,
                     "max_uses": 0,
@@ -1807,7 +1841,7 @@ def admin_invite_guild(guild_id: str):
                 },
                 timeout=5
             )
-            if inv_resp.status_code in (200, 201):
+            if inv_resp is not None and inv_resp.status_code in (200, 201):
                 inv_data = inv_resp.json()
                 code = inv_data.get("code")
                 if code:
@@ -1869,12 +1903,8 @@ def admin_broadcast():
 
         # Thử lấy guild info từ Discord API để có system_channel_id
         try:
-            gr = requests.get(
-                f"{config.DISCORD_API_BASE}/guilds/{guild_id}",
-                headers={"Authorization": f"Bot {config.TOKEN}"},
-                timeout=5,
-            )
-            if gr.ok:
+            gr = _discord_api("GET", f"/guilds/{guild_id}", timeout=5)
+            if gr is not None and gr.ok:
                 gdata = gr.json()
                 channel_id = gdata.get("system_channel_id")
         except Exception:
@@ -1883,12 +1913,8 @@ def admin_broadcast():
         # Nếu không có system channel, thử kênh text đầu tiên
         if not channel_id:
             try:
-                cr = requests.get(
-                    f"{config.DISCORD_API_BASE}/guilds/{guild_id}/channels",
-                    headers={"Authorization": f"Bot {config.TOKEN}"},
-                    timeout=5,
-                )
-                if cr.ok:
+                cr = _discord_api("GET", f"/guilds/{guild_id}/channels", timeout=5)
+                if cr is not None and cr.ok:
                     channels = cr.json()
                     text_channels = [c for c in channels if c.get("type") == 0]
                     if text_channels:
@@ -1912,16 +1938,13 @@ def admin_broadcast():
                     "footer": {"text": "Thông báo từ Bot Owner"},
                 }]
             }
-            mr = requests.post(
-                f"{config.DISCORD_API_BASE}/channels/{channel_id}/messages",
-                headers={
-                    "Authorization": f"Bot {config.TOKEN}",
-                    "Content-Type": "application/json",
-                },
+            mr = _discord_api(
+                "POST",
+                f"/channels/{channel_id}/messages",
                 json=payload,
                 timeout=8,
             )
-            if mr.status_code in (200, 201):
+            if mr is not None and mr.status_code in (200, 201):
                 success_count += 1
             else:
                 fail_count += 1
@@ -2210,6 +2233,6 @@ if __name__ == "__main__":
     # tùy ý qua HTTP nếu bị lộ — chỉ bật khi thật sự cần gỡ lỗi cục bộ.
     _debug = os.environ.get("FLASK_DEBUG", "").strip().lower() in ("1", "true", "yes")
     if _debug:
-        print("[SECURITY] FLASK_DEBUG=1 — Werkzeug debugger đang BẬT. Không dùng khi mở ra Internet!")
+        logger.warning("[SECURITY] FLASK_DEBUG=1 — Werkzeug debugger đang BẬT. Không dùng khi mở ra Internet!")
     app.run(host=dash_host, port=dash_port, debug=_debug)
 

@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Script to create dashboard/commands_catalog.py with full translations for:
-- 87 commands
-- syntax/usage parameters
-- argument descriptions
-- preview titles, descriptions, and fields
-across all 6 languages (vi, en, zh, es, pt, fr).
+commands_catalog.py — Bản địa hoá catalog lệnh cho Web Dashboard /docs.
+
+Nhận dữ liệu gốc từ `commands_data._COMMANDS_DATA` (registry 110 lệnh dùng chung
+với /help của bot) rồi dịch tên lệnh, tham số, preview sang 6 ngôn ngữ
+(vi, en, zh, es, pt, fr).
+
+LƯU Ý: chỉ import từ `commands_data`. Bản cũ có fallback
+`from dashboard.app import _COMMANDS_DATA` → tạo phụ thuộc VÒNG (dashboard.app
+import module này), là code chết và là bẫy khi refactor.
 """
 
 import sys, os, json, copy
-try:
-    from commands_data import _COMMANDS_DATA
-except ImportError:
-    from dashboard.app import _COMMANDS_DATA
+
+from commands_data import _COMMANDS_DATA
 
 # Dictionary of argument description translations across 6 languages
 ARG_TRANS = {

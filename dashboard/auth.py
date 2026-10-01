@@ -214,6 +214,82 @@ def invalidate_guild_channel_cache(guild_id: str) -> None:
     _channel_cache.pop(str(guild_id), None)
 
 
+# ─── Cache danh sách role của guild (tránh gọi REST mỗi lần mở trang) ──────────
+
+_GUILD_ROLES_TTL = 300.0
+_guild_roles_cache: dict = {}  # guild_id -> (timestamp, list_of_role_dicts)
+
+
+def _normalize_db_role(row: dict) -> dict:
+    """Chuẩn hoá 1 dòng bảng guild_roles về đúng dạng payload role của Discord REST."""
+    return {
+        "id": str(row.get("role_id") or row.get("id") or ""),
+        "name": row.get("role_name") or row.get("name") or "",
+        "color": row.get("color_hex"),
+        "position": row.get("position") or 0,
+    }
+
+
+def get_guild_roles(guild_id: str, include_everyone: bool = False) -> list:
+    """
+    Lấy danh sách role của guild qua Discord REST (bot token), cache 5 phút.
+
+    Dedupe tải cho Termux: trước đây mỗi lần mở /tickets và /reactionroles là
+    một request REST 5s giữ 1 trong 4 thread của waitress.
+
+    Fallback (khi REST lỗi hoặc chưa có token): bảng guild_roles do bot đồng bộ,
+    đã được chuẩn hoá về cùng dạng dict (id/name/color/position) để template dùng
+    chung một đường.
+    """
+    global _guild_roles_cache
+    gid = str(guild_id)
+    now = time.time()
+
+    cached = _guild_roles_cache.get(gid)
+    if cached and now - cached[0] < _GUILD_ROLES_TTL:
+        return cached[1]
+
+    # Dọn cache hết hạn khi vượt ngưỡng (không để dict phình mãi trên máy 6GB).
+    if len(_guild_roles_cache) > 200:
+        _guild_roles_cache = {
+            k: v for k, v in _guild_roles_cache.items() if now - v[0] < _GUILD_ROLES_TTL
+        }
+
+    roles: list = []
+    try:
+        if config.TOKEN:
+            resp = requests.get(
+                f"{config.DISCORD_API_BASE}/guilds/{gid}/roles",
+                headers={"Authorization": f"Bot {config.TOKEN}"},
+                timeout=5,
+            )
+            if resp.ok:
+                roles = [
+                    r for r in resp.json()
+                    if include_everyone or r.get("name") != "@everyone"
+                ]
+    except Exception:
+        roles = []
+
+    if not roles:
+        try:
+            import database as db
+            roles = [_normalize_db_role(r) for r in (db.get_guild_roles(gid) or [])]
+            if not include_everyone:
+                roles = [r for r in roles if r.get("name") != "@everyone"]
+        except Exception:
+            roles = []
+
+    if roles:
+        _guild_roles_cache[gid] = (now, roles)
+    return roles
+
+
+def invalidate_guild_roles_cache(guild_id: str) -> None:
+    """Xóa cache role của guild (gọi sau khi bot đồng bộ lại danh sách role)."""
+    _guild_roles_cache.pop(str(guild_id), None)
+
+
 # ─── SSRF guard cho URL người dùng nhập (P1.8) ─────────────────────────────────
 
 _BLOCKED_HOSTNAMES = {

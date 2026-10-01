@@ -85,9 +85,11 @@ class Remind(commands.Cog):
             await ctx.send(tr(s, "remind.module_disabled"), ephemeral=True)
             raise commands.CommandError("Remind module is disabled")
 
-    @tasks.loop(seconds=30)
+    # 60s (thay vì 30s): giảm số lần đánh thức CPU/query SQLite trên Termux.
+    # Đánh đổi: nhắc nhở có thể trễ tối đa 60s so với thời điểm đặt.
+    @tasks.loop(seconds=60)
     async def reminder_task(self):
-        """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 30 giây."""
+        """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 60 giây."""
         try:
             now_ts = int(_time.time())
             due_reminders = await async_get_due_reminders(now_ts)
