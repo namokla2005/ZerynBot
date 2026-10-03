@@ -165,9 +165,14 @@ class MusicPlayer:
 
     # ── Inactivity Auto-Disconnect ─────────────────────────────────────────
     def _reset_inactivity_timer(self):
-        if self._inactivity_task and not self._inactivity_task.done():
-            self._inactivity_task.cancel()
+        # QUAN TRỌNG: không được huỷ chính task đang chạy.
+        # `_inactivity_countdown()` gọi `await self.stop()`, mà `stop()` lại gọi hàm này —
+        # tự huỷ sẽ khiến CancelledError bắn vào await kế tiếp giữa `stop()`, bot không
+        # rời voice channel, không xoá embed NP và không `_drop()` player (rò slot MAX_PLAYERS).
+        task = self._inactivity_task
         self._inactivity_task = None
+        if task and not task.done() and task is not asyncio.current_task():
+            task.cancel()
 
     def _start_inactivity_timer(self):
         self._reset_inactivity_timer()
@@ -383,6 +388,12 @@ class MusicPlayer:
         """Dispatch bài tiếp theo bất đồng bộ trực tiếp trên event loop."""
         if self.queue:
             self._reset_inactivity_timer()
+            # Chưa kết nối voice thì GIỮ NGUYÊN hàng đợi. `_play()` return ngay khi
+            # `vc` rời, nên pop trước sẽ khiến bài bị mất vĩnh viễn (reconnect xong cũng
+            # không phát lại được).
+            if not self.vc or not self.vc.is_connected():
+                log.debug(f"[Music] Chưa kết nối voice tại guild {self.guild.id}, giữ nguyên {len(self.queue)} bài trong hàng đợi.")
+                return
             await self._play(self.queue.pop(0))
         elif self.autoplay and self.current:
             self._reset_inactivity_timer()

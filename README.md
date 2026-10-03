@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1621%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(1694%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-20%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="20 Modules">
-  <img src="https://img.shields.io/badge/Commands-108%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="108 Commands">
+  <img src="https://img.shields.io/badge/Commands-110%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="110 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
 
-**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (20 Modules & 108 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
+**Zeryn** (ZerynBot V2) là một Discord Bot đa chức năng thế hệ mới tích hợp **Web Dashboard quản trị server (20 Modules & 110 Lệnh)**, hỗ trợ **Đa ngôn ngữ (i18n)** toàn diện (6 thứ tiếng), bộ nhớ đệm **In-Memory RAM Cache** thuần Python siêu nhẹ và được tối ưu hóa đặc biệt để vận hành 24/7 mượt mà trên các thiết bị cấu hình thấp (như máy tính bảng Android chạy **Termux**, Raspberry Pi hoặc VPS giá rẻ).
 
 ---
 
@@ -19,7 +19,7 @@
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1621 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **1694 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -326,6 +326,7 @@ ZerynBot/
 ├── database/            # Package cơ sở dữ liệu SQLite (14 modules, WAL mode, async & sync, PRAGMA tuning)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
 ├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (1694 keys/file)
+├── commands_data.py     # _COMMANDS_DATA — registry tập trung 110 lệnh / 17 danh mục cho /commands
 ├── requirements.txt     # Danh sách thư viện Python chạy production
 ├── requirements-dev.txt # Danh sách thư viện dev & test (pytest, ruff)
 ├── LICENSE              # Giấy phép nguồn mở MIT
@@ -334,10 +335,12 @@ ZerynBot/
 │   ├── card_generator.py# Render ảnh Rank Card, Welcome/Goodbye Banner bằng Pillow
 │   ├── checks.py        # Kiểm tra quyền hạn & Bot Admin
 │   ├── music/           # Hệ thống Audio Pipeline module hóa (extractor, player, views, embeds, voice mixin)
-│   └── cogs/            # 22 Cogs chức năng (moderation, fun, birthday, remind, ai, tempvoice, economy, customcommands, music, automod, ...)
+│   └── cogs/            # 24 Cogs chức năng (moderation, fun, birthday, remind, ai, tempvoice, economy, customcommands, music, automod, ...)
 ├── dashboard/           # 🌐 Flask Web Dashboard
-│   ├── app.py           # Facade entrypoint & _COMMANDS_DATA registry
+│   ├── app.py           # Shim tương thích (app = create_app() + re-export cho main.py & tests)
 │   ├── app_factory.py   # Factory khởi tạo ứng dụng Flask & nạp Blueprints
+│   ├── extensions.py    # Logger xoay vòng, Flask-Limiter, CSRF & _discord_api dùng chung
+│   ├── web_helpers.py   # Decorator @login_required / @guild_access_required + cache track-info
 │   ├── blueprints/      # Các Blueprint chức năng: public, guild, music, admin, support
 │   ├── api.py           # AJAX API Endpoints
 │   ├── auth.py          # Discord OAuth2 Session Manager & SSRF filter
@@ -346,7 +349,7 @@ ZerynBot/
 ├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1694 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 154 tests (cache, i18n, database, permissions, Termux optimizations, dashboard)
+├── tests/               # 🧪 158 tests (cache, i18n, database, permissions, Termux optimizations, dashboard, music behavior)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```
@@ -386,7 +389,7 @@ Gợi ý nhịp: chạy `cleanup` mỗi 2–4 tuần, hoặc khi `du -sh data` v
 # Cài đặt thư viện dev/test (chỉ cần trên máy dev):
 pip install -r requirements-dev.txt
 
-# Chạy toàn bộ test suite (78 test; vài test dashboard tự skip nếu chưa cài flask)
+# Chạy toàn bộ test suite (158 test; vài test dashboard tự skip nếu chưa cài flask)
 pytest -q
 ```
 

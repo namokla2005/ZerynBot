@@ -49,9 +49,9 @@ Mọi liên kết CSS/JS trong thẻ `<head>` **BẮT BUỘC** gắn phiên bả
 
 Khi tạo thêm trang cài đặt module mới trong Dashboard:
 
-1. **Bước 1**: Đăng ký Module trong `DEFAULT_MODULES` (`database.py`).
-2. **Bước 2**: Viết hàm CSDL `get_<module>_settings()` & `update_<module>_settings()` trong `database.py`.
-3. **Bước 3**: Thêm Route Flask trong `dashboard/app.py` với decorator `@login_required` và `@guild_admin_required`.
+1. **Bước 1**: Đăng ký Module trong `DEFAULT_MODULES` (`database/guilds.py`).
+2. **Bước 2**: Viết hàm CSDL `get_<module>_settings()` & `update_<module>_settings()` trong `database/<domain>.py`.
+3. **Bước 3**: Thêm Route Flask trong blueprint phù hợp (`dashboard/blueprints/{guild,music,admin,support}.py`) với decorator `@login_required` và `@guild_access_required`.
 4. **Bước 4**: Tạo template HTML `dashboard/templates/server_<module>.html` kế thừa từ layout chuẩn hoặc dùng `base_server.html`.
 5. **Bước 5**: Thêm link vào Sidebar trong các template server tương ứng.
 6. **Bước 6**: Bổ sung từ điển đa ngôn ngữ (`<module>.*`) vào đủ **6 file JSON** trong `locales/`.
@@ -61,6 +61,6 @@ Khi tạo thêm trang cài đặt module mới trong Dashboard:
 
 ## 📡 3. Quy Chuẩn AJAX API JSON Response
 
-Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboard/app.py` phải trả về đúng cấu trúc:
+Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboard/blueprints/*` phải trả về đúng cấu trúc:
 - **Thành công**: `jsonify({"ok": True, "message": "Thông báo thành công", "data": ...})`
 - **Thất bại**: `jsonify({"ok": False, "message": "Mô tả lỗi"})`

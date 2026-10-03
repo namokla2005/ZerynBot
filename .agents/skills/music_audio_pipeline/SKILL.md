@@ -9,7 +9,7 @@ description: >
 
 ## 🎯 1. Mục Đích & Phạm Vi
 
-Module Music (`bot/cogs/music.py`) là một trong những thành phần tiêu tốn nhiều CPU và tài nguyên mạng nhất. Kỹ năng này cung cấp các nguyên tắc kiến trúc bắt buộc để hệ thống âm nhạc chạy ổn định 24/7 trên thiết bị phần cứng yếu (ARM64 Android Termux / Raspberry Pi), không gây nghẽn Gateway Discord và không bị rò rỉ RAM.
+Module Music (`bot/cogs/music.py` — facade của cog, logic nằm trong package `bot/music/`: `config`, `extractor`, `player`, `views`, `embeds`, `cog_voice`) là một trong những thành phần tiêu tốn nhiều CPU và tài nguyên mạng nhất. Kỹ năng này cung cấp các nguyên tắc kiến trúc bắt buộc để hệ thống âm nhạc chạy ổn định 24/7 trên thiết bị phần cứng yếu (ARM64 Android Termux / Raspberry Pi), không gây nghẽn Gateway Discord và không bị rò rỉ RAM.
 
 ---
 
@@ -74,11 +74,22 @@ source = discord.FFmpegOpusAudio(stream_url, before_options=FFMPEG_BEFORE, optio
 vc.play(source, after=lambda e: self.bot.loop.call_soon_threadsafe(self.next_event.set))
 ```
 
-### 4.2 Giới Hạn Tải Đồng Thời (`MAX_PLAYERS = 6`)
+### 4.2 Giới Hạn Tải Đồng Thời (`MAX_PLAYERS = 6` trong `bot/music/config.py`)
 Để tránh tràn RAM trên thiết bị 4GB RAM, hệ thống giới hạn tối đa 6 máy chủ phát nhạc cùng lúc. Nếu server thứ 7 yêu cầu, bot sẽ thông báo lịch sự máy chủ bận.
 
 ### 4.3 Tự Động Rời Kênh Khi Không Hoạt Động (3 Phút Auto-Disconnect)
 Khi danh sách bài hát hết hoặc tất cả thành viên rời khỏi phòng Voice, khởi động bộ đếm 180s. Nếu không có bài mới sau 180s, bot tự động disconnect để trả lại tài nguyên. Nếu chính bot bị ngắt kết nối (kick/disconnect khỏi voice), `on_voice_state_update` sẽ lập tức cleanup player ngay lập tức.
+
+**Quy tắc P0 — KHÔNG tự huỷ task đang chạy.** `_inactivity_countdown()` gọi `await self.stop()`, mà `stop()` lại gọi `_reset_inactivity_timer()`. Nếu hàm đó `cancel()` chính task đang chạy, `CancelledError` bắn vào await kế tiếp giữa `stop()` → bot **không rời voice**, embed Now Playing không bị xoá, `_drop()` không chạy (zombie player ăn slot `MAX_PLAYERS`) và mọi `stop()` sau đó đều no-op vì cờ `_cleanup_done`. Luôn so với `asyncio.current_task()` trước khi cancel:
+
+```python
+task = self._inactivity_task
+self._inactivity_task = None
+if task and not task.done() and task is not asyncio.current_task():
+    task.cancel()
+```
+
+**Quy tắc P0 — không pop khỏi `queue` trước khi phát.** `_dispatch_next_async()` phải kiểm tra `vc.is_connected()` TRƯỚC rồi mới `pop(0)`; `_play()` return ngay khi chưa có voice client, nên pop trước sẽ **mất bài hát vĩnh viễn** khi voice vừa rời. Cả hai quy tắc được test hồi quy trong `tests/test_music_behavior.py`.
 
 ---
 

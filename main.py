@@ -390,7 +390,7 @@ def start_all():
 
     # 2. Khởi động Dashboard
     print("[2/2] Starting Dashboard...")
-    # Tương tự bot: dashboard/app.py tự ghi data/dashboard.log (RotatingFileHandler),
+    # Tương tự bot: dashboard/extensions.py tự ghi data/dashboard.log (RotatingFileHandler),
     # còn stdout/stderr của tiến trình đi vào data/dashboard.stdout.log.
     dash_log = os.path.join(PID_DIR, "dashboard.stdout.log")
     if os.name == "nt":

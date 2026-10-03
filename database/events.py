@@ -312,6 +312,21 @@ def get_active_temp_channels(guild_id: str) -> list:
         rows = conn.execute("SELECT * FROM tempvoice_active WHERE guild_id = ? ORDER BY created_at DESC", (guild_id,)).fetchall()
         return [_row_to_dict(r) for r in rows]
 
+
+def delete_tempvoice_channel(guild_id: str, channel_id: str) -> None:
+    """Sync — Xoá 1 phòng voice tạm (scope theo guild_id, dùng cho dashboard).
+
+    Đi qua `get_db_connection()` để giữ đúng bộ PRAGMA per-connection
+    (busy_timeout=15000, cache_size, mmap_size...) và đóng connection tường minh
+    — mở `sqlite3.connect(DB_PATH)` thô sẽ mất toàn bộ tuning IO.
+    """
+    with get_db_connection() as conn:
+        conn.execute(
+            "DELETE FROM tempvoice_active WHERE channel_id = ? AND guild_id = ?",
+            (channel_id, guild_id),
+        )
+        conn.commit()
+
 async def async_get_tempvoice_settings(guild_id: str) -> dict:
     async with _connect_async() as db:
         db.row_factory = aiosqlite.Row

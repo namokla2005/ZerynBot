@@ -66,7 +66,7 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
    - Chạy script kiểm tra: `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
 
 4. **Bước 4: Đồng bộ Dashboard Command Registry**:
-   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `dashboard/app.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **110 lệnh** thuộc **17 danh mục**).
+   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `commands_data.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **110 lệnh** thuộc **17 danh mục**).
 
 5. **Bước 5: Đồng bộ Tài liệu Kiến trúc**:
    - Cập nhật số lượng lệnh và chức năng mới trong `ARCHITECTURE.md`, `README.md`, `llms.txt`.

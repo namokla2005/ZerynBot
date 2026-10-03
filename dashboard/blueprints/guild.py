@@ -11,7 +11,6 @@ sys.path.insert(0, _V2_DIR)
 sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho commands_data, card_generator, checks...
 
 import json
-import sqlite3
 import time
 from datetime import datetime, timezone
 
@@ -591,14 +590,9 @@ def server_tempvoice(guild_id: str):
 @bp.route("/dashboard/<guild_id>/tempvoice/delete_channel/<channel_id>", methods=["POST"])
 @guild_access_required
 def server_tempvoice_delete_channel(guild_id: str, channel_id: str):
-    import database as db_mod
-    with sqlite3.connect(db_mod.DB_PATH) as conn:
-        # Scope theo guild_id — chặn xóa phòng voice tạm của server khác
-        conn.execute(
-            "DELETE FROM tempvoice_active WHERE channel_id = ? AND guild_id = ?",
-            (channel_id, guild_id),
-        )
-        conn.commit()
+    # Đi qua helper của database/ để giữ PRAGMA (busy_timeout, cache_size...) và
+    # scope theo guild_id — chặn xóa phòng voice tạm của server khác.
+    db.delete_tempvoice_channel(guild_id, channel_id)
     flash("✅ Đã xóa phòng voice tạm thời!", "success")
     return redirect(url_for("guild.server_tempvoice", guild_id=guild_id))
 

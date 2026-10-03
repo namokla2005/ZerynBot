@@ -450,6 +450,96 @@ def test_player_stop_cleans_everything():
     asyncio.run(_scenario())
 
 
+def test_stop_from_inactivity_task_still_runs_full_cleanup():
+    """Regression (Giai đoạn 3 audit): `_inactivity_countdown()` gọi `await self.stop()`,
+    mà `stop()` gọi `_reset_inactivity_timer()` — nếu hàm đó tự huỷ chính task đang chạy
+    thì CancelledError bắn vào await kế tiếp giữa `stop()`: bot kẹt voice vĩnh viễn,
+    embed NP không xoá, `_drop()` không chạy (zombie player ăn slot MAX_PLAYERS)."""
+
+    class _AwaitVC(_FakeVC):
+        """disconnect() phải treo lơ lửng thật thì mới đủ điều kiện bị CancelledError."""
+
+        async def disconnect(self, force=False):
+            await asyncio.sleep(0)
+            await super().disconnect(force=force)
+
+    async def _scenario():
+        cog = _FakeCog()
+        vc = _AwaitVC(playing=True)
+        p = _make_player(vc=vc, cog=cog)
+        p.current = _M().Track({"title": "b", "duration": 10})
+
+        async def _countdown_like():
+            await p.stop()
+
+        p._inactivity_task = asyncio.create_task(_countdown_like())
+        try:
+            await p._inactivity_task
+        except asyncio.CancelledError:
+            pass
+        await asyncio.sleep(0.01)
+        return p, vc, cog
+
+    p, vc, cog = asyncio.run(_scenario())
+    assert vc.disconnected is True, "stop() phải rời voice channel dù được gọi từ task inactivity"
+    assert cog.dropped == [p.guild.id], "_drop() phải chạy để không rò zombie player"
+
+
+def test_reset_inactivity_timer_still_cancels_other_task():
+    """Regression: lỗi ở trên KHÔNG được phá vỡ chức năng huỷ timer từ task khác."""
+
+    async def _scenario():
+        p = _make_player()
+        victim = asyncio.create_task(asyncio.sleep(30))
+        p._inactivity_task = victim
+        p._reset_inactivity_timer()
+        assert p._inactivity_task is None
+        await asyncio.sleep(0.01)
+        return victim
+
+    victim = asyncio.run(_scenario())
+    assert victim.cancelled() is True
+
+
+def test_dispatch_next_keeps_queue_when_vc_not_connected():
+    """Regression: `_dispatch_next_async()` pop bài khỏi queue rồi mới `_play()`, mà
+    `_play()` return ngay khi `vc` rời → bài bị mất vĩnh viễn."""
+
+    async def _scenario():
+        cog = _FakeCog()
+        vc = _FakeVC(connected=False)
+        p = _make_player(vc=vc, cog=cog)
+        track = _M().Track({"title": "giữ lại", "duration": 10})
+        p.queue.append(track)
+        await p._dispatch_next_async()
+        return p, track
+
+    p, track = asyncio.run(_scenario())
+    assert track in p.queue or p.current is track, "Bài hát phải được giữ lại khi chưa có voice client"
+
+
+def test_dispatch_next_plays_when_vc_connected():
+    """Đường bình thường vẫn phải pop và phát (bảo đảm fix không chặn nhầm)."""
+
+    async def _scenario():
+        cog = _FakeCog()
+        vc = _FakeVC(connected=True)
+        p = _make_player(vc=vc, cog=cog)
+        track = _M().Track({"title": "phát", "duration": 10})
+        p.queue.append(track)
+        played = []
+
+        async def _fake_play(t, seek_offset=0):
+            played.append(t)
+
+        p._play = _fake_play
+        await p._dispatch_next_async()
+        return p, track, played
+
+    p, track, played = asyncio.run(_scenario())
+    assert played == [track] and p.queue == []
+
+
 def test_player_reconnecting_flag():
     async def _scenario():
         p = _make_player()

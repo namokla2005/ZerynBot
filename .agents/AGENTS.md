@@ -75,7 +75,7 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 - **Bot Engine**: `discord.py` (Python 3.10+), truy cập CSDL bất đồng bộ qua `aiosqlite` (package `database/` `async_*`), dịch đa ngôn ngữ bằng `tr(settings, key, **kwargs)`.
 - **Web Dashboard**: Flask + Jinja2 (kiến trúc Blueprints `dashboard/blueprints/` & `dashboard/app_factory.py`), truy cập CSDL đồng bộ qua `sqlite3` (package `database/` sync), dịch đa ngôn ngữ bằng `t(key)`.
 - **Hệ thống Modules**: Đúng chuẩn **20 Modules** trong `DEFAULT_MODULES` (`welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`, `verify`).
-- **Hệ thống Lệnh Dashboard**: Danh sách tập trung `_COMMANDS_DATA` trong [`dashboard/app.py`](https://github.com/namokla2005/ZerynBot/blob/main/dashboard/app.py) quản lý đúng **110 lệnh** thuộc **17 danh mục**.
+- **Hệ thống Lệnh Dashboard**: Danh sách tập trung `_COMMANDS_DATA` trong [`commands_data.py`](https://github.com/namokla2005/ZerynBot/blob/main/commands_data.py) quản lý đúng **110 lệnh** thuộc **17 danh mục**.
 - **Đa ngôn ngữ (i18n)**: 6 file từ điển (`vi`, `en`, `zh`, `es`, `pt`, `fr`) luôn luôn đồng bộ chính xác **1694 keys/file** (100% không lệch key).
 - **Cơ sở dữ liệu**: SQLite WAL mode tại `data/bot.db` (`PRAGMA busy_timeout = 15000`, tự động checkpoint dọn WAL). Quản lý tập trung qua package `database/` (`database.conn` set per-connection PRAGMA, `set_db_path()` cô lập test fixtures).
 - **AI Engine**: Groq Cloud API (`gsk_*`) với model mặc định `qwen/qwen3.8-27b` (hỗ trợ chuyển đổi qua Admin Dashboard), fallback sang Google Gemini và OpenRouter. Hỗ trợ xử lý ảnh (Multimodal Vision).
@@ -104,7 +104,7 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 
 Mỗi khi AI thực hiện thay đổi mã nguồn, **BẮT BUỘC** phải tuân thủ:
 1. **Khi thêm/xóa lệnh Discord**:
-   - Cập nhật Cog logic + `_COMMANDS_DATA` trong `dashboard/app.py`.
+   - Cập nhật Cog logic + `_COMMANDS_DATA` trong `commands_data.py`.
    - Cập nhật số lượng lệnh trong `ARCHITECTURE.md`, `.agents/AGENTS.md`, `llms.txt`.
 2. **Khi thêm/xóa i18n key**:
    - Thêm đủ vào cả **6 file** trong `locales/`.

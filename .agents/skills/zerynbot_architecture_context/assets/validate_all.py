@@ -4,7 +4,7 @@ Script: validate_all.py — Bộ Kiểm Thử Tự Động Toàn Diện 1-Click 
 Thực hiện 4 kiểm tra cốt lõi:
 1. Đồng bộ 100% key giữa 6 file từ điển ngôn ngữ (1618 keys/file).
 2. Kiểm tra biên dịch cú pháp tất cả file Python (.py) trong repo.
-3. Kiểm tra số lượng lệnh trong _COMMANDS_DATA (108 lệnh, 17 danh mục).
+3. Kiểm tra số lượng lệnh trong _COMMANDS_DATA (110 lệnh, 17 danh mục).
 4. Kiểm tra sự nhất quán về số liệu trong các tài liệu (ARCHITECTURE.md, AGENTS.md, llms.txt).
 """
 
@@ -105,7 +105,7 @@ try:
         print(f"  • Tổng lệnh: {cmd_count} commands")
         print(f"{PASS_ICON} _COMMANDS_DATA hợp lệ với {cmd_count} lệnh thuộc {cat_count} danh mục.")
     else:
-        errors.append("Không tìm thấy biến _COMMANDS_DATA trong bot/commands_data.py hoặc dashboard/app.py")
+        errors.append("Không tìm thấy biến _COMMANDS_DATA trong commands_data.py")
         print(f"{FAIL_ICON} Không tìm thấy _COMMANDS_DATA!")
 except Exception as e:
     errors.append(f"Lỗi phân tích _COMMANDS_DATA: {e}")

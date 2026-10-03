@@ -9,7 +9,7 @@ description: >
 
 ## 🎯 1. Mục Đích & Tổng Quan
 
-Tài liệu này cung cấp hướng dẫn kiến trúc và quy trình làm việc khi sửa đổi hoặc mở rộng tầng AI của **ZerynBot V2** (`bot/cogs/ai.py`, `dashboard/app.py`, `dashboard/templates/admin.html`).
+Tài liệu này cung cấp hướng dẫn kiến trúc và quy trình làm việc khi sửa đổi hoặc mở rộng tầng AI của **ZerynBot V2** (`bot/cogs/ai.py`, `ai_manager.py`, `dashboard/blueprints/admin.py`, `dashboard/templates/admin.html`).
 
 ---
 

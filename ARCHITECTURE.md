@@ -39,8 +39,8 @@
 - **Per-subcommand checks (P0):** `discord.py` không cho lệnh con thừa hưởng check của `hybrid_group` (`commands.core.Command.can_run` chỉ duyệt `self.checks`), nên mọi lệnh con nhạy cảm tự gắn `checks.*` (dual-mode: prefix + slash). Xem `tests/test_command_permissions.py`.
 - **Web Dashboard:** Flask, Jinja2 Templates, Discord OAuth2 (`identify guilds` scopes).
 - **Database:** SQLite (`data/bot.db`) configured with `PRAGMA journal_mode=WAL` & `synchronous=NORMAL`.
-  - **Async Access (Bot):** `aiosqlite` via `database.py` `async_*` functions.
-  - **Sync Access (Dashboard):** `sqlite3` via `database.py` sync helper functions.
+  - **Async Access (Bot):** `aiosqlite` via the `database/` package `async_*` functions (per-domain modules, all connections opened by `database/conn.py`).
+  - **Sync Access (Dashboard):** `sqlite3` via the `database/` package sync helper functions.
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
 - **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`), subprocess CPU priority niceness (+10) to prevent async event loop starvation, queue length clamping (`MAX_QUEUE_SIZE = 100`), thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`).
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
@@ -90,7 +90,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   │   ├── player.py           # Track metadata, MusicPlayer queue, 403 stream auto-recovery
 │   │   ├── views.py            # MusicControlView (5 buttons), SearchSelectView, lyrics paginator
 │   │   ├── embeds.py           # Now Playing & Queue Rich Embed generators
-│   │   └── cog_voice.py        # MusicVoiceMixin (voice client lifecycle, queue actions, inactivity)
+│   │   └── cog_voice.py        # VoiceLifecycleMixin (voice client lifecycle, queue actions, inactivity)
 │   └── cogs/                   # Modular Bot Feature Cogs (24 total)
 │       ├── admin.py            # Bot owner global administration, slash command sync, /backup & 24h auto-backup
 │       ├── ai.py               # Multi-provider AI assistant (Groq Qwen 3.8 27B / Gemini / OpenRouter), /ask, /summarize
@@ -108,7 +108,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       ├── logger.py           # Server audit log events listener & embed logger
 │       ├── maintenance.py      # Scheduled auto-prune background task (old logs, stats, warnings)
 │       ├── moderation.py       # Moderation suite (/kick, /ban, /unban, /timeout, /warn, /clear, /slowmode...)
-│       ├── music.py            # Music Cog controller inheriting MusicVoiceMixin (11 slash commands)
+│       ├── music.py            # Music Cog controller inheriting VoiceLifecycleMixin (11 slash commands)
 │       ├── reactionroles.py    # Reaction role listener & interactive button handler
 │       ├── remind.py           # Smart Reminders & Scheduling (/remindme, /reminders, /delreminder)
 │       ├── stats.py            # Hourly event metrics collector for dashboard analytics
@@ -118,7 +118,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       └── verify.py           # Verification gate (/setup_verify, /verify panel, anti-raid & anti-nuke)
 │
 ├── dashboard/                  # Flask Web Management Dashboard
-│   ├── app.py                  # Entrypoint facade (`app = create_app()`), `_COMMANDS_DATA` central registry
+│   ├── app.py                  # Entrypoint facade / compat shim (`app = create_app()` + re-exports cho main.py & tests)
 │   ├── app_factory.py          # Flask application factory, error handlers, blueprint registration
 │   ├── extensions.py           # Flask-Limiter and shared extensions initialization
 │   ├── web_helpers.py          # Server context builder, channel sanitizers, auth decorators
@@ -159,7 +159,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 
 ## 3. Core Database Schema (`data/bot.db`)
 
-The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are created automatically on startup by `init_db()` in `database.py`.
+The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are created automatically on startup by `init_db()` in `database/schema.py`.
 
 ### Primary Tables & Schema Summary:
 
@@ -275,7 +275,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | **Leveling** | `bot/cogs/leveling.py` | Message XP (60s cooldown per user), `voice_xp_task` (90s batch interval loop for non-muted voice members), reward role assignment (`stack_rewards` logic), rank card Pillow generator fallback. Uses `leveling.xp_*` namespace. |
 | **Logger** | `bot/cogs/logger.py` | Listens to Discord audit events: message edit/delete, member join/leave/kick/ban, role updates, channel edits, automod violations (`on_automod_action`), ticket actions (`on_ticket_action`). |
 | **Moderation** | `bot/cogs/moderation.py` | Complete moderation suite: `/kick`, `/ban`, `/unban`, `/timeout`, `/untimeout`, `/warn`, `/warnings`, `/delwarn`, `/clear`, `/slowmode`, `/lock`, `/unlock`. Escalating warning thresholds with mod log dispatch. |
-| **Music** | `bot/cogs/music.py` | yt-dlp + `FFmpegOpusAudio` playback manager with low-latency buffer tuning (<0.8s start). Spotify track auto-resolver, `/volume` (1-150%), `/shuffle`, 3-minute inactivity auto-leave, atomic play lock, `MusicControlView` (Pause, Skip, Stop, Loop buttons), Lofi 24/7 streams (SomaFM & YouTube), custom playlists. |
+| **Music** | `bot/cogs/music.py` (facade) + `bot/music/*` | yt-dlp + `FFmpegOpusAudio` playback manager with low-latency buffer tuning (<0.8s start). Spotify track auto-resolver, `/volume` (1-150%), `/shuffle`, 3-minute inactivity auto-leave, atomic play lock, `MusicControlView` (Pause, Skip, Stop, Loop buttons), Lofi 24/7 streams (SomaFM & YouTube), custom playlists. |
 | **ReactionRoles** | `bot/cogs/reactionroles.py` | Listens for raw reaction add/remove and button interactions to toggle configured roles. |
 | **Remind** | `bot/cogs/remind.py` | Smart reminders & timer scheduling (`/remindme`, `/reminders`, `/delreminder`), 15-second background loop, in-channel or DM alert fallback, full 6-language i18n support. |
 | **Stats** | `bot/cogs/stats.py` | Listens to `on_message`, `on_member_join`, `on_automod_action`, `on_ticket_action` and writes aggregated hourly counters to `guild_stats`. |
@@ -309,7 +309,7 @@ The web dashboard is hosted via Flask in `dashboard/app.py` (facade), `dashboard
 - **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
-- **Central Command Catalog (`_COMMANDS_DATA`):** All **110 active commands** across **17 categories** are centrally registered in `dashboard/app.py` with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
+- **Central Command Catalog (`_COMMANDS_DATA`):** All **110 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
 - **Design System V9.2 (Pastel Obsidian Glow):** The entire Web Dashboard (`/dashboard`, `/home`, `/admin`, `/login`, `/tos`, `/privacy`, `/commands`) is synchronized with the Nekotina-inspired Landing Page aesthetic:
   - **Color Tokens:** Obsidian Dark Background (`#120e24` / `#131217`), Glassmorphism Surface (`rgba(25, 24, 34, 0.85)`), Primary Sakura Pink (`#f4a7bb`), Accent Purple (`#9d8df1`), Blurple (`#5865f2`), Emerald (`#57f287`), Amber Gold (`#fee75c`), Crimson (`#ed4245`).
   - **Typography:** Modern variable font stack powered by Google Fonts `Plus Jakarta Sans` and `Inter`.
@@ -395,7 +395,7 @@ ZerynBot V2 is optimized to run reliably on weak ARM devices (such as 4GB/6GB RA
    - `MAX_PLAYERS = 6` limit in `bot/music/config.py` prevents out-of-memory crashes when multiple servers request music simultaneously.
 6. **Database I/O:**
    - SQLite uses `PRAGMA journal_mode=WAL` and `synchronous=NORMAL`.
-   - Bot functions **must** use `aiosqlite` thread pool executors (`database.py` async methods) to keep the Discord gateway heartbeats responsive.
+   - Bot functions **must** use `aiosqlite` thread pool executors (`database/` async helpers) to keep the Discord gateway heartbeats responsive.
    - **PER-CONNECTION PRAGMA RULE:** `cache_size=-8000` (~8MB), `temp_store=MEMORY`,
      `mmap_size=64MB` and `busy_timeout=15000` are set on **every** connection by
      `_connect_sync()` / `_connect_async()` in `database/conn.py`. These PRAGMAs are not
@@ -409,9 +409,11 @@ ZerynBot V2 is optimized to run reliably on weak ARM devices (such as 4GB/6GB RA
      `VACUUM_FREELIST_THRESHOLD` (15%); it always runs the cheap `PRAGMA optimize`.
      `VACUUM` intentionally uses a raw connection (temp_store in file, not MEMORY) so a
      large DB is not rewritten inside the 6GB device's RAM.
+     **Intentional exceptions:** `bot/tester.py` (self-test phải đo đúng mức tuning thật) và
+     `database/maintenance.py` (`VACUUM` cần `temp_store` trong file) mở connection thô — đừng "sửa" chúng.
 7. **Log Rotation (24/7 on-device):**
    - `data/bot.log` and `data/dashboard.log` are owned by `RotatingFileHandler`
-     (2MB × 2 backups) in `bot/bot.py` and `dashboard/app.py`.
+     (2MB × 2 backups) in `bot/bot.py` and `dashboard/extensions.py`.
    - Process stdout/stderr go to **separate** files (`data/bot.stdout.log`,
      `data/dashboard.stdout.log`) via `main.py` / `scripts/watchdog.sh`, and the watchdog
      rotates them past 5MB. Never redirect stdout into the file the app logger owns —
@@ -468,7 +470,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
    - Ensure script blocks in Jinja2 HTML templates have valid JS syntax and no duplicate function declarations in the global scope.
    - Never define `window.I18N_*` variables inside a function body — declare them at the top-level script scope so all functions can access them.
 8. **Idempotent SQLite Schema Alterations:**
-   - When adding new database columns to existing tables, wrap every `ALTER TABLE ... ADD COLUMN` inside `try...except` within `init_db()` in `database.py` to prevent fatal crash on existing databases.
+   - When adding new database columns to existing tables, wrap every `ALTER TABLE ... ADD COLUMN` inside `try...except` within `init_db()` in `database/schema.py` to prevent fatal crash on existing databases.
 
 ---
 
@@ -494,7 +496,7 @@ These are known past bugs and traps that **MUST** be avoided when editing this c
 | 14 | Synchronously running `python main.py --restart` inside Flask Web Terminal request | Spawns `subprocess.Popen` detached and returns HTTP 200 immediately to prevent HTTP 502 |
 | 15 | Calling `vc.play()` immediately after `vc.stop()` without waiting for player thread to join | Loop wait up to 0.5s for `not vc.is_playing()` before calling `vc.play()` |
 | 16 | Using unsupported FFmpeg flags on Termux (`-reconnect_at_eof`, unescaped `-headers`) | Use universally supported release flags: `-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "..."` |
-| 17 | Creating new Discord slash commands in cogs without registering in `_COMMANDS_DATA` | Always register new commands in `_COMMANDS_DATA` (`dashboard/app.py`) so they appear on `/commands` |
+| 17 | Creating new Discord slash commands in cogs without registering in `_COMMANDS_DATA` | Always register new commands in `_COMMANDS_DATA` (`commands_data.py`) so they appear on `/commands` |
 | 18 | Sending database backup `.zip` files to public server log channels | Always route backups to `config.BACKUP_DB_URL` (`BACKUP_DB` webhook) for private, secure storage |
 | 19 | Executing `ALTER TABLE` in SQLite without `try...except` blocks in `init_db()` | Wrap every `ALTER TABLE ... ADD COLUMN` in `try...except` to ensure zero startup crashes on existing databases |
 | 20 | Concatenating unescaped user strings into `innerHTML` | Always create DOM elements and set values via `textContent`, and validate URL protocols (`http:`, `https:` only) |
@@ -550,9 +552,10 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
-    - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4263 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.
-    - **Modular Music Pipeline (`bot/music/`)**: Decomposed `bot/cogs/music.py` (3025 lines) into `bot/music/` (`config`, `extractor`, `player`, `views`, `embeds`, `cog_voice`), keeping `bot/cogs/music.py` as a concise Cog controller inheriting `MusicVoiceMixin`.
-    - **Dashboard Blueprints (`dashboard/blueprints/`)**: Decomposed `dashboard/app.py` (2215 lines, 64 routes) into domain blueprints (`public`, `guild`, `music`, `admin`, `support`) initialized via `dashboard/app_factory.py:create_app()`. `dashboard/app.py` retained as the entrypoint facade (`app = create_app()`).
+    - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.
+    - **Modular Music Pipeline (`bot/music/`)**: Decomposed `bot/cogs/music.py` (3025 lines) into `bot/music/` (`config`, `extractor`, `player`, `views`, `embeds`, `cog_voice`), keeping `bot/cogs/music.py` as a concise Cog controller inheriting `VoiceLifecycleMixin` (11 plain lifecycle methods).
+    - **Dashboard Blueprints (`dashboard/blueprints/`)**: Decomposed `dashboard/app.py` (2238 lines, 79 endpoints) into domain blueprints (`public`, `guild`, `music`, `admin`, `support`) initialized via `dashboard/app_factory.py:create_app()`. `dashboard/app.py` retained as the entrypoint facade (`app = create_app()`) + 93-line compat shim re-exporting `app`, `create_app`, `limiter`, `logger`, decorators and helpers so `main.py`, tests and templates keep importing the old path.
+    - **Safety Net Before Refactor (Bước 0)**: `get_db_path()` / `set_db_path()` in `database/conn.py` make the DB path a single source of truth so tests never touch `data/bot.db`; 44 behavior tests were added to lock the refactor in place — `tests/test_music_behavior.py` (28), `tests/test_database_api_surface.py` (8), `tests/test_dashboard_routes.py` (8) — taking the suite from 110 to **158 tests** (thêm 4 test hồi quy cho 2 lỗi music: tự huỷ task inactivity và mất bài khi voice rời).
 - **v3.1 (2026-10)**:
   - **Termux 24/7 Resource Hardening**: dashboard logging with `RotatingFileHandler` (+fixed
     an undefined `logger` that made `/api/admin/ai/activity-feed` raise), separate

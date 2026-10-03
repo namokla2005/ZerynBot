@@ -5,7 +5,7 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
 ---
 
 ## 1. Khi Thêm / Xóa Lệnh Discord
-- Đăng ký lệnh vào `_COMMANDS_DATA` trong `dashboard/app.py`.
+- Đăng ký lệnh vào `_COMMANDS_DATA` trong `commands_data.py`.
 - Cập nhật số lượng lệnh trong:
   - [`ARCHITECTURE.md`](https://github.com/namokla2005/ZerynBot/blob/main/ARCHITECTURE.md) (mục 6)
   - [`.agents/AGENTS.md`](https://github.com/namokla2005/ZerynBot/blob/main/.agents/AGENTS.md) (mục 4)
