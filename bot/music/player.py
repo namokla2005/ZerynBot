@@ -678,8 +678,8 @@ class MusicPlayer:
 
         self._recovering = True
         try:
-            # Đệm 1s để Discord Voice UDP socket ổn định
-            await asyncio.sleep(1)
+            # Đệm 1.5s để Discord Voice UDP socket ổn định
+            await asyncio.sleep(1.5)
             if self._manual_stopped or self._skipped or not self._is_reconnecting:
                 return
 
@@ -702,17 +702,19 @@ class MusicPlayer:
 
             target_elapsed = self.get_elapsed()
             track_title = getattr(target_track, "title", "Không rõ")
-            log.info(f"[Music] Phục hồi bài hát '{track_title}' tại {target_elapsed}s sau khi voice reconnect...")
+            is_live = getattr(target_track, "is_live", False)
+            log.info(f"[Music] Phục hồi bài hát '{track_title}' (live={is_live}) tại {target_elapsed}s sau khi voice reconnect...")
 
-            # Kiểm tra URL còn hạn không trước khi stream
-            if target_track.is_stream_expired:
-                log.info(f"[Music] Stream URL cho '{track_title}' đã hết hạn, trích xuất URL mới...")
+            # Kiểm tra URL còn hạn không trước khi stream (với live stream luôn lấy URL mới)
+            if target_track.is_stream_expired or is_live:
+                log.info(f"[Music] Stream URL cho '{track_title}' đã hết hạn hoặc là live stream, trích xuất URL mới...")
                 target_track.stream_url = None
 
             if self._manual_stopped or self._skipped:
                 return
 
-            await self._play(target_track, seek_offset=target_elapsed)
+            seek_pos = 0 if is_live else target_elapsed
+            await self._play(target_track, seek_offset=seek_pos)
         except asyncio.CancelledError:
             pass
         except Exception as e:

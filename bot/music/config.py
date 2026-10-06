@@ -35,7 +35,7 @@ FFMPEG_BEFORE = (
     "-reconnect 1 "
     "-reconnect_streamed 1 "
     "-reconnect_on_network_error 1 "
-    "-reconnect_on_http_error 4xx,5xx "
+    "-reconnect_on_http_error 5xx "
     "-reconnect_delay_max 2 "
     "-fflags +genpts "
     "-probesize 512K "
@@ -53,7 +53,7 @@ MAX_QUEUE_SIZE = 100  # Giới hạn hàng đợi tối đa mỗi server (chốn
 INACTIVITY_TIMEOUT = int(os.getenv("MUSIC_INACTIVITY_TIMEOUT", "180"))  # Mặc định 180s (3 phút) theo yêu cầu người dùng
 
 def _lower_process_priority(proc, niceness: int = 10) -> None:
-    """Hạ độ ưu tiên CPU của tiến trình ffmpeg con trên Linux/Termux để không tranh chấp với Bot event loop."""
+    """Hạ độ ưu tiên CPU của tiến trình ffmpeg con trên Linux/Termux để không tranh chấp với Bot event loop (niceness=10 bảo vệ Discord Gateway heartbeat)."""
     if proc is None or getattr(proc, "pid", None) is None:
         return
     try:
