@@ -579,7 +579,27 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `_skipped is True` and stayed green while the feature was dead. New tests assert
     the user-visible effect (queue advances), that prune keeps un-expired rows, that
     every connection enforces FK, and that a snapshot contains WAL-only data that a
-    raw file copy does not. Suite: 158 → **165 tests**.
+    raw file copy does not. Suite: 158 → **176 tests**.
+- **v3.3 Phase 2 — AI guardrails**:
+  - **No SQLite on the event loop**: `call_ai_async()` / `call_provider_async()` read
+    key pools through `asyncio.to_thread(load_pools)`. `load_pools()` is synchronous
+    `sqlite3` (6 setting reads + `executescript` PRAGMAs) with `busy_timeout=15000`, so
+    a cache miss or a dashboard write lock used to freeze voice and every cog at once.
+  - **Bounded failover**: `ASYNC_TOTAL_BUDGET = 45s` now caps `call_ai_async`
+    (previously 3 providers × 4 keys × 15 s with no aggregate deadline).
+  - **`rate_limit` is no longer decorative**: one shared 60 s per-user budget now covers
+    `#ai-chat`, `/ask` and `/summarize`. Before, only the channel listener honored the
+    guild's `rate_limit`, so a single member could loop `/ask` and burn the owner's
+    Groq/Gemini/OpenRouter quota into fleet-wide 429s.
+  - **Vision input hard-capped**: image downloads reject >5 MB (checked against
+    `Content-Length` *and* a bounded `read(n)`, so a lying header cannot bypass),
+    require an `image/*` content type, and no longer fall through to a text-only answer
+    when the download fails.
+  - **Dead models removed**: Groq/OpenRouter used `meta-llama/llama-3.2-11b-vision-*`,
+    which this repo's own reference lists as disabled — every image request 404'd and
+    then re-spent on the next provider. They now skip image requests unless
+    `GROQ_VISION_MODEL` / `OPENROUTER_VISION_MODEL` is set. Gemini gained the
+    `maxOutputTokens` cap it was missing (Groq 1200 / OpenRouter 1500 already had one).
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

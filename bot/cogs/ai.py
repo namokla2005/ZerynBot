@@ -450,6 +450,28 @@ class AI(commands.Cog):
 
         return base_prompt
 
+    async def _consume_ai_budget(self, guild_id: str, user_id, ai_s: dict) -> bool:
+        """Trích 1 lượt trong ngân sách AI 60 giây của user này.
+
+        `ai_settings.rate_limit` trước đây CHỈ được áp ở listener #ai-chat; `/ask` và
+        `/summarize` gọi thẳng provider không có trần nào, nên một người bấm lặp là đốt
+        hết quota Groq/Gemini/OpenRouter của owner và kéo cả hệ thống vào 429. Mọi cửa
+        (chat kênh, /ask, /summarize) dùng chung một counter để owner vẫn chỉ điều
+        khiển đúng một con số.
+        """
+        try:
+            limit = int(ai_s.get("rate_limit", 5) or 5)
+        except (TypeError, ValueError):
+            limit = 5
+        if limit <= 0:
+            return True
+        rate_key = f"ai_rate:{guild_id}:{user_id}"
+        calls = int(await cache.aget(rate_key) or 0)
+        if calls >= limit:
+            return False
+        await cache.aset(rate_key, calls + 1, ttl=60)
+        return True
+
     # ─── ask ───────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="ask", description="Đặt câu hỏi thông minh cho trợ lý AI Zeryn (hỗ trợ kèm ảnh & tìm kiếm web)")
     @app_commands.describe(
@@ -464,6 +486,10 @@ class AI(commands.Cog):
         
         if not ai_s.get("allow_ask", 1):
             await ctx.send(tr(s, "ai.ask_disabled"), ephemeral=True)
+            return
+
+        if not await self._consume_ai_budget(str(ctx.guild.id), ctx.author.id, ai_s):
+            await ctx.send(tr(s, "ai.rate_limited"), ephemeral=True)
             return
 
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
@@ -529,6 +555,10 @@ class AI(commands.Cog):
 
         if not ai_s.get("allow_summarize", 1):
             await ctx.send(tr(s, "ai.summarize_disabled"), ephemeral=True)
+            return
+
+        if not await self._consume_ai_budget(str(ctx.guild.id), ctx.author.id, ai_s):
+            await ctx.send(tr(s, "ai.rate_limited"), ephemeral=True)
             return
 
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
@@ -615,14 +645,11 @@ class AI(commands.Cog):
         if not ai_channel_id or str(message.channel.id) != ai_channel_id:
             return
 
-        # Rate-limiting per user
-        rate_key = f"ai_rate:{message.guild.id}:{message.author.id}"
-        calls = int(await cache.aget(rate_key) or 0)
-        if calls >= int(ai_s.get("rate_limit", 5)):
+        # Rate-limiting per user — dùng chung ngân sách với /ask và /summarize
+        if not await self._consume_ai_budget(str(message.guild.id), message.author.id, ai_s):
             s = await async_get_guild_settings(str(message.guild.id))
             await message.reply(tr(s, "ai.rate_limited"), delete_after=5)
             return
-        await cache.aset(rate_key, calls + 1, ttl=60)
         # Check for image attachments in the message
         image_url = None
         if message.attachments:

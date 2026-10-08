@@ -11,6 +11,7 @@ import re
 import time
 import json
 import random
+import asyncio
 import logging
 import threading
 from urllib.parse import urlparse
@@ -39,6 +40,28 @@ ALLOWED_HOSTS = frozenset({
 # một request có thể giữ 1/2 worker hàng phút (3 provider × 4 key × timeout 15s).
 SYNC_TOTAL_BUDGET = 20.0      # giây — tổng thời gian tối đa cho 1 lần gọi AI sync
 SYNC_MAX_KEY_ATTEMPTS = 2     # số key tối đa thử trên mỗi provider ở đường sync
+
+# Đường async cũng cần trần ngân sách: trước đây call_ai_async chỉ check deadline ở
+# đầu vòng lặp provider, không chặn theo tổng thời gian → 1 lệnh /ask có thể xoay
+# 3 provider × 4 key × timeout 15s (~180s) và giữ request đó trên event loop của bot.
+ASYNC_TOTAL_BUDGET = 45.0     # giây — tổng thời gian tối đa cho 1 lần call_ai_async
+ASYNC_MAX_KEY_ATTEMPTS = 4    # số key tối đa thử trên mỗi provider ở đường async
+
+# Ảnh do người dùng đính kèm trên Discord có thể tới hàng chục MB (server boosted);
+# đọc hết rồi base64 (×1.33) + nhân bản trong JSON body sẽ ăn hàng trăm MB RAM trên
+# thiết bị 6GB. Gemini chỉ nhận ảnh ≤ 20MB, cap 5MB là đủ và khớp với safe_download.
+AI_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+# Model vision cho Groq / OpenRouter. Trước đây 2 ID sau bị hard-code trong
+# _call_groq_async/_call_openrouter_async: `meta-llama/llama-3.2-11b-vision-preview`
+# và `meta-llama/llama-3.2-11b-vision-instruct:free`. Chính tài liệu nội bộ
+# .agents/skills/ai_provider_routing/references/groq_active_models.md:27 đánh dấu cả
+# dòng llama-3.2-vision là ĐÃ BỊ VÔ HIỆU HÓA → mọi lời gọi kèm ảnh chỉ nhận 404, rồi
+# vẫn quay tiếp provider khác (đốt thêm latency và quota). Để trống = provider đó chủ
+# động bỏ ảnh và Gemini (còn hỗ trợ vision) xử lý. Điền model ID còn sống qua env
+# nếu muốn bật lại, không cần sửa code.
+GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "").strip()
+OPENROUTER_VISION_MODEL = os.getenv("OPENROUTER_VISION_MODEL", "").strip()
 
 _SSRF_HELPER = None
 
@@ -344,7 +367,8 @@ class AIProviderManager:
             "x-goog-api-key": key
         }
         body: Dict[str, Any] = {
-            "contents": [{"parts": [{"text": prompt}]}]
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": 1200}
         }
         if system_instruction:
             body["system_instruction"] = {"parts": [{"text": system_instruction}]}
@@ -588,19 +612,34 @@ class AIProviderManager:
         if image_url:
             try:
                 import base64
-                async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=8)) as img_resp:
-                    if img_resp.status == 200:
-                        img_bytes = await img_resp.read()
-                        mime = img_resp.headers.get("Content-Type", "image/jpeg")
-                        b64_data = base64.b64encode(img_bytes).decode("utf-8")
-                        parts.append({
-                            "inline_data": {
-                                "mime_type": mime,
-                                "data": b64_data
-                            }
-                        })
-            except Exception:
-                pass
+                async with session.get(
+                    image_url,
+                    timeout=aiohttp.ClientTimeout(total=8),
+                    allow_redirects=False,
+                ) as img_resp:
+                    if img_resp.status != 200:
+                        return False, f"IMAGE_DOWNLOAD_HTTP_{img_resp.status}"
+                    declared = img_resp.headers.get("Content-Length", "")
+                    if declared.isdigit() and int(declared) > AI_IMAGE_MAX_BYTES:
+                        return False, "IMAGE_TOO_LARGE"
+                    mime = (img_resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                    if not mime.startswith("image/"):
+                        return False, "IMAGE_BAD_TYPE"
+                    # read(n) chặn đứng trường hợp server nói dối Content-Length.
+                    img_bytes = await img_resp.content.read(AI_IMAGE_MAX_BYTES + 1)
+                    if len(img_bytes) > AI_IMAGE_MAX_BYTES:
+                        return False, "IMAGE_TOO_LARGE"
+                    parts.append({
+                        "inline_data": {
+                            "mime_type": mime,
+                            "data": base64.b64encode(img_bytes).decode("utf-8")
+                        }
+                    })
+            except Exception as exc:
+                # Trước đây `except: pass` khiến prompt được gửi đi KHÔNG kèm ảnh
+                # rồi báo thành công → người dùng nhận câu trả lời lệch nội dung.
+                logger.warning(f"[AIManager] Tải ảnh cho vision thất bại: {exc}")
+                return False, "IMAGE_DOWNLOAD_FAILED"
 
         target_models = [model] if model and model.startswith("gemini-") else []
         for m in GEMINI_MODELS:
@@ -612,7 +651,10 @@ class AIProviderManager:
             "x-goog-api-key": key
         }
         body: Dict[str, Any] = {
-            "contents": [{"parts": parts}]
+            "contents": [{"parts": parts}],
+            # Gemini là provider duy nhất không đặt trần output → 1 câu trả lời dài
+            # vô hạn vừa chậm vừa tốn quota (Groq 1200, OpenRouter 1500).
+            "generationConfig": {"maxOutputTokens": 1200}
         }
         if system_instruction:
             body["system_instruction"] = {"parts": [{"text": system_instruction}]}
@@ -663,6 +705,8 @@ class AIProviderManager:
             return False, "IMAGE_SSRF_BLOCKED"
 
         if image_url:
+            if not GROQ_VISION_MODEL:
+                return False, "GROQ_VISION_UNAVAILABLE"
             messages.append({
                 "role": "user",
                 "content": [
@@ -670,7 +714,7 @@ class AIProviderManager:
                     {"type": "image_url", "image_url": {"url": image_url}}
                 ]
             })
-            target_models = ["meta-llama/llama-3.2-11b-vision-preview"]
+            target_models = [GROQ_VISION_MODEL]
         else:
             messages.append({"role": "user", "content": prompt})
             target_models = [model] if model and not model.startswith("gemini-") else []
@@ -725,6 +769,8 @@ class AIProviderManager:
             return False, "IMAGE_SSRF_BLOCKED"
 
         if image_url:
+            if not OPENROUTER_VISION_MODEL:
+                return False, "OPENROUTER_VISION_UNAVAILABLE"
             messages.append({
                 "role": "user",
                 "content": [
@@ -732,7 +778,7 @@ class AIProviderManager:
                     {"type": "image_url", "image_url": {"url": image_url}}
                 ]
             })
-            target_models = ["meta-llama/llama-3.2-11b-vision-instruct:free"]
+            target_models = [OPENROUTER_VISION_MODEL]
         else:
             messages.append({"role": "user", "content": prompt})
             target_models = OPENROUTER_MODELS
@@ -770,9 +816,10 @@ class AIProviderManager:
         Main asynchronous entry point with multi-key rotation and multi-provider failover.
         Returns: (success_bool, response_or_error_string)
         """
-        cfg = self.load_pools()
+        cfg = await asyncio.to_thread(self.load_pools)
         routing = cfg["routing_mode"]
         model = preferred_model or cfg["model"]
+        deadline = time.monotonic() + ASYNC_TOTAL_BUDGET
 
         gemini_pool = list(cfg["gemini_keys"])
         groq_pool = list(cfg["groq_keys"])
@@ -789,12 +836,20 @@ class AIProviderManager:
 
         async with aiohttp.ClientSession() as session:
             for provider in provider_chain:
+                if time.monotonic() >= deadline:
+                    logger.warning(
+                        f"[AIManager] call_ai_async hết ngân sách {ASYNC_TOTAL_BUDGET}s — "
+                        f"dừng failover sớm để không treo event loop."
+                    )
+                    break
                 p_keys = pools_map.get(provider, [])
                 if not p_keys:
                     continue
 
-                attempts = min(len(p_keys), 4)
+                attempts = min(len(p_keys), ASYNC_MAX_KEY_ATTEMPTS)
                 for _ in range(attempts):
+                    if time.monotonic() >= deadline:
+                        break
                     active_key = self.get_next_available_key(provider, p_keys)
                     if not active_key:
                         break
@@ -888,7 +943,11 @@ class AIProviderManager:
         if self.is_in_cooldown(k):
             return False, "RATE_LIMIT_429"
 
-        model = (preferred_model or self.load_pools().get("model") or "").strip()
+        if preferred_model:
+            model = preferred_model.strip()
+        else:
+            # Same lý do như call_ai_async: load_pools() là sqlite3 đồng bộ.
+            model = ((await asyncio.to_thread(self.load_pools)).get("model") or "").strip()
 
         async with aiohttp.ClientSession() as session:
             if provider == "gemini":
