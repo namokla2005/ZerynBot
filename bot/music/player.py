@@ -269,7 +269,15 @@ class MusicPlayer:
 
     async def _handle_after_play_async(self, error, elapsed: int, track: Track):
         """Xử lý kết thúc phát nhạc trên Main Event Loop (100% thread-safe)."""
-        if self._manual_stopped or self._skipped or self._is_reconnecting or self._recovering:
+        if self._manual_stopped or self._is_reconnecting or self._recovering:
+            return
+
+        # `vc.stop()` do skip() gọi cũng kích hoạt after-callback này. Trước đây cờ
+        # `_skipped` nằm chung điều kiện chặn ở đầu hàm nên lời gọi quay về đây luôn
+        # thoát sớm và KHÔNG bao giờ chuyển sang bài kế tiếp -> hàng đợi chết đứng.
+        if self._skipped:
+            self._skipped = False
+            await self._dispatch_next_async()
             return
 
         is_live_track = getattr(track, "is_live", False)
@@ -635,7 +643,6 @@ class MusicPlayer:
                 self._schedule_preload()
 
     def skip(self):
-        self._skipped = True
         self._is_reconnecting = False
         cog = getattr(self, "cog", None)
         if cog and hasattr(cog, "_cancel_reconnect_task"):
@@ -644,7 +651,16 @@ class MusicPlayer:
             except Exception:
                 pass
         if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
+            self._skipped = True
             self.vc.stop()
+            return
+        # Không có bài nào đang phát → after-callback sẽ KHÔNG bao giờ tới để tiêu cờ
+        # `_skipped`. Nếu cứ set cờ ở đây thì mọi `_play()` sau đó bị chặn ngay ở đầu
+        # hàm và nhạc chết vĩnh viễn tới khi restart → phải tiến hàng đợi trực tiếp.
+        self._skipped = False
+        loop = self._get_loop()
+        if loop and not loop.is_closed():
+            self._dispatch_next()
 
     def shuffle(self):
         if len(self.queue) > 1:

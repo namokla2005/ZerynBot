@@ -1,4 +1,5 @@
 import io
+import asyncio
 import logging
 import os
 import sys
@@ -18,6 +19,7 @@ from database import (
     async_get_guild_settings,
     async_is_module_enabled,
     async_wal_checkpoint,
+    snapshot_database,
 )
 from i18n import tr
 
@@ -58,8 +60,19 @@ class Admin(commands.Cog):
             zip_filename = f"backup_{timestamp}.zip"
             zip_path = os.path.join(backup_dir, zip_filename)
 
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                zf.write(db_path, arcname="bot.db")
+            # Snapshot nhất quán qua SQLite backup API. Copy file `bot.db` đang chạy
+            # sẽ bỏ sót các trang đã commit còn nằm trong `bot.db-wal` (không được zip
+            # kèm) → bản sao torn, restore mất giao dịch kinh tế/level.
+            snapshot_path = os.path.join(backup_dir, f".snapshot_{timestamp}.db")
+            try:
+                await asyncio.to_thread(snapshot_database, snapshot_path)
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(snapshot_path, arcname="bot.db")
+            finally:
+                try:
+                    os.remove(snapshot_path)
+                except OSError:
+                    pass
 
             logger.info(f"📦 [Auto-Backup] Created database backup: {zip_path}")
 
@@ -75,7 +88,9 @@ class Admin(commands.Cog):
                             pass
 
             # 3. Gửi file backup về Discord Webhook chuyên dụng (BACKUP_DB)
-            backup_webhook = config.BACKUP_DB_URL or config.WEBHOOK_LOG_URL
+            # Không fallback sang WEBHOOK_LOG_URL: nếu owner quên cấu hình BACKUP_DB,
+            # bản sao DB (cấu hình, kinh tế, level, playlist) sẽ rơi vào kênh log chung.
+            backup_webhook = config.BACKUP_DB_URL
             if backup_webhook:
                 import aiohttp
                 size_kb = round(os.path.getsize(zip_path) / 1024, 2)
@@ -88,6 +103,11 @@ class Admin(commands.Cog):
                         )
                         form.add_field("file", f, filename=zip_filename, content_type="application/zip")
                         await session.post(backup_webhook, data=form)
+            else:
+                logger.warning(
+                    "[Auto-Backup] Chưa cấu hình BACKUP_DB -> bản sao chỉ nằm ở data/backups/, "
+                    "không được gửi lên Discord. Nếu điện thoại mất thì toàn bộ dữ liệu mất theo."
+                )
         except Exception as e:
             logger.warning(f"[Auto-Backup] Error during auto backup: {e}")
 

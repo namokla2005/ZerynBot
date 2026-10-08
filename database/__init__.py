@@ -279,6 +279,7 @@ from .activity import (
 from .maintenance import (
     wal_checkpoint,
     async_wal_checkpoint,
+    snapshot_database,
     async_get_maintenance_job,
     async_set_maintenance_job,
     async_prune_old_data,
@@ -490,6 +491,7 @@ __all__ = [
     "mark_support_thread_read",
     "wal_checkpoint",
     "async_wal_checkpoint",
+    "snapshot_database",
     "async_get_maintenance_job",
     "async_set_maintenance_job",
     "async_prune_old_data",

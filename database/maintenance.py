@@ -6,6 +6,7 @@ Tách từ `database.py` (Giai đoạn 3.3).
 
 import json
 import logging
+import os
 import sqlite3
 import time
 import uuid
@@ -39,6 +40,25 @@ async def async_wal_checkpoint() -> str:
         async with db.execute("PRAGMA wal_checkpoint(TRUNCATE);") as cur:
             res = await cur.fetchone()
             return f"WAL Checkpoint TRUNCATE: {res}"
+
+def snapshot_database(dest_path: str) -> int:
+    """Đồng nhất bản sao DB đang chạy sang `dest_path` (SQLite online backup API).
+
+    KHÔNG copy file `bot.db` trực tiếp: trang đã commit vẫn nằm trong `bot.db-wal`
+    (không được zip kèm) và `wal_checkpoint(TRUNCATE)` có thể trả về sớm khi WAL
+    đang bận → bản sao torn, restore mất giao dịch economy/level.
+    Trả về kích thước file snapshot (byte).
+    """
+    src = sqlite3.connect(get_db_path(), timeout=30.0)
+    try:
+        dest = sqlite3.connect(dest_path)
+        try:
+            src.backup(dest)
+        finally:
+            dest.close()
+    finally:
+        src.close()
+    return os.path.getsize(dest_path)
 
 async def async_get_maintenance_job(job_key: str) -> float:
     """Trả về timestamp lần chạy gần nhất của một job bảo trì (mặc định 0)."""
@@ -123,10 +143,14 @@ async def async_prune_old_data(
             logger.warning(f"[Prune] fun_interactions error: {exc}")
 
         try:
+            # `reminders.remind_at` là INTEGER epoch giây (schema.py). So sánh nó với
+            # `datetime('now', ...)` là so số với chuỗi — SQLite xếp INTEGER luôn nhỏ
+            # hơn TEXT nên vị từ LUÔN đúng và xóa sạch mọi reminder, kể cả chưa tới hạn.
+            reminders_cutoff = time.time() - (reminders_days * 86400)
             await _delete(
                 "reminders",
-                "remind_at < datetime('now', ?) ",
-                (f"-{reminders_days} days",),
+                "remind_at < ?",
+                (reminders_cutoff,),
             )
         except Exception as exc:
             logger.warning(f"[Prune] reminders error: {exc}")

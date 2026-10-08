@@ -409,6 +409,55 @@ def test_player_skip_sets_flag_and_stops_voice():
     asyncio.run(_scenario())
 
 
+def test_player_skip_advances_queue():
+    """Bất biến nhìn thấy được: bấm /skip thì hàng đợi phải TIẾN sang bài kế.
+
+    Regression cho lỗi chết hàng đợi: `_skipped` từng nằm chung điều kiện chặn ở đầu
+    `_handle_after_play_async()` và chỉ được reset trong `_play()` — mà đường skip
+    không bao giờ tới được `_play()`. Test chỉ assert cờ (`_skipped is True`) ở trên
+    không phát hiện gì cả, nên test vẫn xanh dù nhạc chết hẳn sau 1 lần skip.
+    """
+    async def _scenario():
+        m = _M()
+
+        def _fresh(vc):
+            p = _make_player(vc=vc, cog=_FakeCog())
+            calls: list[str] = []
+
+            async def _stub():
+                calls.append("DISPATCH")
+
+            p._dispatch_next_async = _stub
+            p._record_played = lambda title: None
+            p.current = m.Track({"title": "A", "webpage_url": "https://youtu.be/a", "duration": 200})
+            p.queue = [m.Track({"title": "B", "webpage_url": "https://youtu.be/b", "duration": 200})]
+            return p, calls
+
+        # CONTROL: bài kết thúc tự nhiên → dispatch.
+        p, calls = _fresh(_FakeVC(playing=True))
+        await p._handle_after_play_async(None, 200, p.current)
+        assert calls == ["DISPATCH"]
+
+        # NGHI VẤN: skip → after-callback cũng phải dispatch.
+        p, calls = _fresh(_FakeVC(playing=True))
+        p.skip()
+        await p._handle_after_play_async(None, 5, p.current)
+        assert calls == ["DISPATCH"], "skip không tiến hàng đợi — nhạc chết đứng"
+        assert p._skipped is False, "cờ _skipped phải được tiêu trên chính đường skip"
+
+        # EDGE: skip khi không có bài nào phát → after-callback sẽ không bao giờ tới,
+        # cờ treo sẽ chặn mọi `_play()` về sau → phải dispatch trực tiếp và không kẹt cờ.
+        p, calls = _fresh(_FakeVC(playing=False))
+        p.skip()
+        # run_coroutine_threadsafe: 1 tick để create task, 1 tick để task chạy.
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert p._skipped is False, "_skipped kẹt sau idle-skip sẽ chặn toàn bộ playback"
+        assert calls == ["DISPATCH"]
+
+    asyncio.run(_scenario())
+
+
 def test_player_get_elapsed_pause_and_play():
     async def _scenario():
         p = _make_player()

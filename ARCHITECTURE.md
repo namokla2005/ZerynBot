@@ -550,6 +550,36 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
 
 ## 12. System Changelog & Evolution Highlights
 
+- **v3.3 (2026-10)** — Full-repo audit (41 defects) & Phase 1 data-loss fixes:
+  - **Music `/skip` no longer kills the queue**: `_handle_after_play_async()` used to
+    early-return *because* `_skipped` was set, while only `_play()` cleared the flag —
+    a path the skip flow never reaches. Result: audio dead after the first skip, NP
+    embed frozen, voice slot and `MAX_PLAYERS` held forever. Skip now consumes the flag
+    and dispatches the next track; `skip()` on an idle player advances the queue
+    directly instead of leaving the flag stuck (which blocked every later `_play()`).
+  - **Prune no longer wipes live reminders**: `reminders.remind_at` is `INTEGER` epoch
+    seconds, but the prune compared it against `datetime('now','-30 days')` (TEXT).
+    SQLite orders INTEGER below TEXT, so the predicate was always true and **every**
+    reminder was deleted within 24h, silently. Now compared against an epoch cutoff.
+  - **Foreign keys actually enforced**: `PRAGMA foreign_keys=ON` added to
+    `_DB_PRAGMA_SCRIPT` (was never enabled anywhere, so the 4 declared FKs were
+    decoration). `delete_playlist()` / `async_delete_playlist()` now remove child
+    `music_playlist_tracks` rows (required once FKs are live; ticket/reaction-role
+    panel deletes already did this).
+  - **Restorable backups**: DB backup used `zipfile.write("data/bot.db")`, which
+    silently omits `bot.db-wal` — committed pages still in the WAL are lost and the
+    archive may not even contain the schema. New `database.snapshot_database()` uses
+    the SQLite online backup API; `auto_backup_task` and `/backup` zip the snapshot.
+    Auto-backup also stops falling back to `WEBHOOK_LOG_URL` when `BACKUP_DB` is unset.
+  - **Self-test isolation**: `SystemTester.run_all_tests()` now runs against a temp
+    snapshot (`set_db_path` + cleanup), so `python main.py --test` — which `bot.py`
+    fires on *every* startup — can no longer leave probe rows (`999999_test_g`,
+    `u1_test`) in the production DB when a suite times out mid-cleanup.
+  - **Invariant tests over flag assertions**: the old skip test asserted
+    `_skipped is True` and stayed green while the feature was dead. New tests assert
+    the user-visible effect (queue advances), that prune keeps un-expired rows, that
+    every connection enforces FK, and that a snapshot contains WAL-only data that a
+    raw file copy does not. Suite: 158 → **165 tests**.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

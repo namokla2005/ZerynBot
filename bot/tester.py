@@ -20,6 +20,7 @@ import os
 import time
 import shutil
 import asyncio
+import tempfile
 import traceback
 import sqlite3
 import importlib.util
@@ -37,7 +38,7 @@ if BOT_DIR not in sys.path:
 
 import config
 from cache import cache
-from database import get_db_path, init_db
+from database import get_db_path, init_db, set_db_path, snapshot_database
 
 def _safe_print(text: str):
     """Safe print wrapper preventing UnicodeEncodeError on non-UTF8 terminals."""
@@ -80,6 +81,36 @@ async def _send_webhook_report(title: str, description: str, color: int, fields:
 class SystemTester:
     @staticmethod
     async def run_all_tests() -> bool:
+        """Chạy self-test trên SNAPSHOT của data/bot.db, không ghi lên DB thật.
+
+        Các suite chèn hàng dò (`999999_test_g`, `u1_test`, XP probe...) rồi dọn
+        bằng DELETE ở cuối suite. Khi suite TIMEOUT hoặc raise giữa chừng, phần dọn
+        đó bị bỏ qua và rác nằm lại DB production vĩnh viễn — mà `bot.py` lại chạy
+        bộ test này ở MỖI lần startup. Sandbox giữ nguyên dữ liệu thật để đọc, nhưng
+        mọi ghi chỉ đi vào file tạm.
+        """
+        real_db = get_db_path()
+        sandbox = os.path.join(tempfile.gettempdir(), f"zerynbot_selftest_{os.getpid()}.db")
+        isolated = False
+        try:
+            snapshot_database(sandbox)
+            set_db_path(sandbox)
+            isolated = True
+        except Exception as e:
+            _safe_print(f"⚠️  [Tester] Không tạo được sandbox DB ({e}) — chạy trên DB thật.")
+        try:
+            return await SystemTester._run_all_tests()
+        finally:
+            if isolated:
+                set_db_path(real_db)
+                for suffix in ("", "-wal", "-shm"):
+                    try:
+                        os.remove(sandbox + suffix)
+                    except OSError:
+                        pass
+
+    @staticmethod
+    async def _run_all_tests() -> bool:
         """Run deep functional and assertion tests across all core systems."""
         _safe_print("=" * 68)
         _safe_print("🔍 BẮT ĐẦU BỘ KIỂM THỬ CHỨC NĂNG SÂU & LOGIC (ZERYNBOT V2)")

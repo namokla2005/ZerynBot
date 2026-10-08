@@ -30,10 +30,15 @@ DB_PATH  = os.path.join(BASE_DIR, "data", "bot.db")
 DB_CACHE_SIZE_KB = -8000            # ≈ 8MB page cache (mặc định SQLite chỉ ~2MB)
 DB_MMAP_BYTES = 64 * 1024 * 1024    # 64MB memory-map (virtual, không chiếm RAM thật)
 DB_BUSY_TIMEOUT_MS = 15000
+# PRAGMA foreign_keys cũng là PER-CONNECTION và MẶC ĐỊNH = OFF. Schema khai báo
+# FOREIGN KEY ở 4 bảng (music_playlist_tracks, ticket_buttons, reaction_roles_items,
+# reaction_roles) nhưng nếu không bật thì đó chỉ là trang trí: xóa playlist/panel
+# sẽ để lại hàng đợi mồ côi vĩnh viễn.
 VACUUM_FREELIST_THRESHOLD = 0.15    # chỉ VACUUM khi >= 15% page là rác
 
 _DB_PRAGMA_SCRIPT = (
     f"PRAGMA busy_timeout={DB_BUSY_TIMEOUT_MS};"
+    "PRAGMA foreign_keys=ON;"
     "PRAGMA synchronous=NORMAL;"
     f"PRAGMA cache_size={DB_CACHE_SIZE_KB};"
     "PRAGMA temp_store=MEMORY;"

@@ -58,6 +58,7 @@ def create_playlist(guild_id: str, name: str, creator_id: str = "", creator_name
 
 def delete_playlist(playlist_id: int, guild_id: str):
     with _connect_sync() as conn:
+        conn.execute("DELETE FROM music_playlist_tracks WHERE playlist_id = ?", (playlist_id,))
         conn.execute("DELETE FROM music_playlists WHERE id = ? AND guild_id = ?", (playlist_id, guild_id))
         conn.commit()
 
@@ -188,6 +189,7 @@ async def async_create_playlist(guild_id: str, name: str, creator_id: str = "", 
 
 async def async_delete_playlist(playlist_id: int, guild_id: str):
     async with _connect_async() as db:
+        await db.execute("DELETE FROM music_playlist_tracks WHERE playlist_id = ?", (playlist_id,))
         await db.execute("DELETE FROM music_playlists WHERE id = ? AND guild_id = ?", (playlist_id, guild_id))
         await db.commit()
 
