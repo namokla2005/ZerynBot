@@ -17,12 +17,15 @@ Reports status to Webhook and exits with code 1 if any logic assertion fails.
 """
 import sys
 import os
+import json
 import time
 import shutil
 import asyncio
+import platform
 import tempfile
 import traceback
 import sqlite3
+import subprocess
 import importlib.util
 import io
 
@@ -50,33 +53,258 @@ def _safe_print(text: str):
         except Exception:
             pass
 
-async def _send_webhook_report(title: str, description: str, color: int, fields: list = None):
-    """Async webhook report using aiohttp."""
+async def _post_webhook_report(embeds: list, full_text: str = None, filename: str = None):
+    """Đăng nhiều embed + 1 file chi tiết lên webhook admin.
+
+    Báo cáo khởi động giờ chứa đường dẫn file, số hàng DB và commit đang chạy nên
+    ưu tiên STATUS_WEBHOOK_URL (kênh admin riêng), chỉ fallback về kênh log khi chưa
+    cấu hình. Kèm file .txt vì embed bị Discord giới hạn 4096 ký tự/mô tả và
+    6000 ký tự/embed — không đủ cho toàn bộ traceback.
+    """
     webhook_url = (
-        getattr(config, "WEBHOOK_LOG_URL", None)
-        or getattr(config, "STATUS_WEBHOOK_URL", None)
+        getattr(config, "STATUS_WEBHOOK_URL", None)
+        or getattr(config, "WEBHOOK_LOG_URL", None)
         or os.getenv("WEBHOOK_FEEDBACK_URL")
         or os.getenv("FEEDBACK_WEBHOOK_URL")
     )
     if not webhook_url:
         return
     try:
-        embed = {
-            "title": title,
-            "description": description,
-            "color": color,
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "footer": {"text": "Bot V2 Functional Assertion Tester"}
+        payload = {
+            "embeds": embeds[:10],
+            "username": "ZerynBot Self-Test",
         }
-        if fields:
-            embed["fields"] = fields
-            
-        payload = {"embeds": [embed]}
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession() as session:
-            await session.post(webhook_url, json=payload, timeout=timeout)
+            if full_text and filename:
+                form = aiohttp.FormData()
+                form.add_field("payload_json", json.dumps(payload), content_type="application/json")
+                form.add_field(
+                    "files[0]", full_text.encode("utf-8"),
+                    filename=filename, content_type="text/plain",
+                )
+                async with session.post(webhook_url, data=form, timeout=timeout) as resp:
+                    _safe_print(
+                        f"[Tester] Báo cáo khởi động: HTTP {resp.status} · "
+                        f"{len(payload['embeds'])} embed + {filename}"
+                    )
+                    if resp.status >= 300:
+                        _safe_print(f"[Tester] Webhook trả {resp.status}: {(await resp.text())[:200]}")
+            else:
+                async with session.post(webhook_url, json=payload, timeout=timeout) as resp:
+                    _safe_print(
+                        f"[Tester] Báo cáo khởi động: HTTP {resp.status} · "
+                        f"{len(payload['embeds'])} embed"
+                    )
+                    if resp.status >= 300:
+                        _safe_print(f"[Tester] Webhook trả {resp.status}: {(await resp.text())[:200]}")
     except Exception as e:
         _safe_print(f"[Tester] Error sending webhook report: {e}")
+
+
+# ─── Ngữ cảnh máy thật cho báo cáo khởi động ────────────────────────────────────
+
+def _clamp(text, limit: int) -> str:
+    """Cắt chuỗi theo trần ký tự của Discord, ưu tiên giữ phần cuối (nơi có lỗi)."""
+    s = str(text if text is not None else "")
+    if len(s) <= limit:
+        return s
+    return "…" + s[-(limit - 1):]
+
+
+def _read_procfs(path: str) -> dict:
+    """Đọc file dạng 'Key:  value unit' như /proc/meminfo; {} nếu bị từ chối."""
+    try:
+        out = {}
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                key, _, val = line.partition(":")
+                out[key.strip()] = val.strip()
+        return out
+    except Exception:
+        return {}
+
+
+def _mem_kb(info: dict, key: str):
+    parts = info.get(key, "").split()
+    return int(parts[0]) // 1024 if parts and parts[0].isdigit() else None
+
+
+def _memory_snapshot() -> str:
+    info = _read_procfs("/proc/meminfo")
+    total, avail = _mem_kb(info, "MemTotal"), _mem_kb(info, "MemAvailable")
+    if total:
+        used = total - (avail if avail is not None else 0)
+        text = f"RAM {used}/{total} MiB đã dùng"
+        st, sf = _mem_kb(info, "SwapTotal"), _mem_kb(info, "SwapFree")
+        if st:
+            text += f" · swap {st - (sf or 0)}/{st} MiB"
+        return text
+    try:
+        import psutil
+        vm = psutil.virtual_memory()
+        return f"RAM {vm.used // (1024 ** 2)}/{vm.total // (1024 ** 2)} MiB đã dùng"
+    except Exception:
+        return "RAM: không đọc được"
+
+
+def _disk_snapshot() -> str:
+    try:
+        du = shutil.disk_usage(BASE_DIR)
+        return f"đĩa còn {du.free / 1024 ** 3:.1f}/{du.total / 1024 ** 3:.1f} GiB"
+    except Exception:
+        return "đĩa: không đọc được"
+
+
+def _load_uptime_snapshot() -> str:
+    bits = []
+    try:
+        la = os.getloadavg()
+        bits.append(f"load {la[0]:.1f}/{la[1]:.1f}/{la[2]:.1f} ({os.cpu_count()} core)")
+    except Exception:
+        pass
+    try:
+        with open("/proc/uptime", encoding="utf-8", errors="replace") as fh:
+            secs = int(float(fh.read().split()[0]))
+        days, rem = divmod(secs, 86400)
+        hours, mins = divmod(rem, 3600)
+        bits.append(f"uptime {days}d {hours}h{mins:02d}m" if days else f"uptime {hours}h{mins:02d}m")
+    except Exception:
+        pass
+    return " · ".join(bits) if bits else "load/uptime: không đọc được"
+
+
+def _build_snapshot() -> str:
+    """Commit đang chạy — để biết bản báo cáo xanh là của code nào."""
+    try:
+        def _git(*args):
+            return subprocess.run(
+                ["git", *args], cwd=BASE_DIR, capture_output=True,
+                text=True, timeout=6,
+            ).stdout.strip()
+        branch, sha = _git("rev-parse", "--abbrev-ref", "HEAD"), _git("rev-parse", "--short", "HEAD")
+        if not sha:
+            return "?"
+        dirty = bool(_git("status", "--porcelain"))
+        return f"{branch or '?'}@{sha}{' (working tree dirty)' if dirty else ''}"
+    except Exception:
+        return "?"
+
+
+def _versions_snapshot() -> str:
+    try:
+        import importlib.metadata as md
+        bits = [f"Python {platform.python_version()}"]
+        for pkg in ("discord.py", "Flask", "aiosqlite", "yt-dlp", "Pillow", "aiohttp"):
+            try:
+                bits.append(f"{pkg} {md.version(pkg)}")
+            except Exception:
+                continue
+        return " · ".join(bits)
+    except Exception:
+        return f"Python {sys.version.split()[0]}"
+
+
+def _host_snapshot() -> str:
+    try:
+        u = os.uname()
+        return f"{u.sysname} {u.machine}"
+    except Exception:
+        try:
+            return platform.platform(terse=True)
+        except Exception:
+            return "?"
+
+
+HOT_TABLES = (
+    "guilds", "economy_users", "user_inventory", "economy_transactions", "user_levels",
+    "reminders", "giveaways", "mod_warnings", "automod_warnings", "custom_commands",
+    "ticket_panels", "ticket_buttons", "reaction_roles_panels", "reaction_roles_items",
+    "music_playlists", "music_playlist_tracks", "music_song_cache", "activity_logs",
+    "ai_activity_logs", "support_threads", "support_messages", "guild_stats",
+    "fun_interactions", "maintenance_jobs",
+)
+
+FK_CHILDREN = (
+    ("music_playlist_tracks", "playlist_id", "music_playlists"),
+    ("ticket_buttons", "panel_id", "ticket_panels"),
+    ("reaction_roles_items", "panel_id", "reaction_roles_panels"),
+)
+
+
+def _db_health(db_path: str) -> dict:
+    """Sức khỏe DB, đọc ở chế độ CHỈ ĐỌC.
+
+    Chạy TRƯỚC khi self-test chuyển sang sandbox nên đây là số liệu của
+    `data/bot.db` thật; `mode=ro` đảm bảo không giành write-lock của bot đang chạy.
+    """
+    health = {"path": db_path, "rows": {}, "orphans": {}}
+    try:
+        health["size_kib"] = round(os.path.getsize(db_path) / 1024)
+        wal = db_path + "-wal"
+        health["wal_kib"] = round(os.path.getsize(wal) / 1024) if os.path.exists(wal) else 0
+    except OSError as exc:
+        health["size_error"] = str(exc)
+
+    conn = None
+    try:
+        try:
+            from urllib.request import pathname2url
+            conn = sqlite3.connect(f"file:{pathname2url(db_path)}?mode=ro", uri=True, timeout=5)
+        except Exception:
+            conn = sqlite3.connect(db_path, timeout=5)
+            conn.execute("PRAGMA query_only=ON")
+
+        one = lambda sql, *a: conn.execute(sql, a).fetchone()[0]
+        health["journal_mode"] = one("PRAGMA journal_mode")
+        health["foreign_keys"] = one("PRAGMA foreign_keys")
+        health["busy_timeout_ms"] = one("PRAGMA busy_timeout")
+        health["user_version"] = one("PRAGMA user_version")
+        health["integrity"] = one("PRAGMA quick_check")
+        health["tables"] = one("SELECT count(*) FROM sqlite_master WHERE type='table'")
+        try:
+            pages, free = one("PRAGMA page_count"), one("PRAGMA freelist_count")
+            health["freelist_pct"] = round(free * 100 / pages) if pages else 0
+        except Exception:
+            pass
+        for table in HOT_TABLES:
+            try:
+                health["rows"][table] = one(f'SELECT COUNT(*) FROM "{table}"')
+            except Exception:
+                continue
+        for child, col, parent in FK_CHILDREN:
+            try:
+                health["orphans"][f"{child}.{col}"] = one(
+                    f'SELECT COUNT(*) FROM "{child}" WHERE "{col}" IS NOT NULL '
+                    f'AND "{col}" NOT IN (SELECT id FROM "{parent}")'
+                )
+            except Exception:
+                continue
+    except Exception as exc:
+        health["error"] = str(exc)
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    # PRAGMA là PER-CONNECTION: kết nối probe ở trên dùng mặc định SQLite nên chỉ số
+    # foreign_keys/busy_timeout đọc được ở đó KHÔNG phải giá trị app đang dùng. Must
+    # đo qua chính helper mà mọi kết nối của app đi qua.
+    try:
+        from database.conn import _connect_sync
+        probe = _connect_sync(timeout=5.0)
+        try:
+            probe.execute("PRAGMA query_only=ON")
+            health["app_foreign_keys"] = probe.execute("PRAGMA foreign_keys").fetchone()[0]
+            health["app_busy_timeout_ms"] = probe.execute("PRAGMA busy_timeout").fetchone()[0]
+            health["app_synchronous"] = probe.execute("PRAGMA synchronous").fetchone()[0]
+        finally:
+            probe.close()
+    except Exception as exc:
+        health["app_pragma_error"] = str(exc)
+    return health
 
 class SystemTester:
     @staticmethod
@@ -90,6 +318,9 @@ class SystemTester:
         mọi ghi chỉ đi vào file tạm.
         """
         real_db = get_db_path()
+        # Số liệu DB PHẢI được lấy trước khi chuyển sang sandbox, nếu không báo cáo
+        # sẽ mô tả bản sao tạm thay vì data/bot.db thật.
+        db_health = await asyncio.to_thread(_db_health, real_db)
         sandbox = os.path.join(tempfile.gettempdir(), f"zerynbot_selftest_{os.getpid()}.db")
         isolated = False
         try:
@@ -99,7 +330,7 @@ class SystemTester:
         except Exception as e:
             _safe_print(f"⚠️  [Tester] Không tạo được sandbox DB ({e}) — chạy trên DB thật.")
         try:
-            return await SystemTester._run_all_tests()
+            return await SystemTester._run_all_tests(db_health=db_health, sandboxed=isolated)
         finally:
             if isolated:
                 set_db_path(real_db)
@@ -110,13 +341,14 @@ class SystemTester:
                         pass
 
     @staticmethod
-    async def _run_all_tests() -> bool:
+    async def _run_all_tests(db_health: dict = None, sandboxed: bool = False) -> bool:
         """Run deep functional and assertion tests across all core systems."""
+        started_wall = time.time()
         _safe_print("=" * 68)
         _safe_print("🔍 BẮT ĐẦU BỘ KIỂM THỬ CHỨC NĂNG SÂU & LOGIC (ZERYNBOT V2)")
         _safe_print("=" * 68)
 
-        results = []
+        suite_records = []
         failed_suites = []
         error_details = {}
         total_assertions = 0
@@ -125,37 +357,35 @@ class SystemTester:
         async def _run_suite(name: str, coro, timeout_sec: float = 10.0):
             nonlocal total_assertions
             start_t = time.perf_counter()
+            record = {"name": name, "ok": False, "ms": 0.0, "asserts": 0,
+                      "note": "", "error": "", "timeout_sec": timeout_sec}
             try:
                 assert_count, note = await asyncio.wait_for(coro(), timeout=timeout_sec)
-                elapsed = (time.perf_counter() - start_t) * 1000
+                record.update(ok=True, ms=(time.perf_counter() - start_t) * 1000,
+                              asserts=assert_count, note=note or "")
                 total_assertions += assert_count
-                status_line = f"🟢 **{name}** — OK ({elapsed:.1f}ms, {assert_count} asserts passed)"
+                status_line = f"🟢 **{name}** — OK ({record['ms']:.1f}ms, {assert_count} asserts passed)"
                 if note:
                     status_line += f" [{note}]"
-                results.append(status_line)
-                _safe_print(f"  {status_line}")
             except asyncio.TimeoutError:
-                elapsed = (time.perf_counter() - start_t) * 1000
+                record.update(ms=(time.perf_counter() - start_t) * 1000,
+                              error=f"TimeoutError: vượt quá {timeout_sec}s (treating as hang).")
                 failed_suites.append(name)
-                err_msg = f"TimeoutError: Test suite '{name}' timed out after {timeout_sec}s."
-                error_details[name] = err_msg
-                status_line = f"🔴 **{name}** — TIMEOUT ({elapsed:.1f}ms)"
-                results.append(status_line)
-                _safe_print(f"  {status_line}")
+                status_line = f"🔴 **{name}** — TIMEOUT ({record['ms']:.1f}ms)"
             except AssertionError as ae:
-                elapsed = (time.perf_counter() - start_t) * 1000
+                record.update(ms=(time.perf_counter() - start_t) * 1000,
+                              error=f"AssertionError: {ae}\n{traceback.format_exc()}")
                 failed_suites.append(name)
-                error_details[name] = f"AssertionError: {ae}\n{traceback.format_exc()}"
-                status_line = f"🔴 **{name}** — ASSERTION FAIL: {ae} ({elapsed:.1f}ms)"
-                results.append(status_line)
-                _safe_print(f"  {status_line}")
+                status_line = f"🔴 **{name}** — ASSERTION FAIL: {ae} ({record['ms']:.1f}ms)"
             except Exception:
-                elapsed = (time.perf_counter() - start_t) * 1000
+                record.update(ms=(time.perf_counter() - start_t) * 1000,
+                              error=traceback.format_exc())
                 failed_suites.append(name)
-                error_details[name] = traceback.format_exc()
-                status_line = f"🔴 **{name}** — ERROR ({elapsed:.1f}ms)"
-                results.append(status_line)
-                _safe_print(f"  {status_line}")
+                status_line = f"🔴 **{name}** — ERROR ({record['ms']:.1f}ms)"
+            if record["error"]:
+                error_details[name] = record["error"]
+            suite_records.append(record)
+            _safe_print(f"  {status_line}")
 
         # ─── 1. SQLite WAL & Schema Architecture ──────────────────────────────
         async def suite_db_wal():
@@ -666,39 +896,165 @@ class SystemTester:
         _safe_print("=" * 68)
 
         # ─── Process Results ──────────────────────────────────────────────────
+        duration_s = time.time() - started_wall
+        all_ok = not failed_suites
+        slowest = max(suite_records, key=lambda r: r["ms"]) if suite_records else None
+        h = db_health or {}
+        build = _build_snapshot()
+        color = 0x57F287 if all_ok else 0xED4245
+        verdict = "🟢 SẴN SÀNG VẬN HÀNH" if all_ok else f"🚨 {len(failed_suites)} SUITE FAIL"
+
+        db_summary = (
+            f"journal=`{h.get('journal_mode', '?')}` · "
+            f"foreign_keys(app)=`{h.get('app_foreign_keys', h.get('foreign_keys', '?'))}` · "
+            f"busy_timeout(app)=`{h.get('app_busy_timeout_ms', h.get('busy_timeout_ms', '?'))}ms` · "
+            f"user_version=`{h.get('user_version', '?')}` · "
+            f"quick_check=`{h.get('integrity', h.get('error', '?'))}` · {h.get('tables', '?')} bảng · "
+            f"bot.db {h.get('size_kib', '?')} KiB + WAL {h.get('wal_kib', '?')} KiB · "
+            f"freelist {h.get('freelist_pct', '?')}%"
+        )
+
+        overview = {
+            "title": f"{'🚀' if all_ok else '🚨'} BÁO CÁO KIỂM THỬ KHỞI ĐỘNG — {verdict}",
+            "description": _clamp(
+                (f"**{len(suite_records) - len(failed_suites)}/{len(suite_records)} suite PASS** · "
+                 f"**{total_assertions} assertions** · hoàn tất trong **{duration_s:.2f}s**\n"
+                 + ("Toàn bộ logic lõi (economy nguyên tử, leveling, SSRF, i18n, audio, WAL "
+                    "concurrency) được xác nhận bằng assert thật, không phải smoke test import."
+                    if all_ok else
+                    "Hệ thống VẪN khởi động nhưng có lỗi logic — xem embed 'Traceback' bên dưới.")),
+                4096),
+            "color": color,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "footer": {"text": f"ZerynBot V2 Functional Assertion Tester · {build}"},
+            "fields": [
+                {"name": "🏗️ Build đang chạy", "value": _clamp(f"`{build}`", 1024), "inline": True},
+                {"name": "🖥️ Host", "value": _clamp(_host_snapshot(), 1024), "inline": True},
+                {"name": "📦 Phiên bản", "value": _clamp(_versions_snapshot(), 1024)},
+                {"name": "🧠 Tài nguyên", "value": _clamp(f"{_memory_snapshot()} · {_disk_snapshot()}", 1024)},
+                {"name": "⚙️ Tải máy & uptime", "value": _clamp(_load_uptime_snapshot(), 1024)},
+                {"name": "⏱️ Suite chậm nhất",
+                 "value": _clamp(
+                     f"`{slowest['name']}` — {slowest['ms']:.0f} ms / {slowest['asserts']} asserts"
+                     if slowest else "—", 1024)},
+                {"name": "🗄️ Sức khỏe DB (đọc từ file thật, mode=ro)", "value": _clamp(db_summary, 1024)},
+                {"name": "🧪 Cách ly khi test",
+                 "value": ("Self-test chạy trên **snapshot DB tạm** → `data/bot.db` không nhận hàng dò."
+                           if sandboxed else
+                           "⚠️ Không tạo được snapshot → self-test đang ghi vào **DB thật**.")},
+            ],
+        }
+
+        suite_embed = {
+            "title": f"📋 Chi tiết {len(suite_records)} nhóm kiểm thử",
+            "color": color,
+            "fields": [
+                {
+                    "name": f"{'🟢' if r['ok'] else '🔴'} {r['name']}",
+                    "value": _clamp(
+                        f"{r['ms']:.1f} ms · {r['asserts']} asserts"
+                        + (f"\n`{r['note']}`" if r["note"] else "")
+                        + (f"\n❌ {r['error'].splitlines()[0]}" if r["error"] else ""),
+                        1024),
+                }
+                for r in suite_records
+            ],
+        }
+
+        rows = h.get("rows", {})
+        row_chunks, cur, cur_len = [], [], 0
+        for name, count in sorted(rows.items(), key=lambda kv: -kv[1]):
+            line = f"`{name}` = {count:,}"
+            if cur_len + len(line) + 1 > 1000:
+                row_chunks.append(cur)
+                cur, cur_len = [], 0
+            cur.append(line)
+            cur_len += len(line) + 1
+        if cur:
+            row_chunks.append(cur)
+
+        orphans = h.get("orphans", {})
+        db_fields = [
+            {"name": f" Số hàng theo bảng (phần {i + 1}/{len(row_chunks)})", "value": _clamp("\n".join(chunk), 1024)}
+            for i, chunk in enumerate(row_chunks)
+        ]
+        if orphans:
+            bad = {k: v for k, v in orphans.items() if v}
+            db_fields.append({
+                "name": "🔗 Hàng mồ côi (FK)",
+                "value": _clamp(
+                    ("✅ " + " · ".join(f"{k} = {v}" for k, v in orphans.items())) if not bad
+                    else "⚠️ " + " · ".join(f"**{k} = {v}**" for k, v in bad.items()),
+                    1024),
+            })
+        db_embed = {"title": "🗄️ Sức khỏe database", "color": color, "fields": db_fields[:24]}
+
+        embeds = [overview, suite_embed, db_embed]
+        full_lines = [
+            "ZERYNBOT V2 — BÁO CÁO KIỂM THỬ KHỞI ĐỘNG",
+            "=" * 72,
+            f"Thời điểm  : {time.strftime('%Y-%m-%d %H:%M:%S %Z', time.gmtime())}",
+            f"Build       : {build}",
+            f"Host        : {_host_snapshot()}",
+            f"Phiên bản   : {_versions_snapshot()}",
+            f"Tài nguyên  : {_memory_snapshot()} · {_disk_snapshot()}",
+            f"Tải/uptime  : {_load_uptime_snapshot()}",
+            f"Kết quả     : {verdict} · {total_assertions} assertions · {duration_s:.2f}s",
+            f"Cách ly DB  : {'sandbox tạm (DB thật không bị ghi)' if sandboxed else 'KHÔNG SANDBOX — ghi DB thật'}",
+            "",
+            "-" * 72,
+            "DATABASE (đọc từ file thật, mode=ro)",
+            "-" * 72,
+            db_summary,
+            f"path: {h.get('path', '?')}",
+        ]
+        for name, count in sorted(rows.items(), key=lambda kv: -kv[1]):
+            full_lines.append(f"  {name:<28} {count:>8,}")
+        if orphans:
+            full_lines.append("  orphans: " + " · ".join(f"{k}={v}" for k, v in orphans.items()))
+
+        full_lines += ["", "-" * 72, "TỪNG NHÓM KIỂM THỬ", "-" * 72]
+        for r in suite_records:
+            full_lines.append(
+                f"[{'PASS' if r['ok'] else 'FAIL'}] {r['name']} — {r['ms']:.1f} ms, "
+                f"{r['asserts']} asserts, timeout ceiling {r['timeout_sec']}s"
+            )
+            if r["note"]:
+                full_lines.append(f"    đo được: {r['note']}")
+
+        if failed_suites:
+            fail_embed_fields = []
+            full_lines += ["", "-" * 72, "TRACEBACK CHI TIẾT", "-" * 72]
+            for suite in failed_suites[:8]:
+                err = error_details[suite]
+                fail_embed_fields.append({
+                    "name": f"🚨 {suite}"[:256],
+                    "value": f"```py\n{_clamp(err, 990)}\n```",
+                })
+                full_lines += [f"\n### {suite}\n{err}"]
+            embeds.append({
+                "title": f"🚨 Traceback — {len(failed_suites)} suite fail (bản cắt gọn, đủ trong file đính kèm)",
+                "description": _clamp(
+                    "Toàn văn traceback nằm trong file `.txt` đính kèm.", 4096),
+                "color": 0xED4245,
+                "fields": fail_embed_fields,
+            })
+
+        full_text = "\n".join(full_lines)
+        sha = build.split("@")[-1].split()[0] if "@" in build else "unknown"
+        filename = f"zerynbot_selftest_{sha}_{time.strftime('%Y%m%d_%H%M%S')}.txt"
+
         if failed_suites:
             _safe_print(f"❌ [Tester] PHÁT HIỆN LỖI TẠI {len(failed_suites)} NHÓM TEST:")
             for suite in failed_suites:
                 _safe_print(f"\n--- [Chi tiết lỗi tại: {suite}] ---")
                 _safe_print(error_details[suite])
-            
-            # Send failure report to Webhook
-            desc = "\n".join(results)
-            fields = [
-                {
-                    "name": f"🚨 Lỗi tại [{suite}]",
-                    "value": f"```py\n{error_details[suite][-900:]}\n```"
-                }
-                for suite in failed_suites[:5]
-            ]
-            await _send_webhook_report(
-                title=f"🚨 PHÁT HIỆN LỖI HỆ THỐNG ({len(failed_suites)} SUITES FAIL)",
-                description=desc,
-                color=0xED4245,
-                fields=fields
-            )
-            return False
-
-        # All tests passed!
-        _safe_print(f"🎉 TẤT CẢ 11 NHÓM BÀI TEST & {total_assertions} ASSERTIONS ĐỀU PASS 100%!")
+        else:
+            _safe_print(f"🎉 TẤT CẢ {len(suite_records)} NHÓM BÀI TEST & {total_assertions} ASSERTIONS ĐỀU PASS 100%!")
         _safe_print("=" * 68)
-        desc = "\n".join(results) + f"\n\n*🎉 Tất cả 11 nhóm kiểm thử ({total_assertions} assertions) hoàn toàn chính xác! Hệ thống sẵn sàng.*"
-        await _send_webhook_report(
-            title=f"🚀 BÁO CÁO KIỂM THỬ HỆ THỐNG — 100% PASS ({total_assertions} ASSERTS)",
-            description=desc,
-            color=0x57F287
-        )
-        return True
+
+        await _post_webhook_report(embeds, full_text=full_text, filename=filename)
+        return all_ok
 
 if __name__ == "__main__":
     success = asyncio.run(SystemTester.run_all_tests())
