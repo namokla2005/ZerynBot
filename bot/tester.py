@@ -171,7 +171,20 @@ def _load_uptime_snapshot() -> str:
         bits.append(f"uptime {days}d {hours}h{mins:02d}m" if days else f"uptime {hours}h{mins:02d}m")
     except Exception:
         pass
-    return " · ".join(bits) if bits else "load/uptime: không đọc được"
+    if bits:
+        return " · ".join(bits)
+    # Android/Termux chặn /proc/loadavg + /proc/uptime cho app không root, nhưng bản
+    # thân binary `uptime` vẫn đọc được qua ngỏ khác — đây là cách duy nhất lấy được
+    # load average trên Tecno Pova 2 (số này quan trọng vì máy hay bão hòa CPU).
+    try:
+        out = subprocess.run(
+            ["uptime"], capture_output=True, text=True, timeout=4
+        ).stdout.strip()
+        if out:
+            return _clamp(f"{out} ({os.cpu_count()} core)", 1024)
+    except Exception:
+        pass
+    return "load/uptime: không đọc được"
 
 
 def _build_snapshot() -> str:
