@@ -54,16 +54,15 @@ def _safe_print(text: str):
             pass
 
 async def _post_webhook_report(embeds: list, full_text: str = None, filename: str = None):
-    """Đăng nhiều embed + 1 file chi tiết lên webhook admin.
+    """Đăng nhiều embed + 1 file chi tiết lên kênh log của bot.
 
-    Báo cáo khởi động giờ chứa đường dẫn file, số hàng DB và commit đang chạy nên
-    ưu tiên STATUS_WEBHOOK_URL (kênh admin riêng), chỉ fallback về kênh log khi chưa
-    cấu hình. Kèm file .txt vì embed bị Discord giới hạn 4096 ký tự/mô tả và
+    Báo cáo kiểm thử thuộc WEBHOOK_LOG_URL; STATUS_WEBHOOK_URL để riêng cho thông báo
+    start/stop. Kèm file .txt vì embed bị Discord giới hạn 4096 ký tự/mô tả và
     6000 ký tự/embed — không đủ cho toàn bộ traceback.
     """
     webhook_url = (
-        getattr(config, "STATUS_WEBHOOK_URL", None)
-        or getattr(config, "WEBHOOK_LOG_URL", None)
+        getattr(config, "WEBHOOK_LOG_URL", None)
+        or getattr(config, "STATUS_WEBHOOK_URL", None)
         or os.getenv("WEBHOOK_FEEDBACK_URL")
         or os.getenv("FEEDBACK_WEBHOOK_URL")
     )
