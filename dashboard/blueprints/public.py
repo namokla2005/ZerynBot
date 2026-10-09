@@ -156,9 +156,17 @@ def health():
     status_code = 200 if online else 503
     return jsonify(data), status_code
 
+@bp.route("/commands")
+def commands_page():
+    """`/commands` duoc /botinfo + 2 nut lien ket trong /help tro thang nay tu khi
+    viet lenh, nhung route that cua trung tam lenh la `/docs` -> 404 cho ngu dung.
+    Giu URL cu hoat dong, `/docs` van la URL chuan (url_for khong doi trang)."""
+    return redirect(url_for("public.docs_page"), code=308)
+
+
 @bp.route("/docs")
 def docs_page():
-    """Trang Tài Liệu Hướng Dẫn & Danh Mục 110 Lệnh (Public, Đa ngôn ngữ, Preview tương tác)."""
+    """Trang Tài Liệu Hướng Dẫn & Danh Mục toàn bộ lệnh (Public, Đa ngôn ngữ, Preview tương tác)."""
     from dashboard.commands_catalog import get_localized_commands_data
     ui_lang = session.get("ui_lang", "vi")
     localized_data = get_localized_commands_data(ui_lang)

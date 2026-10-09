@@ -42,6 +42,7 @@ BASELINE_ROUTES = [
     "GET /api/guild/<guild_id>/recent_events",
     "GET /api/support/messages",
     "GET /callback",
+    "GET /commands",
     "GET /dashboard",
     "GET /dashboard/<guild_id>",
     "GET /dashboard/<guild_id>/commands",
@@ -276,3 +277,56 @@ def test_public_pages_render(client, temp_db):
     support = client.get("/support")
     assert support.status_code in (200, 302)
     assert support.status_code < 500
+
+
+# ─── 5. URL tuyệt đối hardcode trong bot phải còn sống trên dashboard ───────────
+
+ABSOLUTE_URL_PATTERN = re.compile(r"https://zerynbot\.id\.vn(/[A-Za-z0-9_\-/?&=%#]*)?")
+
+
+def test_hardcoded_public_urls_still_route(flask_app):
+    """`/botinfo` + 2 nút `/help` trỏ `https://zerynbot.id.vn/commands` từ hồi viết lệnh,
+    nhưng trang lệnh thật nằm ở `/docs` → người dùng bấm là gặp 404.
+
+    Regex/URL map là machine thật của loại lỗi này: một trang bị đổi tên hoặc
+    xóa đi sẽ không làm sập test nào khác, chỉ làm hỏng liên kết mà user đã bấm.
+    Quét cả bot/ lẫn dashboard/ vì cả hai đều nhúng URL tuyệt đối.
+    """
+    from werkzeug.exceptions import MethodNotAllowed, NotFound
+
+    import pathlib
+
+    adapter = flask_app.url_map.bind("zerynbot.id.vn")
+    offenders = []
+    checked = set()
+    root = pathlib.Path(BASE_DIR)
+    for folder in ("bot", "dashboard"):
+        for py in sorted((root / folder).rglob("*.py")):
+            rel = str(py.relative_to(root)).replace("\\", "/")
+            for n, line in enumerate(py.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                for m in ABSOLUTE_URL_PATTERN.finditer(line):
+                    path = m.group(1) or "/"
+                    checked.add(path)
+                    try:
+                        adapter.match(path)
+                    except NotFound:
+                        offenders.append(f"{rel}:{n} → {path} (404)")
+                    except MethodNotAllowed:
+                        offenders.append(f"{rel}:{n} → {path} (khong nhan GET)")
+    # /commands 404 tung lap lại loi nay; neu quyet duoc qua it URL thi regex hong
+    assert "/commands" in checked, f"Quét phải gồm /commands, mới nhận: {sorted(checked)}"
+    assert not offenders, f"URL hardcode dieu tren dashboard: {offenders}"
+
+
+def test_commands_url_lands_on_command_center(client, temp_db):
+    """User bấm "Danh Sách Lệnh" trong Discord → phải tới trang lệnh, không 404."""
+    root = client.get("/commands")
+    assert root.status_code in (301, 302, 307, 308), f"/commands → {root.status_code}"
+    from urllib.parse import urlparse
+
+    assert urlparse(root.headers["Location"]).path == "/docs"
+
+    landed = client.get("/commands", follow_redirects=True)
+    assert landed.status_code == 200
+    assert b"cmd-search" in landed.data, "Ve /docs nhung thieu o tim lenh — khong phai trang lenh"
+
