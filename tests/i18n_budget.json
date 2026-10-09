@@ -1,0 +1,17 @@
+{
+  "bot/cogs/automod.py": 16,
+  "bot/cogs/info.py": 12,
+  "bot/cogs/admin.py": 6,
+  "bot/cogs/economy.py": 4,
+  "bot/cogs/music.py": 4,
+  "bot/music/views.py": 4,
+  "bot/cogs/ai.py": 3,
+  "bot/bot.py": 2,
+  "bot/cogs/fun.py": 2,
+  "bot/cogs/giveaway.py": 2,
+  "bot/cogs/tempvoice.py": 2,
+  "bot/cogs/utility.py": 2,
+  "bot/music/player.py": 2,
+  "bot/cogs/leveling.py": 1,
+  "bot/cogs/verify.py": 0
+}

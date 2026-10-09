@@ -28,13 +28,13 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 
 ### 💡 1.2 Nguyên Tắc Phản Biện & Tư Vấn Kỹ Thuật Chủ Động (Critical Inquiry Rule)
 - **Không thực thi mù quáng (No Blind Execution)**: AI đóng vai trò là Senior Architect và cộng sự kỹ thuật. Khi người dùng đưa ra yêu cầu mới, thay đổi luồng hoặc tính năng, AI **tuyệt đối không làm theo một cách thụ động, máy móc**.
-- **Chủ động đặt câu hỏi làm rõ**: Nếu yêu cầu còn mơ hồ, có nhiều phương án triển khai, hoặc tiềm ẩn rủi ro (hiệu năng ARM/Termux yếu, nghẽn SQLite WAL, phá vỡ chuẩn 20 modules / 116 lệnh / 1694 keys i18n, UX Discord/Web chưa mượt), AI **BẮT BUỘC phải hỏi thêm thông tin, chỉ ra các trường hợp biên (edge cases) và đề xuất các giải pháp tối ưu** kèm ưu/nhược điểm (trade-offs) trước khi bắt tay vào viết mã.
+- **Chủ động đặt câu hỏi làm rõ**: Nếu yêu cầu còn mơ hồ, có nhiều phương án triển khai, hoặc tiềm ẩn rủi ro (hiệu năng ARM/Termux yếu, nghẽn SQLite WAL, phá vỡ chuẩn 20 modules / 116 lệnh / 1733 keys i18n, UX Discord/Web chưa mượt), AI **BẮT BUỘC phải hỏi thêm thông tin, chỉ ra các trường hợp biên (edge cases) và đề xuất các giải pháp tối ưu** kèm ưu/nhược điểm (trade-offs) trước khi bắt tay vào viết mã.
 - **Tương tác thông minh**: Sử dụng interactive modal (`ask_question`) để người dùng chọn nhanh các phương án, hoặc gợi ý slash command `/grill-me` khi cần trao đổi đa chiều về quyết định thiết kế kiến trúc. Chi tiết xem tại [`.agents/rules/critical_inquiry.md`](file:///d:/Project/Discord%20Bots/v2/.agents/rules/critical_inquiry.md).
 
 ### 👥 1.3 Quy Trình Phản Biện Đa Model 5 Bước Chuẩn (The 5-Step Dual-Model Co-Reasoning Loop)
 - **Quy tắc cốt lõi (Persistent Constraint)**: Trong **MỌI tác vụ** (tiếp nhận yêu cầu, xử lý lỗi, phân tích nguyên nhân gốc rễ, lập kế hoạch kiến trúc, chỉnh sửa mã nguồn và rà soát trước commit), AI **BẮT BUỘC MẶC ĐỊNH LUÔN DÙNG 2 MODEL AI ĐỒNG THỜI**, tuyệt đối không bao giờ làm việc đơn lẻ:
   - 🏛️ **Model 1 — Lead Architect & Coordinator (Primary Agent - Gemini 3.8 / Antigravity IDE)**: Tiếp nhận dữ liệu chẩn đoán Termux, nắm giữ ngữ cảnh sâu rộng, thiết kế phương án kiến trúc, trực tiếp thao tác viết/chỉnh sửa mã nguồn và điều phối toàn bộ workflow.
-  - 🛡️ **Model 2 — Independent Reviewer & Security Critic (NVIDIA: Nemotron 3 Ultra 550B Free qua OpenRouter -> fallback Groq Qwen 3.8 27B -> fallback Groq GPT-OSS 120B qua `scripts/dual_model_mcp.py`)**: Đóng vai trò kiểm toán viên độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), race condition, rò rỉ tài nguyên trên Termux ARM64 (Helio G85, 6GB RAM), nghẽn SQLite WAL và phá vỡ kiến trúc (20 modules / 116 lệnh / 1694 keys i18n).
+  - 🛡️ **Model 2 — Independent Reviewer & Security Critic (NVIDIA: Nemotron 3 Ultra 550B Free qua OpenRouter -> fallback Groq Qwen 3.8 27B -> fallback Groq GPT-OSS 120B qua `scripts/dual_model_mcp.py`)**: Đóng vai trò kiểm toán viên độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), race condition, rò rỉ tài nguyên trên Termux ARM64 (Helio G85, 6GB RAM), nghẽn SQLite WAL và phá vỡ kiến trúc (20 modules / 116 lệnh / 1733 keys i18n).
 - **Chu Trình 5 Bước Phản Biện Bắt Buộc (The 5-Step Loop)**:
   1. 📋 **Bước 1 (1 - Lên kế hoạch)**: Model 1 dựa trên chứng cứ thực tế thu thập từ Termux và phân tích mã nguồn để thiết lập kế hoạch giải quyết chi tiết (`Plan v1`).
   2. 🔍 **Bước 2 (2 - Kiểm tra + Phản biện)**: Model 2 rà soát độc lập (`Critique v1`) qua `python scripts/dual_model_mcp.py --consult "<kế hoạch>" --role critic`, chỉ ra các điểm mù, rủi ro bảo mật, deadlock SQLite WAL và hiệu năng Termux Helio G85.
@@ -76,7 +76,7 @@ Tài liệu này xác định các quy tắc cốt lõi, bối cảnh môi trư�
 - **Web Dashboard**: Flask + Jinja2 (kiến trúc Blueprints `dashboard/blueprints/` & `dashboard/app_factory.py`), truy cập CSDL đồng bộ qua `sqlite3` (package `database/` sync), dịch đa ngôn ngữ bằng `t(key)`.
 - **Hệ thống Modules**: Đúng chuẩn **20 Modules** trong `DEFAULT_MODULES` (`welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`, `verify`).
 - **Hệ thống Lệnh Dashboard**: Danh sách tập trung `_COMMANDS_DATA` trong [`commands_data.py`](https://github.com/namokla2005/ZerynBot/blob/main/commands_data.py) quản lý đúng **116 lệnh** thuộc **17 danh mục**.
-- **Đa ngôn ngữ (i18n)**: 6 file từ điển (`vi`, `en`, `zh`, `es`, `pt`, `fr`) luôn luôn đồng bộ chính xác **1694 keys/file** (100% không lệch key).
+- **Đa ngôn ngữ (i18n)**: 6 file từ điển (`vi`, `en`, `zh`, `es`, `pt`, `fr`) luôn luôn đồng bộ chính xác **1733 keys/file** (100% không lệch key).
 - **Cơ sở dữ liệu**: SQLite WAL mode tại `data/bot.db` (`PRAGMA busy_timeout = 15000`, tự động checkpoint dọn WAL). Quản lý tập trung qua package `database/` (`database.conn` set per-connection PRAGMA, `set_db_path()` cô lập test fixtures).
 - **AI Engine**: Groq Cloud API (`gsk_*`) với model mặc định `qwen/qwen3.8-27b` (hỗ trợ chuyển đổi qua Admin Dashboard), fallback sang Google Gemini và OpenRouter. Hỗ trợ xử lý ảnh (Multimodal Vision).
 - **Hệ thống Kinh Tế & Ngân Hàng**:
@@ -110,6 +110,14 @@ Mỗi khi AI thực hiện thay đổi mã nguồn, **BẮT BUỘC** phải tuâ
    - Thêm đủ vào cả **6 file** trong `locales/`.
    - Chạy kiểm tra: `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
    - Cập nhật con số key trong `ARCHITECTURE.md`, `.agents/AGENTS.md`, `llms.txt`.
+   - **Bắt buộc**: đối số đầu của `tr()` phải là dict **guild settings**
+     (`async_get_guild_settings`) — chỉ nó mang key `language`. Các dict cấu hình module
+     (`async_get_verify_settings`, `async_get_music_settings`, `_check_module` trả
+     `guild_settings` thì ổn) KHÔNG có `language`, truyền vào `tr()` thì server
+     `en/zh/es/pt/fr` mãi mãi ra tiếng Việt. Dùng biến `gs` theo quy ước.
+   - Tool de-hardcode + kiểm kê: `python scripts/i18n_audit.py [--budget]`,
+     `python scripts/i18n_migrate.py fetch|plan|apply <file>`. Ngân sách chuỗi hardcode
+     còn lại nằm trong `tests/i18n_budget.json` (chỉ được giảm).
 3. **Khi thay đổi AI Provider hoặc Model**:
    - Cập nhật danh sách model trong `dashboard/templates/admin.html`, `bot/cogs/ai.py`, `.agents/skills/ai_provider_routing/`.
 4. **Git Commit & Push**:

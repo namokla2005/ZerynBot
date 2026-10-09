@@ -31,7 +31,7 @@ from database import (
     async_is_module_enabled,
     async_upsert_verify_settings,
 )
-from i18n import tr
+from i18n import t, tr
 
 try:
     from emojis import e, embed_title, partial
@@ -80,40 +80,49 @@ def _load_saved_overrides(raw: str) -> list:
 # ─── Verify Button (View) ─────────────────────────────────────────────────────
 # ═════════════════════════════════════════════════════════════════════════════
 class VerifyView(discord.ui.View):
-    """View chứa một nút xác thực duy nhất."""
+    """View chứa một nút xác thực duy nhất.
 
-    def __init__(self, bot):
+    Nhan nut duoc luu VINH VIEN vao payload tin nhan khi panel duoc gui, nen muon theo
+    ngon ngu cua server thi `guild_settings` PHAI duoc truyen vao luc goi — khong the
+    doi ve sau. `bot.add_view()` (dang ky persistent) khong gui payload nao, dung
+    label mac dinh cua ngon ngu nen (vi).
+    """
+
+    def __init__(self, bot, guild_settings: dict | None = None):
         super().__init__(timeout=None)
         self.bot = bot
+        if guild_settings is not None:
+            self.children[0].label = tr(guild_settings, "verify.nut_xac_thuc")
 
     @discord.ui.button(
-        label="Tôi đã đọc nội quy & Xác thực",
+        label=t("verify.nut_xac_thuc"),
         style=discord.ButtonStyle.success,
         emoji=partial("zb_verified", "✅"),
         custom_id=VERIFY_BUTTON_ID,
     )
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        gs = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else None
         guild = interaction.guild
         if guild is None:
-            await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server.", ephemeral=True)
+            await interaction.response.send_message(tr(gs, "verify.lenh_nay_chi_dung_trong"), ephemeral=True)
             return
 
         try:
             s = await async_get_verify_settings(str(guild.id))
         except Exception as exc:  # bảo hiểm nếu DB lỗi
             log.error(f"[Verify] DB error in button: {exc}")
-            await interaction.response.send_message("❌ Đã xảy ra lỗi khi đọc cấu hình.", ephemeral=True)
+            await interaction.response.send_message(tr(gs, "verify.da_xay_ra_loi_khi"), ephemeral=True)
             return
 
         if not int(s.get("enabled", 0)):
             await interaction.response.send_message(
-                "❌ Tính năng xác thực đã bị tắt.", ephemeral=True
+                tr(gs, "verify.tinh_nang_xac_thuc_da"), ephemeral=True
             )
             return
 
         member = interaction.user
         if member.bot:
-            await interaction.response.send_message("🤖 Bạn là bot, không cần xác thực.", ephemeral=True)
+            await interaction.response.send_message(tr(gs, "verify.ban_la_bot_khong_can"), ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -155,7 +164,7 @@ class VerifyView(discord.ui.View):
 
         ok_emoji = e("zb_verified", "✅")
         await interaction.followup.send(
-            f"{ok_emoji} Xác thực thành công, chúc mừng **{member.display_name}**!",
+            tr(gs, "verify.xac_thuc_thanh_cong_chuc", ok_emoji=ok_emoji, display_name=member.display_name),
             ephemeral=True,
         )
 
@@ -169,7 +178,7 @@ async def _log_verify(interaction: discord.Interaction, s: dict, added: list, re
     if not isinstance(channel, discord.TextChannel):
         return
 
-    desc = f"**Người dùng:** {interaction.user.mention} (`{interaction.user.id}`)"
+    desc = tr(s, "verify.nguoi_dung", mention=interaction.user.mention, p3=interaction.user.id)
     if added:
         desc += f"\n**Đã thêm:** {', '.join(added)}"
     if removed:
@@ -198,8 +207,9 @@ class Verify(commands.Cog, name="Verify"):
         self.bot = bot
 
     async def cog_check(self, ctx: commands.Context) -> bool:
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         if not await async_is_module_enabled(str(ctx.guild.id), "verify"):
-            await ctx.send("🔒 Module Verify đang tắt.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.module_verify_dang_tat"), ephemeral=True)
             return False
         return True
 
@@ -223,6 +233,7 @@ class Verify(commands.Cog, name="Verify"):
         await self._show_status(ctx)
 
     async def _show_status(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
         enabled = bool(int(s.get("enabled", 0)))
@@ -240,44 +251,45 @@ class Verify(commands.Cog, name="Verify"):
             color=discord.Color.success() if enabled else discord.Color.dark_grey(),
             timestamp=discord.utils.utcnow(),
         )
+        state_label = tr(gs, "verify.state_bat") if enabled else tr(gs, "verify.state_tat")
         embed.add_field(
-            name="Trạng thái",
-            value=f"{status_emoji} {'**BẬT**' if enabled else '**TẮT**'} ({'hard gate' if hide else 'soft'})",
+            name=tr(gs, "verify.trang_thai"),
+            value=f"{status_emoji} {state_label} ({'hard gate' if hide else 'soft'})",
             inline=False,
         )
         embed.add_field(
-            name="Kênh xác thực",
-            value=ch.mention if ch else "`chưa đặt`",
+            name=tr(gs, "verify.kenh_xac_thuc"),
+            value=ch.mention if ch else tr(gs, "verify.chua_dat"),
             inline=True,
         )
         embed.add_field(
-            name="Vai trò đã xác thực",
-            value=vr.mention if vr else "`chưa đặt`",
+            name=tr(gs, "verify.vai_tro_da_xac_thuc"),
+            value=vr.mention if vr else tr(gs, "verify.chua_dat"),
             inline=True,
         )
         embed.add_field(
-            name="Vai trò chờ",
-            value=pr.mention if pr else "`chưa đặt`",
+            name=tr(gs, "verify.vai_tro_cho"),
+            value=pr.mention if pr else tr(gs, "verify.chua_dat"),
             inline=True,
         )
         embed.add_field(
-            name="Kênh log",
+            name=tr(gs, "verify.kenh_log"),
             value=(
                 ctx.guild.get_channel(int(s["log_channel_id"])).mention
                 if s.get("log_channel_id")
                 and isinstance(ctx.guild.get_channel(int(s["log_channel_id"])), discord.TextChannel)
-                else "`chưa đặt`"
+                else tr(gs, "verify.chua_dat")
             ),
             inline=True,
         )
         embed.add_field(
-            name="Chế độ ẩn kênh",
-            value="🟢 Bật" if hide else "🔴 Tắt",
+            name=tr(gs, "verify.che_do_an_kenh"),
+            value=tr(gs, "verify.bat") if hide else tr(gs, "verify.tat"),
             inline=True,
         )
         embed.add_field(
             name="Snapshot overrides",
-            value=f"{total_overrides} kênh",
+            value=tr(gs, "verify.kenh", total_overrides=total_overrides),
             inline=True,
         )
         # Footer truoc day ep ngon ngu "vi" (tham so cung cap vao tr()) nen luon ra
@@ -292,11 +304,12 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_enable(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
 
         if not s.get("channel_id"):
-            await ctx.send("❌ Hãy đặt kênh xác thực trước: `/verify channel #kênh`", ephemeral=True)
+            await ctx.send(tr(gs, "verify.hay_dat_kenh_xac_thuc"), ephemeral=True)
             return
 
         # Tạo vai trò pending nếu chưa có
@@ -306,14 +319,14 @@ class Verify(commands.Cog, name="Verify"):
         if pending_role is None:
             pending_role = await self._ensure_pending_role(ctx)
             if pending_role is None:
-                await ctx.send("❌ Không tạo được vai trò chờ — kiểm tra quyền `Quản lý vai trò`.", ephemeral=True)
+                await ctx.send(tr(gs, "verify.khong_tao_duoc_vai_tro"), ephemeral=True)
                 return
             await async_upsert_verify_settings(guild_id, pending_role_id=str(pending_role.id))
 
         # Áp hard gate: snapshot + set overwrite cho pending role trên mọi kênh
         ch = ctx.guild.get_channel(int(s["channel_id"]))
         if not isinstance(ch, discord.TextChannel):
-            await ctx.send("❌ Kênh xác thực không hợp lệ.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.kenh_xac_thuc_khong_hop"), ephemeral=True)
             return
 
         count, errors = await self._apply_hard_gate(ctx, pending_role, ch)
@@ -327,13 +340,12 @@ class Verify(commands.Cog, name="Verify"):
 
         if errors:
             await ctx.send(
-                f"✅ Đã bật Verify Gate (hard). Đã thiết lập {len(count)} kênh; "
-                f"⚠️ {errors} kênh bỏ qua (thiếu quyền `Quản lý kênh`).",
+                tr(gs, "verify.da_bat_verify_gate_hard", len=len(count), errors=errors),
                 ephemeral=True,
             )
         else:
             await ctx.send(
-                f"✅ Đã bật Verify Gate (hard). Thành viên mới sẽ chỉ thấy {ch.mention}.",
+                tr(gs, "verify.da_bat_verify_gate_hard_2", mention=ch.mention),
                 ephemeral=True,
             )
 
@@ -342,6 +354,7 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_disable(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
 
@@ -368,7 +381,7 @@ class Verify(commands.Cog, name="Verify"):
         )
 
         await ctx.send(
-            f"🔴 Đã tắt Verify Gate. Đã khôi phục {restore_count} kênh, gỡ vai trò chờ khỏi {removed_members} thành viên.",
+            tr(gs, "verify.da_tat_verify_gate_da", restore_count=restore_count, removed_members=removed_members),
             ephemeral=True,
         )
 
@@ -378,13 +391,14 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         cid = str(channel.id) if channel else None
         await async_upsert_verify_settings(guild_id, channel_id=cid)
         if channel:
-            await ctx.send(f"✅ Đã đặt kênh xác thực: {channel.mention}", ephemeral=True)
+            await ctx.send(tr(gs, "verify.da_dat_kenh_xac_thuc", mention=channel.mention), ephemeral=True)
         else:
-            await ctx.send("❌ Hãy chỉ định kênh.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.hay_chi_dinh_kenh"), ephemeral=True)
 
     # ─── /verify role ────────────────────────────────────────────────────────
     @verify_group.command(name="role", description="Đặt vai trò thành viên đã xác thực")
@@ -392,13 +406,14 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_role(self, ctx: commands.Context, role: discord.Role = None):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         rid = str(role.id) if role else None
         await async_upsert_verify_settings(guild_id, verified_role_id=rid)
         if role:
-            await ctx.send(f"✅ Đã đặt vai trò xác thực: {role.mention}", ephemeral=True)
+            await ctx.send(tr(gs, "verify.da_dat_vai_tro_xac", mention=role.mention), ephemeral=True)
         else:
-            await ctx.send("❌ Hãy chỉ định vai trò.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.hay_chi_dinh_vai_tro"), ephemeral=True)
 
     # ─── /verify pending ─────────────────────────────────────────────────────
     @verify_group.command(name="pending", description="Đặt vai trò chờ (pending) cho thành viên mới")
@@ -406,13 +421,14 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_pending(self, ctx: commands.Context, role: discord.Role = None):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         rid = str(role.id) if role else None
         await async_upsert_verify_settings(guild_id, pending_role_id=rid)
         if role:
-            await ctx.send(f"✅ Đã đặt vai trò chờ: {role.mention}", ephemeral=True)
+            await ctx.send(tr(gs, "verify.da_dat_vai_tro_cho", mention=role.mention), ephemeral=True)
         else:
-            await ctx.send("❌ Hãy chỉ định vai trò.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.hay_chi_dinh_vai_tro"), ephemeral=True)
 
     # ─── /verify hide ────────────────────────────────────────────────────────
     @verify_group.command(name="hide", description="Bật/tắt chế độ ẩn kênh (hard gate)")
@@ -421,17 +437,18 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_hide(self, ctx: commands.Context, state: str):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         val = state.strip().lower()
         hide = val in ("on", "bật", "true", "1", "yes")
         await async_upsert_verify_settings(str(ctx.guild.id), hide_channels=1 if hide else 0)
         if hide:
             await ctx.send(
-                "✅ Đã bật chế độ **hard gate** — thành viên mới chỉ thấy kênh xác thực.",
+                tr(gs, "verify.da_bat_che_do_hard"),
                 ephemeral=True,
             )
         else:
             await ctx.send(
-                "🔴 Đã tắt chế độ ẩn kênh (soft mode).",
+                tr(gs, "verify.da_tat_che_do_an"),
                 ephemeral=True,
             )
 
@@ -441,8 +458,9 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_text(self, ctx: commands.Context, content: str):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         await async_upsert_verify_settings(str(ctx.guild.id), verify_text=content)
-        await ctx.send("✅ Đã đặt nội dung xác thực.", ephemeral=True)
+        await ctx.send(tr(gs, "verify.da_dat_noi_dung_xac"), ephemeral=True)
 
     # ─── /verify button ──────────────────────────────────────────────────────
     @verify_group.command(name="button", description="Đặt nhãn nút xác thực")
@@ -450,24 +468,26 @@ class Verify(commands.Cog, name="Verify"):
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_button(self, ctx: commands.Context, label: str):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         await async_upsert_verify_settings(str(ctx.guild.id), button_label=label)
-        await ctx.send(f"✅ Đã đặt nhãn nút: **{label}**", ephemeral=True)
+        await ctx.send(tr(gs, "verify.da_dat_nhan_nut", label=label), ephemeral=True)
 
     # ─── /verify panel ───────────────────────────────────────────────────────
     @verify_group.command(name="panel", description="Gửi bảng xác thực (nút bấm) vào kênh xác thực")
     @app_commands.default_permissions(manage_roles=True)
     @checks.manage_roles_only()
     async def verify_panel(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
 
         if not s.get("channel_id"):
-            await ctx.send("❌ Hãy đặt kênh xác thực trước.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.hay_dat_kenh_xac_thuc_2"), ephemeral=True)
             return
 
         ch = ctx.guild.get_channel(int(s["channel_id"]))
         if not isinstance(ch, discord.TextChannel):
-            await ctx.send("❌ Kênh xác thực không hợp lệ.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.kenh_xac_thuc_khong_hop"), ephemeral=True)
             return
 
         text = (s.get("verify_text") or "Chào mừng đến với **{server}**! Bấm nút bên dưới để xác thực.").replace(
@@ -484,17 +504,17 @@ class Verify(commands.Cog, name="Verify"):
         embed.set_footer(text=f"{ctx.guild.name} • {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
 
         # Nút xác thực dùng nhãn động từ cấu hình
-        view = VerifyView(self.bot)
+        view = VerifyView(self.bot, gs)
         view.children[0].label = label
 
         try:
             await ch.send(embed=embed, view=view)
-            await ctx.send(f"✅ Đã gửi bảng xác thực vào {ch.mention}.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.da_gui_bang_xac_thuc", mention=ch.mention), ephemeral=True)
         except discord.Forbidden:
-            await ctx.send("❌ Bot thiếu quyền gửi tin trong kênh xác thực.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.bot_thieu_quyen_gui_tin"), ephemeral=True)
         except Exception as exc:
             log.error(f"[Verify] panel send error: {exc}")
-            await ctx.send("❌ Không gửi được bảng xác thực.", ephemeral=True)
+            await ctx.send(tr(gs, "verify.khong_gui_duoc_bang_xac"), ephemeral=True)
 
     # ─── Listener: on_member_join (hard gate) ───────────────────────────────
     @commands.Cog.listener()

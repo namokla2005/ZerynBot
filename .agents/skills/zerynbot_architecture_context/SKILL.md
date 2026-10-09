@@ -62,7 +62,7 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
 
 3. **Bước 3: Bổ sung Từ Điển Đa Ngôn Ngữ (`locales/*.json`)**:
    - Bổ sung bộ key mới vào **TOÀN BỘ 6 TỆP** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1694 keys/file**).
+   - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1733 keys/file**).
    - Chạy script kiểm tra: `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
 
 4. **Bước 4: Đồng bộ Dashboard Command Registry**:
