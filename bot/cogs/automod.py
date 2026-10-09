@@ -5,6 +5,7 @@ import asyncio
 import logging
 import re
 import time
+import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -51,7 +52,7 @@ def _deser_overwrite(data):
     return discord.PermissionOverwrite(**data)
 
 # Extract domains from URLs
-URL_PATTERN = re.compile(r'https?://(?:www\.)?([a-zA-Z0-9.-]+)\.[a-zA-Z]{2,}')
+URL_PATTERN = re.compile(r'https?://((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})')
 DISCORD_INVITE_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]+)', re.IGNORECASE)
 
 GLOBAL_SAFE_DOMAINS = {
@@ -72,6 +73,61 @@ GLOBAL_BLACKLIST_KEYWORDS = [
     "steam-nitro", "free-robux", "roblox-free", "steamcommunity-free",
     "discord-gift", "gift-discord", "nitro-gift", "boost-nitro"
 ]
+
+# ─── Chuẩn hóa văn bản trước khi so khớp (chống bypass bằng Unicode) ──────────
+_ZERO_WIDTH_RE = re.compile(r"[​‌‍⁠﻿­]")
+
+
+def normalize_scan_text(text: str) -> str:
+    """NFKC -> bỏ zero-width -> folding ký tự giả Latin -> lower.
+
+    Ba lớp bypass khác nhau, mỗi lớp cần một bước riêng:
+      - zero-width (`free​nitro`) -> bị cắt bằng _ZERO_WIDTH_RE.
+      - fullwidth/ligature (`ｎｉｔｒｏ`) -> NFKC quy về ASCII.
+      - homoglyph Cyrillic (`dљscord`) -> KHÔNG được NFKC xử lý (NFKC không phải
+        bảng confusables), nên cần HOSTILE_LOOKALIKES riêng. Chỉ cần một bảng nhỏ các
+        ký tự hay dùng trong từ khóa lừa đảo, đủ cho 'discord-nitro'/'freenitro'.
+    """
+    if not text:
+        return ""
+    text = _ZERO_WIDTH_RE.sub("", unicodedata.normalize("NFKC", text)).lower()
+    return text.translate(HOSTILE_LOOKALIKES)
+
+
+# Bảng tra ký tự ngoài Latin bị nhìn nhầm thành chữ Latin hay dùng trong từ khóa scam.
+HOSTILE_LOOKALIKES = {ord(c): ord(t) for c, t in [
+    ("а", "a"), ("б", "b"), ("с", "c"), ("д", "d"), ("е", "e"), ("f", "f"),
+    ("ɡ", "g"), ("і", "i"), ("ј", "j"), ("к", "k"), ("м", "m"), ("о", "o"),
+    ("р", "p"), ("т", "t"), ("s", "s"), ("v", "v"), ("ѕ", "s"), ("х", "x"),
+    ("у", "y"), ("ԁ", "d"), ("ԏ", "y"), ("օ", "o"), ("ɑ", "a"), ("σ", "o"),
+]}
+
+
+def message_scan_text(message) -> str:
+    """Mọi phần văn bản của message mà automod PHẢI xét tới.
+
+    Trước đây chỉ `message.content.lower()` được dùng, nên nhét link lừa đảo vào embed
+    (title/description/field/footer/author/url) hoặc gửi sticker có tên chứa từ khóa là
+    qua mặt hoàn toàn mà không cần lách Unicode.
+    """
+    parts = [message.content or ""]
+    for emb in getattr(message, "embeds", None) or []:
+        parts += [getattr(emb, "title", None) or "", getattr(emb, "description", None) or "",
+                  getattr(emb, "url", None) or ""]
+        for field in getattr(emb, "fields", None) or []:
+            parts += [getattr(field, "name", None) or "", getattr(field, "value", None) or ""]
+        footer = getattr(emb, "footer", None)
+        if footer is not None:
+            parts.append(getattr(footer, "text", None) or "")
+        author = getattr(emb, "author", None)
+        if author is not None:
+            parts.append(getattr(author, "name", None) or "")
+    for st in getattr(message, "stickers", None) or []:
+        parts += [getattr(st, "name", None) or "", getattr(st, "description", None) or ""]
+    for att in getattr(message, "attachments", None) or []:
+        parts.append(getattr(att, "url", None) or "")
+    return normalize_scan_text(chr(10).join(parts))
+
 
 class Automod(commands.Cog):
     """Bảo vệ server tự động (Automods)."""
@@ -235,20 +291,11 @@ class Automod(commands.Cog):
            message.author.guild_permissions.administrator:
             return
             
-        guild_id = str(message.guild.id)
-        if not await async_is_module_enabled(guild_id, "automods"):
+        settings = await self._automod_gate(message)
+        if settings is None:
             return
-            
-        settings = await async_get_automod_settings(guild_id)
-        
-        # Immune roles
-        immune_roles = settings.get("immune_roles", [])
-        if immune_roles:
-            for role in message.author.roles:
-                if str(role.id) in immune_roles:
-                    return
-                    
-        content = message.content.lower()
+
+        content = message_scan_text(message)
 
         # 1. Spam check (5 messages in 5 seconds)
         spam_allowed_channels = settings.get("spam_allowed_channels", [])
@@ -269,22 +316,93 @@ class Automod(commands.Cog):
                 self.spam_cache[guild_id][user_id] = [] # Reset to prevent loop
                 return await self._handle_violation(message, "Spam (Gửi tin nhắn quá nhanh)", settings)
 
+        if await self._check_text_rules(message, settings, content):
+            return
+
+
+        # 5. Anti-CAPS check
+        if settings.get("anti_caps_enabled") and len(message.content) > 10:
+            letters = [c for c in message.content if c.isalpha()]
+            if letters:
+                uppercase_count = sum(1 for c in letters if c.isupper())
+                ratio = uppercase_count / len(letters)
+                if ratio > 0.7:
+                    return await self._handle_violation(message, f"Spam chữ IN HOA ({int(ratio*100)}% Caps)", settings)
+
+        # 6. Anti-Mention spam check
+        if settings.get("anti_mentions_enabled"):
+            max_mentions = int(settings.get("max_mentions", 5) or 5)
+            total_mentions = len(message.mentions) + len(message.role_mentions)
+            if total_mentions > max_mentions:
+                return await self._handle_violation(message, f"Tag quá nhiều người/role ({total_mentions}/{max_mentions} tags)", settings)
+
+    async def _automod_gate(self, message: discord.Message):
+        """Trả về settings nếu message này thuộc diện automod phải xét, ngược lại None.
+
+        Gom chung cho `on_message` và `on_message_edit` để hai đường không thể lệch
+        nhau (free pass cho tin nhắn đã sửa, hoặc quên bỏ qua admin/m kênh khác).
+        """
+        if message.author.bot or not message.guild:
+            return None
+        if message.author == message.guild.owner or            message.author.guild_permissions.manage_messages or            message.author.guild_permissions.administrator:
+            return None
+        guild_id = str(message.guild.id)
+        if not await async_is_module_enabled(guild_id, "automods"):
+            return None
+        settings = await async_get_automod_settings(guild_id)
+        immune_roles = settings.get("immune_roles", [])
+        if immune_roles:
+            for role in message.author.roles:
+                if str(role.id) in immune_roles:
+                    return None
+        return settings
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before: discord.Message, after: discord.Message):
+        """Luật văn bản cũng phải chạy khi EDIT nội dung.
+
+        Before: chỉ có `on_message`, nênmodus operandi thực tế của scam là gửi một tin
+        vô hại rồi edit thành link lừa đảo — automod không bao giờ nhìn thấy gì.
+        """
+        if after.guild is None:
+            return
+        if normalize_scan_text(before.content or "") == normalize_scan_text(after.content or "")            and not after.embeds and not after.stickers:
+            return
+        settings = await self._automod_gate(after)
+        if settings is None:
+            return
+        if await self._check_text_rules(after, settings, message_scan_text(after)):
+            return
+
+    async def _check_text_rules(self, message: discord.Message, settings: dict, content: str) -> bool:
+        """Chạy các luật dựa trên NỘI DUNG VĂN BẢN. Trả về True nếu đã xử lý vi phạm.
+
+        Tách riêng để `on_message` và `on_message_edit` dùng chung một luật: trước đây
+        chỉ có `on_message`, nên gửi tin nhắn vô hại rồi EDIT thêm link/từ cấm là qua mặt
+        automod hoàn toàn. `content` là văn bản đã chuẩn hóa (xem message_scan_text) gồm cả
+        embed và sticker — những thứ không nằm trong message.content.
+        """
         # 2. Bad words check
         if settings.get("bad_words_enabled"):
             bad_words = settings.get("bad_words", [])
             for word in bad_words:
                 if word.lower() in content:
-                    return await self._handle_violation(message, f"Sử dụng từ cấm: {word}", settings)
+                    await self._handle_violation(message, f"Sử dụng từ cấm: {word}", settings)
+                    return True
 
         # 3. Links check
         if settings.get("links_enabled") and ("http://" in content or "https://" in content):
             whitelist = settings.get("whitelist_links", [])
             domains = URL_PATTERN.findall(content)
-            
+        
             violation_reason = None
             blacklist = settings.get("blacklist_links", [])
             for domain in domains:
+                # Bo "www." de so khop voi whitelist luu dang tran domain
+                # (`youtube.com`), khong phai `www.youtube.com`.
                 domain_lower = domain.lower()
+                if domain_lower.startswith("www."):
+                    domain_lower = domain_lower[4:]
 
                 # 3.0 Blacklist của server — ưu tiên CAO NHẤT.
                 # Trước đây `blacklist_links` được dashboard lưu nhưng chưa bao giờ
@@ -324,33 +442,20 @@ class Automod(commands.Cog):
                 if not violation_reason:
                     # 3c. Block unknown links
                     violation_reason = f"Gửi link không rõ nguồn gốc: {domain}"
-                
+            
                 break  # Found a violating link, stop checking others
 
             if violation_reason:
-                return await self._handle_violation(message, violation_reason, settings)
+                await self._handle_violation(message, violation_reason, settings)
+                return True
 
         # 4. Anti-Invite links check
         if settings.get("anti_invite_enabled"):
-            invite_matches = DISCORD_INVITE_PATTERN.findall(message.content)
+            invite_matches = DISCORD_INVITE_PATTERN.findall(content)
             if invite_matches:
-                return await self._handle_violation(message, "Gửi link mời Discord server khác (Anti-Invite)", settings)
-
-        # 5. Anti-CAPS check
-        if settings.get("anti_caps_enabled") and len(message.content) > 10:
-            letters = [c for c in message.content if c.isalpha()]
-            if letters:
-                uppercase_count = sum(1 for c in letters if c.isupper())
-                ratio = uppercase_count / len(letters)
-                if ratio > 0.7:
-                    return await self._handle_violation(message, f"Spam chữ IN HOA ({int(ratio*100)}% Caps)", settings)
-
-        # 6. Anti-Mention spam check
-        if settings.get("anti_mentions_enabled"):
-            max_mentions = int(settings.get("max_mentions", 5) or 5)
-            total_mentions = len(message.mentions) + len(message.role_mentions)
-            if total_mentions > max_mentions:
-                return await self._handle_violation(message, f"Tag quá nhiều người/role ({total_mentions}/{max_mentions} tags)", settings)
+                await self._handle_violation(message, "Gửi link mời Discord server khác (Anti-Invite)", settings)
+                return True
+        return False
 
     # ══════════════════════════════════════════════════════════════════════════
     # ─── ANTI-RAID (Lockdown khi join ồ ạt) ───────────────────────────────────

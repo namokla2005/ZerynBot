@@ -579,7 +579,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `_skipped is True` and stayed green while the feature was dead. New tests assert
     the user-visible effect (queue advances), that prune keeps un-expired rows, that
     every connection enforces FK, and that a snapshot contains WAL-only data that a
-    raw file copy does not. Suite: 158 → **233 tests**.
+    raw file copy does not. Suite: 158 → **243 tests**.
 - **v3.3 Phase 2 — AI guardrails**:
   - **No SQLite on the event loop**: `call_ai_async()` / `call_provider_async()` read
     key pools through `asyncio.to_thread(load_pools)`. `load_pools()` is synchronous
@@ -731,6 +731,26 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     disconnect/resume, so a bot with a blocked event loop kept reporting
     `online: true` and `/health` answered 200 forever. The bot now heartbeats every 60 s
     and `/health` returns 503 once `last_change` is older than 180 s.
+  - **Automod no longer blind to edits, embeds and Unicode**: only `on_message` existed
+    and every rule matched `message.content.lower()`, so the standard scam pattern —
+    post something innocuous, then **edit** it into a phishing link — was never seen.
+    Links/keywords inside `embed.title/description/fields/footer/author/url`, sticker
+    names and attachment URLs were also invisible to the filter. `on_message_edit` now
+    runs the same rules through a shared `_automod_gate` (immune roles / admin / module
+    enabled) and `_check_text_rules`, over `message_scan_text()` which aggregates all of
+    the above.
+  - **Homoglyph and zero-width folding**: substring matching on raw text let
+    `dљscord-nitro` (Cyrillic і) and `free​nitro` through. `normalize_scan_text`
+    now applies NFKC → zero-width strip → a small Cyrillic/Greek lookalike table. Note
+    NFKC alone does **not** fold homoglyphs (verified), hence the explicit table.
+  - **Link whitelist actually worked? No — fixed**: `URL_PATTERN` captured the group
+    *without* the TLD, so `https://www.youtube.com/watch?v=x` yielded `"youtube"`. Every
+    whitelist / global-safe entry stored as `youtube.com` therefore never matched and any
+    link was flagged as "không rõ nguồn gốc" whenever `links_enabled` was on. The pattern
+    now captures the full hostname and `www.` is stripped before comparison.
+  - **`_check_text_rules` returns a real bool**: it inherited `return await
+    self._handle_violation(...)`, and `_handle_violation` returns `None`, so callers
+    written as `if await ...: return` never short-circuited.
   - **Watchdog recovers the dashboard and rotates logs for real**: `health_loop` acted
     only on HTTP 503, so a dead dashboard (no HTTP code at all) left `zerynbot.id.vn`
     down indefinitely while the bot looked healthy — the dashboard is otherwise only
