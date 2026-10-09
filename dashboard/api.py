@@ -13,6 +13,7 @@ import database as db
 import config
 from i18n import i18n as i18n_manager
 from dashboard import auth as _auth
+from dashboard.extensions import limiter
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -220,6 +221,7 @@ def get_channels(guild_id: str):
 # ─── Send embed / message to a channel ────────────────────────────────────────
 
 @api.route("/guild/<guild_id>/send-embed", methods=["POST"])
+@limiter.limit("20/minute")
 def send_embed_to_channel(guild_id: str):
     """Send an embed (and/or plain text) to a Discord channel using the bot token."""
     err = _require_guild_access(guild_id)
@@ -551,6 +553,7 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
 # ─── Test welcome/goodbye banner card ─────────────────────────────────────────
 
 @api.route("/guild/<guild_id>/send-test-card", methods=["POST"])
+@limiter.limit("10/minute")
 def send_test_card(guild_id: str):
     """Generate and send a welcome/goodbye banner card using the real logged-in user."""
     err = _require_guild_access(guild_id)

@@ -70,8 +70,8 @@ def create_playlist_route(guild_id: str):
 def delete_playlist_route(guild_id: str, playlist_id: int):
     playlist = db.get_playlist(playlist_id)
     user = session.get("user", {})
-    if playlist and playlist.get("guild_id") == guild_id:
-        if playlist.get("creator_id") and playlist.get("creator_id") != user.get("id"):
+    if playlist and str(playlist.get("guild_id")) == str(guild_id):
+        if playlist.get("creator_id") and str(playlist.get("creator_id")) != str(user.get("id")):
             flash("❌ Bạn không có quyền xóa playlist của người khác!", "error")
         else:
             db.delete_playlist(playlist_id, guild_id)
@@ -85,19 +85,27 @@ def delete_playlist_route(guild_id: str, playlist_id: int):
 def add_track_route(guild_id: str, playlist_id: int):
     playlist = db.get_playlist(playlist_id)
     user = session.get("user", {})
-    if not playlist or playlist.get("guild_id") != guild_id:
-        flash("❌ Không tìm thấy playlist!", "error")
-    elif playlist.get("creator_id") and playlist.get("creator_id") != user.get("id"):
+    # Mỗi nhánh từ chối PHẢI return. Trước đây nhánh "playlist không thuộc guild" chỉ
+    # flash rồi rơi thẳng xuống dưới -> admin server A thêm được bài vào playlist của
+    # server B (cross-tenant write).
+    if not playlist or str(playlist.get("guild_id")) != str(guild_id):
+        flash("❌ Không tìm thấy playlist trong server này!", "error")
+        return redirect(url_for("music.server_music", guild_id=guild_id))
+    if playlist.get("creator_id") and str(playlist.get("creator_id")) != str(user.get("id")):
         flash("❌ Bạn không có quyền thêm bài hát vào playlist của người khác!", "error")
         return redirect(url_for("music.server_music", guild_id=guild_id))
-    
+
     query = request.form.get("track_query", "").strip()
     if not query:
         flash("❌ Vui lòng nhập link hoặc tên bài hát!", "error")
     else:
         track_info = fetch_track_info_simple(query)
-        db.add_track_to_playlist(playlist_id, track_info)
-        flash(f"✅ Đã thêm '{track_info['title']}' vào playlist!", "success")
+        # guild_id được truyền xuống tầng DB để chính SQL chặn ghi chéo server,
+        # không chỉ dựa vào nhánh if ở trên.
+        if db.add_track_to_playlist(playlist_id, track_info, guild_id) == 0:
+            flash("❌ Không thêm được bài hát — playlist không hợp lệ!", "error")
+        else:
+            flash(f"✅ Đã thêm '{track_info['title']}' vào playlist!", "success")
     return redirect(url_for("music.server_music", guild_id=guild_id))
 
 @bp.route("/dashboard/<guild_id>/music/playlist/track/<int:track_id>/delete", methods=["POST"])

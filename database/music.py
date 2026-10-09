@@ -62,8 +62,18 @@ def delete_playlist(playlist_id: int, guild_id: str):
         conn.execute("DELETE FROM music_playlists WHERE id = ? AND guild_id = ?", (playlist_id, guild_id))
         conn.commit()
 
-def add_track_to_playlist(playlist_id: int, track: Dict) -> int:
+def add_track_to_playlist(playlist_id: int, track: Dict, guild_id: str = None) -> int:
+    """Thêm bài vào playlist. Truyền `guild_id` để chặn ghi chéo server.
+
+    Trả về 0 khi playlist không tồn tại hoặc không thuộc guild đó — route dashboard
+    từng thiếu `return` sau nhánh kiểm quyền và ghi thẳng vào playlist của server khác.
+    """
     with _connect_sync() as conn:
+        if guild_id is not None and not conn.execute(
+            "SELECT 1 FROM music_playlists WHERE id = ? AND guild_id = ?",
+            (playlist_id, str(guild_id)),
+        ).fetchone():
+            return 0
         pos_row = conn.execute("SELECT MAX(position) FROM music_playlist_tracks WHERE playlist_id = ?", (playlist_id,)).fetchone()
         pos = (pos_row[0] or 0) + 1 if pos_row else 1
         
@@ -193,8 +203,13 @@ async def async_delete_playlist(playlist_id: int, guild_id: str):
         await db.execute("DELETE FROM music_playlists WHERE id = ? AND guild_id = ?", (playlist_id, guild_id))
         await db.commit()
 
-async def async_add_track_to_playlist(playlist_id: int, track: Dict) -> int:
+async def async_add_track_to_playlist(playlist_id: int, track: Dict, guild_id: str = None) -> int:
     async with _connect_async() as db:
+        if guild_id is not None and not (await (await db.execute(
+            "SELECT 1 FROM music_playlists WHERE id = ? AND guild_id = ?",
+            (playlist_id, str(guild_id)),
+        )).fetchone()):
+            return 0
         async with db.execute("SELECT MAX(position) FROM music_playlist_tracks WHERE playlist_id = ?", (playlist_id,)) as cur:
             pos_row = await cur.fetchone()
         pos = (pos_row[0] or 0) + 1 if pos_row else 1

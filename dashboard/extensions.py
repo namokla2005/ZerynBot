@@ -71,14 +71,33 @@ try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
 
+    def _client_key():
+        """Khóa rate-limit theo IP THẬT của người truy cập.
+
+        zerynbot.id.vn chạy sau Cloudflare (Server: cloudflare + CF-RAY), và dashboard
+        bind 127.0.0.1 nên cloudflared là peer duy nhất — nếu dùng get_remote_address()
+        trần thì MỌI visitor toàn thế giới chung một bucket: 5/phút trên
+        /admin/system/stepup biến thành self-DoS toàn cục và các giới hạn khác mất tác
+        dụng. Cloudflare ghi đè CF-Connecting-IP bằng IP thật nên header này không thể
+        được client gửi lên giả mạo. Chỉ tin khi BEHIND_PROXY=1.
+        """
+        from flask import request
+
+        if getattr(config, "BEHIND_PROXY", False):
+            ip = (request.headers.get("CF-Connecting-IP") or "").strip()
+            if ip:
+                return ip
+        return get_remote_address()
+
     # KHÔNG truyền `app=` ở đây: limiter là singleton của extensions, còn app được
     # dựng trong `app_factory.create_app()` → gọi `limiter.init_app(app)` tại đó.
-    # `@limiter.limit(...)` trên blueprint vẫn chạy vì decorator chỉ ghi nhận limit
-    # theo tên endpoint, có hiệu lực từ request đầu tiên sau init_app.
+    # `default_limits` để trống là cố ý: /api/admin/telemetry và các endpoint poll
+    # khác bị gọi vài giây một lần, một trần chung 200/giờ sẽ 429 chính dashboard.
+    # Thay vào đó mỗi route nặng/nhạy cảm được decorate @limiter.limit tường minh.
     limiter = Limiter(
-        key_func=get_remote_address,
+        key_func=_client_key,
         storage_uri=config.RATELIMIT_STORAGE_URI,
-        default_limits=[],          # không giới hạn chung; chỉ limit route nhạy cảm
+        default_limits=[],
         swallow_errors=True,        # lỗi storage không làm chết dashboard
     )
 except ImportError:  # flask-limiter chưa cài → chạy không giới hạn (khuyến nghị cài đặt)

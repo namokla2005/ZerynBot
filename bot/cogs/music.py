@@ -756,7 +756,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             "uploader": info.get("uploader") or info.get("channel") or "—",
             "thumbnail": thumbnail,
             "url": "",
-        })
+        }, str(ctx.guild.id))
         await ctx.send(tr(s, "music.pl_added_song", title=song_title, name=name))
 
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):

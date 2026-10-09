@@ -35,10 +35,13 @@ def as_owner(monkeypatch):
     return config
 
 
-def test_stepup_disabled_when_no_admin_password(client, temp_db, as_owner, monkeypatch):
-    """Chưa đặt ADMIN_PASSWORD → step-up không chặn (dashboard hiện banner cảnh báo).
+def test_stepup_denies_when_no_admin_password(client, temp_db, as_owner, monkeypatch):
+    """Chưa đặt ADMIN_PASSWORD → route shell bị VÔ HIỆU HÓA (503), không phải mở toang.
 
-    Gửi lệnh RỖNG nên không có gì được thực thi trong shell.
+    Test cũ ở vị trí này assert `status_code == 200`, tức là đang khóa chặt hành vi
+    fail-open: decorator chỉ kiểm tra khi ADMIN_PASSWORD truthy nên quên cấu hình mật
+    khẩu = Web Terminal (subprocess shell=True trên máy chứa token Discord + key AI)
+    chỉ còn session owner chắn. Nay fail-closed.
     """
     monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", "")
     token = authed_client(client)
@@ -47,8 +50,8 @@ def test_stepup_disabled_when_no_admin_password(client, temp_db, as_owner, monke
         json={"command": ""},
         headers={"X-CSRF-Token": token},
     )
-    assert resp.status_code == 200
-    assert resp.get_json()["ok"] is False  # bị chặn vì lệnh rỗng, không phải vì step-up
+    assert resp.status_code == 503
+    assert resp.get_json()["error"] == "stepup_unconfigured"
 
 
 def test_stepup_blocks_critical_routes_when_configured(client, temp_db, as_owner, monkeypatch):

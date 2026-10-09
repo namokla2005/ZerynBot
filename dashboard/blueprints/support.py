@@ -15,6 +15,7 @@ import asyncio
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 import database as db
+from dashboard.extensions import limiter
 from dashboard.support_service import manual_escalate_thread, process_user_support_message_async
 
 bp = Blueprint("support", __name__)
@@ -62,6 +63,8 @@ def api_support_messages():
     return jsonify({"ok": True, "messages": messages, "status": thread.get("status")})
 
 @bp.route("/api/support/send", methods=["POST"])
+@limiter.limit("5/minute")
+@limiter.limit("60/hour")
 def api_support_send():
     """API gửi tin nhắn từ người dùng, lưu DB ngay và đẩy tác vụ AI ngầm (non-blocking)."""
     if "user" not in session:
@@ -95,6 +98,7 @@ def api_support_send():
     return jsonify({"ok": True, "message_id": msg.get("id")})
 
 @bp.route("/api/support/escalate", methods=["POST"])
+@limiter.limit("5/hour")
 def api_support_escalate():
     """API kích hoạt chuyển tiếp tới nhân viên hỗ trợ khi người dùng bấm nút."""
     if "user" not in session:

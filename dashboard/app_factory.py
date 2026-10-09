@@ -60,6 +60,9 @@ def create_app() -> Flask:
         SESSION_COOKIE_SAMESITE=config.SESSION_COOKIE_SAMESITE,
         SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
         PERMANENT_SESSION_LIFETIME=timedelta(days=config.SESSION_LIFETIME_DAYS),
+        # Dashboard chỉ nhận form/JSON vài KB; không đặt trần thì một request hàng
+        # GB đủ làm nghẽn tiến trình 6GB đang chạy song song với bot.
+        MAX_CONTENT_LENGTH=256 * 1024,
     )
 
     # ─── Rate limiting ─────────────────────────────────────────────────────────

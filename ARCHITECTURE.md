@@ -579,7 +579,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `_skipped is True` and stayed green while the feature was dead. New tests assert
     the user-visible effect (queue advances), that prune keeps un-expired rows, that
     every connection enforces FK, and that a snapshot contains WAL-only data that a
-    raw file copy does not. Suite: 158 → **176 tests**.
+    raw file copy does not. Suite: 158 → **187 tests**.
 - **v3.3 Phase 2 — AI guardrails**:
   - **No SQLite on the event loop**: `call_ai_async()` / `call_provider_async()` read
     key pools through `asyncio.to_thread(load_pools)`. `load_pools()` is synchronous
@@ -600,6 +600,33 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     then re-spent on the next provider. They now skip image requests unless
     `GROQ_VISION_MODEL` / `OPENROUTER_VISION_MODEL` is set. Gemini gained the
     `maxOutputTokens` cap it was missing (Groq 1200 / OpenRouter 1500 already had one).
+- **v3.3 Phase 3 — Dashboard tenant isolation & admin hardening**:
+  - **Cross-guild playlist write closed**: `add_track_route` flashed "playlist không
+    thuộc guild" and then **fell through** into the insert, so an admin of guild A could
+    push tracks into guild B's playlist. Every rejection branch now returns, and
+    `add_track_to_playlist(playlist_id, track, guild_id)` re-checks ownership in the same
+    connection so the guard is not only in the route.
+  - **Step-Up Auth is fail-CLOSED**: `stepup_required` only enforced when
+    `ADMIN_PASSWORD` was truthy, and `/admin/system/stepup` *granted* the 15-minute
+    unlock when it was empty — forgetting the env var silently reduced Web Terminal
+    (`subprocess(shell=True)` on the machine holding `DISCORD_TOKEN` + AI keys) to
+    session-only protection. Missing or shorter than `ADMIN_PASSWORD_MIN_LENGTH` (16)
+    now returns 503 and the step-up endpoint can no longer self-grant. A test that
+    asserted the old fail-open (`status_code == 200`) was inverted.
+  - **Rate limits keyed to the real client IP**: `zerynbot.id.vn` terminates at
+    Cloudflare and the app binds `127.0.0.1`, so `get_remote_address()` gave **every
+    visitor one shared bucket** — the 5/min on `/admin/system/stepup` was a global
+    self-DoS and the other limits were meaningless. `_client_key()` now reads
+    `CF-Connecting-IP`, but only when `BEHIND_PROXY=1`. Note: werkzeug 3.1 `ProxyFix`
+    has **no** `trusted_hosts`/`trusted_proxies` argument (verified on dev 3.1.9 and
+    device 3.1.8) — do not add one, it raises `TypeError` at dashboard startup.
+  - **No blanket `default_limits`**: `/api/admin/telemetry` and other dashboard panels
+    poll every few seconds, so a global hourly cap would 429 the owner's own dashboard.
+    Limits are attached per route instead — `/api/support/send` (5/min, 60/hour; one
+    paid AI call per message), `/api/support/escalate` (5/hour), `send-embed` (20/min),
+    `send-test-card` (10/min).
+  - **`MAX_CONTENT_LENGTH` = 256 KiB** on the Flask app: the dashboard only posts small
+    forms/JSON, and an unbounded body can stall the process sharing 6 GB with the bot.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

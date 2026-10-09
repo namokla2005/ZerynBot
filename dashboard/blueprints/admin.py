@@ -48,23 +48,38 @@ def owner_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def _admin_password_ready() -> bool:
+    """ADMIN_PASSWORD có tồn tại và đủ dài để mở các route nguy hiểm hay không."""
+    pw = getattr(config, "ADMIN_PASSWORD", "") or ""
+    return len(pw) >= getattr(config, "ADMIN_PASSWORD_MIN_LENGTH", 16)
+
 def stepup_required(f):
     """Decorator: yêu cầu xác thực mật khẩu cấp cao (Step-Up Auth) trong vòng 15 phút.
 
-    P0.4: chỉ có hiệu lực khi `ADMIN_PASSWORD` được đặt trong .env. Nếu chưa đặt,
-    dashboard hiển thị banner cảnh báo trên /admin (xem `admin_password_set`).
+    FAIL-CLOSED. Trước đây decorator chỉ kiểm tra khi `ADMIN_PASSWORD` đang truthy,
+    nghĩa là quên cấu hình mật khẩu = Web Terminal / git-pull / restart tự động mất
+    lớp bảo vệ cuối cùng và chỉ còn session owner (tuổi 7 ngày) chắn đường vào shell
+    trên máy chứa token Discord + key AI.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        admin_pass = getattr(config, "ADMIN_PASSWORD", None)
-        if admin_pass:
-            until = session.get("stepup_auth_until", 0)
-            if _time.time() > until:
-                return jsonify({
-                    "ok": False,
-                    "error": "stepup_required",
-                    "message": "🔒 Yêu cầu xác thực mật khẩu quản trị cấp cao để thực hiện thao tác này."
-                }), 401
+        if not _admin_password_ready():
+            return jsonify({
+                "ok": False,
+                "error": "stepup_unconfigured",
+                "message": (
+                    "🔒 ADMIN_PASSWORD chưa được đặt hoặc ngắn hơn "
+                    f"{getattr(config, 'ADMIN_PASSWORD_MIN_LENGTH', 16)} ký tự — "
+                    "các thao tác quản trị cấp cao bị vô hiệu hóa."
+                ),
+            }), 503
+        until = session.get("stepup_auth_until", 0)
+        if _time.time() > until:
+            return jsonify({
+                "ok": False,
+                "error": "stepup_required",
+                "message": "🔒 Yêu cầu xác thực mật khẩu quản trị cấp cao để thực hiện thao tác này."
+            }), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -227,7 +242,7 @@ def admin_panel():
         global_ai_provider=global_ai_provider,
         telemetry=telemetry,
         activity_logs=activity_logs,
-        admin_password_set=bool(config.ADMIN_PASSWORD),
+        admin_password_set=_admin_password_ready(),
     )
 
 @bp.route("/api/admin/telemetry")
@@ -623,10 +638,18 @@ def admin_system_stepup():
     password = data.get("password", "")
     admin_pass = getattr(config, "ADMIN_PASSWORD", None)
 
-    if not admin_pass:
-        session["stepup_auth_until"] = _time.time() + 900
-        _audit_admin_action("stepup (chưa cấu hình ADMIN_PASSWORD)", "admin_stepup", "no password configured")
-        return jsonify({"ok": True, "message": "Step-Up auth granted (no password configured)"}), 200
+    # Trước đây nhánh này CẤP quyền step-up khi chưa cấu hình mật khẩu — tức là chính
+    # nơi dùng để xác thực lại là chỗ bỏ qua xác thực.
+    if not _admin_password_ready():
+        _audit_admin_action("stepup bị chặn", "admin_stepup", "ADMIN_PASSWORD chưa đặt hoặc quá ngắn")
+        return jsonify({
+            "ok": False,
+            "error": "stepup_unconfigured",
+            "message": (
+                "🔒 ADMIN_PASSWORD chưa được đặt hoặc ngắn hơn "
+                f"{getattr(config, 'ADMIN_PASSWORD_MIN_LENGTH', 16)} ký tự."
+            ),
+        }), 503
 
     if secrets.compare_digest(str(password), str(admin_pass)):
         session["stepup_auth_until"] = _time.time() + 900
