@@ -58,6 +58,83 @@ def exchange_code(code: str) -> dict:
     return resp.json()
 
 
+# ─── OAuth access-token vault (token thật KHÔNG nằm trong session cookie) ──────
+# Flask chỉ KÝ session cookie chứ không mã hóa nội dung. Trước đây `access_token`
+# được nhét thẳng vào session, nghĩa là bearer token của người dùng nằm trong cookie
+# jar (và mọi bản sao cookie: log proxy, backup trình duyệt, máy dùng chung) suốt
+# SESSION_LIFETIME_DAYS = 7 ngày, và `/logout` chỉ xóa phía mình chứ không thu hồi
+# trên Discord. Giờ cookie chỉ mang một con trỏ ngẫu nhiên.
+_token_vault: dict = {}          # token_id -> (access_token, expires_at)
+_token_lock = threading.Lock()
+_TOKEN_VAULT_TTL = 7 * 24 * 3600
+
+
+def store_access_token(access_token: str) -> str:
+    """Lưu token vào bộ nhớ tiến trình, trả về id ngẫu nhiên để nhét vào session."""
+    import secrets as _secrets
+
+    token_id = _secrets.token_urlsafe(16)
+    expires_at = time.time() + _TOKEN_VAULT_TTL
+    with _token_lock:
+        now = time.time()
+        for stale in [k for k, (_, exp) in _token_vault.items() if exp < now]:
+            _token_vault.pop(stale, None)
+        _token_vault[token_id] = (access_token, expires_at)
+    return token_id
+
+
+def drop_access_token(token_id: str = None) -> None:
+    """Xóa token khỏi vault; không truyền id thì xóa theo phiên hiện tại."""
+    from flask import session
+
+    with _token_lock:
+        if token_id is None:
+            token_id = session.pop("oauth_token_id", None)
+        if token_id:
+            _token_vault.pop(token_id, None)
+
+
+def get_access_token() -> str:
+    """Token của phiên hiện tại, hoặc "" nếu chưa đăng nhập / hết hạn / restart dashboard."""
+    from flask import session
+
+    token_id = session.get("oauth_token_id")
+    if not token_id:
+        return ""
+    with _token_lock:
+        entry = _token_vault.get(token_id)
+    if not entry:
+        return ""
+    token, expires_at = entry
+    if expires_at < time.time():
+        drop_access_token(token_id)
+        return ""
+    return token
+
+
+def revoke_access_token() -> bool:
+    """Báo Discord thu hồi access token khi logout — token đánh cắp sẽ vô dụng ngay."""
+    token = get_access_token()
+    try:
+        if not token or not config.CLIENT_SECRET:
+            return False
+        requests.post(
+            "https://discord.com/api/oauth2/token/revoke",
+            data={
+                "token": token,
+                "client_id": config.CLIENT_ID,
+                "client_secret": config.CLIENT_SECRET,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=10,
+        )
+        return True
+    except Exception:
+        return False
+    finally:
+        drop_access_token()
+
+
 def get_user(access_token: str) -> dict:
     """Fetch current user from Discord API (thu gọn tối đa để giữ session cookie < 1KB)."""
     resp = requests.get(

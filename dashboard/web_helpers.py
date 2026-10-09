@@ -52,7 +52,7 @@ def _refresh_guilds_if_stale() -> None:
     fetched_at = session.get("guilds_fetched_at", 0) or 0
     if now - fetched_at < _auth.SESSION_GUILD_TTL:
         return
-    token = session.get("access_token")
+    token = _auth.get_access_token()
     if not token:
         return
     try:
@@ -109,20 +109,62 @@ def _get_guild_from_session(guild_id: str) -> dict:
     guilds = session.get("guilds", [])
     return next((g for g in guilds if g["id"] == guild_id), {})
 
-def _safe_channel(guild_id: str, channel_id):
+class VerificationUnavailable(RuntimeError):
+    """Không kiểm chứng được id với Discord (mất mạng / bot mất quyền xem kênh).
+
+    Handler lưu settings dựng dict rồi mới ghi DB, nên ném exception TỪ TRƯỚC lúc ghi
+    cho kết quả đúng: không lưu id lạ, cũng không xóa mất cấu hình đang hợp lệ.
+    `app_factory` đăng ký errorhandler flash thông báo rồi quay lại trang cũ.
     """
-    P0.4: Trả về channel_id nếu nó THỰC SỰ thuộc guild, ngược lại trả về None
-    (chặn cài cắm kênh của server khác vào settings qua form craft tay).
-    Nếu không xác thực được (Discord API lỗi mạng) → giữ nguyên giá trị để không
-    vô tình xóa cấu hình hợp lệ; lớp gửi tin (api.py) vẫn kiểm tra fail-closed.
+
+
+def _safe_channel(guild_id: str, channel_id):
+    """Trả về channel_id nếu nó THỰC SỰ thuộc guild, ngược lại trả về None.
+
+    Chặn cài kênh của server khác vào settings qua form craft tay. Trước đây khi Discord
+    không trả được danh sách kênh thì hàm GIỮ NGUYÊN giá trị gửi lên (fail-open) — tức
+    đúng lúc hệ thống đang trục trặc là lúc id lạ lọt được vào DB.
     """
     if not channel_id:
         return None
     from dashboard import auth as _auth
     ids = _auth.get_guild_channel_ids(str(guild_id))
     if ids is None:
-        return channel_id  # không kiểm chứng được → bỏ qua (send-time vẫn chặn)
+        raise VerificationUnavailable(f"không kiểm chứng được danh sách kênh của guild {guild_id}")
     return str(channel_id) if str(channel_id) in ids else None
+
+
+def _safe_role(guild_id: str, role_id):
+    """Như _safe_channel nhưng cho role id — trước đây role KHÔNG được kiểm tra gì.
+
+    Các trường notify_role_id / verified_role_id / pending_role_id / autoroles /
+    level_role đều lưu thẳng id từ form, nên ai cũng có thể cắm id role của server khác.
+    """
+    if not role_id:
+        return None
+    from dashboard import auth as _auth
+    roles = _auth.get_guild_roles(str(guild_id), include_everyone=True) or []
+    ids = {str(r.get("id")) for r in roles if isinstance(r, dict) and r.get("id")}
+    if not ids:
+        raise VerificationUnavailable(f"không kiểm chứng được danh sách role của guild {guild_id}")
+    return str(role_id) if str(role_id) in ids else None
+
+
+def _to_int(value, default: int = 0, lo: int = None, hi: int = None) -> int:
+    """Parse int từ form: chuỗi rác trả default thay vì 500 cả trang.
+
+    Trước đây `int(form.get("message_xp_min", 15))` gặp ô bị xóa trắng là ValueError,
+    và app không có errorhandler nào -> người dùng chỉ thấy trang lỗi của waitress.
+    """
+    try:
+        n = int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    if lo is not None:
+        n = max(lo, n)
+    if hi is not None:
+        n = min(hi, n)
+    return n
 
 def _server_ctx(guild_id: str, active_page: str, **extra) -> dict:
     """Build common template context for server pages."""

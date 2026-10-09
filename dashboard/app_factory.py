@@ -34,6 +34,7 @@ from dashboard.blueprints import music as music_blueprint
 from dashboard.blueprints import public as public_blueprint
 from dashboard.blueprints import support as support_blueprint
 from dashboard.extensions import _csrf_protect, csrf_token, logger, limiter
+from dashboard import web_helpers
 
 
 def inject_i18n():
@@ -133,6 +134,52 @@ def create_app() -> Flask:
     app.register_blueprint(music_blueprint.bp)
     app.register_blueprint(support_blueprint.bp)
     app.register_blueprint(admin_blueprint.bp)
+
+    # ─── Error handling ───────────────────────────────────────────────────────
+    @app.errorhandler(web_helpers.VerificationUnavailable)
+    def _handle_verification_unavailable(exc):
+        """Discord không trả được danh sách kênh/role => KHÔNG lưu, giữ nguyên config cũ."""
+        from flask import flash, redirect, request, url_for
+
+        logger.warning(f"[Dashboard] Bỏ qua lượt lưu settings: {exc}")
+        flash(
+            "⚠️ Không xác minh được kênh/role với Discord ở thời điểm này (mất mạng hoặc "
+            "bot mất quyền xem). Cấu hình hiện tại được GIỮ NGUYÊN — vui lòng thử lại.",
+            "error",
+        )
+        return redirect(request.referrer or url_for("guild.home"))
+
+    @app.errorhandler(413)
+    def _handle_payload_too_large(exc):
+        from flask import jsonify, request
+
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "error": "payload_too_large"}), 413
+        return (
+            "<h1>413</h1><p>Nội dung gửi lên quá lớn (giới hạn 256 KB).</p>"
+            "<p><a href='/dashboard'>Về dashboard</a></p>",
+            413,
+        )
+
+    @app.errorhandler(500)
+    def _handle_internal_error(exc):
+        """Trang lỗi chung — KHÔNG in traceback/đường dẫn ra trình duyệt.
+
+        Trước đây app không có errorhandler nào, mọi ValueError từ form (vd
+        `int('')`) đều trả trang 500 thô của waitress, vừa xấu vừa lộ cấu trúc thư mục
+        và tên module cho người dùng.
+        """
+        from flask import jsonify, request
+
+        logger.exception("[Dashboard] Lỗi chưa được xử lý")
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "error": "internal_error"}), 500
+        return (
+            "<h1>500</h1><p>Có gì đó không ổn. Vui lòng thử lại.</p>"
+            "<p><a href='/dashboard'>Về dashboard</a></p>",
+            500,
+        )
+
     return app
 
 

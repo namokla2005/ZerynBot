@@ -24,7 +24,9 @@ from dashboard.extensions import limiter, logger
 from dashboard.web_helpers import (
     _get_guild_from_session,
     _safe_channel,
+    _safe_role,
     _server_ctx,
+    _to_int,
     guild_access_required,
     login_required,
 )
@@ -42,8 +44,9 @@ def home():
     # Chỉ gọi Discord REST API khi session trống, quá 120s, hoặc có tham số ?refresh=1.
     if not guilds or (now - fetched_at > 120) or request.args.get("refresh"):
         try:
-            from dashboard.auth import get_manageable_guilds
-            fresh_guilds = get_manageable_guilds(session["access_token"])
+            from dashboard.auth import get_access_token, get_manageable_guilds
+            _tok = get_access_token()
+            fresh_guilds = get_manageable_guilds(_tok) if _tok else None
             if fresh_guilds:
                 guilds = fresh_guilds
                 session["guilds"] = guilds
@@ -186,12 +189,12 @@ def server_leveling(guild_id: str):
         
         # Save Leveling Settings
         settings = {
-            "message_xp_min": int(form.get("message_xp_min", 15)),
-            "message_xp_max": int(form.get("message_xp_max", 25)),
-            "voice_xp": int(form.get("voice_xp", 10)),
+            "message_xp_min": _to_int(form.get("message_xp_min"), 15),
+            "message_xp_max": _to_int(form.get("message_xp_max"), 25),
+            "voice_xp": _to_int(form.get("voice_xp"), 10),
             "announce_channel_id": _safe_channel(guild_id, form.get("announce_channel_id", "")),
             "announce_message": form.get("announce_message", "🎉 Chúc mừng {user} đã đạt cấp **{level}**!"),
-            "stack_rewards": int(form.get("stack_rewards", 0))
+            "stack_rewards": _to_int(form.get("stack_rewards"), 0)
         }
         db.set_leveling_settings(guild_id, settings)
         
@@ -273,18 +276,18 @@ def server_automod(guild_id: str):
             "anti_invite_enabled": 1 if form.get("anti_invite_enabled") else 0,
             "anti_caps_enabled": 1 if form.get("anti_caps_enabled") else 0,
             "anti_mentions_enabled": 1 if form.get("anti_mentions_enabled") else 0,
-            "max_mentions": int(form.get("max_mentions", 5) or 5),
-            "timeout_duration_minutes": int(form.get("timeout_duration_minutes", 5) or 5),
+            "max_mentions": _to_int(form.get("max_mentions"), 5),
+            "timeout_duration_minutes": _to_int(form.get("timeout_duration_minutes"), 5),
             "bad_words": json.dumps(bad_words),
             "blacklist_links": json.dumps(blacklist_links),
             "whitelist_links": json.dumps(whitelist_links),
             "immune_roles": immune_roles,
             "spam_allowed_channels": spam_allowed_channels,
-            "notify_role_id": form.get("notify_role_id") or None,
+            "notify_role_id": _safe_role(guild_id, form.get("notify_role_id") or None),
             "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None),
             # Anti-Raid / Anti-Nuke
             "anti_raid_enabled": 1 if form.get("anti_raid_enabled") else 0,
-            "raid_join_per_window": int(form.get("raid_join_per_window", 5) or 5),
+            "raid_join_per_window": _to_int(form.get("raid_join_per_window"), 5),
             "raid_action": form.get("raid_action", "lockdown"),
             "anti_nuke_enabled": 1 if form.get("anti_nuke_enabled") else 0,
             "nuke_actions": form.getlist("nuke_actions"),
@@ -331,8 +334,8 @@ def server_verify(guild_id: str):
             "enabled": enabled,
             "hide_channels": 1 if form.get("hide_channels") else 0,
             "channel_id": _safe_channel(guild_id, form.get("channel_id") or None),
-            "verified_role_id": form.get("verified_role_id") or None,
-            "pending_role_id": form.get("pending_role_id") or None,
+            "verified_role_id": _safe_role(guild_id, form.get("verified_role_id") or None),
+            "pending_role_id": _safe_role(guild_id, form.get("pending_role_id") or None),
             "log_channel_id": _safe_channel(guild_id, form.get("log_channel_id") or None),
             "verify_text": form.get("verify_text", "").strip(),
             "button_label": form.get("button_label", "").strip() or "Tôi đã đọc nội quy & Xác thực",
@@ -390,10 +393,10 @@ def server_birthday(guild_id: str):
         form = request.form
         fields = {
             "channel_id": _safe_channel(guild_id, form.get("channel_id") or None),
-            "role_id": form.get("role_id") or None,
+            "role_id": _safe_role(guild_id, form.get("role_id") or None),
             "message_template": form.get("message_template", "").strip() or None,
-            "gift_coins": int(form.get("gift_coins", 500)),
-            "gift_xp": int(form.get("gift_xp", 200)),
+            "gift_coins": _to_int(form.get("gift_coins"), 500),
+            "gift_xp": _to_int(form.get("gift_xp"), 200),
         }
         db.upsert_birthday_settings_sync(guild_id, **fields)
         flash("✅ Đã lưu cấu hình Sinh nhật!", "success")
@@ -504,9 +507,9 @@ def server_reactionroles(guild_id: str):
 @guild_access_required
 def server_economy(guild_id: str):
     if request.method == "POST":
-        daily_amount = int(request.form.get("daily_amount", 100))
-        streak_bonus = int(request.form.get("streak_bonus", 20))
-        starting_balance = int(request.form.get("starting_balance", 50))
+        daily_amount = _to_int(request.form.get("daily_amount"), 100)
+        streak_bonus = _to_int(request.form.get("streak_bonus"), 20)
+        starting_balance = _to_int(request.form.get("starting_balance"), 50)
         currency_symbol = request.form.get("currency_symbol", "🪙").strip() or "🪙"
         currency_name = request.form.get("currency_name", "Coins").strip() or "Coins"
         
@@ -539,8 +542,8 @@ def server_economy(guild_id: str):
 def server_economy_add_item(guild_id: str):
     name = request.form.get("name", "").strip()
     role_id = request.form.get("role_id", "").strip()
-    price = int(request.form.get("price", 100))
-    stock = int(request.form.get("stock", -1))
+    price = _to_int(request.form.get("price"), 100)
+    stock = _to_int(request.form.get("stock"), -1)
 
     if not name or not role_id:
         flash("❌ Vui lòng nhập đầy đủ tên và chọn Role!", "error")
@@ -564,7 +567,7 @@ def server_tempvoice(guild_id: str):
         hub_channel_id = _safe_channel(guild_id, request.form.get("hub_channel_id", "").strip())
         category_id = _safe_channel(guild_id, request.form.get("category_id", "").strip())
         name_template = request.form.get("name_template", "🔊 Phòng của {user}").strip() or "🔊 Phòng của {user}"
-        default_limit = int(request.form.get("default_limit", 0))
+        default_limit = _to_int(request.form.get("default_limit"), 0)
 
         db.update_tempvoice_settings(guild_id, enabled, hub_channel_id, category_id, name_template, default_limit)
         # Update guild_modules toggle
@@ -652,7 +655,7 @@ def server_ai(guild_id: str):
         custom_prompt = request.form.get("custom_prompt", "").strip()
         allow_ask = 1 if request.form.get("allow_ask") == "1" else 0
         allow_summarize = 1 if request.form.get("allow_summarize") == "1" else 0
-        rate_limit = int(request.form.get("rate_limit", 5))
+        rate_limit = _to_int(request.form.get("rate_limit"), 5)
 
         old_s = db.get_ai_settings(guild_id)
         db.update_ai_settings(guild_id, enabled, ai_channel_id, personality_preset, custom_prompt, allow_ask, allow_summarize, rate_limit, old_s.get("api_key", ""))

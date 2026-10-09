@@ -349,7 +349,7 @@ ZerynBot/
 ├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1694 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 187 tests (cache, i18n, database, permissions, Termux optimizations, dashboard, tenant isolation, music behavior, AI guardrails)
+├── tests/               # 🧪 202 tests (cache, i18n, database, permissions, Termux optimizations, dashboard, tenant isolation, music behavior, AI guardrails)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```
@@ -389,7 +389,7 @@ Gợi ý nhịp: chạy `cleanup` mỗi 2–4 tuần, hoặc khi `du -sh data` v
 # Cài đặt thư viện dev/test (chỉ cần trên máy dev):
 pip install -r requirements-dev.txt
 
-# Chạy toàn bộ test suite (187 test; vài test dashboard tự skip nếu chưa cài flask)
+# Chạy toàn bộ test suite (202 test; vài test dashboard tự skip nếu chưa cài flask)
 pytest -q
 ```
 

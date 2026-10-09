@@ -113,11 +113,25 @@ OPENROUTER_MODELS = [
 
 
 def mask_key(key: str) -> str:
-    """Mask key for safe display in logs and UI (e.g. AQ.Ab8...4cDQ or gsk_abc...1234)."""
+    """Mask key for safe display in logs and UI.
+
+    Bản cũ lấy 7 ký tự đầu + 4 ký tự cuối = 11 ký tự THẬT của key 56 ký tự, và các
+    regex scrub trong ai_logger chỉ bắt được chuỗi dài nên dạng mask này lọt thẳng vào
+    data/bot.log. Giữ lại đúng tiền tố nhà cung cấp (để nhận diện key nào) + 4 ký tự
+    cuối là đủ phân biệt mà không tái dựng được key.
+    """
     k = (key or "").strip()
-    if len(k) <= 10:
+    if len(k) <= 12:
         return "****"
-    return f"{k[:7]}...{k[-4:]}"
+    if k.startswith("gsk_"):
+        prefix = "gsk_"
+    elif k.startswith("sk-or-"):
+        prefix = "sk-or-"
+    elif k.startswith("AIza"):
+        prefix = "AIza"
+    else:
+        prefix = k[:3]
+    return f"{prefix}****{k[-4:]}"
 
 
 def parse_key_pool(raw: str, max_keys: int = 50) -> List[str]:

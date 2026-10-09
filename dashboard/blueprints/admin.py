@@ -53,6 +53,26 @@ def _admin_password_ready() -> bool:
     pw = getattr(config, "ADMIN_PASSWORD", "") or ""
     return len(pw) >= getattr(config, "ADMIN_PASSWORD_MIN_LENGTH", 16)
 
+
+# Viết vào ô key để xóa toàn bộ pool (ô để trống = giữ nguyên, xem _read_key_field).
+KEY_CLEAR_SENTINEL = "__CLEAR_ALL__"
+
+
+def _read_key_field(setting_key: str, raw_value: str) -> str:
+    """Đọc ô key từ form: rỗng = GIỮ pool đã lưu, sentinel = xóa hết, ngược lại = thay mới.
+
+    Trang /admin không còn in key đã lưu vào textarea — HTML nguồn thì bất kỳ ai xem
+    được trang (XSS, máy dùng chung, extension) đều đọc thấy API key trả phí. Hệ quả
+    bắt buộc: ô luôn trống khi mở trang, nên nếu coi "rỗng = xóa" thì mỗi lần bấm Lưu
+    ở mục khác sẽ làm mất sạch pool key.
+    """
+    raw_value = (raw_value or "").strip()
+    if not raw_value:
+        return db.get_global_setting(setting_key, "")
+    if raw_value == KEY_CLEAR_SENTINEL:
+        return ""
+    return raw_value
+
 def stepup_required(f):
     """Decorator: yêu cầu xác thực mật khẩu cấp cao (Step-Up Auth) trong vòng 15 phút.
 
@@ -201,6 +221,33 @@ def get_system_hardware_stats() -> dict:
 
     return stats
 
+def _mask_key_for_ui(key: str) -> str:
+    """Đủ để nhận diện đúng key nào, không đủ để người khác dùng lại key đó."""
+    k = (key or "").strip()
+    if len(k) <= 12:
+        return "****"
+    if k.startswith("gsk_"):
+        prefix = "gsk_"
+    elif k.startswith("sk-or-"):
+        prefix = "sk-or-"
+    elif k.startswith("AIza"):
+        prefix = "AIza"
+    else:
+        prefix = k[:3]
+    return f"{prefix}…{k[-4:]}"
+
+
+def _pool_summary(raw: str) -> str:
+    """Mô tả pool key cho UI — trả "" khi trống để các khối {% if %} còn đúng."""
+    text = (raw or "").replace(",", "\n").replace(";", "\n")
+    keys = [k.strip() for k in text.splitlines() if k.strip()]
+    if not keys:
+        return ""
+    shown = ", ".join(_mask_key_for_ui(k) for k in keys[:4])
+    more = f" (+{len(keys) - 4} nữa)" if len(keys) > 4 else ""
+    return f"{len(keys)} key đang lưu: {shown}{more}"
+
+
 @bp.route("/admin")
 @owner_required
 def admin_panel():
@@ -225,6 +272,9 @@ def admin_panel():
 
     telemetry = get_system_hardware_stats()
     activity_logs = db.get_system_activity_logs(limit=50, days_ttl=7)
+    # KHÔNG bao giờ đưa key thật vào HTML: nguồn trang /admin (XSS, extension, máy
+    # dùng chung, lịch sử duyệt web) sẽ lộ toàn bộ pool API trả phí. Textarea giờ
+    # trống và handler coi "rỗng = giữ nguyên" (xem _read_key_field).
     return render_template(
         "admin.html",
         user=session["user"],
@@ -234,11 +284,11 @@ def admin_panel():
         blacklist_ids=blacklist_ids,
         total_servers=len(guilds),
         total_blacklist=len(blacklist),
-        global_ai_key=global_ai_key,
+        global_ai_key="",
         global_ai_model=global_ai_model,
-        gemini_api_keys=gemini_api_keys,
-        groq_api_keys=groq_api_keys,
-        openrouter_api_keys=openrouter_api_keys,
+        gemini_api_keys=_pool_summary(gemini_api_keys),
+        groq_api_keys=_pool_summary(groq_api_keys),
+        openrouter_api_keys=_pool_summary(openrouter_api_keys),
         global_ai_provider=global_ai_provider,
         telemetry=telemetry,
         activity_logs=activity_logs,
@@ -323,9 +373,12 @@ def api_admin_thread_status(thread_id: str):
 @bp.route("/admin/ai_key", methods=["POST"])
 @owner_required
 def admin_save_ai_key():
-    gemini_keys = request.form.get("gemini_api_keys", "").strip()
-    groq_keys = request.form.get("groq_api_keys", "").strip()
-    openrouter_keys = request.form.get("openrouter_api_keys", "").strip()
+    gemini_keys_raw = request.form.get("gemini_api_keys", "")
+    groq_keys_raw = request.form.get("groq_api_keys", "")
+    openrouter_keys_raw = request.form.get("openrouter_api_keys", "")
+    gemini_keys = _read_key_field("gemini_api_keys", gemini_keys_raw)
+    groq_keys = _read_key_field("groq_api_keys", groq_keys_raw)
+    openrouter_keys = _read_key_field("openrouter_api_keys", openrouter_keys_raw)
     provider = request.form.get("global_ai_provider", "auto").strip().lower()
     model = request.form.get("global_ai_model", "").strip()
     custom_model = request.form.get("custom_ai_model", "").strip()
@@ -416,12 +469,14 @@ def api_admin_test_ai_key():
         res = ai_manager.test_single_key(single_key, target_model=target_model)
         return jsonify(res)
 
-    # Multi-pool check: lấy từ payload hoặc DB
-    if gemini_raw is None:
+    # Multi-pool check: lấy từ payload hoặc DB.
+    # UI không còn gửi lại key đã lưu (textarea write-only) nên phải coi chuỗi rỗng
+    # là "không chỉ định pool nào" -> test đúng pool đang có trong DB.
+    if not gemini_raw:
         gemini_raw = db.get_global_setting("gemini_api_keys", "")
-    if groq_raw is None:
+    if not groq_raw:
         groq_raw = db.get_global_setting("groq_api_keys", "")
-    if openrouter_raw is None:
+    if not openrouter_raw:
         openrouter_raw = db.get_global_setting("openrouter_api_keys", "")
 
     g_keys = parse_key_pool(gemini_raw)

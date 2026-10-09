@@ -570,7 +570,8 @@
                   <i class="bi bi-box-arrow-up-right"></i> Lấy Key
                 </a>
               </div>
-              <textarea name="gemini_api_keys" id="geminiKeysInput" class="modal-input" rows="4" placeholder="Nhập một hoặc nhiều key (mỗi dòng một key)&#10;Hỗ trợ cả key bắt đầu bằng AIzaSy... và AQ...." style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;">{{ gemini_api_keys or '' }}</textarea>
+              <textarea name="gemini_api_keys" id="geminiKeysInput" class="modal-input" rows="4" autocomplete="off" spellcheck="false" placeholder="&#273;&#7841; tr&#7881;ng = gi&#7919; nguy&#234;n pool hi&#7879;n c&#243;.&#10;D&#225;n key m&#7899;i (m&#7891;i d&#242;ng m&#7897;t key) &#273;&#7873; THAY TH&#7870; to&#224;n bé.&#10;G&#7891; __CLEAR_ALL__ &#273;&#7875; x&#243;a h&#7871;t." style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;"></textarea>
+              {% if gemini_api_keys %}<div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">&#128274; GEMINI: {{ gemini_api_keys }} &mdash; key th&#7853;t kh&#244;ng hi&#7875;n l&#7841;i &#273;&#7875; kh&#244;ng l&#7895; qua ngu&#7891;n trang.</div>{% endif %}
               <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px; line-height:1.4;">
                 Hỗ trợ cả định dạng mới <code>AQ.xxxx</code> và <code>AIzaSy...</code>. Nhập nhiều key để nhân bội hạn mức 15 RPM.
               </div>
@@ -586,7 +587,8 @@
                   <i class="bi bi-box-arrow-up-right"></i> Lấy Key
                 </a>
               </div>
-              <textarea name="groq_api_keys" id="groqKeysInput" class="modal-input" rows="4" placeholder="Nhập một hoặc nhiều key (mỗi dòng một key)&#10;Ví dụ: gsk_xxxxxxxxxxxxxxxxxxxx" style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;">{{ groq_api_keys or '' }}</textarea>
+              <textarea name="groq_api_keys" id="groqKeysInput" class="modal-input" rows="4" autocomplete="off" spellcheck="false" placeholder="&#273;&#7841; tr&#7881;ng = gi&#7919; nguy&#234;n pool hi&#7879;n c&#243;.&#10;D&#225;n key m&#7899;i (m&#7891;i d&#242;ng m&#7897;t key) &#273;&#7873; THAY TH&#7870; to&#224;n bé.&#10;G&#7891; __CLEAR_ALL__ &#273;&#7875; x&#243;a h&#7871;t." style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;"></textarea>
+              {% if groq_api_keys %}<div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">&#128274; GROQ: {{ groq_api_keys }} &mdash; key th&#7853;t kh&#244;ng hi&#7875;n l&#7841;i &#273;&#7875; kh&#244;ng l&#7895; qua ngu&#7891;n trang.</div>{% endif %}
               <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px; line-height:1.4;">
                 Key bắt đầu bằng <code>gsk_...</code>. Tốc độ phản hồi cực nhanh ~0.2s với Qwen 3.8 27B & GPT-OSS 20B.
               </div>
@@ -602,7 +604,8 @@
                   <i class="bi bi-box-arrow-up-right"></i> Lấy Key
                 </a>
               </div>
-              <textarea name="openrouter_api_keys" id="openrouterKeysInput" class="modal-input" rows="4" placeholder="Nhập một hoặc nhiều key (mỗi dòng một key)&#10;Ví dụ: sk-or-v1-xxxxxxxxxxxx" style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;">{{ openrouter_api_keys or '' }}</textarea>
+              <textarea name="openrouter_api_keys" id="openrouterKeysInput" class="modal-input" rows="4" autocomplete="off" spellcheck="false" placeholder="&#273;&#7841; tr&#7881;ng = gi&#7919; nguy&#234;n pool hi&#7879;n c&#243;.&#10;D&#225;n key m&#7899;i (m&#7891;i d&#242;ng m&#7897;t key) &#273;&#7873; THAY TH&#7870; to&#224;n bé.&#10;G&#7891; __CLEAR_ALL__ &#273;&#7875; x&#243;a h&#7871;t." style="width:100%; font-family:monospace; font-size:0.82rem; resize:vertical;"></textarea>
+              {% if openrouter_api_keys %}<div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">&#128274; OPENROUTER: {{ openrouter_api_keys }} &mdash; key th&#7853;t kh&#244;ng hi&#7875;n l&#7841;i &#273;&#7875; kh&#244;ng l&#7895; qua ngu&#7891;n trang.</div>{% endif %}
               <div style="font-size:0.75rem; color:var(--text-muted); margin-top:5px; line-height:1.4;">
                 Key bắt đầu bằng <code>sk-or-...</code>. Dự phòng kết nối mô hình Llama 3.3 Free & DeepSeek R1.
               </div>

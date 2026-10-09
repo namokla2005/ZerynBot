@@ -579,7 +579,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `_skipped is True` and stayed green while the feature was dead. New tests assert
     the user-visible effect (queue advances), that prune keeps un-expired rows, that
     every connection enforces FK, and that a snapshot contains WAL-only data that a
-    raw file copy does not. Suite: 158 → **187 tests**.
+    raw file copy does not. Suite: 158 → **202 tests**.
 - **v3.3 Phase 2 — AI guardrails**:
   - **No SQLite on the event loop**: `call_ai_async()` / `call_provider_async()` read
     key pools through `asyncio.to_thread(load_pools)`. `load_pools()` is synchronous
@@ -627,6 +627,31 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `send-test-card` (10/min).
   - **`MAX_CONTENT_LENGTH` = 256 KiB** on the Flask app: the dashboard only posts small
     forms/JSON, and an unbounded body can stall the process sharing 6 GB with the bot.
+  - **OAuth token left the cookie**: Flask *signs* session cookies, it does not encrypt
+    them, so `session["access_token"]` put a live Discord bearer token (scope
+    `identify guilds`) in the browser cookie jar for `SESSION_LIFETIME_DAYS` = 7 days,
+    and `/logout` never revoked it. `dashboard/auth.py` now keeps tokens in an
+    in-process vault keyed by a random `oauth_token_id`, and logout calls
+    `/oauth2/token/revoke`. Consequence to expect: a dashboard restart clears the vault,
+    so logged-in users must sign in again.
+  - **Channel/role verification is fail-CLOSED**: `_safe_channel` returned the submitted
+    id unchanged whenever Discord didn't answer (the exact moment an attacker's crafted
+    form gets through). It now raises `VerificationUnavailable`, and a global
+    errorhandler flashes and redirects **before any DB write** — so an unverifiable save
+    neither stores a foreign id nor wipes the working setting. `_safe_role` adds the same
+    check to `notify_role_id` / `verified_role_id` / `pending_role_id` / `role_id`, which
+    previously stored any submitted snowflake.
+  - **No more 500 on a blank number field**: 16 `int(form.get(...))` calls became
+    `_to_int(...)` (empty/garbage → default, optional clamping), and the app now has
+    `413`/`500` handlers, so an unhandled error no longer dumps a raw waitress page with
+    paths and module names.
+  - **AI keys are write-only in `/admin`**: the three pool textareas used to render the
+    stored keys, so anyone who could view page source (XSS, browser extension, shared
+    machine) read the paid credentials. They now show a masked summary
+    (`gsk_****abcd`) and `_read_key_field` treats an empty field as "keep the stored
+    pool" with `__CLEAR_ALL__` as the explicit wipe — otherwise saving any other setting
+    would have erased the pools. `/api/admin/test_ai_key` falls back to stored pools on
+    an empty string too, and `mask_key` no longer leaks 7 leading characters into logs.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

@@ -24,6 +24,8 @@ from dashboard.auth import (
     get_manageable_guilds,
     get_oauth2_url,
     get_user,
+    revoke_access_token,
+    store_access_token,
 )
 from dashboard.extensions import limiter
 
@@ -81,7 +83,9 @@ def callback():
         guilds       = get_manageable_guilds(access_token)
         session.permanent = True  # áp dụng PERMANENT_SESSION_LIFETIME
         session["user"]         = user
-        session["access_token"] = access_token
+        # Cookie chỉ mang con trỏ ngẫu nhiên; access token thật nằm trong vault của
+        # tiến trình dashboard (Flask ký chứ không mã hóa session).
+        session["oauth_token_id"] = store_access_token(access_token)
         session["guilds"]       = guilds
         session["guilds_fetched_at"] = _time.time()
         session["avatar"]       = get_avatar_url(user)
@@ -92,6 +96,9 @@ def callback():
 
 @bp.route("/logout")
 def logout():
+    # Trước đây chỉ xóa session phía mình — token đã lộ (copy cookie, máy dùng chung)
+    # vẫn dùng được tới khi Discord hết hạn.
+    revoke_access_token()
     session.clear()
     return redirect(url_for("public.login"))
 

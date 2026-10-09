@@ -13,7 +13,7 @@ import pytest
 pytest.importorskip("flask", reason="Dashboard tests cần flask")
 pytest.importorskip("flask_limiter", reason="Dashboard tests cần flask-limiter")
 
-from conftest import authed_client, set_csrf_token, MOCK_USER_ID
+from conftest import authed_client, login, set_csrf_token, MOCK_USER_ID
 
 GUILD_A = "1110000000000000001"
 GUILD_B = "1110000000000000002"
@@ -25,10 +25,12 @@ TRACK = {
 
 def _login_guilds(client, guild_ids, user_id=MOCK_USER_ID):
     """Session đăng nhập có quyền quản trị trên NHIỀU guild cùng lúc."""
+    from dashboard.auth import store_access_token
+
     with client.session_transaction() as s:
         s["user"] = {"id": user_id, "username": "MultiAdmin", "global_name": "MultiAdmin", "avatar": None}
         s["avatar"] = "https://cdn.discordapp.com/embed/avatars/0.png"
-        s["access_token"] = "mock-token"
+        s["oauth_token_id"] = store_access_token("mock-token")
         s["guilds"] = [
             {"id": gid, "name": f"Guild {gid}", "icon": None,
              "permissions": 8, "bot_in_guild": True}
@@ -185,3 +187,27 @@ def test_support_send_route_hits_its_rate_limit(client, temp_db, monkeypatch):
         for _ in range(12)
     ]
     assert 429 in codes, f"không giới hạn lượt gọi AI, toàn bộ response: {set(codes)}"
+
+
+def test_bearer_token_never_enters_the_session_cookie(client, temp_db):
+    """Bất biến: cookie chỉ mang con trỏ ngẫu nhiên, không mang access token.
+
+    Flask KÝ session chứ không mã hóa — trước đây `session["access_token"]` nghĩa là
+    bearer token của người dùng nằm trong cookie jar suốt 7 ngày.
+    """
+    import json
+
+    from dashboard.auth import _token_vault
+
+    login(client)
+    with client.session_transaction() as s:
+        assert "access_token" not in s, "token thật vẫn được nhét vào cookie"
+        assert s.get("oauth_token_id"), "thiếu con trỏ vault trong session"
+        assert "mock-token" not in json.dumps({k: str(v) for k, v in s.items()}), (
+            "bearer token rò ra trong cookie"
+        )
+        token_id = s["oauth_token_id"]
+
+    assert token_id in _token_vault, "vault phải giữ token để các route còn đọc được"
+    client.get("/logout", follow_redirects=True)
+    assert token_id not in _token_vault, "logout phải xóa token khỏi vault"

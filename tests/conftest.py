@@ -66,6 +66,8 @@ def client(flask_app):
 
 def login(client, user_id: str = MOCK_USER_ID, guild_id: str = MOCK_GUILD_ID):
     """Gắn session đăng nhập nháy giống kịch bản E2E_TESTING.md."""
+    from dashboard.auth import store_access_token
+
     with client.session_transaction() as s:
         s["user"] = {
             "id": user_id,
@@ -74,7 +76,9 @@ def login(client, user_id: str = MOCK_USER_ID, guild_id: str = MOCK_GUILD_ID):
             "avatar": None,
         }
         s["avatar"] = "https://cdn.discordapp.com/embed/avatars/0.png"
-        s["access_token"] = "mock-token"
+        # access_token không còn nằm trong cookie — dashboard đọc nó qua vault
+        # trong bộ nhớ, nên test cũng phải đăng ký vào đó như route callback thật.
+        s["oauth_token_id"] = store_access_token("mock-token")
         s["guilds"] = [
             {
                 "id": guild_id,

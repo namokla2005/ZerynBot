@@ -29,7 +29,7 @@ def _require_guild_access(guild_id: str):
     if "user" not in session or not session.get("user"):
         return jsonify({"error": "Unauthorized"}), 401
 
-    token = session.get("access_token")
+    token = _auth.get_access_token()
     if not token:
         return jsonify({"error": "Unauthorized"}), 401
 
