@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import aiosqlite
 
-from cache import cache
+from cache import SETTINGS_TTL, cache
 
 from .conn import _connect_async, _connect_sync, _row_to_dict, get_db_connection, get_db_path
 
@@ -42,7 +42,7 @@ def get_leveling_settings(guild_id: str) -> dict:
         else:
             result = dict(_DEFAULT_LEVELING)
             
-    cache.set(cache_key, result, ttl=300)
+    cache.set(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
 def set_leveling_settings(guild_id: str, settings: dict):

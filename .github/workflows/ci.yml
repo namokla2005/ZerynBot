@@ -35,6 +35,39 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
+      - name: Kiểm tra cú pháp mọi file Python
+        # py_compile chỉ chứng minh file PARSE được — nó không phát hiện tên hàm sai
+        # hay import thiếu trong nhánh except. Vì vậy nó là bước CHẶN nhưng không đủ,
+        # nên có thêm bước ruff F821 bên dưới.
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m compileall -q bot database dashboard scripts *.py
+
+      - name: Ruff — nhóm lỗi gây crash (chặn)
+        # F821 = undefined name (NameError luc bot đang chạy 24/7), E9 = syntax.
+        # Da bat duoc 2 loi that ma pytest khong thay: `guild_id` bi xoa khoi
+        # automod.on_message, và `logger` duoc dashboard/auth.py goi trong khi module
+        # khong dinh nghia no (chi no tren nhanh loi Discord API).
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m ruff check . --select F821,E9 --output-format=github
+
+      - name: Ruff — toàn bộ quy tắc còn lại (chỉ báo cáo)
+        # ~240 phat hien con lai (F401 unused-import, I001 unsorted-imports...) la viec
+        # ve sinh. Khong chan vi auto-fix F401 se pha cac module re-export co chu dich
+        # (dashboard/app.py la compat shim, bot/cogs/music.py la facade package `music/`).
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        continue-on-error: true
+        run: python -m ruff check . --statistics
+
+      - name: Đồng bộ i18n (1694 key + placeholder + ký tự điều khiển)
+        # str.format thoi im lang bo kwarg thua, nen mot key dich thieu {amount} khong
+        # bao gio gay loi test — chi la tin nhan mat con so tien khi ngu dung dung.
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py
+
       - name: Chạy test suite
         env:
           PYTHONDONTWRITEBYTECODE: "1"

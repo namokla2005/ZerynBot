@@ -5,6 +5,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import ipaddress
+import logging
 import socket
 import threading
 import time
@@ -13,6 +14,10 @@ import re
 
 import requests
 import config
+
+# Cung ten với dashboard/extensions.py de log van tung ra cung kenh. Khong import
+# logger tu extensions (vong tron dependency khong can thiet chi vi mot line log).
+logger = logging.getLogger("BotV2.Dashboard")
 
 # Permissions bit: Manage Guild (0x20 = 32)
 MANAGE_GUILD = 0x20

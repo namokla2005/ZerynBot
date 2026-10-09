@@ -26,6 +26,7 @@ from discord.ext import commands
 
 import checks
 from database import (
+    async_get_guild_settings,
     async_get_verify_settings,
     async_is_module_enabled,
     async_upsert_verify_settings,
@@ -279,7 +280,11 @@ class Verify(commands.Cog, name="Verify"):
             value=f"{total_overrides} kênh",
             inline=True,
         )
-        embed.set_footer(text=tr("vi", "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
+        # Footer truoc day ep ngon ngu "vi" (tham so cung cap vao tr()) nen luon ra
+        # tieng Viet ke ca khi guild dat en/zh/es. `s` o day la verify-settings (khong
+        # co cot `language`) => phai doc guild settings rieng de lay ngon ngu hien thi.
+        gs = await async_get_guild_settings(guild_id)
+        embed.set_footer(text=tr(gs, "common.requested_by", user=ctx.author.display_name), icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
 
     # ─── /verify enable ──────────────────────────────────────────────────────

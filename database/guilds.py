@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 import aiosqlite
 
-from cache import cache
+from cache import SETTINGS_TTL, GLOBAL_SETTINGS_TTL, cache
 
 from .conn import _connect_async, _connect_sync, _row_to_dict, get_db_connection, get_db_path
 
@@ -62,7 +62,7 @@ def get_guild_settings(guild_id: str) -> Dict:
     if row:
         result = _row_to_dict(row)
         
-    cache.set(cache_key, result, ttl=300)
+    cache.set(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
 def upsert_guild(guild_id: str, **fields):
@@ -96,7 +96,7 @@ def get_guild_modules(guild_id: str) -> Dict[str, bool]:
     for module_name, enabled in rows:
         result[module_name] = bool(enabled)
         
-    cache.set(cache_key, result, ttl=300)
+    cache.set(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
 def set_module(guild_id: str, module_name: str, enabled: bool):
@@ -185,7 +185,7 @@ async def async_get_guild_settings(guild_id: str) -> dict:
         ) as cur:
             row = await cur.fetchone()
     result = dict(row) if row else {"guild_id": guild_id, **_DEFAULT_SETTINGS}
-    await cache.aset(cache_key, result, ttl=300)
+    await cache.aset(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
 async def async_increment_stat(guild_id: str, event_type: str, event_label: str, amount: int = 1):
@@ -245,7 +245,7 @@ async def async_get_guild_modules(guild_id: str) -> Dict[str, bool]:
     result = {m: True for m in DEFAULT_MODULES}
     for module_name, enabled in rows:
         result[module_name] = bool(enabled)
-    await cache.aset(cache_key, result, ttl=300)
+    await cache.aset(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
 async def async_cache_guild(guild_id: str, name: str, icon: Optional[str], member_count: int):
@@ -311,7 +311,7 @@ def get_global_setting(key: str, default: str = "") -> str:
     with _connect_sync() as conn:
         row = conn.execute("SELECT value FROM bot_global_settings WHERE key = ?", (key,)).fetchone()
         val = str(row[0]) if row and row[0] is not None else default
-        cache.set(cache_key, val, ttl=300)
+        cache.set(cache_key, val, ttl=GLOBAL_SETTINGS_TTL)
         return val
 
 def set_global_setting(key: str, value: str) -> None:
@@ -334,7 +334,7 @@ async def async_get_global_setting(key: str, default: str = "") -> str:
         async with db.execute("SELECT value FROM bot_global_settings WHERE key = ?", (key,)) as cur:
             row = await cur.fetchone()
             val = str(row[0]) if row and row[0] is not None else default
-            await cache.aset(cache_key, val, ttl=300)
+            await cache.aset(cache_key, val, ttl=GLOBAL_SETTINGS_TTL)
             return val
 
 def get_blacklist() -> List[Dict]:

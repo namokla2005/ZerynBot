@@ -584,13 +584,20 @@ async def main():
         pass
 
     # ─── Self-Diagnostic Tester ─────────────────────────────
+    # KHÔNG abort khi self-test đỏ: máy chạy ở nhà (Termux, không có màn hình/keyboard)
+    # nên một suite fail vì transient (mạng vừa reconnect, WAL đang bận) mà chặn boot
+    # thì phải với tới tận nơi mới cứu được. Thay vào đó nâng lên ERROR + bản webhook đỏ
+    # gửi về kênh log (SystemTester tự gửi embed traceback), để chủ bot biết và xử.
     try:
         from tester import SystemTester
         test_passed = await SystemTester.run_all_tests()
         if not test_passed:
-            logger.warning("⚠️  Self-Diagnostic Test reported warnings, proceeding with bot startup...")
+            logger.error(
+                "❌  Self-Diagnostic Test ĐỠ — bot vẫn boot nhưng CÓ LỖI CHỨC NĂNG THẬT. "
+                "Xem embed đỏ vừa gửi về kênh log để biết suite nào/traceback đầy đủ."
+            )
     except Exception as e:
-        logger.warning(f"⚠️  Self-Diagnostic Test error: {e}")
+        logger.error(f"❌  Self-Diagnostic Test crash trước khi kịp báo cáo: {e}", exc_info=True)
     # ────────────────────────────────────────────────────────
 
     if config.WEBHOOK_LOG_URL:

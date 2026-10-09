@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import aiosqlite
 
-from cache import cache
+from cache import SETTINGS_TTL, cache
 
 from .conn import _connect_async, _connect_sync, _row_to_dict, get_db_connection, get_db_path
 
@@ -145,7 +145,7 @@ async def async_get_logger_settings(guild_id: str) -> dict:
             "log_automod": 1,
             "log_ticket": 1
         }
-    await cache.aset(cache_key, result, ttl=300)
+    await cache.aset(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
 def get_automod_settings(guild_id: str) -> dict:

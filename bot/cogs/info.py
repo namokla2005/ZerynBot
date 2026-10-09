@@ -287,7 +287,13 @@ class Info(commands.Cog):
         embed.add_field(name=tr(s, "info.ping_field"),    value=f"`{round(self.bot.latency * 1000)} ms`", inline=True)
         embed.add_field(name=tr(s, "info.servers_field"), value=f"`{len(self.bot.guilds)}`", inline=True)
         embed.add_field(name=tr(s, "info.users_field"),   value=f"`{total_users}`", inline=True)
-        embed.add_field(name="🧩 Modules & Lệnh",         value="`20 Modules • 108 Lệnh`", inline=True)
+        # Lay so lieu truc tiep tu nguon chan ly — con so hardcode o day tung loi mot
+        # dot ("108 Lệnh" trong khi registry da 116) va khong co test nao bat duoc.
+        from commands_data import _COMMANDS_DATA
+        from database import DEFAULT_MODULES
+        total_commands = sum(len(c["commands"]) for c in _COMMANDS_DATA)
+        embed.add_field(name="🧩 Modules & Lệnh",
+                        value=f"`{len(DEFAULT_MODULES)} Modules • {total_commands} Lệnh`", inline=True)
 
         embed.add_field(
             name="🔗 Liên kết hữu ích",

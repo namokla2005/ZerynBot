@@ -2,7 +2,7 @@
 """
 commands_catalog.py — Bản địa hoá catalog lệnh cho Web Dashboard /docs.
 
-Nhận dữ liệu gốc từ `commands_data._COMMANDS_DATA` (registry 110 lệnh dùng chung
+Nhận dữ liệu gốc từ `commands_data._COMMANDS_DATA` (registry 116 lệnh dùng chung
 với /help của bot) rồi dịch tên lệnh, tham số, preview sang 6 ngôn ngữ
 (vi, en, zh, es, pt, fr).
 

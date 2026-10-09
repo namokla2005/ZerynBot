@@ -13,3 +13,10 @@ aiohttp==3.14.3
 yt-dlp==2026.8.19
 waitress==3.0.2
 Flask-Limiter==4.1.1
+# werkzeug được import TRUC TIEP (dashboard/app_factory.py dung ProxyFix), khong chi
+# la transitive cua Flask — de tron dependency thi mot ban Flask nang cap co the gay
+# ImportError luc khoi dong dashboard.
+werkzeug==3.1.9
+# ─── Tuy chon (optional) — code tu nhan dien, khong bat bui cai ───────────────
+# psutil : /serverinfo va tester tu bo qua neu thieu (Termux khong can).
+# davey  : discord.py voice encryption moi; thieu thi chi co warning tu discord.py.

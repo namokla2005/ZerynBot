@@ -179,3 +179,54 @@ def test_edit_of_clean_message_short_circuits():
     after2 = _msg("http://scam-mirror.example/x")
     asyncio.run(cog.on_message_edit(before, after2))
     assert recorded, "edit thành link lừa đảo phải bị xử lý"
+
+
+# ─── Regression cho chinh lloi do tao rapid trong phase 5b ────────────────────
+
+def _member_message(guild_id="777", content="hello"):
+    """Message cua thanh vien thuong, du cho on_message chay het nhanh spam."""
+    perms = types.SimpleNamespace(manage_messages=False, administrator=False)
+    author = types.SimpleNamespace(
+        id=4242, bot=False, guild_permissions=perms, roles=[], mention="<@4242>",
+    )
+    channel = types.SimpleNamespace(id=5150, name="general")
+    guild = types.SimpleNamespace(id=int(guild_id), owner=object(), name="G")
+    author.guild = guild
+    return types.SimpleNamespace(
+        author=author, guild=guild, channel=channel, content=content,
+        embeds=[], stickers=[], attachments=[], mentions=[], role_mentions=[],
+    )
+
+
+def test_on_message_spam_path_has_guild_id():
+    """`guild_id` bi mat khai bao khi tach _automod_gate -> NameError moi tin nhan.
+
+    Fast check: spam rule dung self.spam_cache[guild_id], nam ben duoi doan gate.
+    """
+    from collections import defaultdict
+
+    from cogs.automod import Automod
+
+    cog = Automod.__new__(Automod)
+    cog.spam_cache = defaultdict(lambda: defaultdict(list))
+    handled = []
+
+    async def fake_gate(message):
+        return {"spam_enabled": 1, "spam_allowed_channels": [], "links_enabled": 0,
+                "bad_words_enabled": 0, "anti_invite_enabled": 0, "anti_caps_enabled": 0,
+                "anti_mentions_enabled": 0, "whitelist_links": [], "blacklist_links": [],
+                "bad_words": []}
+
+    async def fake_handle(message, reason, settings):
+        handled.append(reason)
+
+    async def fake_check(message, settings, content):
+        return False
+
+    cog._automod_gate = fake_gate
+    cog._handle_violation = fake_handle
+    cog._check_text_rules = fake_check
+
+    for _ in range(7):
+        asyncio.run(cog.on_message(_member_message()))
+    assert handled, "spam du 7 tin lien tiep ma khong xu ly -> nhanh spam khong chay"

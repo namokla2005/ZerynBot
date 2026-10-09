@@ -61,3 +61,30 @@ def test_lru_eviction():
     assert c.get("c") == 3
     assert c.get("a") == 1
     assert c.get("d") == 4
+
+
+def test_settings_cache_ttl_is_short_across_processes():
+    """TTL config phải ngắn vì cache KHÔNG dùng chung giữa bot và dashboard.
+
+    Dashboard goi cache.delete("settings:<gid>") sau khi luu, nhung no chi xoa trong
+    PID cua no. TTL chinh la "do tre" lon nhat ma bot con ap dung cau hinh cu — 300s
+    nghia la chu server tat automod tren web va bot con phat thanh vien them 5 phut.
+    """
+    from cache import GLOBAL_SETTINGS_TTL, SETTINGS_TTL
+
+    assert SETTINGS_TTL <= 60, f"settings TTL {SETTINGS_TTL}s qua dai giua 2 tien trinh"
+    assert GLOBAL_SETTINGS_TTL <= 120, f"global TTL {GLOBAL_SETTINGS_TTL}s qua dai"
+
+
+def test_no_hardcoded_300s_ttl_left_in_database_layer():
+    """TTL config phai di qua hang so tap trung, khong so hardcode roi rac."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent / "database"
+    offenders = []
+    for py in root.glob("*.py"):
+        for n, line in enumerate(py.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"ttl=300", line):
+                offenders.append(f"{py.name}:{n}")
+    assert not offenders, f"con TTL 300s hardcode: {offenders}"

@@ -1,0 +1,27 @@
+# Cau hinh Ruff cho ZerynBot V2 — dung chung giua may dev va CI (.github/workflows/ci.yml).
+#
+# Tai sao chi chon F + E9:
+#   `ruff check . --statistics` tren toan repo hien ~1300 phat hien o bo rule mac dinh
+#   (BLE001 try/except bao, F401, I001 unsorted-imports, UP006...). Bat het len thanh
+#   gate chan ngay thi CI do đỏ vì lý do thẩm mỹ, và người ta sẽ tắt cả bước lint.
+#   F (Pyflakes) + E9 (syntax) là nhóm "chạy là loi": undefined-name, sai số tham số,
+#   syntax error — tức là những thứ trả về NameError luc bot đang chạy 24/7 trên Termux.
+#   Cac rule con lai nen chay thu cong theo dot ve sinh rieng.
+#
+# Phat hien that gan day nho bo rule nay: `bot/cogs/automod.py` dung `guild_id` trong
+# nhanh spam sau khi tach _automod_gate (NameError moi tin nhan), va `dashboard/auth.py`
+# goi `logger.warning` trong khi module khong he dinh nghia `logger`.
+
+[lint]
+select = ["F", "E9"]
+
+[lint.per-file-ignores]
+# bot/cogs/music.py la FACADE sau khi tach package `bot/music/`: ten nhu MusicPlayer,
+# Track, extract_info, _fmt_duration... duoc injection vao module namespace luc runtime
+# (xem _FACADE_EXPORTS + tests/test_music_behavior.py::PUBLIC_SURFACE), nen ruff khong
+# the thay tinh tai cua chung -> 43 phat hien F821/F401 o day la bao dong gia.
+"bot/cogs/music.py" = ["F401", "F821"]
+
+# Script sinh emoji one-off va do an thu cong, khong phai duong chay cua bot.
+"scripts/generate_*.py" = ["F401", "F821", "E741"]
+"scratch/*" = ["F", "E9"]

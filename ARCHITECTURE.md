@@ -309,7 +309,7 @@ The web dashboard is hosted via Flask in `dashboard/app.py` (facade), `dashboard
 - **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
-- **Central Command Catalog (`_COMMANDS_DATA`):** All **110 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
+- **Central Command Catalog (`_COMMANDS_DATA`):** All **116 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
 - **Design System V9.2 (Pastel Obsidian Glow):** The entire Web Dashboard (`/dashboard`, `/home`, `/admin`, `/login`, `/tos`, `/privacy`, `/commands`) is synchronized with the Nekotina-inspired Landing Page aesthetic:
   - **Color Tokens:** Obsidian Dark Background (`#120e24` / `#131217`), Glassmorphism Surface (`rgba(25, 24, 34, 0.85)`), Primary Sakura Pink (`#f4a7bb`), Accent Purple (`#9d8df1`), Blurple (`#5865f2`), Emerald (`#57f287`), Amber Gold (`#fee75c`), Crimson (`#ed4245`).
   - **Typography:** Modern variable font stack powered by Google Fonts `Plus Jakarta Sans` and `Inter`.
@@ -758,6 +758,42 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     response" (restart dashboard) from "503" (kill the bot). Log rotation used `mv`, but
     the still-open stdout fd keeps writing through the rename: the new file stayed empty
     while `.1` grew until the card filled; it is now `cp` + truncate in place.
+- **v3.3 Phase 6 — project-standard cleanup**:
+  - **Catalog completed**: `_COMMANDS_DATA` was missing `xp add`, `verify pending`,
+    `/lang`, `/config`, `/sync`, `/backup`, and listed the real `/ticket` command under
+    the name `tickets` with usage "(Dashboard)". Registry is now **116 commands / 17
+    categories**, and every "110 lệnh" claim in README/ARCHITECTURE/llms.txt/AGENTS.md
+    was synced.
+  - **`/botinfo` counts computed, not hardcoded**: it displayed "108 Lệnh" while the
+    registry already had 110+. It now derives both numbers from `DEFAULT_MODULES` and
+    `_COMMANDS_DATA`, so the figure cannot silently drift again.
+  - **Settings cache TTL 300s → 30s (60s global)**: `MemoryCache` is per-process, so the
+    dashboard's `cache.delete("settings:<gid>")` after a save only cleared its own PID.
+    A guild admin turning automod off in the UI saw "✅ đã lưu" while the bot kept
+    enforcing the old config for up to five minutes. Centralized as
+    `cache.SETTINGS_TTL` / `GLOBAL_SETTINGS_TTL` with a guard test that fails if a raw
+    `ttl=300` returns in `database/`.
+  - **Verify footer respects the guild language**: it passed a literal "vi" to `tr()`,
+    forcing Vietnamese regardless of the server's language. A guard test now rejects
+    hardcoded language arguments outside two documented fallbacks.
+  - **Requirements completed**: `werkzeug` is imported directly by the dashboard
+    (`ProxyFix`) but was only present transitively via Flask; `paramiko`, `mcp` and
+    `pydantic` (imported unguarded by the ops/MCP scripts) were undeclared entirely.
+    Optional extras (`psutil`, `davey`) are documented as such since both imports are
+    guarded.
+  - **CI now enforces more than pytest**: added `compileall` (blocking),
+    `ruff --select F821,E9` (blocking — undefined names are NameErrors on a 24/7 bot),
+    full `ruff check` (report-only, because ~240 remaining findings are hygiene and
+    auto-fixing F401 would break the deliberate re-export facades in `dashboard/app.py`
+    and `bot/cogs/music.py`), and the i18n validator.
+  - **`validate_i18n.py` now checks placeholders and control characters**, not just key
+    sets. It found: 6 keys where es/pt/fr dropped `{amount}` (so the warning showed no
+    number — invisible because `str.format` ignores extra kwargs), and 12 strings across
+    all six locales where the word "all" had been corrupted to `ll` (BEL).
+  - **Startup self-test severity**: a failing `SystemTester` run logged only
+    "proceeding with bot startup". It is now `logger.error` explaining that real
+    functional failures exist. Deliberately still non-fatal — the device is headless at
+    home, so refusing to boot over a transient failure would require physical access.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

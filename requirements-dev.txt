@@ -3,3 +3,12 @@
 pytest==9.1.1
 pytest-asyncio==1.4.0
 ruff==0.16.5
+# ─── Cong cu ops/mcp chay tren may dev (KHONG cai len Termux) ─────────────────
+# paramiko : scripts/termux_deploy.py + termux_mcp.py (kenh LAN; kenh Cloudflare
+#            dung ssh CLI nen paramiko duoc guard = None neu thieu).
+# mcp      : scripts/dual_model_mcp.py, scripts/termux_mcp.py — import tran, khong
+#            co guard, nen phai khai bao o day.
+# pydantic : scripts/dual_model_mcp.py (PreCommitReport) — cung import tran.
+paramiko==5.0.0
+mcp==2.2.0
+pydantic==2.13.5

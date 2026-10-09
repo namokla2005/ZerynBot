@@ -57,10 +57,10 @@
 - `i18n.py`: O(1) RAM translation engine.
 - `bot/bot.py`: Main Discord bot entry point.
 - `bot/music/`: Modular audio pipeline (extractor, player, views, embeds, voice mixin).
-- `bot/cogs/`: 24 functional cogs containing 110 total commands across 17 categories.
+- `bot/cogs/`: 24 functional cogs containing 116 total commands across 17 categories.
 - `dashboard/app.py`: Web dashboard entrypoint facade / compat shim (`app = create_app()` + re-exports).
 - `dashboard/blueprints/`: Modular Flask blueprints (public, guild, music, admin, support).
 - `dashboard/api.py`: AJAX JSON endpoints for real-time dashboard updates.
-- `commands_data.py`: `_COMMANDS_DATA` central registry (110 commands / 17 categories), rendered by `dashboard/commands_catalog.py`.
+- `commands_data.py`: `_COMMANDS_DATA` central registry (116 commands / 17 categories), rendered by `dashboard/commands_catalog.py`.
 - `scripts/termux_mcp.py`: MCP Server for remote Termux SSH operations and automated diagnostics.
 - `locales/`: 6 locale dictionary files (1694 keys each).

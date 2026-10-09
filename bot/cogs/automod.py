@@ -282,19 +282,14 @@ class Automod(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot or not message.guild:
-            return
-
-        # Immune users (Admin/Owner)
-        if message.author == message.guild.owner or \
-           message.author.guild_permissions.manage_messages or \
-           message.author.guild_permissions.administrator:
-            return
-            
         settings = await self._automod_gate(message)
         if settings is None:
             return
 
+        # `guild_id` duoc nhanh spam ben duoi dung de danh chiem spam_cache; trc day no
+        # duoc gan o phan "immune users" da duoc _automod_gate thau the — xoa trung
+        # khai bao ma khong di chuyen gan la NameError moi tin nhan trong kenh co spam.
+        guild_id = str(message.guild.id)
         content = message_scan_text(message)
 
         # 1. Spam check (5 messages in 5 seconds)

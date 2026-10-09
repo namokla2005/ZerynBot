@@ -83,3 +83,27 @@ def test_tr_formats_placeholders():
     key_with_ph = next(k for k, v in data["en"].items() if "{user}" in str(v))
     rendered = tr("en", key_with_ph, user="Tester")
     assert "{user}" not in rendered
+
+
+def test_no_hardcoded_vietnamese_language_choice_outside_fallbacks():
+    """`tr("vi", key)` cuong buc tieng Viet, bo qua ngon ngu cua server.
+
+    Cho phep 2 ngoai le co chu dich:
+      - bot/cogs/lang.py: fallback khi khong doc duoc guild settings (khong con
+        nguon nao khac de dich).
+      - bot/tester.py: suite kiem tra chinh no dich duoc 6 ngon ngu.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    allow = {"bot/cogs/lang.py", "bot/tester.py"}
+    offenders = []
+    for py in sorted((root / "bot").rglob("*.py")) + sorted((root / "dashboard").rglob("*.py")):
+        rel = str(py.relative_to(root)).replace("\\", "/")
+        if rel in allow:
+            continue
+        for n, line in enumerate(py.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"tr\(\s*[\x22\x27]vi[\x22\x27]", line):
+                offenders.append(f"{rel}:{n}")
+    assert not offenders, f"ep tieng Viet, bo qua ngon ngu server: {offenders}"

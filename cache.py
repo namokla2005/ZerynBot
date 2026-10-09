@@ -17,6 +17,18 @@ from typing import Any
 
 logger = logging.getLogger("Cache")
 
+# ─── TTL chuẩn cho config ──────────────────────────────────────────────────────
+# MemoryCache chỉ có hiệu lực TRONG TỪNG TIẾN TRÌNH. Dashboard gọi cache.delete(...)
+# sau khi lưu settings nhưng nó chỉ xoá trong PID của dashboard — PID bot vẫn giữ bản
+# cũ tới hết TTL. Với TTL 300s, chủ server tắt automod trên web rồi bot vẫn tiếp tục
+# phạt thành viên thêm 5 phút nữa (và dashboard còn tự báo "✅ đã lưu").
+# 30s là đánh đổi: đủ ngắn để "lưu là thấy đổi", đủ dài để không chạm SQLite ở mọi
+# lệnh/rời tin nhắn (đường đó đã có idx_custom_commands_guild + PK guild_id đỡ).
+SETTINGS_TTL = 30
+# Config toàn cục (model AI, provider, key pool) đổi ít hơn và chỉ owner đổi,
+# nhưng vẫn cần nhanh hơn 5 phút sau khi bấm Lưu trên /admin.
+GLOBAL_SETTINGS_TTL = 60
+
 
 class MemoryCache:
     """High-performance, thread-safe, in-memory TTL LRU cache."""

@@ -114,6 +114,46 @@ _COMMANDS_DATA = [
                     "type": "text",
                     "desc": "✅ Đã hủy lời nhắc `#1` thành công!"
                 }
+            },
+            {
+                "name": "lang", "emoji": "🌐",
+                "desc": "Thay đổi ngôn ngữ trả lời của bot trong server (vi, en, zh, es, pt, fr)",
+                "usage": "/lang [ngon_ngu]", "example": "/lang language:en",
+                "args": [{"name": "language", "type": "String", "required": True, "desc": "Ngôn ngữ (vi, en, zh, es, pt, fr)"}],
+                "preview": {
+                    "type": "text",
+                    "desc": "🇬🇧 Server language has been changed to **English**!"
+                }
+            },
+            {
+                "name": "config", "emoji": "🛠️",
+                "desc": "Xem cài đặt hiện tại của server kèm link truy cập Web Dashboard",
+                "usage": "/config", "example": "/config",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🛠️ Cấu hình server",
+                    "desc": "**Ngôn ngữ:** vi • **Prefix:** @Bot<br>🔗 Dashboard: `https://zerynbot.id.vn/dashboard/<server_id>`"
+                }
+            },
+            {
+                "name": "sync", "emoji": "🔄",
+                "desc": "Đồng bộ lại danh sách slash command lên Discord ngay lập tức",
+                "usage": "/sync", "example": "/sync",
+                "args": [],
+                "preview": {
+                    "type": "text",
+                    "desc": "✅ Đã đồng bộ **116** slash command lên Discord."
+                }
+            },
+            {
+                "name": "backup", "emoji": "💾",
+                "desc": "[Chủ Bot] Sao lưu cơ sở dữ liệu bot.db và gửi về webhook BACKUP_DB riêng tư",
+                "usage": "/backup", "example": "/backup",
+                "args": [],
+                "preview": {
+                    "type": "embed", "color": "#57F287", "title": "📦 Sao Lưu Cơ Sở Dữ Liệu Thành Công",
+                    "desc": "📁 **File:** `ZerynBot_backup_2026-10-10_030000.zip`<br>📊 **Dung lượng:** `98.4 KB`"
+                }
             }
         ]
     },
@@ -263,6 +303,13 @@ _COMMANDS_DATA = [
                 "usage": "/verify hide on|off", "example": "/verify hide on",
                 "args": [{"name": "state", "type": "String", "required": True, "desc": "on/off"}],
                 "preview": {"type": "embed", "color": "#5865f2", "title": "👁️ Chế độ ẩn kênh", "desc": "✅ Đã bật chế độ hard gate."}
+            },
+            {
+                "name": "verify pending", "emoji": "⏳",
+                "desc": "Đặt vai trò chờ (pending) gán cho thành viên chưa xác thực",
+                "usage": "/verify pending [@vai_trò]", "example": "/verify pending @Chưa xác thực",
+                "args": [{"name": "role", "type": "Role", "required": False, "desc": "Vai trò đại diện cho thành viên chưa xác thực"}],
+                "preview": {"type": "embed", "color": "#5865f2", "title": "⏳ Vai trò chờ", "desc": "✅ Đã đặt vai trò chờ: **@Chưa xác thực**"}
             }
         ]
     },
@@ -288,6 +335,18 @@ _COMMANDS_DATA = [
                 "preview": {
                     "type": "embed", "color": "#5865f2", "title": "🏆 Bảng xếp hạng",
                     "desc": "🥇 **#1** | @Nam • **Lvl 5** (450 XP)\n🥈 **#2** | @User • **Lvl 3** (200 XP)"
+                }
+            },
+            {
+                "name": "xp add", "emoji": "➕",
+                "desc": "Cộng thêm XP thưởng cho một thành viên",
+                "usage": "/xp add [người_dùng] [xp]", "example": "/xp add @Nam 100",
+                "args": [
+                    {"name": "member", "type": "Mention", "required": True, "desc": "Người dùng"},
+                    {"name": "amount", "type": "Number", "required": True, "desc": "Số XP cần cộng thêm (> 0)"}
+                ],
+                "preview": {
+                    "type": "text", "content": "✅ Đã cộng **100** XP cho @Nam. Tổng: **550 XP** (Cấp độ: **7**)."
                 }
             },
             {
@@ -362,9 +421,9 @@ _COMMANDS_DATA = [
         "icon": "🎫",
         "commands": [
             {
-                "name": "tickets", "emoji": "🎫",
-                "desc": "Tính năng này không có lệnh Slash. Vui lòng sử dụng Web Dashboard để tạo Panel hỗ trợ.",
-                "usage": "(Dashboard)", "example": "Dashboard",
+                "name": "ticket", "emoji": "🎫",
+                "desc": "Nhận link Web Dashboard để tạo/quản lý Panel ticket",
+                "usage": "/ticket", "example": "/ticket",
                 "args": [],
                 "preview": {
                     "type": "embed", "color": "#5865f2", "title": "🎫 Ticket System",
