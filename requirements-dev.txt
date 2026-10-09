@@ -2,7 +2,7 @@
 -r requirements.txt
 pytest==9.1.1
 pytest-asyncio==1.4.0
-ruff==0.16.5
+ruff==0.16.10
 # ─── Cong cu ops/mcp chay tren may dev (KHONG cai len Termux) ─────────────────
 # paramiko : scripts/termux_deploy.py + termux_mcp.py (kenh LAN; kenh Cloudflare
 #            dung ssh CLI nen paramiko duoc guard = None neu thieu).
