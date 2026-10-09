@@ -9,6 +9,7 @@ khi voice reconnect. Code được DI CHUYỂN NGUYÊN VẸN, không sửa logic
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import random
 import re
@@ -26,11 +27,17 @@ except (ImportError, ModuleNotFoundError):
     from bot.emojis import e, embed_title, partial
 
 from .config import (
+    AUDIO_FRAME_SECONDS,
     FFMPEG_BEFORE,
     FFMPEG_OPTS_COPY,
     FFMPEG_OPTS_ENCODE,
+    FAST_FAIL_LIMIT,
+    FAST_FAIL_SECONDS,
     INACTIVITY_TIMEOUT,
     MAX_PLAYERS,
+    STALL_CHECK_SECONDS,
+    STALL_CLEANUP_TIMEOUT_SECONDS,
+    STALL_TIMEOUT_SECONDS,
     _lower_process_priority,
     load_opus_library,
 )
@@ -121,10 +128,20 @@ class MusicPlayer:
         self._last_recovery_time : float = 0.0
         self._preload_task : asyncio.Task | None = None
         self._inactivity_task : asyncio.Task | None = None
+        self._watchdog_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
         self._stop_lock    = asyncio.Lock()
         self._cleanup_done : bool = False
         self._is_reconnecting : bool = False
+        # ── Đồng hồ audio THỰC (đếm frame discord.py đọc được) + chống zombie callback ──
+        # `get_elapsed()` suy ra từ time.time() nên nó vẫn tăng đều khi FFmpeg kẹt — vô
+        # dụng để phát hiện treo stream. `self._audio_frames` chỉ tăng khi source.read()
+        # thực sự trả về data, nên nó đứng yên đúng lúc stream chết.
+        self._active_source = None
+        self._audio_frames : int = 0
+        self._audio_base   : float = 0.0
+        self._last_data_mono : float = 0.0
+        self._fast_fails : int = 0
 
     def set_reconnecting(self, status: bool):
         """Cập nhật trạng thái reconnecting an toàn và xóa cờ recovery nếu tắt."""
@@ -162,6 +179,138 @@ class MusicPlayer:
         if self.vc and self.vc.is_paused() and self.pause_start > 0:
             return max(0, int(self.pause_start - self.start_time - self.total_paused_time))
         return max(0, int(time.time() - self.start_time - self.total_paused_time))
+
+    def get_audio_position(self) -> int:
+        """Vị trí tai-nghe-thấy, tính từ số frame audio đã đọc thật (không phải đồng hồ tường)."""
+        if self._audio_frames <= 0 and self._audio_base <= 0:
+            return self.get_elapsed()
+        return int(self._audio_base + self._audio_frames * AUDIO_FRAME_SECONDS)
+
+    def _bind_audio_clock(self, source, start_offset: int = 0):
+        """Bọc `source.read()` để đếm frame + ghi timestamp lần cuối có dữ liệu.
+
+        Gán `read` lên INSTANCE (discord.py gọi `self.source.read()` không tham số) nên
+        KHÔNG proxy hoá source: `isinstance(vc.source, PCMVolumeTransformer)`, `.volume`,
+        `.data_type`, `.cleanup()` giữ nguyên như cũ.
+        """
+        self._audio_frames = 0
+        self._audio_base = float(max(0, start_offset))
+        self._last_data_mono = time.monotonic()
+        self._active_source = source
+        inner_read = source.read
+
+        def read_with_clock(*args):
+            data = inner_read(*args)
+            if data:
+                # Cộng dồn từ audio thread, đọc từ event loop: mất 1 đếm cũng vô hại,
+                # miễn là đồng hồ còn chạy khi stream còn sống.
+                self._audio_frames += 1
+                self._last_data_mono = time.monotonic()
+            return data
+
+        try:
+            source.read = read_with_clock
+        except (AttributeError, TypeError):
+            log.debug("[Music] Source không cho phép gắn audio clock (có __slots__) — watchdog tắt cho track này")
+            self._active_source = None
+
+    def _start_stall_watchdog(self):
+        cur = asyncio.current_task()
+        old = self._watchdog_task
+        if old is not None and old is not cur and not old.done():
+            old.cancel()
+        self._watchdog_task = asyncio.create_task(self._stall_watchdog())
+
+    def _cancel_stall_watchdog(self):
+        task = self._watchdog_task
+        if task is None or task is asyncio.current_task():
+            # Không tự hủy task đang chạy (bài học từ `_reset_inactivity_timer`):
+            # CancelledError sẽ bắn vào await kế tiếp ngay giữa chu trình recovery.
+            return
+        if not task.done():
+            task.cancel()
+        self._watchdog_task = None
+
+    async def _stall_watchdog(self):
+        """Kill + phát lại khi FFmpeg ngừng xuất audio dù voice vẫn 'connected'.
+
+        Mọi cơ chế khôi phục hiện có đều chờ `after()` — mà `after()` chỉ chạy khi
+        audio thread thoát khỏi `source.read()`. Read kẹt vĩnh viễn thì không có callback,
+        không có recovery: hàng đợi đứng, người dùng nghe im lặng, bot vẫn giữ slot
+        MAX_PLAYERS tới khi restart.
+        """
+        try:
+            while True:
+                await asyncio.sleep(STALL_CHECK_SECONDS)
+                vc = self.vc
+                if self._manual_stopped or vc is None or not vc.is_connected():
+                    return
+                if not vc.is_playing():
+                    if vc.is_paused():
+                        # Pause: discord.py gửi silence và KHÔNG đọc source → không được tính là treo
+                        self._last_data_mono = time.monotonic()
+                        continue
+                    return
+                if self._recovering or self._is_reconnecting or self._active_source is None:
+                    continue
+                if (time.monotonic() - self._last_data_mono) < STALL_TIMEOUT_SECONDS:
+                    continue
+                await self._handle_stream_stall()
+                return
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            log.error(f"[Music] Lỗi trong _stall_watchdog: {e}", exc_info=e)
+
+    async def _handle_stream_stall(self):
+        track = self.current
+        stalled_for = int(time.monotonic() - self._last_data_mono)
+        position = self.get_audio_position()
+        stale_source = self._active_source
+        self._active_source = None
+        log.warning(
+            f"[Music] Stream '{getattr(track, 'title', '?')}' treo: không có frame audio nào "
+            f"trong {stalled_for}s (vị trí thực {position}s) — cắt FFmpeg và phát lại từ URL mới."
+        )
+        if track is None:
+            return
+        self._recovering = True
+        try:
+            if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
+                self.vc.stop()
+            # Audio thread có thể đang kẹt trong read() nên `after()`/`cleanup()` sẽ KHÔNG
+            # tự chạy: phải dọn process ffmpeg mồ côi thủ công (kèm source cũ).
+            # Có timeout: `cleanup()` chờ process con, và một ffmpeg kẹt trong D-state trên
+            # kernel Android sẽ không bao giờ tỉnh — ở lại chờ vĩnh viễn sẽ giữ
+            # `_recovering=True` và vô hiệu hóa mọi recovery của player này.
+            if stale_source is not None and hasattr(stale_source, "cleanup"):
+                try:
+                    await asyncio.wait_for(
+                        asyncio.to_thread(stale_source.cleanup), timeout=STALL_CLEANUP_TIMEOUT_SECONDS
+                    )
+                except asyncio.TimeoutError:
+                    log.warning("[Music] cleanup source treo quá 5s — bỏ qua, tiếp tục khôi phục")
+                except Exception as cleanup_err:
+                    log.debug(f"[Music] cleanup source treo thất bại: {cleanup_err}")
+            # Trong lúc chờ dọn, `/play` hoặc `/skip` của người dùng có thể đã giao source mới
+            # (`_play` set `_active_source` trước `vc.play`). Ta đã tự đặt `_active_source=None`
+            # nên chỉ cần còn giá trị khác None là có người khác vừa phát — nhường, không cắt đè.
+            if self._active_source is not None:
+                log.info("[Music] Có stream mới được khởi động trong lúc dọn stream treo — hủy khôi phục.")
+                return
+            if getattr(track, "recovery_attempts", 0) >= 2:
+                log.warning(f"[Music] Stream '{track.title}' treo vượt 2 lần khôi phục, bỏ bài.")
+                await self._report_play_failure(track, "music.cannot_decode")
+                return
+            track.recovery_attempts = getattr(track, "recovery_attempts", 0) + 1
+            self._last_recovery_time = time.time()
+            track.stream_url = None  # buộc extract lại để lấy URL/token mới
+            await self._play(track, seek_offset=position)
+        except Exception as e:
+            log.error(f"[Music] Lỗi khôi phục stream treo '{getattr(track, 'title', '?')}': {e}")
+            await self._report_play_failure(track, "music.cannot_decode")
+        finally:
+            self._recovering = False
 
     # ── Inactivity Auto-Disconnect ─────────────────────────────────────────
     def _reset_inactivity_timer(self):
@@ -236,10 +385,18 @@ class MusicPlayer:
             self._preload_task.cancel()
         self._preload_task = asyncio.create_task(self._preload_next())
 
-    def _after_play(self, error=None):
+    def _after_play(self, bound_source=None, error=None):
         """Callback từ audio thread của discord.py khi stream dừng (chuyển sang event loop an toàn)."""
         if self._manual_stopped or self._recovering or self._is_reconnecting:
             log.debug(f"[Music] _after_play ignored (stopped={self._manual_stopped}, recovering={self._recovering}, reconnecting={self._is_reconnecting})")
+            return
+
+        # `bound_source` do functools.partial gắn tại lúc vc.play(). Callback mang source
+        # KHÁC với source hiện hành là callback ZOMBIE của stream đã bị cắt (watchdog dọn
+        # FFmpeg → audio thread tỉnh khỏi read() → after() chạy TRỄ, trong khi bài mới đã
+        # bắt đầu). Trước đây nó bị tính là "bài mới kết thúc" → nhảy 2 bài / nhân đôi recovery.
+        if bound_source is not None and self._active_source is not None and bound_source is not self._active_source:
+            log.debug("[Music] Bỏ qua after-closure zombie (source đã bị thay thế)")
             return
 
         try:
@@ -282,6 +439,17 @@ class MusicPlayer:
 
         is_live_track = getattr(track, "is_live", False)
         now = time.time()
+
+        # "Chết tức thì": stream EOF sau vài ms mà không có error. Đường này lọt qua mọi lớp
+        # phòng thủ vì `is_premature` cần `track.duration > 30` (YouTube trả duration=None khi
+        # stream hỏng) còn `_play()` lại reset `_consecutive_errors` mỗi vòng. Bài ngắn thật
+        # (duration <= FAST_FAIL_SECONDS) được loại trừ để không báo nhầm.
+        died_instantly = (
+            not is_live_track
+            and elapsed < FAST_FAIL_SECONDS
+            and not (track.duration and track.duration <= FAST_FAIL_SECONDS)
+        )
+        self._fast_fails = self._fast_fails + 1 if died_instantly else 0
 
         # 1. LIVE STREAM AUTO-RECOVERY (Lofi Girl 24/7, Radio, YouTube Live)
         if is_live_track and not self._skipped:
@@ -375,6 +543,20 @@ class MusicPlayer:
         else:
             self._consecutive_errors = 0
 
+        # Counter `_fast_fails` đã được cập nhật ở đầu handler (trước cả nhánh recovery), nên
+        # ở đây chỉ cần xử lý ngưỡng. Đây là lỗ hổng cũ: loop-one + duration=None thì
+        # `is_premature` luôn False và `_play()` luôn reset `_consecutive_errors`, nên bài hỏng
+        # được phát lại vô hạn, mỗi vòng gọi yt-dlp một lần.
+        if self._fast_fails >= FAST_FAIL_LIMIT:
+            self._fast_fails = 0
+            log.warning(
+                f"[Music] '{track.title}' chết ngay sau {elapsed}s liên tiếp {FAST_FAIL_LIMIT} lần "
+                "— tắt loop và bỏ bài để không quay vòng vô hạn."
+            )
+            self.loop_mode = 0
+            await self._report_play_failure(track, "music.cannot_decode")
+            return
+
         self._record_played(track.title)
 
         if self.loop_mode == 1:
@@ -461,6 +643,8 @@ class MusicPlayer:
         # bot ngồi lại kênh voice (kèm 1 slot MAX_PLAYERS) vĩnh viễn sau 3 lần lỗi phát.
         self.current = None
         self._recovering = False
+        self._cancel_stall_watchdog()
+        self._active_source = None
 
         if self.now_playing_msg:
             try:
@@ -590,12 +774,14 @@ class MusicPlayer:
                 if not discord.opus.is_loaded():
                     load_opus_library()
 
-                self.vc.play(source, after=self._after_play)
+                self._bind_audio_clock(source, seek_offset)
+                self.vc.play(source, after=functools.partial(self._after_play, source))
                 self.current = track
                 self.start_time = time.time() - seek_offset
                 self.pause_start = 0.0
                 self.total_paused_time = 0.0
                 self._consecutive_errors = 0
+                self._start_stall_watchdog()
                 log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus}, seek={seek_offset}s)")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
@@ -682,6 +868,37 @@ class MusicPlayer:
         if len(self.queue) > 1:
             random.shuffle(self.queue)
 
+    # ── Hàng đợi: MỌI thao tác xóa/cắt phải giữ nguyên list object ──────────────
+    # Trước đây `/jump` làm `player.queue = player.queue[k:]` — thay list mới trong khi
+    # `_play()` đang `await` giữa chừng. Bất kỳ chỗ nào giữ tham chiếu list cũ (embed đang
+    # build, task preload, code mới thêm sau này) sẽ ghi vào list mồ côi: bài biến mất
+    # không dấu vết. `del q[...]`/`q[...] = ...` là một lời gọi C duy nhất (list_ass_slice)
+    # nên atomic dưới GIL — vì Track không định nghĩa __eq__/__del__ — nên không cần
+    # `_play_lock`: lock ở đây sẽ chặn lệnh slash quá 3s giới hạn của Discord mỗi khi
+    # `_play()` đang chờ yt-dlp (2-5s).
+    def remove_track_at(self, position: int) -> Track | None:
+        """Xóa bài ở vị trí 1-based; trả None nếu ngoài phạm vi (kể cả khi hàng đợi vừa co lại)."""
+        if position < 1 or position > len(self.queue):
+            return None
+        try:
+            return self.queue.pop(position - 1)
+        except IndexError:  # hàng đợi bị ai pop mất giữa check và pop
+            return None
+
+    def clear_queue(self) -> int:
+        """Dọn hàng đợi tại chỗ, trả về số bài đã xóa."""
+        cnt = len(self.queue)
+        del self.queue[:]
+        return cnt
+
+    def truncate_queue_to(self, position: int) -> Track | None:
+        """/jump: bỏ các bài đứng trước vị trí `position` (1-based), giữ nguyên list object."""
+        if position < 1 or position > len(self.queue):
+            return None
+        target = self.queue[position - 1]
+        del self.queue[: position - 1]
+        return target
+
     def set_volume(self, volume: float):
         self.volume = max(0.01, min(1.5, volume))
         if self.vc and self.vc.source and isinstance(self.vc.source, discord.PCMVolumeTransformer):
@@ -767,6 +984,8 @@ class MusicPlayer:
             self._manual_stopped = True
             self._is_reconnecting = False
             self._reset_inactivity_timer()
+            self._cancel_stall_watchdog()
+            self._active_source = None
             cog = getattr(self, "cog", None)
             if cog and hasattr(cog, "_cancel_reconnect_task"):
                 try:

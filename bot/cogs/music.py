@@ -686,11 +686,15 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.queue_empty_msg"), ephemeral=True)
             return
 
-        if position < 1 or position > len(player.queue):
-            await ctx.send(tr(s, "music.remove_invalid", max=len(player.queue)), ephemeral=True)
+        queue_len = len(player.queue)
+        if position < 1 or position > queue_len:
+            await ctx.send(tr(s, "music.remove_invalid", max=queue_len), ephemeral=True)
             return
 
-        removed = player.queue.pop(position - 1)
+        removed = player.remove_track_at(position)
+        if removed is None:
+            await ctx.send(tr(s, "music.remove_invalid", max=queue_len), ephemeral=True)
+            return
         await ctx.send(tr(s, "music.removed_from_queue", title=removed.title, url=removed.url))
 
     @commands.hybrid_command(name="clearqueue", aliases=["cq", "qclear"], description="Xóa sạch toàn bộ bài hát trong hàng chờ")
@@ -701,8 +705,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.queue_empty_msg"), ephemeral=True)
             return
 
-        cnt = len(player.queue)
-        player.queue.clear()
+        cnt = player.clear_queue()
         await ctx.send(tr(s, "music.queue_cleared", count=cnt))
 
     @commands.hybrid_command(name="jump", description="Nhảy ngay tới bài hát chỉ định trong hàng chờ")
@@ -718,8 +721,10 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.jump_invalid", max=len(player.queue)), ephemeral=True)
             return
 
-        target_track = player.queue[position - 1]
-        player.queue = player.queue[position - 1:]
+        target_track = player.truncate_queue_to(position)
+        if target_track is None:
+            await ctx.send(tr(s, "music.jump_invalid", max=len(player.queue)), ephemeral=True)
+            return
         player.skip()
         await ctx.send(tr(s, "music.jumped", title=target_track.title, url=target_track.url))
 

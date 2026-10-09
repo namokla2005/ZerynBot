@@ -450,6 +450,32 @@ async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
 
     return None
 
+def _compact_metadata(info: dict) -> dict:
+    """Bản gọn cho RAM cache 24h của `extract_metadata` (flat extraction).
+
+    `cache.py` là LRU tối đa 10000 key nhưng TTL 24h nghĩa là gần như không có gì bị
+    đẩy ra trong một phiên chạy; dict thô của yt-dlp mang theo `thumbnails` (4-9 độ
+    phân giải), `formats`/`description`/`heatmap`... nên toàn bộ hàng đợi metadata nằm
+    lại trong RAM trên thiết bị 6GB. Chỉ giữ đúng các trường `playlist add` cần.
+    """
+    if not info:
+        return {}
+    vid = info.get("id") or ""
+    web = info.get("webpage_url") or info.get("url") or ""
+    if not web and vid:
+        web = f"https://www.youtube.com/watch?v={vid}"
+    return {
+        "id":           vid,
+        "title":        info.get("title") or info.get("fulltitle") or "Unknown",
+        "webpage_url":  web,
+        "url":          info.get("url") or "",
+        "duration":     info.get("duration"),
+        "uploader":     info.get("uploader") or info.get("channel") or "—",
+        "thumbnail":    _get_best_thumbnail(info),
+        "is_live":      bool(info.get("is_live") or info.get("live_status") == "is_live"),
+    }
+
+
 async def extract_metadata(query: str) -> dict | None:
     """Lấy nhanh thông tin cơ bản bài hát cho Playlist / Search (Flat Extraction + RAM Cache 24h)."""
     key = query.strip().lower()
@@ -466,11 +492,10 @@ async def extract_metadata(query: str) -> dict | None:
         info = await loop.run_in_executor(None, _extract_metadata_sync, query)
 
     if info:
-        # Chuẩn hóa webpage_url nếu bị thiếu
-        video_id = info.get("id")
-        if not info.get("webpage_url") and video_id:
-            info["webpage_url"] = f"https://www.youtube.com/watch?v={video_id}"
-        # Lưu vào RAM Cache (TTL 24 giờ)
-        await cache.aset(cache_key, info, ttl=86400)
+        # Chuẩn hóa webpage_url nếu bị thiếu + cắt còn bản gọn trước khi vào cache,
+        # rồi TRẢ CHÍNH bản gọn đó cho caller (dict thô được giải phóng ngay).
+        compact = _compact_metadata(info)
+        await cache.aset(cache_key, compact, ttl=86400)
+        return compact
 
-    return info
+    return None

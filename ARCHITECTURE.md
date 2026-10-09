@@ -42,7 +42,7 @@
   - **Async Access (Bot):** `aiosqlite` via the `database/` package `async_*` functions (per-domain modules, all connections opened by `database/conn.py`).
   - **Sync Access (Dashboard):** `sqlite3` via the `database/` package sync helper functions.
 - **Cache Layer:** Pure Python In-Memory RAM Cache (`MemoryCache` in `cache.py`) with thread-safe/async-safe TTL eviction & zero external service dependencies.
-- **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`), subprocess CPU priority niceness (+10) to prevent async event loop starvation, queue length clamping (`MAX_QUEUE_SIZE = 100`), thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`).
+- **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`, plus `-reconnect_on_network_error`/`-reconnect_on_http_error` only when the probed FFmpeg is ≥ 5.0), subprocess CPU priority niceness (+10) to prevent async event loop starvation, queue length clamping (`MAX_QUEUE_SIZE = 100`), thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, **audio-frame stall watchdog** (`source.read()` is instrumented so a wedged FFmpeg is cut and resumed from the *real* audible position after `MUSIC_STALL_TIMEOUT`=30s of zero frames), dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump` — all through identity-preserving `MusicPlayer` helpers).
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
 - **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1694 keys per file.
@@ -85,9 +85,9 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── emojis.py               # Custom Discord Application Emojis registry & helpers (e, partial)
 │   ├── music/                  # Modular Audio Pipeline Package
 │   │   ├── __init__.py         # Re-exports config, Track, MusicPlayer, views
-│   │   ├── config.py           # FFmpeg flags, yt-dlp options, MAX_PLAYERS=6, MAX_QUEUE_SIZE
+│   │   ├── config.py           # FFmpeg flags (version-gated), yt-dlp options, MAX_PLAYERS=6, MAX_QUEUE_SIZE, stall thresholds
 │   │   ├── extractor.py        # yt-dlp thread-local, disk cache, Spotify/SoundCloud resolver
-│   │   ├── player.py           # Track metadata, MusicPlayer queue, 403 stream auto-recovery
+│   │   ├── player.py           # Track metadata, MusicPlayer queue, 403 stream auto-recovery, audio-frame stall watchdog
 │   │   ├── views.py            # MusicControlView (5 buttons), SearchSelectView, lyrics paginator
 │   │   ├── embeds.py           # Now Playing & Queue Rich Embed generators
 │   │   └── cog_voice.py        # VoiceLifecycleMixin (voice client lifecycle, queue actions, inactivity)
@@ -495,7 +495,7 @@ These are known past bugs and traps that **MUST** be avoided when editing this c
 | 13 | Not loading `libopus` on Android Termux (`discord.opus.OpusNotLoaded`) | Always call `load_opus_library()` to load `/data/data/com.termux/files/usr/lib/libopus.so` |
 | 14 | Synchronously running `python main.py --restart` inside Flask Web Terminal request | Spawns `subprocess.Popen` detached and returns HTTP 200 immediately to prevent HTTP 502 |
 | 15 | Calling `vc.play()` immediately after `vc.stop()` without waiting for player thread to join | Loop wait up to 0.5s for `not vc.is_playing()` before calling `vc.play()` |
-| 16 | Using unsupported FFmpeg flags on Termux (`-reconnect_at_eof`, unescaped `-headers`) | Use universally supported release flags: `-loglevel error -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -probesize 1M -analyzeduration 1000000 -user_agent "..."` |
+| 16 | Using FFmpeg flags the installed build rejects (`-reconnect_at_eof`, unescaped `-headers`, `-reconnect_on_http_error` before FFmpeg 5.0) | Keep the universal set in `FFMPEG_BEFORE_HEAD`/`FFMPEG_BEFORE_TAIL` and put version-specific flags in `FFMPEG_BEFORE_HTTP_RECONNECT`; `ffmpeg_http_reconnect_supported()` probes `ffmpeg -version` once at import and falls back to the universal set (a rejected option kills *every* playback, not just reconnect) |
 | 17 | Creating new Discord slash commands in cogs without registering in `_COMMANDS_DATA` | Always register new commands in `_COMMANDS_DATA` (`commands_data.py`) so they appear on `/commands` |
 | 18 | Sending database backup `.zip` files to public server log channels | Always route backups to `config.BACKUP_DB_URL` (`BACKUP_DB` webhook) for private, secure storage |
 | 19 | Executing `ALTER TABLE` in SQLite without `try...except` blocks in `init_db()` | Wrap every `ALTER TABLE ... ADD COLUMN` in `try...except` to ensure zero startup crashes on existing databases |
@@ -758,6 +758,53 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     response" (restart dashboard) from "503" (kill the bot). Log rotation used `mv`, but
     the still-open stdout fd keeps writing through the rename: the new file stayed empty
     while `.1` grew until the card filled; it is now `cp` + truncate in place.
+- **v3.3 Phase 5c — stream stall watchdog, FFmpeg capability gate, queue identity**:
+  - **A wedged FFmpeg is now detected and cut**: every recovery path waited on discord.py's
+    `after()` callback, which only runs once the audio thread leaves `source.read()`. When the
+    socket stays open but stops delivering data there is no `after()`, so the player produced
+    infinite silence, froze the queue and held one `MAX_PLAYERS` slot until restart.
+    `MusicPlayer` now instruments `read()` **on the instance** (no proxy object, so
+    `isinstance(vc.source, PCMVolumeTransformer)`, `.volume` and `.cleanup()` behave exactly as
+    before), counts the frames actually read and timestamps the last one; a per-player task cuts
+    the stuck source, cleans the orphaned child (the wedged thread never reaches `cleanup()`) and
+    replays from the *audible* position. `get_elapsed()` is useless for this — it is derived from
+    `time.time()`, so it kept advancing through the stall (measured: 100 s of wall clock vs 0.4 s
+    of audio). Pausing is explicitly re-baselined because discord.py sends silence without reading
+    the source while paused. Two extra guards came out of the pre-commit review: `cleanup()` is
+    capped by `MUSIC_STALL_CLEANUP_TIMEOUT` (a child stuck in D-state must not pin `_recovering`
+    forever, which would disable every later recovery for that player), and the recovery aborts if
+    another command handed the voice client a new source while we were cleaning.
+  - **Zombie `after()` callbacks are dropped**: `_play()` binds the source into the callback with
+    `functools.partial`, and `_after_play` ignores a callback whose source is no longer the active
+    one. Previously the late EOF of a cut stream was credited to the *new* track → the queue
+    advanced twice and the recovery budget was consumed for the wrong song.
+  - **Loop-one no longer replays an instantly dead song**: `duration=None` + immediate EOF slips
+    past `is_premature` (which needs `duration > 30`) and `_play()` resets `_consecutive_errors`
+    each cycle, so the same broken track is replayed forever, calling yt-dlp once per loop.
+    `FAST_FAIL_SECONDS`/`FAST_FAIL_LIMIT` (5 s / 3) break the cycle, disable loop mode and report
+    the track; songs genuinely shorter than 5 s are excluded so there are no false positives.
+  - **FFmpeg flags are version-gated**: `-reconnect_on_network_error` and `-reconnect_on_http_error`
+    only exist from FFmpeg 5.0. On an older build the binary exits with "Option not found" at open,
+    which kills *all* playback rather than just reconnect logic. `ffmpeg_http_reconnect_supported()`
+    probes `ffmpeg -version` once at import and `build_ffmpeg_before()` re-assembles the flags; for
+    modern builds it returns a byte-identical copy of the previously shipped string (asserted).
+  - **Queue edits keep list identity**: `/remove`, `/clearqueue`, `/jump` now go through
+    `MusicPlayer.remove_track_at/clear_queue/truncate_queue_to`, which use `del q[...]` instead of
+    rebinding `player.queue` to a fresh list. No `_play_lock` is taken there: those list
+    operations are single C calls (atomic under the GIL for objects without `__eq__`/`__del__`),
+    and acquiring the play lock would push slash commands past Discord's 3 s response window
+    whenever `_play()` is mid-yt-dlp. Honest note: no user-visible track loss was reproducible
+    before this change — it closes the hazard class, and a static guard test now rejects any
+    `queue =` rebind under `bot/`.
+  - **`extract_metadata` caches a projection, not the raw dict**: the flat yt-dlp dict
+    (4-9 thumbnails, description, formats, heatmap) was stored under a 24 h TTL in a 10 000-key
+    LRU, so almost nothing aged out during a session even though only `playlist add` consumes it
+    and only seven fields. The cache now holds a <0.6 KB compact dict and the raw extraction is
+    released immediately.
+  - **Dropped from the plan — false premise**: `_lower_process_priority()` *does* apply on the
+    `FFmpegOpusAudio` path. `FFmpegAudio.__init__` assigns `self._process` before the constructor
+    returns, so the existing `getattr(source, "_process", None)` already sees the child process
+    (verified on device via the child's `/proc` nice value).
 - **v3.3 Phase 6 — project-standard cleanup**:
   - **Catalog completed**: `_COMMANDS_DATA` was missing `xp add`, `verify pending`,
     `/lang`, `/config`, `/sync`, `/backup`, and listed the real `/ticket` command under

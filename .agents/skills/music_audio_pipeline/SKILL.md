@@ -21,18 +21,27 @@ Trên chip di động ARM (Snapdragon, MediaTek, Cortex), việc chạy FFmpeg �
 - `-b:a 96k`: Giới hạn bitrate âm thanh 96kbps (vừa vặn với Discord voice channel tiêu chuẩn, tiết kiệm 50% CPU so với 320k).
 
 ### 2.2 Cờ Kết Nối Ổn Định Đa Nền Tảng (Universal FFmpeg Before Flags)
+**Quy tắc P0 — không gửi cờ mà build FFmpeg đang chạy không hiểu.** `-reconnect_on_network_error` và `-reconnect_on_http_error` chỉ tồn tại từ **FFmpeg 5.0**; trên build cũ hơn FFmpeg báo `Option not found` và THOÁT NGAY khi mở source, nghĩa là mọi lệnh `/play` chết chứ không chỉ mất tính năng tự reconnect. `bot/music/config.py` tách làm 3 mảnh và gate bằng probe một lần lúc import:
+
 ```python
-FFMPEG_BEFORE = (
+FFMPEG_BEFORE_HEAD = (
     "-loglevel error "
     "-reconnect 1 "
     "-reconnect_streamed 1 "
+)
+FFMPEG_BEFORE_HTTP_RECONNECT = (          # CHI khi major version >= 5
+    "-reconnect_on_network_error 1 "
+    "-reconnect_on_http_error 5xx "
+)
+FFMPEG_BEFORE_TAIL = (
     "-reconnect_delay_max 2 "
-    "-rw_timeout 10000000 "  # 10s socket timeout chống treo vĩnh viễn khi mạng drop
+    "-rw_timeout 10000000 "               # 10s socket timeout chống treo vĩnh viễn khi mạng drop
     "-fflags +genpts "
     "-probesize 512K "
     "-analyzeduration 500000 "
-    '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
+    '-user_agent "Mozilla/5.0 ... Chrome/122.0.0.0 Safari/537.36"'
 )
+FFMPEG_BEFORE = build_ffmpeg_before(ffmpeg_http_reconnect_supported())  # == bản cũ khi >= 5.0
 FFMPEG_OPTS_COPY = "-vn -sn -c:a copy -threads 1"
 FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 ```
@@ -90,6 +99,12 @@ if task and not task.done() and task is not asyncio.current_task():
 ```
 
 **Quy tắc P0 — không pop khỏi `queue` trước khi phát.** `_dispatch_next_async()` phải kiểm tra `vc.is_connected()` TRƯỚC rồi mới `pop(0)`; `_play()` return ngay khi chưa có voice client, nên pop trước sẽ **mất bài hát vĩnh viễn** khi voice vừa rời. Cả hai quy tắc được test hồi quy trong `tests/test_music_behavior.py`.
+
+**Quy tắc P0 — watchdog phải đo frame audio, KHÔNG đo `get_elapsed()`.** Toàn bộ recovery cũ phụ thuộc `after()`, mà `after()` chỉ chạy khi audio thread thoát khỏi `source.read()`. Mạng kiểu "giữ socket nhưng ngừng trả data" làm thread kẹt vĩnh viễn → không `after()`, không recovery, im lặng vô hạn, vẫn chiếm slot `MAX_PLAYERS`. `get_elapsed()` được tính từ `time.time()` nên **vẫn tăng đều khi stream chết** (đo thực tế: 100s đồng hồ tường nhưng chỉ 0.4s audio) — dùng nó làm mốc phát hiện treo là vô nghĩa. Cách làm đúng: `_bind_audio_clock()` gán `read` lên **instance** của source (không proxy hoá, để `isinstance(vc.source, PCMVolumeTransformer)`, `.volume`, `.cleanup()` còn nguyên), đếm `_audio_frames` và cập nhật `_last_data_mono`; `_stall_watchdog()` so đồng hồ đó với `STALL_TIMEOUT_SECONDS`. Pause thì discord.py gửi silence mà không đọc source → **phải re-baseline `_last_data_mono`**, không sẽ cắt bài hát đang tạm dừng. Sau khi cắt phải `asyncio.wait_for(asyncio.to_thread(source.cleanup), STALL_CLEANUP_TIMEOUT_SECONDS)` cho source cũ (thread kẹt nên `finally` của discord.py không chạy → ffmpeg mồ côi); có trần thời gian vì một ffmpeg kẹt trong D-state sẽ giữ `_recovering=True` vĩnh viễn. Cuối cùng phải **kiểm tra `_active_source` còn None không** trước khi phát lại — nếu `/play` hoặc `/skip` của user đã giao source mới trong lúc chờ dọn thì phải nhường, không cắt đè. Test: `tests/test_phase5c_music_watchdog.py`.
+
+**Quy tắc P0 — `after()` phải được bind với source đang phát.** `_play()` truyền `functools.partial(self._after_play, source)` và `_after_play` bỏ qua callback có `bound_source is not self._active_source`. Không có guard này, EOF muộn của stream vừa bị cắt bị tính là "bài mới kết thúc" → nhảy 2 bài và đốt ngân sách recovery nhầm chỗ.
+
+**Quy tắc P0 — sửa hàng đợi bằng slice, không gán list mới.** `/remove`, `/clearqueue`, `/jump` đi qua `MusicPlayer.remove_track_at()/clear_queue()/truncate_queue_to()` (dùng `del q[...]`). `player.queue = player.queue[k:]` sẽ mồ côi hoá mọi tham chiếu đang giữ list cũ; test tĩnh `test_no_code_rebinds_player_queue` cấm mẫu `queue =` trong `bot/`. Không bọc các thao tác này bằng `_play_lock`: list op là một lời gọi C nên đã atomic dưới GIL, còn lấy lock sẽ đẩy slash command quá cửa 3s của Discord mỗi khi `_play()` đang chờ yt-dlp.
 
 ---
 
