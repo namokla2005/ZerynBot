@@ -456,6 +456,12 @@ class MusicPlayer:
 
     async def _on_queue_empty(self):
         """Xử lý khi hàng chờ hết — xóa embed/disable nút NP cũ và bật timer tự rời voice."""
+        # PHẢI xóa `current` trước khi bật timer: `_inactivity_countdown()` mở đầu bằng
+        # `if self.current or self.queue: return`, nên bản cũ abort ngay tick đầu tiên và
+        # bot ngồi lại kênh voice (kèm 1 slot MAX_PLAYERS) vĩnh viễn sau 3 lần lỗi phát.
+        self.current = None
+        self._recovering = False
+
         if self.now_playing_msg:
             try:
                 view = discord.ui.View()  # View rỗng = xóa toàn bộ nút bấm cũ
@@ -593,6 +599,16 @@ class MusicPlayer:
                 log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus}, seek={seek_offset}s)")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
+                # `FFmpegPCMAudio(...)`/`FFmpegOpusAudio(...)` spawn tiến trình con NGAY
+                # khi khởi tạo. Nếu `vc.play()` chưa kịp nhận source thì không có audio
+                # thread nào gọi `cleanup()` hộ ta -> ffmpeg mồ côi tích tụ dần trên
+                # thiết bị 6GB. Chỉ dọn khi source thực sự chưa được giao cho voice client.
+                playing = bool(self.vc and (self.vc.is_playing() or self.vc.is_paused()))
+                if source is not None and not playing:
+                    try:
+                        await asyncio.to_thread(source.cleanup)
+                    except Exception as cleanup_err:
+                        log.debug(f"[Music] cleanup source thất bại: {cleanup_err}")
                 await self._report_play_failure(track)
                 return
 

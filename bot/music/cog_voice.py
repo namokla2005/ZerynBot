@@ -203,27 +203,53 @@ class VoiceLifecycleMixin:
                     pass
             return player
 
-        # Kiểm tra giới hạn số player đồng thời
-        if guild_id not in self._players and len(self._players) >= MAX_PLAYERS:
-            await ctx.send(
-                tr(s, "music.max_players_err", max=MAX_PLAYERS),
-                ephemeral=True,
-            )
-            return None
+        # Toàn bộ phần "kiểm tra trần -> kết nối -> đăng ký player" phải nằm trong MỘT
+        # lock theo guild. Trước đây kiểm tra ở trên và `self._players[guild_id] = player`
+        # ở dưới nằm hai bên `await connect()`, nên hai người cùng /play:
+        #   • tạo hai MusicPlayer cho một guild (player cũ bị ghi đè vẫn giữ ffmpeg
+        #     con + task, không ai stop nó), và
+        #   • cùng vượt qua trần MAX_PLAYERS vì cả hai thấy số player chưa tăng.
+        lock = self._player_locks.get(guild_id)
+        if lock is None:
+            lock = self._player_locks.setdefault(guild_id, asyncio.Lock())
 
-        try:
-            vc = await ctx.author.voice.channel.connect(self_deaf=True)
-        except Exception as e:
-            if "already connected" in str(e).lower() and ctx.guild.voice_client:
-                vc = ctx.guild.voice_client
-            else:
-                await ctx.send(tr(s, "music.cannot_connect", err=e))
+        async with lock:
+            # Đọc lại sau khi giành lock: trong lúc chờ ở đây, một coroutine khác đã có
+            # thể kết nối và tạo player cho đúng guild này.
+            player = self._players.get(guild_id)
+            if player and player.vc and player.vc.is_connected():
+                player.text_channel = ctx.channel
+                return player
+
+            # Giữ chỗ dưới khóa toàn cục. Chỉ đếm `_players` thì thua: N guild khác nhau
+            # cùng /play đồng thời sẽ cùng thấy còn chỗ và cùng vượt trần MAX_PLAYERS.
+            async with self._registry_lock:
+                over_limit = (len(self._players) + len(self._connecting)) >= MAX_PLAYERS
+                if not over_limit:
+                    self._connecting.add(guild_id)
+            if over_limit:
+                await ctx.send(
+                    tr(s, "music.max_players_err", max=MAX_PLAYERS),
+                    ephemeral=True,
+                )
                 return None
 
-        log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
-        player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
-        self._players[guild_id] = player
-        return player
+            try:
+                try:
+                    vc = await ctx.author.voice.channel.connect(self_deaf=True)
+                except Exception as e:
+                    if "already connected" in str(e).lower() and ctx.guild.voice_client:
+                        vc = ctx.guild.voice_client
+                    else:
+                        await ctx.send(tr(s, "music.cannot_connect", err=e))
+                        return None
+
+                log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
+                player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
+                self._players[guild_id] = player
+                return player
+            finally:
+                self._connecting.discard(guild_id)
 
 
     def _check_and_schedule_empty_voice(self, guild: discord.Guild):

@@ -236,7 +236,18 @@ class BotV2(commands.Bot):
         disconnected_at = None
         while not self.is_closed():
             await asyncio.sleep(60)
+            # HEARTBEAT: `last_change` trước đây chỉ đổi khi mất/reconnect kết nối, nên
+            # một bot có event loop bị block (AI gọi SQLite đồng bộ, ffmpeg treo) vẫn trả
+            # /health = 200 mãi mãi và watchdog không bao giờ hành động. Ghi lại mỗi 60s
+            # để /health phân biệt được "đang sống" với "treo từ lâu".
+            # Gọi thẳng _write_health_sync (không qua wrapper) để không ghi đè
+            # _last_ready_iso — thời điểm ready thật vẫn phải còn nguyên nghĩa.
             if self.is_ready():
+                try:
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, self._write_health_sync, True)
+                except Exception as hb_err:
+                    logger.debug(f"[Health] heartbeat lỗi: {hb_err}")
                 disconnected_at = None  # reset khi đang khỏe
                 continue
             # Chưa ready / đang offline

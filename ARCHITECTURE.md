@@ -579,7 +579,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `_skipped is True` and stayed green while the feature was dead. New tests assert
     the user-visible effect (queue advances), that prune keeps un-expired rows, that
     every connection enforces FK, and that a snapshot contains WAL-only data that a
-    raw file copy does not. Suite: 158 → **217 tests**.
+    raw file copy does not. Suite: 158 → **233 tests**.
 - **v3.3 Phase 2 — AI guardrails**:
   - **No SQLite on the event loop**: `call_ai_async()` / `call_provider_async()` read
     key pools through `asyncio.to_thread(load_pools)`. `load_pools()` is synchronous
@@ -692,6 +692,52 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     could warn someone senior and, at 5 warnings, have the cog kick that person **using
     the bot's own permissions**. Escalation failures are now logged instead of
     `except Exception: pass`.
+- **v3.3 Phase 5 — music resilience, hot indexes, ops recovery**:
+  - **Inactivity auto-leave works again**: `_on_queue_empty()` left `self.current` set,
+    while `_inactivity_countdown()` opens with `if self.current or self.queue: return`,
+    so after three failed tracks the bot kept holding the voice channel *and* one
+    `MAX_PLAYERS` slot indefinitely. `_on_queue_empty()` now clears `current` and
+    `_recovering`.
+  - **No orphaned FFmpeg on the error path**: `FFmpegPCMAudio`/`FFmpegOpusAudio` spawn
+    the subprocess at construction; if `load_opus_library()` or `vc.play()` then raised,
+    the source was dropped without `cleanup()`. It is now cleaned up whenever the source
+    was never handed to the voice client.
+  - **One player per guild under concurrency**: `_ensure()` checked the registry and
+    assigned `self._players[guild_id]` on opposite sides of `await connect()`, so two
+    `/play` calls in one guild produced two players and the overwritten one kept its
+    ffmpeg child and tasks alive (proven: the regression test fails without the lock).
+    Creation is now serialized by a per-guild `asyncio.Lock`, with `_connecting` +
+    `_registry_lock` accounting for in-flight creations against `MAX_PLAYERS`. Honest
+    note: the cross-guild `MAX_PLAYERS` bypass the audit predicted could **not** be
+    reproduced in a harness (measured 2/2 accepted even before the change), so that part
+    is hardening, not a proven fix.
+  - **`/nowplaying` no longer leaks a view per call**: discord.py keys `ViewStore` by
+    `message_id` and releases only on `edit(view=…)`/`remove_view` — deleting a message
+    does **not** release it. `/nowplaying` sent a brand-new message carrying a
+    `MusicControlView(timeout=None)` and never touched it again, pinning a view and its
+    player forever. It now sends the embed without a view; the live control card stays on
+    `player.now_playing_msg`.
+  - **NP embed survives a missing track**: `_make_np_embed(None, …)` raised
+    `AttributeError` on `track.duration`, so pressing a control button just after the
+    last track ended produced "This interaction failed" with no clue.
+  - **18 hot-path indexes**: `EXPLAIN QUERY PLAN` showed `SCAN` (full table scan) for
+    `custom_commands` by guild — queried on **every guild message** — plus
+    `economy_shop`/`support_threads`/`music_playlist_tracks` scanning *and* building a
+    temp B-tree for `ORDER BY`. All 8 probed queries now report `SEARCH … USING INDEX`.
+    Deliberately skipped for `economy_users`, `economy_settings`, `ai_settings`,
+    `leveling_settings`, `fun_interactions`: `guild_id` is already a PRIMARY KEY prefix,
+    so an extra index only costs write time on a loaded Helio G85.
+  - **Health is now a liveness probe**: `data/health.json` was rewritten only on
+    disconnect/resume, so a bot with a blocked event loop kept reporting
+    `online: true` and `/health` answered 200 forever. The bot now heartbeats every 60 s
+    and `/health` returns 503 once `last_change` is older than 180 s.
+  - **Watchdog recovers the dashboard and rotates logs for real**: `health_loop` acted
+    only on HTTP 503, so a dead dashboard (no HTTP code at all) left `zerynbot.id.vn`
+    down indefinitely while the bot looked healthy — the dashboard is otherwise only
+    restarted by the main loop *after* the bot exits. It now separates "no HTTP
+    response" (restart dashboard) from "503" (kill the bot). Log rotation used `mv`, but
+    the still-open stdout fd keeps writing through the rename: the new file stayed empty
+    while `.1` grew until the card filled; it is now `cp` + truncate in place.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

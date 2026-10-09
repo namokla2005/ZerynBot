@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho commands_data, card_gene
 import json
 import secrets
 import time as _time
+from datetime import datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 
@@ -112,6 +113,29 @@ def set_ui_language(lang_code: str):
         session["ui_lang"] = lang_code
     return redirect(request.referrer or url_for("guild.home"))
 
+HEALTH_MAX_STALE_SECONDS = 180  # bot gửi heartbeat mỗi 60s; 3 nhịp lỗi = coi như chết
+
+
+def _health_is_fresh(data: dict) -> bool:
+    """`online: true` chỉ có nghĩa nếu heartbeat còn mới.
+
+    Bot từng chỉ ghi health.json khi mất/kết nối lại, nên một tiến trình bị treo (event
+    loop block) vẫn để nguyên trạng thái online và /health trả 200 vĩnh viễn — watchdog
+    vì thế không bao giờ restart. Bot sống ghi lại mỗi 60 giây.
+    """
+    stamp = data.get("last_change")
+    if not stamp:
+        return False
+    try:
+        raw = str(stamp).replace("Z", "+00:00")
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False
+    return (_time.time() - dt.timestamp()) <= HEALTH_MAX_STALE_SECONDS
+
+
 @bp.route("/health")
 def health():
     # `_V2_DIR` là repo root (xem preamble) — KHÔNG tính theo __file__ của blueprint,
@@ -123,7 +147,13 @@ def health():
             data.update(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass  # bot chưa ghi file / file hỏng → offline
-    status_code = 200 if data.get("online") else 503
+    fresh = _health_is_fresh(data)
+    online = bool(data.get("online")) and fresh
+    if data.get("online") and not fresh:
+        data["stale"] = True
+        data["reason"] = f"heartbeat older than {HEALTH_MAX_STALE_SECONDS}s"
+    data["online"] = online
+    status_code = 200 if online else 503
     return jsonify(data), status_code
 
 @bp.route("/docs")

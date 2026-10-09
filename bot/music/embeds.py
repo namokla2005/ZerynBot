@@ -67,6 +67,14 @@ def _format_queue_duration(queue: list, current_track: Track = None) -> str:
 def _make_np_embed(track: Track, queue: list, loop_mode: int, volume: float = 1.0, elapsed_sec: int = 0, settings: dict = None, is_opus_copy: bool = False) -> discord.Embed:
     """Tạo Embed Now Playing chuẩn phong cách Wave Music (Compact card, right thumbnail, bold bar)."""
     s = settings or {}
+    if track is None:
+        # Người bấm nút điều khiển đúng lúc bài cuối kết thúc thì `player.current` đã
+        # là None. Bản cũ chạm `track.duration` -> AttributeError -> Discord chỉ báo
+        # "This interaction failed" mà không có manh mối nào cho người dùng.
+        return discord.Embed(
+            color=0x5865F2,
+            description=f"⏹️ {tr(s, 'music.no_song_playing')}",
+        )
     vol_percent = int(volume * 100)
     queue_len = len(queue)
     total_dur_str = _format_queue_duration(queue, track)

@@ -304,14 +304,54 @@ def test_health_503_when_bot_offline(client, health_file):
     assert resp.get_json()["online"] is False
 
 
-def test_health_200_when_bot_online(client, health_file):
+def _write_health(health_file, payload):
     import os
+
     os.makedirs(os.path.dirname(health_file), exist_ok=True)
     with open(health_file, "w", encoding="utf-8") as f:
-        json.dump({"online": True, "pid": 123}, f)
+        json.dump(payload, f)
+
+
+def _fresh_stamp(offset_seconds: float = 0.0) -> str:
+    from datetime import datetime, timedelta, timezone
+
+    return (datetime.now(timezone.utc) + timedelta(seconds=offset_seconds)).isoformat()
+
+
+def test_health_200_when_bot_online(client, health_file):
+    _write_health(health_file, {"online": True, "pid": 123, "last_change": _fresh_stamp()})
     resp = client.get("/health")
     assert resp.status_code == 200
     assert resp.get_json()["online"] is True
+
+
+def test_health_503_when_heartbeat_stale(client, health_file):
+    """`online: true` mà heartbeat cụt = bot treo, không được báo khỏe.
+
+    Trước đây health.json chỉ đổi `last_change` khi mất/reconnect kết nối, nên một bot
+    bị block event loop trả 200 vĩnh viễn và watchdog không bao giờ restart.
+    """
+    _write_health(health_file, {"online": True, "pid": 123,
+                                "last_change": _fresh_stamp(-400)})
+    resp = client.get("/health")
+    assert resp.status_code == 503
+    body = resp.get_json()
+    assert body["online"] is False and body.get("stale") is True
+
+
+def test_health_503_when_no_timestamp(client, health_file):
+    _write_health(health_file, {"online": True, "pid": 123})
+    assert client.get("/health").status_code == 503
+
+
+def test_health_503_on_garbage_timestamp(client, health_file):
+    _write_health(health_file, {"online": True, "last_change": "không-phải-iso"})
+    assert client.get("/health").status_code == 503
+
+
+def test_health_503_when_offline(client, health_file):
+    _write_health(health_file, {"online": False, "last_change": _fresh_stamp()})
+    assert client.get("/health").status_code == 503
 
 
 # ─── SSRF guard ───────────────────────────────────────────────────────────────

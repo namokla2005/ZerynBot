@@ -522,6 +522,34 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_ai_activity_logs_id ON ai_activity_logs (id DESC);
             CREATE INDEX IF NOT EXISTS idx_ai_activity_logs_source ON ai_activity_logs (source, id DESC);
+
+            /* ─── Index đường nóng (Phase 5) ──────────────────────────────────────
+               Đo bằng EXPLAIN QUERY PLAN trên data/bot.db: tất cả đều là "SCAN <table>"
+               (quét toàn bảng). Máy chạy 24/7 trên Helio G85 và đang ở load average
+               ~26/8 core, nên mỗi lệnh/dashboard poll quét thêm một bảng là trả giá
+               thật. Không index cho economy_users / economy_settings / ai_settings /
+               leveling_settings / fun_interactions vì guild_id đã là prefix của
+               PRIMARY KEY -> index riêng chỉ tốn thêm thời gian ghi.
+               CREATE INDEX IF NOT EXISTS: idempotent, chạy lại mỗi lần init_db mà
+               không cần bảng version. */
+            CREATE INDEX IF NOT EXISTS idx_custom_commands_guild ON custom_commands (guild_id, is_enabled);
+            CREATE INDEX IF NOT EXISTS idx_economy_shop_guild_price ON economy_shop (guild_id, price);
+            CREATE INDEX IF NOT EXISTS idx_giveaways_message ON giveaways (message_id);
+            CREATE INDEX IF NOT EXISTS idx_giveaways_ended ON giveaways (ended, end_at);
+            CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders (remind_at);
+            CREATE INDEX IF NOT EXISTS idx_reminders_user ON reminders (user_id, remind_at);
+            CREATE INDEX IF NOT EXISTS idx_mod_warnings_target ON mod_warnings (guild_id, user_id);
+            CREATE INDEX IF NOT EXISTS idx_automod_warnings_target ON automod_warnings (guild_id, user_id);
+            CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON music_playlist_tracks (playlist_id, position);
+            CREATE INDEX IF NOT EXISTS idx_playlists_guild ON music_playlists (guild_id);
+            CREATE INDEX IF NOT EXISTS idx_ticket_buttons_panel ON ticket_buttons (panel_id);
+            CREATE INDEX IF NOT EXISTS idx_rr_items_panel ON reaction_roles_items (panel_id);
+            CREATE INDEX IF NOT EXISTS idx_tempvoice_guild ON tempvoice_active (guild_id);
+            CREATE INDEX IF NOT EXISTS idx_saved_embeds_guild ON saved_embeds (guild_id);
+            CREATE INDEX IF NOT EXISTS idx_birthdays_month_day ON user_birthdays (month, day);
+            CREATE INDEX IF NOT EXISTS idx_support_threads_status ON support_threads (status, updated_at);
+            CREATE INDEX IF NOT EXISTS idx_ticket_panels_guild ON ticket_panels (guild_id);
+            CREATE INDEX IF NOT EXISTS idx_rr_panels_guild ON reaction_roles_panels (guild_id);
         """)
         # Schema migration checks
         cursor = conn.cursor()

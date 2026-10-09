@@ -112,6 +112,20 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
     def __init__(self, bot: commands.Bot):
         self.bot     = bot
         self._players: dict[int, MusicPlayer] = {}
+        # Lock theo guild cho đường TẠO player — `cog_voice._ensure()` kiểm tra
+        # MAX_PLAYERS và gán `_players[guild_id]` ở HAI bên một `await connect()`, nên
+        # hai lệnh /play song song từng tạo hai player đè nhau (mất queue, ffmpeg mồ côi)
+        # và lọt qua trần MAX_PLAYERS.
+        self._player_locks: dict[int, asyncio.Lock] = {}
+        # Lock theo guild KHÔNG đủ cho trần toàn cục: N guild khác nhau chạy đồng thời
+        # vẫn cùng thấy `len(_players) < MAX_PLAYERS` rồi cả cùng vượt qua. `_connecting`
+        # ghi nhận các lượt tạo đang bay (đã giữ chỗ nhưng chưa có player), cấp phát
+        # dưới `_registry_lock` để phép cộng này nguyên tử.
+        self._registry_lock: asyncio.Lock = asyncio.Lock()
+        self._connecting: set[int] = set()
+        # THỨ TỰ KHÓA BẮT BUỘC: `_player_locks[guild]` TRƯỚC rồi mới `_registry_lock`
+        # (duy nhất trong `cog_voice._ensure()`). Đường ngược lại chưa tồn tại; nếu sau
+        # này có chỗ nào lấy `_registry_lock` rồi mới chờ lock theo guild thì sẽ deadlock.
         self._bg_tasks: set[asyncio.Task] = set()
         self._empty_voice_tasks: dict[int, asyncio.Task] = {}
         self._reconnect_tasks: dict[int, asyncio.Task] = {}
@@ -343,8 +357,11 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
         elapsed = player.get_elapsed()
         embed = _make_np_embed(player.current, player.queue, player.loop_mode, player.volume, elapsed, s)
-        view = MusicControlView(player, s)
-        await ctx.send(embed=embed, view=view)
+        # KHÔNG gắn view cho thẻ này: discord.py theo dõi view theo message_id và chỉ
+        # nhả khi message được edit/delete. `/nowplaying` gửi một message mới toanh rồi
+        # bỏ đó, nên mỗi lần gõ lệnh là giữ lại vĩnh viễn một view + reference tới player.
+        # Thẻ điều khiển thật đã tồn tại ở `player.now_playing_msg`.
+        await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="lyrics", description="Xem lời bài hát đang phát hoặc tìm theo tên")
     @app_commands.describe(query="Tên bài hát cần tìm lời (để trống nếu muốn lấy bài đang phát)")
