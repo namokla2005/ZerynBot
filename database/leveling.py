@@ -144,6 +144,57 @@ async def async_update_user_xp(guild_id: str, user_id: str, xp: int, level: int,
         await db.commit()
     await cache.adelete(f"level:{guild_id}:{user_id}")
 
+async def async_add_user_xp(guild_id: str, user_id: str, xp_delta: int, *, level_from_xp,
+                            last_message_at: float = None, last_voice_xp_at: float = None) -> dict:
+    """Cộng XP NGUYÊN TỬ: đọc -> tính -> ghi trong cùng một write-transaction.
+
+    `async_update_user_xp` ghi giá trị TUYỆT ĐỐI mà caller tự tính từ một SELECT trước
+    đó (và `async_get_user_level` còn cache row 120 giây), nên khi loop cấp XP voice chạy
+    song song với XP tin nhắn thì hai bên đè lên nhau: XP của một tin nhắn biến mất,
+    không có lỗi nào được log. `BEGIN IMMEDIATE` giành write-lock trước khi đọc nên
+    không writer nào xen được giữa chừng.
+
+    `level_from_xp` được truyền vào để công thức level chỉ sống ở MỘT nơi trong cog.
+    Trả về {old_xp, xp, old_level, level} để caller quyết định thông báo level-up.
+    """
+    async with _connect_async() as db:
+        await db.execute("BEGIN IMMEDIATE")
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT xp, level FROM user_levels WHERE guild_id = ? AND user_id = ?",
+            (guild_id, user_id),
+        ) as cur:
+            row = await cur.fetchone()
+
+        old_xp = int(row["xp"]) if row else 0
+        old_level = int(row["level"]) if row else 0
+        new_xp = max(0, old_xp + int(xp_delta))
+        new_level = int(level_from_xp(new_xp))
+
+        cols = ["guild_id", "user_id", "xp", "level"]
+        vals = [guild_id, user_id, new_xp, new_level]
+        updates = ["xp = excluded.xp", "level = excluded.level"]
+        if last_message_at is not None:
+            cols.append("last_message_at")
+            vals.append(last_message_at)
+            updates.append("last_message_at = excluded.last_message_at")
+        if last_voice_xp_at is not None:
+            cols.append("last_voice_xp_at")
+            vals.append(last_voice_xp_at)
+            updates.append("last_voice_xp_at = excluded.last_voice_xp_at")
+
+        # Tên cột là hằng số nội bộ, không đến từ input.
+        await db.execute(
+            f"INSERT INTO user_levels ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))}) "
+            f"ON CONFLICT(guild_id, user_id) DO UPDATE SET {', '.join(updates)}",
+            tuple(vals),
+        )
+        await db.commit()
+
+    await cache.adelete(f"level:{guild_id}:{user_id}")
+    return {"old_xp": old_xp, "xp": new_xp, "old_level": old_level, "level": new_level}
+
+
 async def async_reset_user_xp(guild_id: str, user_id: str):
     async with _connect_async() as db:
         await db.execute("DELETE FROM user_levels WHERE guild_id = ? AND user_id = ?", (guild_id, user_id))

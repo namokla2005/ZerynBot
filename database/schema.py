@@ -598,4 +598,25 @@ def init_db():
             # tiên KHÔNG xoá sạch lịch sử đếm (nhờ vậy không mất dữ liệu của user).
             conn.execute("UPDATE fun_interactions SET last_used = ? WHERE last_used IS NULL OR last_used = 0", (time.time(),))
 
+        # ─── Support thread: một người chỉ được có MỘT thread đang mở ──────────
+        # get_or_create_support_thread từng kiểu SELECT-rồi-INSERT, nên hai phiên cùng
+        # mở tạo ra hai thread 'open' cho một user (chỉ thread_id là UNIQUE). Phải gom
+        # bản cũ về 'resolved' TRƯỚC khi tạo index: nếu còn trùng lặp thì
+        # CREATE UNIQUE INDEX thất bại im lặng và ràng buộc coi như không có.
+        try:
+            conn.execute("""
+                UPDATE support_threads SET status = 'resolved'
+                WHERE status != 'resolved'
+                  AND id NOT IN (
+                      SELECT MAX(id) FROM support_threads
+                      WHERE status != 'resolved' GROUP BY user_id
+                  )
+            """)
+            conn.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_support_threads_one_open
+                ON support_threads(user_id) WHERE status != 'resolved'
+            """)
+        except sqlite3.Error as exc:
+            logger.warning(f"[Schema] Không tạo được idx_support_threads_one_open: {exc}")
+
         conn.commit()

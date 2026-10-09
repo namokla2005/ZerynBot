@@ -182,13 +182,15 @@ def get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> list:
         return []
 
 async def async_get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> list:
-    """Async — Lấy log hoạt động thời gian thực (tự động xóa bản ghi cũ hơn 7 ngày)."""
+    """Async — Lấy log hoạt động thời gian thực.
+
+    Đường ĐỌC không được ghi: trước đây mỗi lượt poll của /admin chạy một câu DELETE
+    để dọn log cũ, tức là dashboard giành write-lock của SQLite liên tục chỉ để đọc.
+    Việc dọn dữ liệu thuộc về `async_prune_old_data` (job bảo trì).
+    """
     try:
         cutoff = time.time() - (days_ttl * 86400)
         async with _connect_async(timeout=10.0) as db:
-            await db.execute("DELETE FROM activity_logs WHERE created_at < ?", (cutoff,))
-            await db.commit()
-
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 """
@@ -232,15 +234,26 @@ def get_or_create_support_thread(user_id: str, user_name: str, user_avatar: str 
             return dict(row)
 
         new_thread_id = uuid.uuid4().hex
+        # ON CONFLICT DO NOTHING + đọc lại: hai phiên mở cùng lúc chỉ tạo được một
+        # thread 'open' nhờ index UNIQUE một phần idx_support_threads_one_open
+        # (khai báo trong database/schema.py). Không còn cửa sổ race giữa SELECT và INSERT.
         cur.execute(
             """
             INSERT INTO support_threads (thread_id, user_id, user_name, user_avatar, status, last_message, last_sender, unread_admin, unread_user)
             VALUES (?, ?, ?, ?, 'open', '', 'user', 0, 0)
+            ON CONFLICT DO NOTHING
             """,
             (new_thread_id, str(user_id), user_name, user_avatar or "")
         )
         conn.commit()
-        row = cur.execute("SELECT * FROM support_threads WHERE thread_id = ?", (new_thread_id,)).fetchone()
+        row = cur.execute(
+            """
+            SELECT * FROM support_threads
+            WHERE user_id = ? AND status != 'resolved'
+            ORDER BY updated_at DESC LIMIT 1
+            """,
+            (str(user_id),)
+        ).fetchone()
         return dict(row) if row else {}
 
 def get_support_thread(thread_id: str, user_id: str = None) -> Optional[dict]:

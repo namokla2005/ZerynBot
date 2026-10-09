@@ -44,6 +44,44 @@ async def async_update_giveaway(message_id: str, participants_json: str = None, 
             await db.execute("UPDATE giveaways SET ended = ? WHERE message_id = ?", (ended, message_id))
         await db.commit()
 
+async def async_toggle_giveaway_participant(message_id: str, user_id: str):
+    """Thêm/bỏ một người khỏi danh sách tham gia bằng ĐÚNG MỘT câu SQL.
+
+    Bản cũ ở cog: đọc `participants_json` -> sửa list trong Python -> ghi cả blob về.
+    Hai lượt bấm song song cùng đọc một trạng thái, nên người bấm sau đè mất người bấm
+    trước và số người tham gia lệch mà không có lỗi nào được log. Toggle trực tiếp trong
+    SQL (JSON1, có sẵn trên cả local 3.45 lẫn Termux 3.53) nên không còn cửa sổ tranh
+    chấp. Trả về None nếu giveaway không tồn tại hoặc đã kết thúc.
+    """
+    async with _connect_async() as db:
+        async with db.execute("""
+            UPDATE giveaways
+            SET participants_json = CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM json_each(COALESCE(participants_json, '[]')) WHERE value = ?
+                )
+                THEN (
+                    SELECT json_group_array(value)
+                    FROM json_each(COALESCE(participants_json, '[]')) WHERE value <> ?
+                )
+                ELSE json_insert(COALESCE(participants_json, '[]'), '$[#]', ?)
+            END
+            WHERE message_id = ? AND ended = 0
+            RETURNING participants_json
+        """, (user_id, user_id, user_id, message_id)) as cur:
+            row = await cur.fetchone()
+        await db.commit()
+
+    if not row:
+        return None
+    try:
+        participants = json.loads(row[0]) if row[0] else []
+    except (TypeError, ValueError):
+        logger.warning(f"[Giveaway] participants_json không parse được cho {message_id}")
+        participants = []
+    return {"participants": participants, "joined": user_id in participants}
+
+
 async def async_get_active_giveaways() -> list:
     async with _connect_async() as db:
         db.row_factory = aiosqlite.Row

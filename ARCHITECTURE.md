@@ -579,7 +579,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `_skipped is True` and stayed green while the feature was dead. New tests assert
     the user-visible effect (queue advances), that prune keeps un-expired rows, that
     every connection enforces FK, and that a snapshot contains WAL-only data that a
-    raw file copy does not. Suite: 158 → **202 tests**.
+    raw file copy does not. Suite: 158 → **217 tests**.
 - **v3.3 Phase 2 — AI guardrails**:
   - **No SQLite on the event loop**: `call_ai_async()` / `call_provider_async()` read
     key pools through `asyncio.to_thread(load_pools)`. `load_pools()` is synchronous
@@ -652,6 +652,46 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     pool" with `__CLEAR_ALL__` as the explicit wipe — otherwise saving any other setting
     would have erased the pools. `/api/admin/test_ai_key` falls back to stored pools on
     an empty string too, and `mask_key` no longer leaks 7 leading characters into logs.
+- **v3.3 Phase 4 — money and race conditions**:
+  - **`/sell` can no longer pay twice**: `async_sell_inventory_item` did a plain
+    `SELECT ... quantity >= ?` then `DELETE ... WHERE id = ?` with no `rowcount` check,
+    so two concurrent sells of one item both succeeded and credited the wallet twice.
+    The write is now conditional (`AND quantity = ?` / `AND quantity >= ?`) and bails on
+    `rowcount == 0`. `async_sell_all_inventory` uses `DELETE ... RETURNING` so the payout
+    is computed from rows it actually removed (RETURNING/JSON1 verified on dev SQLite
+    3.45 and Termux 3.53).
+  - **`starting_balance` is real**: `async_place_bet`, `async_transfer_money` and
+    `async_buy_shop_item` minted new users with a hardcoded `wallet = 50`, so a guild
+    configured to 0 still handed out free coins (inflation) while one configured to 5000
+    got 50. They now read `economy_settings` through `_starting_balance(db, guild_id)` on
+    the *same* connection — opening a second connection there is what caused WAL
+    write-lock deadlocks.
+  - **`/pay` works for users who never touched the economy**: only the recipient was
+    provisioned, so the sender's conditional debit matched 0 rows and the transfer
+    always failed.
+  - **XP is incremented, not overwritten**: `async_update_user_xp` writes absolute
+    values the caller computed from a read that can be 120 s stale (the row is cached),
+    so message XP and the voice XP loop clobbered each other and a whole message's XP
+    vanished with no error. New `async_add_user_xp()` does read→compute→write inside
+    `BEGIN IMMEDIATE` and takes `level_from_xp` as a parameter so the formula stays in
+    one place.
+  - **Giveaway entries are atomic**: the join button read `participants_json`, edited the
+    Python list and wrote the whole blob back, so concurrent clicks overwrote each other
+    and the count drifted. `async_toggle_giveaway_participant` performs join/leave as a
+    single SQL statement over JSON1 and refuses to touch an ended giveaway.
+  - **One open support thread per user**: `get_or_create_support_thread` was
+    check-then-insert; `init_db` now collapses pre-existing duplicates to `resolved`
+    *before* creating the partial unique index `idx_support_threads_one_open` (otherwise
+    the CREATE fails silently and the constraint never exists), and the insert uses
+    `ON CONFLICT DO NOTHING` + re-select.
+  - **Read paths no longer write**: `async_get_system_activity_logs` ran a `DELETE` on
+    every `/admin` poll, fighting the bot for the SQLite write lock; pruning belongs to
+    `async_prune_old_data`.
+  - **`/warn` respects role hierarchy**: it only checked `member.bot`, while kick/ban
+    verify both "target is not above me" and "bot role is above target" — so a moderator
+    could warn someone senior and, at 5 warnings, have the cog kick that person **using
+    the bot's own permissions**. Escalation failures are now logged instead of
+    `except Exception: pass`.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

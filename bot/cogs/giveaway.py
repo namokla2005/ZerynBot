@@ -21,6 +21,7 @@ from database import (
     async_create_giveaway,
     async_get_giveaway,
     async_update_giveaway,
+    async_toggle_giveaway_participant,
     async_get_active_giveaways,
     async_get_guild_settings
 )
@@ -135,17 +136,16 @@ class DynamicJoinView(discord.ui.View):
                     ephemeral=True
                 )
 
-        participants = json.loads(gw["participants_json"])
+        # Toggle nguyên tử trong DB — xem database.events.async_toggle_giveaway_participant.
+        # Bản cũ đọc/sửa/ghi cả blob JSON nên hai lượt bấm song song làm mất nhau.
         user_id_str = str(interaction.user.id)
-
-        if user_id_str in participants:
-            participants.remove(user_id_str)
-            await async_update_giveaway(msg_id, participants_json=json.dumps(participants))
-            resp_text = tr(g_settings, "giveaway.leave_msg")
-        else:
-            participants.append(user_id_str)
-            await async_update_giveaway(msg_id, participants_json=json.dumps(participants))
-            resp_text = tr(g_settings, "giveaway.join_msg")
+        outcome = await async_toggle_giveaway_participant(msg_id, user_id_str)
+        if outcome is None:
+            return await interaction.response.send_message(
+                tr(g_settings, "giveaway.already_ended"), ephemeral=True
+            )
+        participants = outcome["participants"]
+        resp_text = tr(g_settings, "giveaway.leave_msg") if not outcome["joined"] else tr(g_settings, "giveaway.join_msg")
 
         # Re-render updated embed
         new_embed = _build_giveaway_embed(

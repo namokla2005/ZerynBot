@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime, timezone, timedelta
+import logging
 import re
 import config
 from database import (
@@ -20,6 +21,8 @@ try:
     from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
     from bot.emojis import e, embed_title, clean_title
+
+logger = logging.getLogger("BotV2.Moderation")
 
 
 def _parse_duration(text: str) -> timedelta | None:
@@ -188,6 +191,13 @@ class Moderation(commands.Cog):
             return
         if member.bot:
             return await interaction.response.send_message(tr(s, "mod.cannot_warn_bot"), ephemeral=True)
+        # Cùng chuẩn với /kick và /ban. Thiếu 2 check này thì mod chỉ có moderate_members
+        # có thể warn người cấp cao hơn (hoặc owner), và khi đủ 5 warn cog sẽ kick/timeout
+        # người đó BẰNG QUYỀN CỦA BOT — leo quyền thực sự, chứ không phải lỗi hiển thị.
+        if member.top_role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
+            return await interaction.response.send_message(tr(s, "mod.cannot_target_higher"), ephemeral=True)
+        if member.top_role >= interaction.guild.me.top_role:
+            return await interaction.response.send_message(tr(s, "mod.bot_role_too_low"), ephemeral=True)
 
         warn_id = await async_add_mod_warning(
             str(interaction.guild.id), str(member.id), str(interaction.user.id), reason
@@ -205,14 +215,16 @@ class Moderation(commands.Cog):
             try:
                 await member.kick(reason=f"Auto-kick: {total} warnings")
                 escalation_msg = tr(s, "mod.auto_kick", total=total)
-            except Exception:
-                pass
+            except discord.DiscordException as exc:
+                # Trước đây `except Exception: pass` khiến một lần kick thất bại (mất
+                # quyền / target là owner) biến mất không dấu vết trong log.
+                logger.warning(f"[Moderation] Auto-kick thất bại cho user {member.id}: {exc}")
         elif total >= 3:
             try:
                 await member.timeout(timedelta(hours=1), reason=f"Auto-timeout: {total} warnings")
                 escalation_msg = tr(s, "mod.auto_timeout", total=total)
-            except Exception:
-                pass
+            except discord.DiscordException as exc:
+                logger.warning(f"[Moderation] Auto-timeout thất bại cho user {member.id}: {exc}")
 
         if escalation_msg:
             embed.add_field(name=f"{e('zb_warn')} Auto-Escalation", value=escalation_msg, inline=False)

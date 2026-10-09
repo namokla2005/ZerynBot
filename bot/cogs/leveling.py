@@ -17,6 +17,7 @@ from database import (
     async_get_leveling_settings,
     async_get_user_level,
     async_update_user_xp,
+    async_add_user_xp,
     async_get_level_roles,
     async_get_top_users,
     async_get_user_rank,
@@ -135,11 +136,11 @@ class Leveling(commands.Cog):
             return
             
         xp_gain = random.randint(settings.get("message_xp_min", 15), settings.get("message_xp_max", 25))
-        new_xp = user_data["xp"] + xp_gain
-        old_level = user_data["level"]
-        new_level = calc_level_from_xp(new_xp)
-        
-        await async_update_user_xp(guild_id, str(message.author.id), new_xp, new_level, last_message_at=now)
+        result = await async_add_user_xp(
+            guild_id, str(message.author.id), xp_gain,
+            level_from_xp=calc_level_from_xp, last_message_at=now,
+        )
+        new_xp, old_level, new_level = result["xp"], result["old_level"], result["level"]
         
         if new_level > old_level:
             await self._handle_level_up(message.author, old_level, new_level, settings, current_channel=message.channel)
@@ -205,11 +206,11 @@ class Leveling(commands.Cog):
                     if now - last_voice_at < 80:  # buffer 10s dưới interval 90s
                         continue
 
-                    new_xp = user_data["xp"] + voice_xp_gain
-                    old_level = user_data["level"]
-                    new_level = calc_level_from_xp(new_xp)
-
-                    await async_update_user_xp(guild_id, str(member.id), new_xp, new_level, last_voice_xp_at=now)
+                    result = await async_add_user_xp(
+                        guild_id, str(member.id), voice_xp_gain,
+                        level_from_xp=calc_level_from_xp, last_voice_xp_at=now,
+                    )
+                    new_level, old_level = result["level"], result["old_level"]
 
                     if new_level > old_level:
                         target_ch = member.voice.channel if (member.voice and member.voice.channel) else None
@@ -334,11 +335,8 @@ class Leveling(commands.Cog):
             return await ctx.send(tr(s, "leveling.xp_add_negative"))
 
         guild_id = str(ctx.guild.id)
-        current = await async_get_user_level(guild_id, str(member.id))
-        current_xp = current.get("xp", 0) if current else 0
-        new_xp = current_xp + amount
-        new_level = calc_level_from_xp(new_xp)
-        await async_update_user_xp(guild_id, str(member.id), new_xp, new_level)
+        result = await async_add_user_xp(guild_id, str(member.id), amount, level_from_xp=calc_level_from_xp)
+        new_xp, new_level = result["xp"], result["level"]
         await ctx.send(tr(s, "leveling.xp_add_success", amount=amount, mention=member.mention, new_xp=new_xp, level=new_level))
 
     @xp.command(name="set", description="Thiết lập XP cho một người dùng")

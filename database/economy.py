@@ -100,6 +100,26 @@ async def async_get_economy_settings(guild_id: str) -> dict:
                 return {"guild_id": guild_id, "daily_amount": 100, "streak_bonus": 20, "starting_balance": 50, "currency_symbol": "🪙", "currency_name": "Coins"}
             return dict(row)
 
+async def _starting_balance(db, guild_id: str) -> int:
+    """Số coin khởi điểm của guild, đọc trên ĐÚNG kết nối đang mở.
+
+    Các đường mint user (bet / transfer / buy) trước đây hardcode `50`, nên guild đặt
+    `starting_balance=0` vẫn phát 50 coin cho mỗi người mới vào → lạm phát tiền tệ,
+    và guild đặt 5000 lại chỉ nhận 50. Không gọi `async_get_economy_settings` ở đây vì
+    hàm đó MỞ KẾT NỐI THỨ HAI trong lúc kết nối này đang giữ write-lock (deadlock WAL).
+    """
+    async with db.execute(
+        "SELECT starting_balance FROM economy_settings WHERE guild_id = ?", (guild_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    if row and row[0] is not None:
+        try:
+            return max(0, int(row[0]))
+        except (TypeError, ValueError):
+            return 50
+    return 50
+
+
 async def async_get_economy_user(guild_id: str, user_id: str) -> dict:
     async with _connect_async() as db:
         db.row_factory = aiosqlite.Row
@@ -211,8 +231,8 @@ async def async_place_bet(guild_id: str, user_id: str, amount: int) -> bool:
     async with _connect_async() as db:
         await db.execute("""
             INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
-            VALUES (?, ?, 50, 0, 0, 0)
-        """, (guild_id, user_id))
+            VALUES (?, ?, ?, 0, 0, 0)
+        """, (guild_id, user_id, await _starting_balance(db, guild_id)))
         cursor = await db.execute("""
             UPDATE economy_users
             SET wallet = wallet - ?
@@ -261,11 +281,18 @@ async def async_transfer_money(guild_id: str, from_user_id: str, to_user_id: str
     if amount <= 0 or from_user_id == to_user_id:
         return False
     async with _connect_async() as db:
-        # P2: Đảm bảo người nhận tồn tại trên CHÍNH KẾT NỐI NÀY để loại trừ hoàn toàn deadlock khóa ghi SQLite
+        # P2: Đảm bảo CẢ HAI phía tồn tại trên CHÍNH KẾT NỐI NÀY để loại trừ hoàn toàn
+        # deadlock khóa ghi SQLite. Trước đây chỉ người nhận được tạo, nên `/pay` từ
+        # một user chưa từng chạm economy luôn thất bại: UPDATE trừ tiền khớp 0 dòng.
+        start_bal = await _starting_balance(db, guild_id)
         await db.execute("""
             INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
-            VALUES (?, ?, 50, 0, 0, 0)
-        """, (guild_id, to_user_id))
+            VALUES (?, ?, ?, 0, 0, 0)
+        """, (guild_id, from_user_id, start_bal))
+        await db.execute("""
+            INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
+            VALUES (?, ?, ?, 0, 0, 0)
+        """, (guild_id, to_user_id, start_bal))
 
         # Trừ ví người gửi nguyên tử với điều kiện wallet >= amount
         cursor = await db.execute("""
@@ -413,8 +440,8 @@ async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tupl
         # P2: Đảm bảo user tồn tại trên CHÍNH KẾT NỐI NÀY (tránh deadlock kết nối lồng)
         await db.execute("""
             INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
-            VALUES (?, ?, 50, 0, 0, 0)
-        """, (guild_id, user_id))
+            VALUES (?, ?, ?, 0, 0, 0)
+        """, (guild_id, user_id, await _starting_balance(db, guild_id)))
 
         # Trừ tiền từ BANK có ràng buộc điều kiện bank >= price
         cur_user = await db.execute("""
@@ -558,10 +585,22 @@ async def async_sell_inventory_item(guild_id: str, user_id: str, item_id: str, q
                 return False, 0, ""
 
         earned = item["sell_price"] * quantity
+        # Ghi CÓ ĐIỀU KIỆN + kiểm rowcount: giữa SELECT ở trên và lệnh này, một lệnh
+        # /sell song song có thể đã lấy mất số lượng. Trước đây DELETE chỉ theo id nên
+        # cả hai lệnh cùng "thành công" và người dùng được cộng tiền 2 lần.
         if item["quantity"] == quantity:
-            await db.execute("DELETE FROM user_inventory WHERE id = ?", (item["id"],))
+            cur_sold = await db.execute(
+                "DELETE FROM user_inventory WHERE id = ? AND quantity = ?",
+                (item["id"], item["quantity"]),
+            )
         else:
-            await db.execute("UPDATE user_inventory SET quantity = quantity - ? WHERE id = ?", (quantity, item["id"]))
+            cur_sold = await db.execute(
+                "UPDATE user_inventory SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
+                (quantity, item["id"], quantity),
+            )
+        if cur_sold.rowcount == 0:
+            await db.rollback()
+            return False, 0, ""
 
         # Cộng tiền vào ví
         await db.execute("""
@@ -573,31 +612,31 @@ async def async_sell_inventory_item(guild_id: str, user_id: str, item_id: str, q
         return True, earned, item["item_name"]
 
 async def async_sell_all_inventory(guild_id: str, user_id: str, rarity: str = None) -> tuple[int, int]:
-    """Bán toàn bộ vật phẩm (hoặc lọc theo rarity) lấy tiền vào ví. Trả về (items_sold_count, total_earned)."""
+    """Bán toàn bộ vật phẩm (hoặc lọc theo rarity) lấy tiền vào ví. Trả về (items_sold_count, total_earned).
+
+    Xóa và đọc số bị xóa trong CÙNG một câu lệnh (`DELETE ... RETURNING`, SQLite >= 3.35;
+    local 3.45 / Termux 3.53). Bản cũ SELECT trước rồi DELETE sau, nên hai lệnh bấm
+    song song cùng đọc được một tập hàng và cùng cộng tiền — tổng earned tính trên thứ
+    không còn tồn tại trong kho.
+    """
     async with _connect_async() as db:
         db.row_factory = aiosqlite.Row
-        query = "SELECT * FROM user_inventory WHERE guild_id = ? AND user_id = ? AND quantity > 0"
-        params = [guild_id, user_id]
-        if rarity:
-            query += " AND rarity = ?"
-            params.append(rarity)
+        delete_query = (
+            "DELETE FROM user_inventory WHERE guild_id = ? AND user_id = ? AND quantity > 0"
+            + (" AND rarity = ?" if rarity else "")
+            + " RETURNING sell_price, quantity"
+        )
+        delete_params = [guild_id, user_id] + ([rarity] if rarity else [])
+        async with db.execute(delete_query, tuple(delete_params)) as cur:
+            sold = await cur.fetchall()
 
-        async with db.execute(query, tuple(params)) as cur:
-            items = await cur.fetchall()
-
-        if not items:
+        if not sold:
+            await db.rollback()
             return 0, 0
 
-        total_earned = sum(item["sell_price"] * item["quantity"] for item in items)
-        total_count = sum(item["quantity"] for item in items)
+        total_earned = sum(item["sell_price"] * item["quantity"] for item in sold)
+        total_count = sum(item["quantity"] for item in sold)
 
-        delete_query = "DELETE FROM user_inventory WHERE guild_id = ? AND user_id = ?"
-        delete_params = [guild_id, user_id]
-        if rarity:
-            delete_query += " AND rarity = ?"
-            delete_params.append(rarity)
-
-        await db.execute(delete_query, tuple(delete_params))
         await db.execute("""
             INSERT INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
             VALUES (?, ?, ?, 0, 0, 0)
