@@ -805,6 +805,23 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `FFmpegOpusAudio` path. `FFmpegAudio.__init__` assigns `self._process` before the constructor
     returns, so the existing `getattr(source, "_process", None)` already sees the child process
     (verified on device via the child's `/proc` nice value).
+- **v3.3 i18n close-out — 0 hardcoded Discord strings, and a language-source audit**:
+  - `tr(settings, ...)` inside automod's rule helpers used the **automod settings**
+    dict, which has no `language` key, so every violation reason fell through to the
+    Vietnamese default regardless of the server language — the i18n call looked right
+    and did nothing. A `_reason_lang(guild)` helper now supplies guild settings on the
+    violation branches only (it swallows DB errors: an exception there would kill every
+    automod rule for that message and silently blind the filter), and the unconditional
+    per-message guild-settings read the migration had added to `on_message` is gone.
+    Proven by a red→green test, re-verified red by restoring the old argument.
+  - Repo-wide probe of every `tr()` first argument: the remaining sites (utility,
+    tempvoice, economy, giveaway, music views, fun/moderation/birthday `_check_module`)
+    all resolve to `async_get_guild_settings` ✓.
+  - Known pre-existing defect, NOT touched here: `MusicControlView` is built with
+    `timeout=None` but never registered via `bot.add_view()`, so the buttons on
+    Now-Playing cards left over from before a restart dispatch to nothing and Discord
+    reports "This interaction failed" forever. Fixing it needs stable `custom_id` on
+    all five buttons plus persistent registration, so it is a separate change.
 - **v3.3 Phase 6 — project-standard cleanup**:
   - **Catalog completed**: `_COMMANDS_DATA` was missing `xp add`, `verify pending`,
     `/lang`, `/config`, `/sync`, `/backup`, and listed the real `/ticket` command under

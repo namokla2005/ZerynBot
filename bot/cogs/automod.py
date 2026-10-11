@@ -165,6 +165,23 @@ class Automod(commands.Cog):
     def cog_unload(self):
         self._cache_cleanup_task.cancel()
 
+    async def _reason_lang(self, guild) -> dict:
+        """Guild settings — thu duyet duy nhat mang key `language`.
+
+        `settings` cua automod (async_get_automod_settings) KHONG co `language`, nen
+        dung no trong tr() khien ngon ngu cua server bi bo qua im lang — server en/zh
+        nhan mai ly do tieng Viet.
+
+        PHAI nuot loi: day nam tren duong xu ly vi pham, mot loi DB ném exception ra
+        se lam chet toan bo quy tắc automod cua tin nhan do (bo loc bi mu).
+        """
+        if guild is None:
+            return {}
+        try:
+            return await async_get_guild_settings(str(guild.id))
+        except Exception:
+            return {}
+
     async def _handle_violation(self, message: discord.Message, reason: str, settings: dict):
         guild = message.guild
         member = message.author
@@ -282,7 +299,6 @@ class Automod(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        gs = await async_get_guild_settings(str(message.guild.id)) if message.guild else None
         settings = await self._automod_gate(message)
         if settings is None:
             return
@@ -310,7 +326,7 @@ class Automod(commands.Cog):
             if len(timestamps) > 5:
                 # Trigger spam
                 self.spam_cache[guild_id][user_id] = [] # Reset to prevent loop
-                return await self._handle_violation(message, tr(gs, "automod.spam_gui_tin_nhan_qua"), settings)
+                return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.spam_gui_tin_nhan_qua"), settings)
 
         if await self._check_text_rules(message, settings, content):
             return
@@ -323,14 +339,14 @@ class Automod(commands.Cog):
                 uppercase_count = sum(1 for c in letters if c.isupper())
                 ratio = uppercase_count / len(letters)
                 if ratio > 0.7:
-                    return await self._handle_violation(message, tr(gs, "automod.spam_chu_in_hoa_caps", p1=int(ratio * 100)), settings)
+                    return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.spam_chu_in_hoa_caps", p1=int(ratio * 100)), settings)
 
         # 6. Anti-Mention spam check
         if settings.get("anti_mentions_enabled"):
             max_mentions = int(settings.get("max_mentions", 5) or 5)
             total_mentions = len(message.mentions) + len(message.role_mentions)
             if total_mentions > max_mentions:
-                return await self._handle_violation(message, tr(gs, "automod.tag_qua_nhieu_nguoi_role", total_mentions=total_mentions, max_mentions=max_mentions), settings)
+                return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.tag_qua_nhieu_nguoi_role", total_mentions=total_mentions, max_mentions=max_mentions), settings)
 
     async def _automod_gate(self, message: discord.Message):
         """Trả về settings nếu message này thuộc diện automod phải xét, ngược lại None.
@@ -362,7 +378,8 @@ class Automod(commands.Cog):
         """
         if after.guild is None:
             return
-        if normalize_scan_text(before.content or "") == normalize_scan_text(after.content or "")            and not after.embeds and not after.stickers:
+        same_text = normalize_scan_text(before.content or "") == normalize_scan_text(after.content or "")
+        if same_text and not after.embeds and not after.stickers:
             return
         settings = await self._automod_gate(after)
         if settings is None:
@@ -383,7 +400,7 @@ class Automod(commands.Cog):
             bad_words = settings.get("bad_words", [])
             for word in bad_words:
                 if word.lower() in content:
-                    await self._handle_violation(message, tr(settings, "automod.su_dung_tu_cam", word=word), settings)
+                    await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.su_dung_tu_cam", word=word), settings)
                     return True
 
         # 3. Links check
@@ -449,7 +466,7 @@ class Automod(commands.Cog):
         if settings.get("anti_invite_enabled"):
             invite_matches = DISCORD_INVITE_PATTERN.findall(content)
             if invite_matches:
-                await self._handle_violation(message, tr(settings, "automod.gui_link_moi_discord_server"), settings)
+                await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.gui_link_moi_discord_server"), settings)
                 return True
         return False
 
@@ -499,7 +516,7 @@ class Automod(commands.Cog):
 
         await self._log_automod(
             guild_id, settings, "Anti-Raid",
-            tr(settings, "automod.phat_hien_luot_join_trong", count=count),
+            tr(await self._reason_lang(guild), "automod.phat_hien_luot_join_trong", count=count),
         )
 
     async def _lockdown_guild(self, guild: discord.Guild) -> str:
@@ -598,9 +615,10 @@ class Automod(commands.Cog):
         # dọn kênh hợp lệ — ban họ sẽ phá server (và không thể hoàn tác dễ dàng).
         if await self._is_nuke_actor_exempt(guild, actor, settings):
             logger.info(f"[AutoMod] Anti-nuke: {actor} ({actor.id}) thuộc nhóm được miễn trừ — chỉ ghi log.")
+            gs = await self._reason_lang(guild)
             await self._log_automod(
-                guild_id, settings, tr(settings, "automod.anti_nuke_mien_tru"),
-                tr(settings, "automod.object_bi_xoa_trong_giay", count=count, mention=actor.mention, p5=actor.id)
+                guild_id, settings, tr(gs, "automod.anti_nuke_mien_tru"),
+                tr(gs, "automod.object_bi_xoa_trong_giay", count=count, mention=actor.mention, p5=actor.id)
             )
             return
 

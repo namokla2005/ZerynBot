@@ -960,7 +960,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             color=discord.Color.red(),
         )
         embed.set_footer(text=tr(s, "music.pl_del_footer"))
-        view = RemoveSongView(ctx, pl, pl["tracks"])
+        view = RemoveSongView(ctx, pl, pl["tracks"], s)
         view.message = await ctx.send(embed=embed, view=view)
 
     @playlist_group.command(name="loop", description="Đổi chế độ lặp lại hàng chờ")

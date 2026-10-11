@@ -230,3 +230,33 @@ def test_on_message_spam_path_has_guild_id():
     for _ in range(7):
         asyncio.run(cog.on_message(_member_message()))
     assert handled, "spam du 7 tin lien tiep ma khong xu ly -> nhanh spam khong chay"
+
+
+# ─── Ngon ngu cua thong diep vi pham ────────────────────────────────────────────
+
+def test_automod_reason_uses_server_language_not_module_settings(monkeypatch):
+        """`tr()` can dict CO key `language`. `settings` cua automod la
+        async_get_automod_settings() — KHONG co `language` → tr() mac dinh ve tieng Viet,
+        server en/zh/... mai mai nhan duoc ly do tieng Viet (i18n chay the, khong co tac
+        dung). Test nay buoc phai lay guild settings cho chuoi ly do."""
+        import asyncio
+        import sys, os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bot"))
+        import cogs.automod as A
+
+        async def fake_guild_settings(guild_id):
+            return {"language": "en"}
+
+        monkeypatch.setattr(A, "async_get_guild_settings", fake_guild_settings)
+        recorded = []
+        cog = _cog(recorded)
+        msg = _msg(content="mua freenitro di ban")
+        msg.guild = types.SimpleNamespace(id=4242, name="G")
+        msg.channel = types.SimpleNamespace(id=1, mention="<#1>")
+        msg.author = types.SimpleNamespace(id=2, mention="<@2>", bot=False, display_name="a")
+
+        asyncio.run(cog._check_text_rules(msg, SETTINGS_WORDS, A.message_scan_text(msg)))
+
+        assert recorded, "khong phat hien tu cam — harness hong roi"
+        assert "Used a banned word" in recorded[0], f"ly do van la tieng Viet: {recorded[0]!r}"
