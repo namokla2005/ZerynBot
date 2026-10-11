@@ -453,6 +453,7 @@ class LyricsPaginatorView(discord.ui.View):
 
     @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.secondary, custom_id="lyrics_prev")
     async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        gs = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else None
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(tr(self.settings, "common.not_your_interaction"), ephemeral=True)
             return
@@ -472,6 +473,7 @@ class LyricsPaginatorView(discord.ui.View):
 
     @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.secondary, custom_id="lyrics_next")
     async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        gs = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else None
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(tr(self.settings, "common.not_your_interaction"), ephemeral=True)
             return

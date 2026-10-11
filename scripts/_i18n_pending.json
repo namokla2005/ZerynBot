@@ -1,0 +1,47 @@
+{
+ "file": "bot/music/views.py",
+ "keys": {
+  "music.trang_nguon_lrclib": {
+   "vi": "Trang {current_page1}/{len} • Nguồn: LrcLib | {tr}",
+   "placeholders": [
+    [
+     "current_page1",
+     "self.current_page + 1"
+    ],
+    [
+     "len",
+     "len(self.pages)"
+    ],
+    [
+     "tr",
+     "tr(self.settings, 'common.requested_by', user=interaction.user.display_name)"
+    ]
+   ]
+  }
+ },
+ "manual": [
+  {
+   "file": "bot/music/views.py",
+   "line": 163,
+   "col": 29,
+   "kind": "str",
+   "text": "Lặp lại",
+   "role": "DISCORD",
+   "why": "ui:button:label",
+   "raw": "'Lặp lại'",
+   "reason": "module level/class body — can tay xu ly"
+  },
+  {
+   "file": "bot/music/views.py",
+   "line": 199,
+   "col": 24,
+   "kind": "str",
+   "text": "🎵 Chọn bài hát muốn xóa...",
+   "role": "DISCORD",
+   "why": "helper:__init__:placeholder",
+   "raw": "'🎵 Chọn bài hát muốn xóa...'",
+   "reason": "__init__(): chua co bien settings — chay lenh `fetch` truoc"
+  }
+ ],
+ "deferred": []
+}

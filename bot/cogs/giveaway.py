@@ -286,7 +286,7 @@ class Giveaway(commands.Cog):
         channel = ctx.guild.get_channel(int(gw["channel_id"]))
         if channel:
             msg_link = f"https://discord.com/channels/{ctx.guild.id}/{gw['channel_id']}/{message_id}"
-            await channel.send(f"{tr(s, 'giveaway.reroll_msg', user=f'<@{winner_id}>', prize=gw['prize'])}\n👉 [Xem tin nhắn]({msg_link})")
+            await channel.send(tr(s, "giveaway.xem_tin_nhan", tr=tr(s, 'giveaway.reroll_msg', user=f'<@{winner_id}>', prize=gw['prize']), msg_link=msg_link))
             await ctx.send(tr(s, "giveaway.reroll_success"))
         else:
             await ctx.send(tr(s, "giveaway.channel_not_found"))
@@ -324,7 +324,7 @@ class Giveaway(commands.Cog):
             winners_mentions=winners_mentions
         )
 
-        ended_label = tr(s, "giveaway.btn_ended") if tr(s, "giveaway.btn_ended") != "giveaway.btn_ended" else "🎉 Đã kết thúc"
+        ended_label = tr(s, "giveaway.btn_ended") if tr(s, "giveaway.btn_ended") != "giveaway.btn_ended" else tr(s, "giveaway.da_ket_thuc")
         await msg.edit(embed=embed, view=DisabledJoinView(label=ended_label))
 
         if winners:

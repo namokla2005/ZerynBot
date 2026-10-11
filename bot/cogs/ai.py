@@ -527,7 +527,7 @@ class AI(commands.Cog):
 
         # Cắt gọt độ dài embed Discord (tối đa 4096 ký tự)
         if len(response_text) > 4000:
-            response_text = response_text[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
+            response_text = response_text[:3990] + tr(s, "ai.noi_dung_qua_dai_da")
 
         ask_icon = "zb_vision" if image_url else "zb_ask"
         embed = discord.Embed(
@@ -587,11 +587,11 @@ class AI(commands.Cog):
             
             summary_result = await call_ai_api(prompt, sys_prompt, api_key=guild_key, is_owner=is_owner, preferred_model=global_model)
             if len(summary_result) > 4000:
-                summary_result = summary_result[:3990] + "...\n*(Nội dung quá dài đã được rút gọn)*"
+                summary_result = summary_result[:3990] + tr(s, "ai.noi_dung_qua_dai_da")
 
             embed = discord.Embed(
                 title=embed_title("zb_summarize", tr(s, 'ai.summarize_url_title')),
-                description=f"🔗 **Nguồn:** [Xem bài viết gốc]({cleaned_url})\n\n{summary_result}",
+                description=tr(s, "ai.nguon_xem_bai_viet_goc", cleaned_url=cleaned_url, summary_result=summary_result),
                 color=0xFEE75C,
                 timestamp=datetime.now(timezone.utc)
             )

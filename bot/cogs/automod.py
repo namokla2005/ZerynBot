@@ -272,7 +272,7 @@ class Automod(commands.Cog):
                     log_embed.add_field(name=tr(s, "automod.log_user"), value=f"{member.mention} (`{member.id}`)", inline=True)
                     log_embed.add_field(name=tr(s, "automod.log_channel"), value=message.channel.mention, inline=True)
                     log_embed.add_field(name=tr(s, "automod.dm_reason"), value=reason, inline=False)
-                    log_embed.add_field(name=tr(s, "automod.dm_penalty"), value=f"Timeout {timeout_mins} phút", inline=False)
+                    log_embed.add_field(name=tr(s, "automod.dm_penalty"), value=tr(s, "automod.timeout_phut", timeout_mins=timeout_mins), inline=False)
                     log_embed.add_field(name=tr(s, "automod.dm_content"), value=message.content[:1024] or "[No text content]", inline=False)
                     
                     try:
@@ -282,6 +282,7 @@ class Automod(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        gs = await async_get_guild_settings(str(message.guild.id)) if message.guild else None
         settings = await self._automod_gate(message)
         if settings is None:
             return
@@ -309,7 +310,7 @@ class Automod(commands.Cog):
             if len(timestamps) > 5:
                 # Trigger spam
                 self.spam_cache[guild_id][user_id] = [] # Reset to prevent loop
-                return await self._handle_violation(message, "Spam (Gửi tin nhắn quá nhanh)", settings)
+                return await self._handle_violation(message, tr(gs, "automod.spam_gui_tin_nhan_qua"), settings)
 
         if await self._check_text_rules(message, settings, content):
             return
@@ -322,14 +323,14 @@ class Automod(commands.Cog):
                 uppercase_count = sum(1 for c in letters if c.isupper())
                 ratio = uppercase_count / len(letters)
                 if ratio > 0.7:
-                    return await self._handle_violation(message, f"Spam chữ IN HOA ({int(ratio*100)}% Caps)", settings)
+                    return await self._handle_violation(message, tr(gs, "automod.spam_chu_in_hoa_caps", p1=int(ratio * 100)), settings)
 
         # 6. Anti-Mention spam check
         if settings.get("anti_mentions_enabled"):
             max_mentions = int(settings.get("max_mentions", 5) or 5)
             total_mentions = len(message.mentions) + len(message.role_mentions)
             if total_mentions > max_mentions:
-                return await self._handle_violation(message, f"Tag quá nhiều người/role ({total_mentions}/{max_mentions} tags)", settings)
+                return await self._handle_violation(message, tr(gs, "automod.tag_qua_nhieu_nguoi_role", total_mentions=total_mentions, max_mentions=max_mentions), settings)
 
     async def _automod_gate(self, message: discord.Message):
         """Trả về settings nếu message này thuộc diện automod phải xét, ngược lại None.
@@ -382,7 +383,7 @@ class Automod(commands.Cog):
             bad_words = settings.get("bad_words", [])
             for word in bad_words:
                 if word.lower() in content:
-                    await self._handle_violation(message, f"Sử dụng từ cấm: {word}", settings)
+                    await self._handle_violation(message, tr(settings, "automod.su_dung_tu_cam", word=word), settings)
                     return True
 
         # 3. Links check
@@ -448,7 +449,7 @@ class Automod(commands.Cog):
         if settings.get("anti_invite_enabled"):
             invite_matches = DISCORD_INVITE_PATTERN.findall(content)
             if invite_matches:
-                await self._handle_violation(message, "Gửi link mời Discord server khác (Anti-Invite)", settings)
+                await self._handle_violation(message, tr(settings, "automod.gui_link_moi_discord_server"), settings)
                 return True
         return False
 
@@ -498,8 +499,7 @@ class Automod(commands.Cog):
 
         await self._log_automod(
             guild_id, settings, "Anti-Raid",
-            f"🚨 Phát hiện **{count} lượt join** trong 60 giây.\n"
-            f"**Hành động:** Lockdown (chặn @everyone gửi tin). Dùng `/automods raidunlock` để mở lại.",
+            tr(settings, "automod.phat_hien_luot_join_trong", count=count),
         )
 
     async def _lockdown_guild(self, guild: discord.Guild) -> str:
@@ -599,9 +599,8 @@ class Automod(commands.Cog):
         if await self._is_nuke_actor_exempt(guild, actor, settings):
             logger.info(f"[AutoMod] Anti-nuke: {actor} ({actor.id}) thuộc nhóm được miễn trừ — chỉ ghi log.")
             await self._log_automod(
-                guild_id, settings, "Anti-Nuke (miễn trừ)",
-                f"🔍 **{count} object** bị xoá trong 10 giây bởi {actor.mention} (`{actor.id}`) — "
-                "người này thuộc nhóm quản trị được miễn trừ nên KHÔNG bị xử lý."
+                guild_id, settings, tr(settings, "automod.anti_nuke_mien_tru"),
+                tr(settings, "automod.object_bi_xoa_trong_giay", count=count, mention=actor.mention, p5=actor.id)
             )
             return
 
@@ -750,9 +749,8 @@ class Automod(commands.Cog):
         if settings.get("anti_raid_enabled") or settings.get("anti_nuke_enabled"):
             raid_locked = settings.get("raid_locked")
             embed.add_field(
-                name="🚨 Bảo vệ Server",
-                value=f"**Raid Action:** `{raid_action}` | **Ngưỡng Join:** {settings.get('raid_join_per_window', 5)}/60s\n"
-                      f"**Trạng thái:** {'🔒 Đang lockdown' if raid_locked else '🟢 Bình thường'}",
+                name=tr(s, "automod.bao_ve_server"),
+                value=tr(s, "automod.raid_action_nguong_join_60s", raid_action=raid_action, get=settings.get('raid_join_per_window', 5), p5='🔒 Đang lockdown' if raid_locked else '🟢 Bình thường'),
                 inline=False,
             )
         
@@ -787,28 +785,30 @@ class Automod(commands.Cog):
     @app_commands.default_permissions(manage_guild=True)
     @checks.is_bot_admin()
     async def raidlock(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         settings = await async_get_automod_settings(guild_id)
 
         if guild_id in self.raid_locked_guilds or settings.get("raid_locked"):
-            await ctx.send("ℹ️ Server đang ở trạng thái lockdown.", ephemeral=True)
+            await ctx.send(tr(gs, "automod.server_dang_o_trang_thai"), ephemeral=True)
             return
 
         snapshot = await self._lockdown_guild(ctx.guild)
         self.raid_locked_guilds.add(guild_id)
         await async_update_automod_settings(guild_id, raid_locked=1, raid_snapshot=snapshot)
-        await ctx.send("🔒 Đã chuyển server sang **lockdown** (chặn @everyone gửi tin). Dùng `/automods raidunlock` để mở lại.", ephemeral=True)
+        await ctx.send(tr(gs, "automod.da_chuyen_server_sang_lockdown"), ephemeral=True)
 
     @automods.command(name="raidunlock", description="Mở khóa server sau lockdown, khôi phục overwrites")
     @app_commands.default_permissions(manage_guild=True)
     @checks.is_bot_admin()
     async def raidunlock(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
         settings = await async_get_automod_settings(guild_id)
 
         restored = await self._unlock_guild(ctx.guild, settings)
         await ctx.send(
-            f"🔓 Đã mở khoá server. Khôi phục overwrite cho {restored} kênh.",
+            tr(gs, "automod.da_mo_khoa_server_khoi", restored=restored),
             ephemeral=True,
         )
 

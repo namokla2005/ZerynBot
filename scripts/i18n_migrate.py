@@ -42,7 +42,7 @@ GUILD_SETTINGS_HINT = "get_guild_settings"
 GUILD_EXPRS = (
     ("ctx", "ctx.guild", "str(ctx.guild.id)"),
     ("interaction", "interaction.guild", "str(interaction.guild.id)"),
-    ("self", "self.guild", "str(self.guild.id)"),
+    ("message", "message.guild", "str(message.guild.id)"),
     ("guild", "guild", "str(guild.id)"),
     ("guild_id", "guild_id", "guild_id"),
 )
@@ -301,6 +301,16 @@ def plan_fetches(rel: str) -> list[dict]:
     return inserts
 
 
+_VI_CACHE: dict[str, str] | None = None
+
+
+def _vi_locale() -> dict[str, str]:
+    global _VI_CACHE
+    if _VI_CACHE is None:
+        _VI_CACHE = json.loads(read_raw(LOCALES_DIR / "vi.json"))
+    return _VI_CACHE
+
+
 def module_has_guild_helper(path: Path) -> bool:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for st in tree.body:
@@ -397,6 +407,12 @@ def plan_file(rel: str, prefix: str | None = None) -> Plan:
             base = f"{key_prefix}.{slugify(text)}"
             key, n = base, 2
             while key in used:
+                key, n = f"{base}_{n}", n + 1
+            # Key trung voi key SAN CO trong locale nhung van ban khac → PHAI doi ten:
+            # apply bo ghi khi key da ton tai, code se tro toi chuoi cua tinh huan khac
+            # (phat hien khi music.py va music/views.py cung sinh "Trang ... LrcLib").
+            vi_have = _vi_locale()
+            while key in vi_have and vi_have[key] != built[0]:
                 key, n = f"{base}_{n}", n + 1
             used.add(key)
             plan.text_to_key[text] = key

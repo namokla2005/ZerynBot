@@ -397,12 +397,12 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                 color=0x5865F2,
                 timestamp=datetime.now(timezone.utc)
             )
-            embed.set_footer(text=f"Trang 1/1 • Nguồn: LrcLib | {tr(s, 'common.requested_by', user=ctx.author.display_name)}")
+            embed.set_footer(text=tr(s, "music.trang_nguon_lrclib", tr=tr(s, 'common.requested_by', user=ctx.author.display_name)))
             await ctx.send(embed=embed)
         else:
             view = LyricsPaginatorView(pages, display_name, ctx.author.id, s)
             embed = view.get_embed()
-            embed.set_footer(text=f"Trang 1/{len(pages)} • Nguồn: LrcLib | {tr(s, 'common.requested_by', user=ctx.author.display_name)}")
+            embed.set_footer(text=tr(s, "music.trang_nguon_lrclib_2", len=len(pages), tr=tr(s, 'common.requested_by', user=ctx.author.display_name)))
             msg = await ctx.send(embed=embed, view=view)
             view.message = msg
 
@@ -669,11 +669,11 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             desc += f"`{i}.` **{title}** `[{dur}]` — *{uploader}*\n"
 
         embed = discord.Embed(
-            title=f"🔍 Kết quả tìm kiếm: {query[:60]}",
+            title=tr(s, "music.ket_qua_tim_kiem", query60=query[:60]),
             description=desc,
             color=0x5865F2,
         )
-        embed.set_footer(text="Chọn bài hát từ menu bên dưới (hết hạn sau 60s)")
+        embed.set_footer(text=tr(s, "music.chon_bai_hat_tu_menu"))
         msg = await ctx.send(embed=embed, view=view)
         view.message = msg
 

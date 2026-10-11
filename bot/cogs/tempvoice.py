@@ -43,6 +43,7 @@ class RenameVoiceModal(discord.ui.Modal):
         self.add_item(self.new_name)
 
     async def on_submit(self, interaction: discord.Interaction):
+        gs = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else None
         try:
             await self.channel.edit(name=self.new_name.value)
             await interaction.response.send_message(
@@ -50,7 +51,7 @@ class RenameVoiceModal(discord.ui.Modal):
                 ephemeral=True
             )
         except Exception as e:
-            await interaction.response.send_message(f"❌ Lỗi: {e}", ephemeral=True)
+            await interaction.response.send_message(tr(gs, "tempvoice.loi", e=e), ephemeral=True)
 
 
 class LimitVoiceModal(discord.ui.Modal):
@@ -60,7 +61,7 @@ class LimitVoiceModal(discord.ui.Modal):
         self.settings = settings
         self.limit_input = discord.ui.TextInput(
             label=tr(settings, "tempvoice.modal_limit_label"),
-            placeholder="0 = Không giới hạn (1-99)",
+            placeholder=tr(settings, "tempvoice.khong_gioi_han"),
             min_length=1,
             max_length=2,
             required=True

@@ -94,7 +94,7 @@ class Info(commands.Cog):
             channels_detail += f" • 📑 Forum: **{forum_ch}**"
         channels_detail += f" • 📁 Categories: **{cats}**"
 
-        embed.add_field(name=f"📺 Kênh ({len(guild.channels)})", value=channels_detail, inline=False)
+        embed.add_field(name=tr(s, "info.kenh", len=len(guild.channels)), value=channels_detail, inline=False)
         embed.add_field(name=tr(s, "info.roles_field"),    value=f"**{len(guild.roles)}**",   inline=True)
         embed.add_field(name=tr(s, "info.emoji_field"),    value=f"**{len(guild.emojis)}**",  inline=True)
         embed.add_field(
@@ -196,9 +196,9 @@ class Info(commands.Cog):
             value=joined_val,
             inline=True,
         )
-        embed.add_field(name="📍 Thứ tự gia nhập", value=f"**{join_pos}**", inline=True)
+        embed.add_field(name=tr(s, "info.thu_tu_gia_nhap"), value=f"**{join_pos}**", inline=True)
         embed.add_field(name=tr(s, "info.status_field"), value=status_text, inline=True)
-        embed.add_field(name="👑 Vai trò cao nhất", value=top_role, inline=True)
+        embed.add_field(name=tr(s, "info.vai_tro_cao_nhat"), value=top_role, inline=True)
         embed.add_field(name=tr(s, "info.badges_field"), value=" • ".join(badges) if badges else tr(s, "info.no_badges"), inline=False)
         embed.add_field(name=f"{tr(s, 'info.roles_field')} ({len(roles)})", value=roles_str, inline=False)
         embed.set_footer(
@@ -292,12 +292,12 @@ class Info(commands.Cog):
         from commands_data import _COMMANDS_DATA
         from database import DEFAULT_MODULES
         total_commands = sum(len(c["commands"]) for c in _COMMANDS_DATA)
-        embed.add_field(name="🧩 Modules & Lệnh",
-                        value=f"`{len(DEFAULT_MODULES)} Modules • {total_commands} Lệnh`", inline=True)
+        embed.add_field(name=tr(s, "info.modules_lenh"),
+                        value=tr(s, "info.modules_lenh_2", len=len(DEFAULT_MODULES), total_commands=total_commands), inline=True)
 
         embed.add_field(
-            name="🔗 Liên kết hữu ích",
-            value="[🌐 Web Dashboard](https://zerynbot.id.vn) • [💬 Support Server](https://discord.gg/VPybhdNbXC) • [📖 Danh Sách Lệnh](https://zerynbot.id.vn/commands)",
+            name=tr(s, "info.lien_ket_huu_ich"),
+            value=tr(s, "info.web_dashboard_https_zerynbot_id"),
             inline=False
         )
 
@@ -323,7 +323,7 @@ class Info(commands.Cog):
 
         embed.add_field(name=tr(s, "info.id_field"),             value=f"`{role.id}`", inline=True)
         embed.add_field(name=tr(s, "info.role_color_field"),     value=f"`{str(role.color)}`", inline=True)
-        embed.add_field(name="📍 Vị trí (Position)",             value=f"**#{role.position}** / {len(ctx.guild.roles)}", inline=True)
+        embed.add_field(name=tr(s, "info.vi_tri_position"),             value=f"**#{role.position}** / {len(ctx.guild.roles)}", inline=True)
         embed.add_field(name=tr(s, "info.role_members_field"),   value=f"**{len(role.members)}**", inline=True)
         embed.add_field(name=tr(s, "info.role_mentionable_field"), value="✅" if role.mentionable else "❌", inline=True)
         embed.add_field(name=tr(s, "info.role_hoist_field"),     value="✅" if role.hoist else "❌", inline=True)
@@ -342,8 +342,8 @@ class Info(commands.Cog):
         if perms.view_audit_log:  key_perms.append("View Audit Log")
         if perms.manage_messages: key_perms.append("Manage Messages")
 
-        perms_str = " • ".join(key_perms) if key_perms else "None (Thành viên thông thường)"
-        embed.add_field(name="🔒 Quyền hạn nổi bật", value=perms_str, inline=False)
+        perms_str = " • ".join(key_perms) if key_perms else tr(s, "info.none_thanh_vien_thong_thuong")
+        embed.add_field(name=tr(s, "info.quyen_han_noi_bat"), value=perms_str, inline=False)
 
         embed.set_footer(
             text=tr(s, "common.requested_by", user=ctx.author.display_name),
@@ -365,7 +365,7 @@ class Info(commands.Cog):
         )
         embed.add_field(name=tr(s, "info.id_field"),               value=f"`{channel.id}`", inline=True)
         embed.add_field(name=tr(s, "info.channel_type_field"),     value=f"`{str(channel.type)}`", inline=True)
-        embed.add_field(name="📍 Vị trí",                          value=f"**#{channel.position + 1}**", inline=True)
+        embed.add_field(name=tr(s, "info.vi_tri"),                          value=f"**#{channel.position + 1}**", inline=True)
 
         if hasattr(channel, "category") and channel.category:
             embed.add_field(name=tr(s, "info.channel_category_field"), value=f"`{channel.category.name}`", inline=True)
@@ -373,7 +373,7 @@ class Info(commands.Cog):
         embed.add_field(name=tr(s, "info.created_field"), value=f"<t:{int(channel.created_at.timestamp())}:D>", inline=True)
 
         if hasattr(channel, "topic") and channel.topic:
-            embed.add_field(name="📝 Chủ đề (Topic)", value=channel.topic[:1024], inline=False)
+            embed.add_field(name=tr(s, "info.chu_de_topic"), value=channel.topic[:1024], inline=False)
 
         if isinstance(channel, discord.TextChannel):
             slow_txt = f"`{channel.slowmode_delay}s`" if channel.slowmode_delay else tr(s, "info.channel_no_slowmode")

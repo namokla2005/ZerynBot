@@ -234,8 +234,9 @@ class Admin(commands.Cog):
 
     @commands.hybrid_command(name="backup", description="[Chủ Bot] Sao lưu cơ sở dữ liệu bot.db ngay lập tức")
     async def backup_cmd(self, ctx: commands.Context):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         if not config.BOT_OWNER_ID or ctx.author.id != config.BOT_OWNER_ID:
-            return await ctx.send("⛔ Lệnh này chỉ dành riêng cho **Chủ sở hữu Bot** (Bot Owner)!", ephemeral=True)
+            return await ctx.send(tr(gs, "admin.lenh_nay_chi_danh_rieng"), ephemeral=True)
 
         await ctx.defer(ephemeral=True)
         try:
@@ -245,7 +246,7 @@ class Admin(commands.Cog):
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             db_path = os.path.join(base_dir, "data", "bot.db")
             if not os.path.isfile(db_path):
-                return await ctx.send("❌ Không tìm thấy file `data/bot.db`!", ephemeral=True)
+                return await ctx.send(tr(gs, "admin.khong_tim_thay_file_data"), ephemeral=True)
 
             # 2. Tạo zip trong bộ nhớ RAM
             zip_buffer = io.BytesIO()
@@ -259,17 +260,14 @@ class Admin(commands.Cog):
 
             file = discord.File(fp=zip_buffer, filename=filename)
             embed = discord.Embed(
-                title="📦 Sao Lưu Cơ Sở Dữ Liệu Thành Công",
+                title=tr(gs, "admin.sao_luu_co_so_du"),
                 description=(
-                    f"✅ Đã đóng gói và làm sạch WAL file cơ sở dữ liệu `bot.db` an toàn.\n"
-                    f"📁 **File:** `{filename}`\n"
-                    f"📊 **Dung lượng:** `{size_kb} KB`\n"
-                    f"⏱️ **Thời gian:** <t:{int(time.time())}:F>"
+                    tr(gs, "admin.da_dong_goi_va_lam", filename=filename, size_kb=size_kb, p5=int(time.time()))
                 ),
                 color=config.COLOR_SUCCESS,
                 timestamp=datetime.now(timezone.utc)
             )
-            embed.set_footer(text="Bản sao lưu chứa toàn bộ cấu hình, level, kinh tế và playlist")
+            embed.set_footer(text=tr(gs, "admin.ban_sao_luu_chua_toan"))
             await ctx.send(embed=embed, file=file, ephemeral=True)
 
             # Gửi thêm 1 bản lưu trữ lên Webhook BACKUP_DB
@@ -289,7 +287,7 @@ class Admin(commands.Cog):
                 except Exception as ex:
                     logger.warning(f"Failed to forward backup to BACKUP_DB webhook: {ex}")
         except Exception as e:
-            await ctx.send(f"❌ Lỗi khi tạo bản sao lưu: `{e}`", ephemeral=True)
+            await ctx.send(tr(gs, "admin.loi_khi_tao_ban_sao", e=e), ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

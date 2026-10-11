@@ -279,7 +279,7 @@ class Leveling(commands.Cog):
         bar = f"[{'█' * filled}{'░' * (bar_len - filled)}]"
         
         embed.add_field(name="XP", value=f"{xp} / {next_level_xp}\n`{bar}` {pct}%", inline=False)
-        embed.set_footer(text="💬 Nhắn tin chat (+15-25 XP) • 🎙️ Đàm thoại Voice ≥2 người (+10 XP)")
+        embed.set_footer(text=tr(settings, "leveling.nhan_tin_chat_xp_dam"))
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name="leaderboard", aliases=["lb"], description="Bảng xếp hạng cấp độ của server")

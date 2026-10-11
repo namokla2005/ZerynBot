@@ -23,7 +23,7 @@ except (ImportError, ModuleNotFoundError):
 class DeleteHelpButton(discord.ui.Button):
     def __init__(self, settings: dict, author_id: int):
         super().__init__(
-            label=tr(settings, "help.btn_delete") if tr(settings, "help.btn_delete") != "help.btn_delete" else "Đóng",
+            label=tr(settings, "help.btn_delete") if tr(settings, "help.btn_delete") != "help.btn_delete" else tr(settings, "utility.dong"),
             style=discord.ButtonStyle.secondary,
             emoji=partial("zb_clear", "🗑️"),
             row=1
@@ -587,8 +587,9 @@ class Utility(commands.Cog):
     @commands.hybrid_command(name="embed", description="Gửi embed đã lưu từ Web Dashboard vào kênh hiện tại")
     @discord.app_commands.describe(name="Tên embed đã lưu trên Web Dashboard")
     async def embed_cmd(self, ctx: commands.Context, *, name: str):
+        gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         if not ctx.guild:
-            return await ctx.send("Lệnh này chỉ có thể sử dụng trong máy chủ.", ephemeral=True)
+            return await ctx.send(tr(gs, "utility.lenh_nay_chi_co_the"), ephemeral=True)
 
         s = await async_get_guild_settings(str(ctx.guild.id))
 
