@@ -47,7 +47,7 @@ mock_user_session = {
    * Kiểm tra Hero Section (Tiêu đề, Avatar Mascot Chibi Zeryn tròn phát sáng, nút Add to Discord).
    * Kiểm tra lưới 16 tính năng nổi bật (Features Grid).
 2. **Mở URL `/commands`** (URL cũ mà `/botinfo` và các nút link trong Discord trỏ tới — trả `308` rồi chuyển đến `/docs`, trang lệnh thật):
-   * Kiểm tra hiển thị đầy đủ danh sách **116 Lệnh** thuộc **17 danh mục** được nạp từ `_COMMANDS_DATA` (địa phương hóa qua `commands_catalog.py`).
+   * Kiểm tra hiển thị đầy đủ danh sách **128 Lệnh** thuộc **17 danh mục** được nạp từ `_COMMANDS_DATA` (địa phương hóa qua `commands_catalog.py`).
    * Thử tìm kiếm lệnh trên ô Search (ví dụ: gõ `verify` -> lọc đúng lệnh cổng xác minh thành viên).
    * Thử chuyển đổi danh mục (Kinh tế & Shop, Nhạc 24/7, Xác minh, Kiểm duyệt, v.v.).
 3. **Mở URL `/tos` và `/privacy`**:

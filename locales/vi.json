@@ -1819,5 +1819,18 @@
   "economy.job_09": "Cơ trưởng phi đội Boeing 787 ✈️",
   "economy.job_10": "Thám tử tư phá đại án 🕵️",
   "economy.job_11": "Nông dân trúng mùa nông sản hữu cơ 🌾",
-  "economy.job_12": "Phi hành gia nghiên cứu vũ trụ 🚀"
+  "economy.job_12": "Phi hành gia nghiên cứu vũ trụ 🚀",
+  "cmd.pause.desc": "Tạm dừng bài hát đang phát",
+  "cmd.skip.desc": "Bỏ qua bài hát hiện tại, chuyển sang bài kế tiếp",
+  "cmd.nowplaying.desc": "Xem bài hát đang phát kèm thanh tiến trình (có bí danh /np)",
+  "cmd.queue.desc": "Xem hàng chờ nhạc (bài đang phát + 10 bài kế tiếp)",
+  "cmd.shuffle.desc": "Xáo trộn ngẫu nhiên thứ tự bài hát trong hàng chờ",
+  "cmd.volume.desc": "Xem hoặc đặt âm lượng phát nhạc (1-150%)",
+  "cmd.playlist_create.desc": "Tạo một playlist mới trong server",
+  "cmd.playlist_add.desc": "Thêm một bài hát vào playlist đã có",
+  "cmd.playlist_play.desc": "Phát toàn bộ playlist, xếp vào hàng chờ",
+  "cmd.playlist_show.desc": "Xem danh sách bài hát bên trong một playlist",
+  "cmd.playlist_remove.desc": "Xóa hẳn một playlist do bạn tạo",
+  "cmd.playlist_removesong.desc": "Xóa một bài hát khỏi playlist (chọn bài từ danh sách)",
+  "cmd.playlist_loop.desc": "Đổi chế độ lặp lại hàng chờ (Tắt → bài hiện tại → toàn bộ)"
 }

@@ -15,7 +15,7 @@ Tài liệu này hướng dẫn cách Antigravity AI kết hợp đồng thời 
   - 🥈 **Tier 2 (Fallback 1 khi hết Token / HTTP 429)**: `Qwen 3.8 27B` (`qwen/qwen3.8-27b` qua Groq Cloud siêu tốc ~300 tps).
   - 🥉 **Tier 3 (Fallback 2 khi hết Token tiếp)**: `GPT-OSS 120B` (`openai/gpt-oss-120b` qua Groq Cloud).
   - 🛡️ **Tier 4 (Dự phòng an toàn mở rộng)**: `openai/gpt-oss-20b` (Groq), `openrouter/free` (OpenRouter), hoặc `gemini-3.6-flash`.
-  - **Nhiệm vụ**: Soi xét độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), lỗi hiệu năng ARM64 (Helio G85, 6GB RAM), deadlock SQLite WAL và phá vỡ chuẩn 20 modules / 110 lệnh / 1694 keys i18n.
+  - **Nhiệm vụ**: Soi xét độc lập, tìm kiếm lỗ hổng bảo mật (SSRF, XSS, IDOR, SQLi), lỗi hiệu năng ARM64 (Helio G85, 6GB RAM), deadlock SQLite WAL và phá vỡ chuẩn số modules / lệnh / keys i18n hiện hành (lấy từ `_project_baseline()` trong `scripts/dual_model_mcp.py`, không hardcode số trong prompt).
 - **Kênh Tác Nghiệp**: Hai model trao đổi thông qua **MCP Server `dual_model`** (chuẩn MCP 2.x Stdio) hoặc CLI trực tiếp `python scripts/dual_model_mcp.py` với **Pydantic v2 Type-Safety Schemas**.
 
 ### 🔍 1.1 Quy Chuẩn Tiếp Nhận Báo Lỗi (Evidence-Based Incident Triage)

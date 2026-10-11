@@ -72,7 +72,7 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
      âm thầm trả tiếng Việt trên server en/zh/es/pt/fr (lỗi thật đã gặp trong automod/verify).
 
 4. **Bước 4: Đồng bộ Dashboard Command Registry**:
-   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `commands_data.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **116 lệnh** thuộc **17 danh mục**).
+   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `commands_data.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **128 lệnh** thuộc **17 danh mục**; chạy `python scripts/command_registry_audit.py` để kiểm tra lệnh không bị lệch khỏi code).
 
 5. **Bước 5: Đồng bộ Tài liệu Kiến trúc**:
    - Cập nhật số lượng lệnh và chức năng mới trong `ARCHITECTURE.md`, `README.md`, `llms.txt`.

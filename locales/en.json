@@ -1819,5 +1819,18 @@
   "economy.job_09": "Boeing 787 captain ✈️",
   "economy.job_10": "Private investigator on big cases 🕵️",
   "economy.job_11": "Organic farmer with a bumper harvest 🌾",
-  "economy.job_12": "Space research astronaut 🚀"
+  "economy.job_12": "Space research astronaut 🚀",
+  "cmd.pause.desc": "Pause the current track",
+  "cmd.skip.desc": "Skip the current track and play the next one",
+  "cmd.nowplaying.desc": "Show the current track with a progress bar (alias /np)",
+  "cmd.queue.desc": "Show the music queue (now playing + next 10 tracks)",
+  "cmd.shuffle.desc": "Shuffle the order of tracks in the queue",
+  "cmd.volume.desc": "View or set playback volume (1-150%)",
+  "cmd.playlist_create.desc": "Create a new playlist on this server",
+  "cmd.playlist_add.desc": "Add a track to an existing playlist",
+  "cmd.playlist_play.desc": "Queue and play an entire playlist",
+  "cmd.playlist_show.desc": "List the tracks inside a playlist",
+  "cmd.playlist_remove.desc": "Delete a playlist you created",
+  "cmd.playlist_removesong.desc": "Remove a track from a playlist (pick it from the list)",
+  "cmd.playlist_loop.desc": "Cycle the queue repeat mode (Off -> track -> all)"
 }

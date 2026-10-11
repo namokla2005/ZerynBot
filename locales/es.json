@@ -1819,5 +1819,18 @@
   "economy.job_09": "Comandante de Boeing 787 ✈️",
   "economy.job_10": "Detective privado de grandes casos 🕵️",
   "economy.job_11": "Agricultor ecológico de cosecha abundante 🌾",
-  "economy.job_12": "Astronauta de investigación espacial 🚀"
+  "economy.job_12": "Astronauta de investigación espacial 🚀",
+  "cmd.pause.desc": "Pausar la canción actual",
+  "cmd.skip.desc": "Omitir la canción actual y reproducir la siguiente",
+  "cmd.nowplaying.desc": "Ver la canción actual con barra de progreso (alias /np)",
+  "cmd.queue.desc": "Ver la cola de música (actual + próximas 10)",
+  "cmd.shuffle.desc": "Mezclar aleatoriamente el orden de la cola",
+  "cmd.volume.desc": "Ver o ajustar el volumen de reproducción (1-150%)",
+  "cmd.playlist_create.desc": "Crear una nueva lista de reproducción en el servidor",
+  "cmd.playlist_add.desc": "Añadir una canción a una lista existente",
+  "cmd.playlist_play.desc": "Reproducir toda una lista de reproducción",
+  "cmd.playlist_show.desc": "Ver las canciones de una lista de reproducción",
+  "cmd.playlist_remove.desc": "Eliminar una lista de reproducción creada por ti",
+  "cmd.playlist_removesong.desc": "Quitar una canción de una lista (elígela en la lista)",
+  "cmd.playlist_loop.desc": "Cambiar el modo de repetición (Apagada → actual → toda la cola)"
 }

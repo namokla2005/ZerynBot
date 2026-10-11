@@ -122,6 +122,88 @@ def _sanitize_ai_response(text: str) -> str:
     return text.strip()
 
 
+# ─── Nới giới hạn 2000 ký tự của Discord bằng cách chia tin nhắn ───────────────
+DISCORD_MESSAGE_LIMIT = 2000
+# 5 tin ~ 10.000 ký tự: đủ cho câu trả lời dài nhất, vẫn chặn bot biến #ai-chat
+# thành "tường lửa" khi model nói quá nhiều.
+AI_MAX_CHAT_MESSAGES = 5
+# Chỗ dư cho ``` đóng và ```lang mở ở đầu tin kế tiếp (ngôn ngữ fence có thể dài).
+_FENCE_RESERVE = 32
+
+
+def _fence_state(text: str) -> tuple[bool, str]:
+    """Đoạn text đang mở một code fence chưa? Trả về (đang_mở, ngôn_ngữ)."""
+    lang = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("```"):
+            continue
+        if lang is None:
+            lang = ((stripped[3:].strip().split() or [""])[0])[:20]
+        else:
+            lang = None
+    return (lang is not None, lang or "")
+
+
+def _text_units(text: str, budget: int) -> list[str]:
+    """Tách text thành các khối <= budget: ưu tiên ngắt ở đoạn trống, rồi xuống dòng.
+
+    Mỗi khối giữ nguyên ký tự ngắt của nó nên nối lại vẫn ra đúng bản gốc; chỉ khi
+    một dòng đơn dài hơn budget mới phải cắt thô.
+    """
+    blocks: list[str] = []
+    for para_idx, para in enumerate(re.split(r"\n\s*\n", text)):
+        prefix = "\n\n" if para_idx else ""
+        if len(prefix) + len(para) <= budget:
+            blocks.append(prefix + para)
+            continue
+        chunk = prefix
+        for line in para.split("\n"):
+            piece = line + "\n"
+            if len(piece) > budget:
+                if chunk.strip():
+                    blocks.append(chunk)
+                chunk = ""
+                blocks.extend(line[k:k + budget] for k in range(0, len(line), budget))
+                continue
+            if len(chunk) + len(piece) > budget and chunk.strip():
+                blocks.append(chunk)
+                chunk = ""
+            chunk += piece
+        if chunk.strip():
+            blocks.append(chunk)
+    return [b for b in blocks if b]
+
+
+def _split_for_discord(text: str, limit: int = DISCORD_MESSAGE_LIMIT) -> list[str]:
+    """Chia văn bản markdown thành các tin nhắn <= `limit`, không xé đôi code fence.
+
+    Discord chỉ cho 2000 ký tự/tin nhắn. Cắt cứng `text[:1990]` sẽ bỏ luôn phần
+    cuối câu trả lời, còn cắt bừa thì fence ``` mở bị bỏ lửng làm cả tin sau hiển
+    thị như code. Vì vậy mỗi đoạn cắt được đóng fence và mở lại ở tin kế tiếp.
+    """
+    if len(text) <= limit:
+        return [text]
+
+    budget = limit - _FENCE_RESERVE
+    chunks: list[str] = []
+    cur = ""
+    for unit in _text_units(text, budget):
+        if cur and len(cur) + len(unit) > limit:
+            opened, lang = _fence_state(cur)
+            if opened:
+                cur = cur.rstrip("\n") + "\n```"
+            chunks.append(cur)
+            cur = f"```{lang}\n" if opened else ""
+        cur += unit
+    if cur.strip():
+        chunks.append(cur)
+
+    if chunks and _fence_state(chunks[-1])[0]:
+        chunks[-1] = chunks[-1].rstrip("\n") + "\n```"
+    return chunks or [text[:limit]]
+
+
 PERSONALITY_PROMPTS = {
     "friendly": "Bạn là Zeryn, trợ lý Discord bot thông minh, thân thiện, dễ thương và hữu ích.",
     "expert": "Bạn là Zeryn, chuyên gia cố vấn kỹ thuật và học tập, trả lời súc tích, chính xác và chuyên nghiệp.",
@@ -674,9 +756,22 @@ class AI(commands.Cog):
             response = _sanitize_ai_response(response)
             if not response:
                 return
-            if len(response) > 2000:
-                response = response[:1990] + "..."
-            await message.reply(response)
+            s = await async_get_guild_settings(str(message.guild.id))
+            chunks = _split_for_discord(response)
+            if len(chunks) > AI_MAX_CHAT_MESSAGES:
+                tail = tr(s, "ai.noi_dung_qua_dai_da")
+                last = chunks[AI_MAX_CHAT_MESSAGES - 1]
+                if len(last) + len(tail) > DISCORD_MESSAGE_LIMIT:
+                    last = last[: DISCORD_MESSAGE_LIMIT - len(tail) - 8]
+                    if _fence_state(last)[0]:
+                        last = last.rstrip("\n") + "\n```"
+                chunks = chunks[: AI_MAX_CHAT_MESSAGES - 1] + [last + tail]
+            # Tin nối tiếp không được ping lại: nội dung AI sinh ra có thể chứa
+            # @everyone, chia nhiều tin mà cho phép mention là spam cả server.
+            no_ping = discord.AllowedMentions.none()
+            await message.reply(chunks[0])
+            for extra in chunks[1:]:
+                await message.channel.send(extra, allowed_mentions=no_ping)
 
 
 async def setup(bot: commands.Bot):

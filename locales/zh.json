@@ -1819,5 +1819,18 @@
   "economy.job_09": "波音 787 机长 ✈️",
   "economy.job_10": "侦办大案的私家侦探 🕵️",
   "economy.job_11": "有机农业丰收农民 🌾",
-  "economy.job_12": "航天研究员宇航员 🚀"
+  "economy.job_12": "航天研究员宇航员 🚀",
+  "cmd.pause.desc": "暂停正在播放的歌曲",
+  "cmd.skip.desc": "跳过当前歌曲并播放下一首",
+  "cmd.nowplaying.desc": "查看正在播放的歌曲及进度条（别名 /np）",
+  "cmd.queue.desc": "查看播放队列（当前 + 接下来 10 首）",
+  "cmd.shuffle.desc": "随机打乱播放队列的顺序",
+  "cmd.volume.desc": "查看或设置播放音量（1-150%）",
+  "cmd.playlist_create.desc": "在服务器上创建新的歌单",
+  "cmd.playlist_add.desc": "向已有歌单添加歌曲",
+  "cmd.playlist_play.desc": "播放整个歌单并加入队列",
+  "cmd.playlist_show.desc": "查看歌单内的歌曲列表",
+  "cmd.playlist_remove.desc": "删除您自己创建的歌单",
+  "cmd.playlist_removesong.desc": "从歌单中移除一首歌曲（从列表中选择）",
+  "cmd.playlist_loop.desc": "切换队列循环模式（关闭 → 单曲 → 全部）"
 }

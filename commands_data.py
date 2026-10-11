@@ -577,6 +577,52 @@ _COMMANDS_DATA = [
                 "preview": {"type": "text", "text": "▶️ Đã tiếp tục phát!"}
             },
             {
+                "name": "pause", "emoji": "⏸️",
+                "desc": "Tạm dừng bài hát đang phát",
+                "usage": "/pause", "example": "/pause", "args": [],
+                "preview": {"type": "text", "text": "⏸️ Đã tạm dừng!"}
+            },
+            {
+                "name": "skip", "emoji": "⏭️",
+                "desc": "Bỏ qua bài hát hiện tại, chuyển sang bài kế tiếp",
+                "usage": "/skip", "example": "/skip", "args": [],
+                "preview": {"type": "text", "text": "⏭️ Đã bỏ qua bài hát!"}
+            },
+            {
+                "name": "nowplaying", "emoji": "🎧",
+                "desc": "Xem bài hát đang phát kèm thanh tiến trình (có bí danh /np)",
+                "usage": "/nowplaying", "example": "/nowplaying", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🎧 Đang phát: Lạc Trôi — Sơn Tùng M-TP",
+                    "desc": "`[01:12/03:32]` ▓▓▓▓▓▓░░░░░░░<br>🔁 Lặp: **Tắt** • 🔊 Âm lượng: **100%** • 📃 Hàng chờ: **12 bài**"
+                }
+            },
+            {
+                "name": "queue", "emoji": "📃",
+                "desc": "Xem hàng chờ nhạc (bài đang phát + 10 bài kế tiếp)",
+                "usage": "/queue", "example": "/queue", "args": [],
+                "preview": {
+                    "type": "embed", "color": "#5865f2", "title": "🎶 Hàng Chờ Phát Nhạc",
+                    "desc": "🎶 **Đang phát:** [Bài hát A](https://youtu.be/abc) `3:45`<br>"
+                            "📋 **Danh sách tiếp theo:**<br>` 1.` [Bài hát B](https://youtu.be/def) `4:02`<br>"
+                            "` 2.` [Bài hát C](https://youtu.be/ghi) `3:10`"
+                }
+            },
+            {
+                "name": "shuffle", "emoji": "🔀",
+                "desc": "Xáo trộn ngẫu nhiên thứ tự bài hát trong hàng chờ",
+                "usage": "/shuffle", "example": "/shuffle", "args": [],
+                "preview": {"type": "text", "text": "🔀 Đã trộn ngẫu nhiên **12** bài hát trong hàng chờ!"}
+            },
+            {
+                "name": "volume", "emoji": "🔊",
+                "desc": "Xem hoặc đặt âm lượng phát nhạc (1-150%)",
+                "usage": "/volume [số]", "example": "/volume 80",
+                "args": [{"name": "level", "type": "Number", "required": False,
+                          "desc": "Mức âm lượng (1 - 150)"}],
+                "preview": {"type": "text", "text": "🔊 Đã điều chỉnh âm lượng thành **80%**!"}
+            },
+            {
                 "name": "loop", "emoji": "🔂",
                 "desc": "Bật/tắt chế độ lặp lại bài hiện tại",
                 "usage": "/loop", "example": "/loop", "args": [],
@@ -613,21 +659,65 @@ _COMMANDS_DATA = [
                 "preview": {"type": "text", "text": "👋 Đã rời kênh voice!"}
             },
             {
-                "name": "playlist", "emoji": "📂",
-                "desc": "Quản lý và phát danh sách nhạc (playlist)",
-                "usage": "/playlist [name/add/play/show/remove/removesong]", "example": "/playlist play Nhạc Trẻ",
+                "name": "playlist create", "emoji": "🆕",
+                "desc": "Tạo một playlist mới trong server",
+                "usage": "/playlist create [tên]", "example": "/playlist create Nhạc Trẻ",
+                "args": [{"name": "name", "type": "Text", "required": True,
+                          "desc": "Tên playlist"}],
+                "preview": {"type": "text", "text": "✅ Đã tạo playlist mới: **Nhạc Trẻ**!"}
+            },
+            {
+                "name": "playlist add", "emoji": "➕",
+                "desc": "Thêm một bài hát vào playlist đã có",
+                "usage": "/playlist add [link/tên bài] [tên]",
+                "example": "/playlist add Sơn Tùng Lạc Trôi Nhạc Trẻ",
                 "args": [
-                    {"name": "action", "type": "Text", "required": True,
-                     "desc": "Hành động (name, add, play, show, remove, removesong)"},
-                    {"name": "playlist_name", "type": "Text", "required": True,
-                     "desc": "Tên playlist"},
-                    {"name": "query", "type": "Text", "required": False,
-                     "desc": "Link nhạc hoặc tên bài hát (dành cho add)"}
+                    {"name": "query", "type": "Text", "required": True,
+                     "desc": "Link nhạc hoặc tên bài hát (dành cho add)"},
+                    {"name": "name", "type": "Text", "required": True, "desc": "Tên playlist"}
                 ],
+                "preview": {"type": "text", "text": "✅ Đã thêm **Lạc Trôi — Sơn Tùng M-TP** vào playlist **Nhạc Trẻ**!"}
+            },
+            {
+                "name": "playlist play", "emoji": "▶️",
+                "desc": "Phát toàn bộ playlist, xếp vào hàng chờ",
+                "usage": "/playlist play [tên]", "example": "/playlist play Nhạc Trẻ",
+                "args": [{"name": "name", "type": "Text", "required": True, "desc": "Tên playlist"}],
+                "preview": {"type": "text", "text": "🎵 Đã thêm **12** bài hát từ playlist **Nhạc Trẻ** vào hàng chờ!"}
+            },
+            {
+                "name": "playlist show", "emoji": "📋",
+                "desc": "Xem danh sách bài hát bên trong một playlist",
+                "usage": "/playlist show [tên]", "example": "/playlist show Nhạc Trẻ",
+                "args": [{"name": "name", "type": "Text", "required": True, "desc": "Tên playlist"}],
                 "preview": {
                     "type": "embed", "color": "#5865f2", "title": "📂 Playlist: Nhạc Trẻ",
                     "desc": "1. **Bài hát A** — `3:45`<br>2. **Bài hát B** — `4:02`<br>... và 10 bài hát khác."
                 }
+            },
+            {
+                "name": "playlist remove", "emoji": "🗑️",
+                "desc": "Xóa hẳn một playlist do bạn tạo",
+                "usage": "/playlist remove [tên]", "example": "/playlist remove Nhạc Trẻ",
+                "args": [{"name": "name", "type": "Text", "required": True, "desc": "Tên playlist"}],
+                "preview": {"type": "text", "text": "🗑️ Đã xóa playlist **Nhạc Trẻ**!"}
+            },
+            {
+                "name": "playlist removesong", "emoji": "✖️",
+                "desc": "Xóa một bài hát khỏi playlist (chọn bài từ danh sách)",
+                "usage": "/playlist removesong [tên]", "example": "/playlist removesong Nhạc Trẻ",
+                "args": [{"name": "name", "type": "Text", "required": True, "desc": "Tên playlist"}],
+                "preview": {
+                    "type": "select",
+                    "desc": "🗑️ Xóa Playlist — chọn bài hát cần gỡ khỏi **Nhạc Trẻ**:",
+                    "options": ["Bài hát A — 3:45", "Bài hát B — 4:02", "Bài hát C — 3:10"]
+                }
+            },
+            {
+                "name": "playlist loop", "emoji": "🔁",
+                "desc": "Đổi chế độ lặp lại hàng chờ (Tắt → bài hiện tại → toàn bộ)",
+                "usage": "/playlist loop", "example": "/playlist loop", "args": [],
+                "preview": {"type": "text", "text": "🔁 Đang lặp lại toàn bộ hàng chờ!"}
             },
             {
                 "name": "seek", "emoji": "⏩",

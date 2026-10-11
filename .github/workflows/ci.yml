@@ -61,7 +61,7 @@ jobs:
         continue-on-error: true
         run: python -m ruff check . --statistics
 
-      - name: Đồng bộ i18n (1694 key + placeholder + ký tự điều khiển)
+      - name: Đồng bộ i18n (6 locale + placeholder + ký tự điều khiển)
         # str.format thoi im lang bo kwarg thua, nen mot key dich thieu {amount} khong
         # bao gio gay loi test — chi la tin nhan mat con so tien khi ngu dung dung.
         env:

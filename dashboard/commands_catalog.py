@@ -393,6 +393,14 @@ ARG_TRANS = {
         "pt": "Ação (name, add, play, show, remove, removesong)",
         "fr": "Action (name, add, play, show, remove, removesong)"
     },
+    "Mức âm lượng (1 - 150)": {
+        "vi": "Mức âm lượng (1 - 150)",
+        "en": "Volume level (1 - 150)",
+        "zh": "音量（1 - 150）",
+        "es": "Nivel de volumen (1 - 150)",
+        "pt": "Nível de volume (1 - 150)",
+        "fr": "Niveau de volume (1 - 150)"
+    },
     "Tên playlist": {
         "vi": "Tên playlist",
         "en": "Playlist name",

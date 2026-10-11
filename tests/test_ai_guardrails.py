@@ -8,6 +8,7 @@ Ba bất biến cần khoá:
      vô hiệu hóa không được gọi nữa.
 """
 import asyncio
+import re
 import threading
 import time
 
@@ -259,3 +260,161 @@ def test_every_ai_entry_point_consumes_budget():
         assert "_consume_ai_budget" in src, (
             f"AI.{name} gọi provider mà không trích ngân sách trước"
         )
+
+
+# ─── 4. Câu trả lời dài: chia tin nhắn, không cắt mất nội dung ────────────────
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", "", s)
+
+
+def test_split_keeps_short_text_untouched():
+    from cogs.ai import _split_for_discord
+
+    text = "Câu trả lời ngắn gọn."
+    assert _split_for_discord(text) == [text]
+
+
+def test_split_never_exceeds_discord_limit_and_loses_nothing():
+    from cogs.ai import DISCORD_MESSAGE_LIMIT, _split_for_discord
+
+    text = "\n\n".join(f"- Mục {i}: " + "nội dung dài dòng " * 20 for i in range(40))
+    chunks = _split_for_discord(text)
+    assert len(chunks) > 1, "text 6k ký tự mà vẫn ra 1 tin => chưa chia"
+    assert all(len(c) <= DISCORD_MESSAGE_LIMIT for c in chunks), [len(c) for c in chunks]
+    assert _norm("".join(chunks)) == _norm(text), "có nội dung bị rơi khi chia tin"
+
+
+def test_split_does_not_leave_a_code_fence_open():
+    from cogs.ai import DISCORD_MESSAGE_LIMIT, _fence_state, _split_for_discord
+
+    text = "mở đầu\n\n```python\n" + "\n".join(f"print({i})" for i in range(900)) + "\n```\n\nkết thúc"
+    chunks = _split_for_discord(text)
+    assert len(chunks) > 1
+    for c in chunks:
+        assert len(c) <= DISCORD_MESSAGE_LIMIT
+        assert _fence_state(c)[0] is False, "một tin còn fence mở => tin đó render lỗi"
+    assert "kết thúc" in chunks[-1], "phần sau code block bị cắt mất"
+
+
+def test_split_hard_cuts_one_giant_line():
+    from cogs.ai import DISCORD_MESSAGE_LIMIT, _split_for_discord
+
+    text = "x" * 7000
+    chunks = _split_for_discord(text)
+    assert all(len(c) <= DISCORD_MESSAGE_LIMIT for c in chunks)
+    assert "".join(chunks) == text
+
+
+class _Typing:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class _FakeChannel:
+    id = 42424242
+
+    def __init__(self):
+        self.sent = []
+
+    def typing(self):
+        return _Typing()
+
+    async def send(self, content, **kwargs):
+        self.sent.append((content, kwargs))
+
+
+class _FakeUser:
+    def __init__(self, uid: int):
+        self.id = uid
+        self.bot = False
+        self.display_name = "Nam"
+
+
+class _FakeGuild:
+    id = 1010
+
+
+class _FakeMessage:
+    def __init__(self, content: str, channel):
+        self.content = content
+        self.author = _FakeUser(7)
+        self.channel = channel
+        self.guild = _FakeGuild()
+        self.attachments = []
+        self.replies = []
+
+    async def reply(self, content, **kwargs):
+        self.replies.append((content, kwargs))
+
+
+async def _run_chat_listener(monkeypatch, answer: str):
+    import cogs.ai as ai_mod
+
+    async def fake_api(*a, **kw):
+        return answer
+
+    async def fake_enabled(*a, **kw):
+        return True
+
+    async def fake_ai_settings(*a, **kw):
+        return {"enabled": 1, "ai_channel_id": str(_FakeChannel.id), "rate_limit": 0}
+
+    async def fake_guild_settings(*a, **kw):
+        return {"language": "vi"}
+
+    async def fake_global(*a, **kw):
+        return "test/model"
+
+    monkeypatch.setattr(ai_mod, "call_ai_api", fake_api)
+    monkeypatch.setattr(ai_mod, "async_is_module_enabled", fake_enabled)
+    monkeypatch.setattr(ai_mod, "async_get_ai_settings", fake_ai_settings)
+    monkeypatch.setattr(ai_mod, "async_get_guild_settings", fake_guild_settings)
+    monkeypatch.setattr(ai_mod, "async_get_global_setting", fake_global)
+
+    channel = _FakeChannel()
+    message = _FakeMessage("các lệnh mà bot biết là gì", channel)
+    await ai_mod.AI(bot=None).on_message(message)
+    return [c for c, _ in message.replies] + [c for c, _ in channel.sent], channel
+
+
+async def test_chat_reply_over_2000_chars_is_delivered_in_full(temp_db, monkeypatch):
+    from cogs.ai import DISCORD_MESSAGE_LIMIT
+
+    answer = "\n\n".join(f"**{i}. Tính năng** — " + "mô tả chi tiết " * 15 for i in range(25))
+    assert 3000 < len(answer) < 9000, f"ca này cần nằm trong trần 5 tin, độ dài={len(answer)}"
+
+    delivered, _ = await _run_chat_listener(monkeypatch, answer)
+
+    assert len(delivered) > 1, "trả lời >2000 ký tự mà bot chỉ gửi 1 tin => vẫn bị cắt"
+    assert all(len(m) <= DISCORD_MESSAGE_LIMIT for m in delivered)
+    assert _norm("".join(delivered)) == _norm(answer), "nội dung user nhận được không đủ"
+
+
+async def test_chat_reply_is_capped_and_says_so(temp_db, monkeypatch):
+    from cogs.ai import AI_MAX_CHAT_MESSAGES, DISCORD_MESSAGE_LIMIT
+
+    delivered, channel = await _run_chat_listener(monkeypatch, ("đoạn văn rất dài " * 600))
+
+    assert len(delivered) == AI_MAX_CHAT_MESSAGES, "phải chặn ở trần tin, không spam vô hạn"
+    assert all(len(m) <= DISCORD_MESSAGE_LIMIT for m in delivered)
+    assert "rút gọn" in delivered[-1], "cắt bớt mà không báo cho user biết"
+    # Tin nối tiếp không được ping lại (@everyone trong nội dung AI = spam cả server)
+    for _, kwargs in channel.sent:
+        allowed = kwargs.get("allowed_mentions")
+        assert allowed is not None and allowed.everyone is False
+
+
+async def test_chat_cap_does_not_leave_a_dangling_fence(temp_db, monkeypatch):
+    from cogs.ai import AI_MAX_CHAT_MESSAGES, DISCORD_MESSAGE_LIMIT, _fence_state
+
+    answer = "```python\n" + "\n".join(f"print({i})" for i in range(2000)) + "\n```\n\nphần đuôi"
+    delivered, _ = await _run_chat_listener(monkeypatch, answer)
+
+    assert len(delivered) == AI_MAX_CHAT_MESSAGES
+    for m in delivered:
+        assert len(m) <= DISCORD_MESSAGE_LIMIT, len(m)
+        assert _fence_state(m)[0] is False, "tin còn ``` mở => markdown bị vỡ"

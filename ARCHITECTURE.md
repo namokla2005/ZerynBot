@@ -45,7 +45,7 @@
 - **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`, plus `-reconnect_on_network_error`/`-reconnect_on_http_error` only when the probed FFmpeg is ≥ 5.0), subprocess CPU priority niceness (+10) to prevent async event loop starvation, queue length clamping (`MAX_QUEUE_SIZE = 100`), thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, **audio-frame stall watchdog** (`source.read()` is instrumented so a wedged FFmpeg is cut and resumed from the *real* audible position after `MUSIC_STALL_TIMEOUT`=30s of zero frames), dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump` — all through identity-preserving `MusicPlayer` helpers). The Now-Playing card view is registered with `bot.add_view()` and every button carries a stable `custom_id`, so cards from before a restart still dispatch; a `player=None` shell reloads the live player and the server language lazily in `_check()`.
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1821 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1834 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
 
 ---
 
@@ -134,12 +134,12 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   └── templates/              # Jinja2 HTML templates
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1821 keys
-│   ├── en.json                 # English — 1821 keys
-│   ├── zh.json                 # Chinese — 1821 keys
-│   ├── es.json                 # Spanish — 1821 keys
-│   ├── pt.json                 # Portuguese — 1821 keys
-│   └── fr.json                 # French — 1821 keys
+│   ├── vi.json                 # Vietnamese (Default) — 1834 keys
+│   ├── en.json                 # English — 1834 keys
+│   ├── zh.json                 # Chinese — 1834 keys
+│   ├── es.json                 # Spanish — 1834 keys
+│   ├── pt.json                 # Portuguese — 1834 keys
+│   └── fr.json                 # French — 1834 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -147,6 +147,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── termux_mcp.py           # MCP Server (Model Context Protocol) for remote Termux SSH operations
 │   ├── i18n_audit.py           # AST inventory of Vietnamese literals by role (DISCORD/META/CATALOG/INTERNAL)
 │   ├── i18n_migrate.py         # fetch → plan → apply de-hardcode pipeline (writes code + all 6 locales)
+│   ├── command_registry_audit.py # AST diff: every command declared in a cog vs `_COMMANDS_DATA`
 │   └── watchdog.sh             # Background process health watchdog script
 │
 └── data/                       # Persistent Data Storage (git-ignored)
@@ -311,7 +312,7 @@ The web dashboard is hosted via Flask in `dashboard/app.py` (facade), `dashboard
 - **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
-- **Central Command Catalog (`_COMMANDS_DATA`):** All **116 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page.
+- **Central Command Catalog (`_COMMANDS_DATA`):** All **128 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page. The same registry is the **only** source the AI Chat is allowed to know about itself (`ai_knowledge.get_zerynbot_knowledge()` injects it into every system prompt), so a command missing here is invisible to `/help`, `/docs` and the assistant alike — `python scripts/command_registry_audit.py` (and `tests/test_command_registry_complete.py`) keeps it equal to what the cogs actually declare.
 - **Design System V9.2 (Pastel Obsidian Glow):** The entire Web Dashboard (`/dashboard`, `/home`, `/admin`, `/login`, `/tos`, `/privacy`, `/commands`) is synchronized with the Nekotina-inspired Landing Page aesthetic:
   - **Color Tokens:** Obsidian Dark Background (`#120e24` / `#131217`), Glassmorphism Surface (`rgba(25, 24, 34, 0.85)`), Primary Sakura Pink (`#f4a7bb`), Accent Purple (`#9d8df1`), Blurple (`#5865f2`), Emerald (`#57f287`), Amber Gold (`#fee75c`), Crimson (`#ed4245`).
   - **Typography:** Modern variable font stack powered by Google Fonts `Plus Jakarta Sans` and `Inter`.
@@ -449,7 +450,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1821 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **1834 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
    - Two frozen guards in `tests/test_i18n_no_hardcoded.py`: (a) every `tr()`/`t()` literal referenced in `bot/`+`dashboard/` must exist in **all 6** dictionaries — a missing key prints the raw key name on Discord, which actually happened with `common.not_your_interaction`; (b) the per-file count of Discord-facing Vietnamese literals may only **decrease** (`tests/i18n_budget.json`, currently 0), refreshed with `python scripts/i18n_audit.py --budget`.
    - Locale files are hand-grouped by module: **never** rewrite them with `json.dumps(..., sort_keys=True)` (that produces a ~1800-line diff that hides the real change); append at the end and keep CRLF.
 2. **Async vs. Sync Separation:**
@@ -595,6 +596,14 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `#ai-chat`, `/ask` and `/summarize`. Before, only the channel listener honored the
     guild's `rate_limit`, so a single member could loop `/ask` and burn the owner's
     Groq/Gemini/OpenRouter quota into fleet-wide 429s.
+  - **Long answers are split, not truncated**: the `#ai-chat` listener used to send
+    `response[:1990] + "..."`, so every answer past Discord's 2000-char message limit lost
+    its tail mid-sentence (asking "list all your commands" always came back cut).
+    `_split_for_discord()` now packs a reply into <=2000-char messages while keeping code
+    fences balanced (a chunk that ends inside a fence closes it and the next reopens it),
+    up to `AI_MAX_CHAT_MESSAGES = 5` (~10 000 chars). Past that cap the last message says
+    so via `ai.noi_dung_qua_dai_da`, and continuation messages are sent with
+    `AllowedMentions.none()` so AI-generated `@everyone` cannot ping the server 5 times.
   - **Vision input hard-capped**: image downloads reject >5 MB (checked against
     `Content-Length` *and* a bounded `read(n)`, so a lying header cannot bypass),
     require an `image/*` content type, and no longer fall through to a text-only answer
@@ -862,6 +871,29 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     "proceeding with bot startup". It is now `logger.error` explaining that real
     functional failures exist. Deliberately still non-fatal — the device is headless at
     home, so refusing to boot over a transient failure would require physical access.
+- **v3.3 post-phase — what the AI actually knows about the bot's own commands**:
+  - **`#ai-chat` replies are split, not cut**: the listener sent `response[:1990] + "..."`,
+    so any answer past Discord's hard 2000-char message limit lost its tail mid-sentence
+    ("list your commands" always came back truncated). `_split_for_discord()` now packs a
+    reply into ≤2000-char messages with balanced code fences (a chunk ending inside a fence
+    closes it, the next reopens it), capped at `AI_MAX_CHAT_MESSAGES = 5`; past the cap the
+    last message says so via `ai.noi_dung_qua_dai_da` instead of going silent, and
+    continuation messages use `AllowedMentions.none()` so AI text containing `@everyone`
+    cannot ping the server five times.
+  - **Registry completed 116 → 128 commands**: `/pause`, `/skip`, `/queue`, `/volume`,
+    `/nowplaying`, `/shuffle` and the seven `/playlist <sub>` commands existed in the code
+    but were absent from `_COMMANDS_DATA`, while `ai_knowledge.py` instructed the model to
+    list them anyway — so the AI had to invent their arguments and `/help pause` answered
+    "command not found". The fake single `playlist` entry was replaced by its real
+    subcommands; usage/arg strings deliberately reuse tokens already present in
+    `commands_catalog.PARAM_BRACKETS` / `ARG_TRANS` so the 6-language `/docs` page needs no
+    new translation tables, and 13 `cmd.*.desc` keys were added to every locale (1821 → 1834).
+  - **Drift is now impossible to hide**: `scripts/command_registry_audit.py` AST-walks every
+    cog (leaf commands, `@<group>.command` subcommands and `app_commands.Group` variables)
+    and diffs against the registry; `tests/test_command_registry_complete.py` blocks on
+    missing entries, ghost entries, unresolvable declarations, empty fields, and any
+    `/command` named in the AI's own instruction block that is not in the catalog.
+    `ai_knowledge.py` no longer hardcodes "20 modules / 110 lệnh" — both numbers are derived.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

@@ -1819,5 +1819,18 @@
   "economy.job_09": "Commandant de Boeing 787 ✈️",
   "economy.job_10": "Détective privé de grandes affaires 🕵️",
   "economy.job_11": "Agriculteur bio à la moisson abondante 🌾",
-  "economy.job_12": "Astronaute de recherche spatiale 🚀"
+  "economy.job_12": "Astronaute de recherche spatiale 🚀",
+  "cmd.pause.desc": "Mettre en pause le titre en cours",
+  "cmd.skip.desc": "Passer le titre en cours et jouer le suivant",
+  "cmd.nowplaying.desc": "Voir le titre en cours avec barre de progression (alias /np)",
+  "cmd.queue.desc": "Voir la file musicale (en cours + 10 suivantes)",
+  "cmd.shuffle.desc": "Mélanger aléatoirement l'ordre de la file",
+  "cmd.volume.desc": "Afficher ou régler le volume de lecture (1-150%)",
+  "cmd.playlist_create.desc": "Créer une nouvelle playlist sur le serveur",
+  "cmd.playlist_add.desc": "Ajouter un titre à une playlist existante",
+  "cmd.playlist_play.desc": "Jouer toute une playlist dans la file",
+  "cmd.playlist_show.desc": "Afficher les titres d'une playlist",
+  "cmd.playlist_remove.desc": "Supprimer une playlist que vous avez créée",
+  "cmd.playlist_removesong.desc": "Retirer un titre d'une playlist (à choisir dans la liste)",
+  "cmd.playlist_loop.desc": "Changer le mode de répétition (Désactivé → titre → toute la file)"
 }

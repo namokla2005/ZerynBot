@@ -47,6 +47,37 @@ server = MCPServer(
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _project_baseline() -> str:
+    """Chuẩn hiện hành của dự án, lấy trực tiếp từ code thay vì hardcode trong prompt.
+
+    Ba con số này từng bị đóng băng ở "20 modules / 110 lệnh / 1694 keys" trong khi
+    thực tế đã 128 lệnh / 1834 keys — reviewer được đọc một cái chuẩn không còn tồn
+    tại, nên nó báo "phá vỡ kiến trúc" cho những commit đúng và im lặng với commit sai.
+    """
+    modules = commands = keys = 0
+    try:
+        if BASE_DIR not in sys.path:
+            sys.path.insert(0, BASE_DIR)
+        from database import DEFAULT_MODULES
+        modules = len(DEFAULT_MODULES)
+    except Exception:
+        pass
+    try:
+        scripts_dir = os.path.join(BASE_DIR, "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        import command_registry_audit
+        commands = len(command_registry_audit.registry_commands())
+    except Exception:
+        pass
+    try:
+        with open(os.path.join(BASE_DIR, "locales", "vi.json"), encoding="utf-8") as f:
+            keys = len(json.load(f))
+    except Exception:
+        pass
+    return f"{modules} modules / {commands} lệnh / {keys} keys i18n"
 DB_PATH = os.path.join(BASE_DIR, "data", "bot.db")
 
 try:
@@ -407,7 +438,8 @@ def _invoke_ai(prompt: str, role: str = "critic", model_pref: str = "auto") -> s
             "Bạn là Senior Security Auditor & Code Reviewer khó tính cho ZerynBot V2. "
             "Dự án vận hành trên Android Termux (ARM64, CPU Helio G85, RAM 6GB, SQLite WAL 15s timeout). "
             "Nhiệm vụ của bạn là soi xét tỉ mỉ mã nguồn, chỉ ra các lỗ hổng bảo mật (SSRF, XSS, IDOR, SQL injection/deadlock), "
-            "vấn đề quá tải CPU/RAM trên Termux, lỗi async/sync, race conditions, và phá vỡ chuẩn 20 modules / 110 lệnh / 1694 keys i18n. "
+            "vấn đề quá tải CPU/RAM trên Termux, lỗi async/sync, race conditions, và phá vỡ chuẩn "
+            f"{_project_baseline()}. "
             "Trả lời súc tích bằng tiếng Việt, đi thẳng vào các điểm yếu cốt lõi."
         ),
         "architect": (
@@ -573,7 +605,7 @@ def execute_review_code_file(file_path: str) -> str:
         f"Yêu cầu:\n"
         f"1. Soi xét các lỗ hổng bảo mật (SSRF, Stored XSS, IDOR, SQL injection, SQLite deadlock).\n"
         f"2. Đánh giá rủi ro phần cứng trên Termux (rò rỉ RAM, quá tải CPU, I/O blocking, cờ ffmpeg).\n"
-        f"3. Kiểm tra tuân thủ kiến trúc ZerynBot V2 (20 modules, 110 commands, 1694 keys i18n, async_ vs sync_ db helpers).\n"
+        f"3. Kiểm tra tuân thủ kiến trúc ZerynBot V2 ({_project_baseline()}, async_ vs sync_ db helpers).\n"
         f"4. Chỉ liệt kê tối đa 3-4 vấn đề trọng tâm nhất, mô tả ngắn gọn súc tích dưới 25 từ mỗi vấn đề để JSON không bị cắt cụt.\n"
         f"BẮT BUỘC trả về duy nhất một khối JSON (không bọc thêm lời mở đầu hay kết luận) có cấu trúc:\n"
         f"{{\n"
@@ -744,7 +776,7 @@ def execute_pre_commit_check() -> str:
     }
     local_notes = []
     if any("locales/" in f for f in changed_files):
-        local_notes.append("• Có thay đổi file từ điển i18n -> Cần chạy validate_i18n.py xác nhận chuẩn 1694 keys.")
+        local_notes.append(f"• Có thay đổi file từ điển i18n -> Cần chạy validate_i18n.py xác nhận cả 6 locale đồng bộ (hiện hành: {_project_baseline()}).")
     if any("bot/cogs/" in f for f in changed_files):
         local_notes.append("• Có thay đổi cogs -> Cần đảm bảo async_ database helpers và module guards.")
 
