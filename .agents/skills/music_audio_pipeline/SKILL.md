@@ -86,6 +86,9 @@ vc.play(source, after=lambda e: self.bot.loop.call_soon_threadsafe(self.next_eve
 ### 4.2 Giới Hạn Tải Đồng Thời (`MAX_PLAYERS = 6` trong `bot/music/config.py`)
 Để tránh tràn RAM trên thiết bị 4GB RAM, hệ thống giới hạn tối đa 6 máy chủ phát nhạc cùng lúc. Nếu server thứ 7 yêu cầu, bot sẽ thông báo lịch sự máy chủ bận.
 
+### 4.2b Thẻ Now Playing phải sống sót qua restart
+`MusicControlView` dùng `timeout=None` nên phải được `bot.add_view()` trong `setup()` của cog nhạc, với `custom_id` cố định cho cả 5 nút. View shell không có `player`; `_check()` gọi `self.cog._get(interaction.guild.id)` để nạp lại player và `async_get_guild_settings` để đúng ngôn ngữ, rồi trả `music.not_in_voice` khi không còn player. Test hồi quy: `test_persistent_music_view_survives_restart`.
+
 ### 4.3 Tự Động Rời Kênh Khi Không Hoạt Động (3 Phút Auto-Disconnect)
 Khi danh sách bài hát hết hoặc tất cả thành viên rời khỏi phòng Voice, khởi động bộ đếm 180s. Nếu không có bài mới sau 180s, bot tự động disconnect để trả lại tài nguyên. Nếu chính bot bị ngắt kết nối (kick/disconnect khỏi voice), `on_voice_state_update` sẽ lập tức cleanup player ngay lập tức.
 

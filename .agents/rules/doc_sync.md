@@ -13,6 +13,14 @@ Mỗi khi thực hiện thay đổi mã nguồn, AI **BẮT BUỘC** đồng b�
 
 ---
 
+## 1.5 Khi Thêm / Đổi Chuỗi Hiển Thị Trên Discord
+- CẤM hardcode chuỗi Việt trong đường ra Discord (`ctx.send`, `Embed`, `Button`, `Select`, `Modal`).
+  Kiểm kê: `python scripts/i18n_audit.py` → role `DISCORD` phải **0** (ngân sách: `tests/i18n_budget.json`).
+  Migrate hàng loạt: `python scripts/i18n_migrate.py fetch|plan|apply <file> --translations <json>`.
+- Đối số đầu của `tr()` phải là **guild settings** (mang key `language`); dict cấu hình module không có.
+- Thêm key vào **đủ 6 file** — test `test_every_referenced_key_exists_in_all_six_locales` sẽ đỏ nếu thiếu,
+  vì thiếu key là người dùng thấy nguyên `economy.item_ca_ro` trên Discord.
+
 ## 2. Khi Thêm / Xóa / Thay Đổi i18n Keys
 - Cập nhật đủ **6 file từ điển** trong `locales/` (`vi`, `en`, `zh`, `es`, `pt`, `fr`).
 - Chạy validator:

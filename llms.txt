@@ -63,4 +63,7 @@
 - `dashboard/api.py`: AJAX JSON endpoints for real-time dashboard updates.
 - `commands_data.py`: `_COMMANDS_DATA` central registry (116 commands / 17 categories), rendered by `dashboard/commands_catalog.py`.
 - `scripts/termux_mcp.py`: MCP Server for remote Termux SSH operations and automated diagnostics.
-- `locales/`: 6 locale dictionary files (1821 keys each).
+- `scripts/i18n_audit.py`: AST inventory of Vietnamese literals by role (DISCORD/META/CATALOG/INTERNAL) + frozen budget writer.
+- `scripts/i18n_migrate.py`: fetch → plan → apply de-hardcode pipeline (rewrites call sites by verified AST byte offsets, appends keys to all 6 locales without reordering).
+- `locales/`: 6 locale dictionary files (1821 keys each), hand-grouped by module — never re-sorted.
+- `tests/`: 287 tests, incl. `test_i18n_no_hardcoded.py` (frozen hardcode budget + every referenced key must exist in all 6 locales) and `test_phase5c_music_watchdog.py` (audio-frame stall watchdog).

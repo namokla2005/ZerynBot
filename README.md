@@ -205,6 +205,14 @@ FLASK_SECRET_KEY=your_random_secret_key
 ADMIN_PASSWORD=your_stepup_password
 DASHBOARD_URL=http://localhost:5000
 REDIRECT_URI=http://localhost:5000/callback
+# Bật =1 khi dashboard chạy SAU Cloudflare / reverse proxy (zerynbot.id.vn).
+# Rất quan trọng: flask-limiter khoá giới hạn theo remote_addr. Nếu không bật, mọi
+# người dùng đều chung một khoá (IP của tunnel) — một người bị chặn là cả thế giới bị.
+BEHIND_PROXY=1
+# Stream watchdog (giây): cắt + phát lại khi FFmpeg giữ kết nối nhưng ngừng xuất audio.
+MUSIC_STALL_TIMEOUT=30
+#MUSIC_STALL_CHECK_INTERVAL=5
+#MUSIC_STALL_CLEANUP_TIMEOUT=5
 WEBHOOK_LOG_URL=https://discord.com/api/webhooks/...
 STATUS_WEBHOOK_URL=https://discord.com/api/webhooks/...
 BACKUP_DB=https://discord.com/api/webhooks/...
@@ -219,9 +227,12 @@ GEMINI_API_KEY=optional_ai_key_here
 >
 > 🔒 **`ADMIN_PASSWORD`** là mật khẩu **Step-Up Auth** cho các thao tác nguy hiểm trên
 > trang `/admin`: **Web Terminal**, **Git Pull**, **Restart**. Sinh bằng
-> `python -c "import secrets; print(secrets.token_urlsafe(24))"`. Nếu để trống,
-> dashboard vẫn chạy nhưng sẽ hiện **banner cảnh báo** và ba thao tác trên chỉ còn
-> 1 lớp bảo vệ là phiên đăng nhập Discord.
+> `python -c "import secrets; print(secrets.token_urlsafe(24))"`.
+>
+> **Fail-closed**: nếu biến này **trống hoặc ngắn hơn 16 ký tự**, ba thao tác đó bị
+> **vô hiệu hóa hẳn (HTTP 503)** kèm hướng dẫn tạo mật khẩu mạnh — chứ không "chạy
+> không cần mật khẩu". Dashboard và bot vẫn phục vụ bình thường. Muốn dùng terminal
+> từ xa thì đặt mật khẩu đủ dài, hoặc chủ động để trống khi biết rõ rủi ro.
 
 > 💬 **Cách gọi lệnh**: bot dùng **Slash Command** (`/play`) là chính. Đường prefix
 > duy nhất còn hỗ trợ là **@mention bot**, ví dụ `@ZerynBot play lofi` — tiền tố `/`
@@ -348,8 +359,12 @@ ZerynBot/
 │   └── templates/       # Giao diện HTML Jinja2 (Midnight Obsidian theme & CSRF bootstrap)
 ├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 1821 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py,
+│                        #   i18n_audit.py — kiểm kê chuỗi Việt hardcode theo AST,
+│                        #   i18n_migrate.py — fetch/plan/apply de-hardcode + ghi 6 locale,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 247 tests (cache, i18n, database, permissions, Termux optimizations, dashboard, tenant isolation, music behavior, AI guardrails)
+├── tests/               # 🧪 287 tests (cache, i18n + ngân sách chống hardcode, database, permissions,
+│                        #   Termux optimizations, dashboard security/routes/tenant isolation, music
+│                        #   behavior + stream watchdog, AI guardrails, races, automod)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```

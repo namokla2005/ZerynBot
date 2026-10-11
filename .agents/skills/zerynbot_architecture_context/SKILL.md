@@ -64,9 +64,15 @@ Mỗi khi tạo một lệnh Discord hoặc tính năng mới, AI phải hoàn t
    - Bổ sung bộ key mới vào **TOÀN BỘ 6 TỆP** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
    - Đảm bảo 100% không lệch key, số lượng key giữa 6 tệp phải bằng nhau tuyệt đối (**1821 keys/file**).
    - Chạy script kiểm tra: `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
+   - **CẤM hardcode chuỗi Việt hiển thị trên Discord.** Kiểm kê bằng `python scripts/i18n_audit.py`
+     (role `DISCORD` phải = 0, ngân sách đóng băng ở `tests/i18n_budget.json`) và migrate hàng loạt
+     bằng `python scripts/i18n_migrate.py fetch|plan|apply <file>`.
+   - Đối số đầu của `tr()` **phải là guild settings** (có key `language`). Dict cấu hình module
+     (`async_get_verify_settings`, `async_get_automod_settings`, …) không có `language` → `tr()` sẽ
+     âm thầm trả tiếng Việt trên server en/zh/es/pt/fr (lỗi thật đã gặp trong automod/verify).
 
 4. **Bước 4: Đồng bộ Dashboard Command Registry**:
-   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `commands_data.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **110 lệnh** thuộc **17 danh mục**).
+   - Thêm thông tin lệnh vào danh sách tập trung `_COMMANDS_DATA` trong `commands_data.py` để lệnh hiển thị đầy đủ trên trang `/commands` (hiện có **116 lệnh** thuộc **17 danh mục**).
 
 5. **Bước 5: Đồng bộ Tài liệu Kiến trúc**:
    - Cập nhật số lượng lệnh và chức năng mới trong `ARCHITECTURE.md`, `README.md`, `llms.txt`.

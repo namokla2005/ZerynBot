@@ -97,6 +97,28 @@ mock_user_session = {
 
 ---
 
+### Kịch Bản 3.5: Kiểm Thử Độ Bền Runtime Của Bot (không phải Dashboard)
+1. **Stream watchdog**: mở nhạc bằng link URL xa rồi cắt mạng/Wi-Fi thiết bị đang stream.
+   * Sau tối đa `MUSIC_STALL_TIMEOUT` (30s) + chu kỳ kiểm tra (5s), log phải có
+     `[Music] Stream '...' treo:` và bài tự phát lại **từ vị trí đã nghe được thực**,
+     không nhảy cóc theo đồng hồ tường.
+   * Người dùng không còn nghe im lặng vô hạn; hàng đợi tiếp tục chạy.
+2. **Thẻ Now Playing sau restart**: gửi `/play`, restart bot (`python main.py --restart`),
+   bấm lại nút trên **thẻ cũ**.
+   * Phải còn tác dụng (view đăng ký persistent + `custom_id` cố định), không phải
+     "This interaction failed".
+   * Bấm khi bot không còn ở kênh voice → trả lời `music.not_in_voice`, không lỗi.
+3. **Đa ngôn ngữ thật**: đặt `/lang en` rồi thử: automod vi phạm từ cấm, `/verify` panel
+   (nhãn nút), `/inventory` + `/fish` (tên vật phẩm), `/admin` khi `ADMIN_PASSWORD` yếu
+   (phải **503 + hướng dẫn**, không phải chạy khong mật khẩu).
+   * Không được còn chuỗi tiếng Việt, và tuyệt đối không được hiện **tên key**
+     (dạng `economy.item_ca_ro`) — đó là lỗi `common.not_your_interaction` từng gặp.
+4. **Cổng kiểm chứng tự động**: `python scripts/i18n_audit.py` (DISCORD phải = 0),
+   `python .agents/skills/zerynbot_architecture_context/assets/validate_all.py`,
+   `python -m pytest tests/ -q`.
+
+---
+
 ## 📱 4. Kiểm Thử Độ Tương Thích Thiết Bị (Responsive Viewport Matrix)
 
 | Thiết Bị | Độ Phân Giải (Resolution) | Yêu Cầu Kiểm Tra |

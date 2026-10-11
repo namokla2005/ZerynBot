@@ -1,5 +1,8 @@
 # Kế Hoạch Đóng Dư Giai Đoạn 3 — Kiểm Chứng & Sửa Nốt Tài Liệu
 
+> ⚠️ **Ảnh chụp lịch sử** — các số liệu dưới đây (154 passed · 141 assertions · 122 file .py ·
+> 1694 keys · 103–110 lệnh) là trạng thái **tại ngày kiểm chứng**, đã được thay bằng số hiện hành;
+> xem số mới nhất: chạy `validate_all.py`, `pytest tests/ -q`, `scripts/i18n_audit.py`.
 > Ngày kiểm chứng: 2026-10-03 · Branch: `main` · HEAD: `0982874`
 > Phạm vi: đóng nốt phần **tài liệu + 1 điểm code còn nợ** sau khi tách 3 file lớn.
 > Quy tắc: chỉ sửa tài liệu/nhãn sai + 1 sửa code an toàn. **KHÔNG commit/push** nếu chưa được yêu cầu.

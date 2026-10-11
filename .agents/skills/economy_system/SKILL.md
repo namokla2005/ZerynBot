@@ -32,6 +32,8 @@ ZerynBot V2 áp dụng mô hình kinh tế **2 tầng phân tách nghiêm ngặt
 
 ---
 
+**Quy tắc P0 — tên vật phẩm / nghề dịch lúc render, không sửa dữ liệu.** `FISH_ITEMS` và `WORK_JOBS` giữ tên tiếng Việt nguyên văn, và chuỗi đó đã nằm trong `economy_inventory.item_name` + cột note của `economy_transactions` (dữ liệu của người dùng). Vì vậy KHÔNG migration DB, không đổi value trong catalog sang key. Cách đúng: `economy.cat_name(settings, stored)` tra bảng `_CATALOG_KEYS` (sinh tự động từ chính catalog) rồi `tr()`, và **giữ nguyên chuỗi gốc** khi tên không có trong bảng hoặc khi key chưa dịch — `tr()` trả lại chính tên key, in ra Discord còn tệ hơn tên cũ. Mọi chỗ hiển thị tên item phải đi qua `cat_name`: kết quả `/fish`, `/inventory`, kết quả `/sell`, và autocomplete của `/sell`. Test: `test_catalog_names_translate_without_leaking_keys_or_breaking_rows`.
+
 ## 🔒 2. Quy Tắc Giao Dịch & Cược Bắt Buộc
 
 1. **Mini-Games (`/coinflip`, `/slots`, `/blackjack`)**:

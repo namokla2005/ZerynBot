@@ -64,6 +64,10 @@ Mọi Embed gửi trong Discord phải tuân theo bảng mã màu thống nhất
 ## 🔘 4. Kiến Trúc Interactive UI Components (`discord.ui`)
 
 ### 4.1 Persistent Views (Nút bấm không mất tác dụng khi bot restart)
+- **Quy tắc P0:** view gửi kèm `timeout=None` BẮT BUỘC được `bot.add_view()` trong `setup_hook()`, nếu không thì sau restart mọi nút trên tin nhắn cũ chỉ còn báo "This interaction failed" vĩnh viễn (đây chính là lỗi của thẻ Now Playing trước đây). `MusicControlView` đăng ký dạng **shell** `MusicControlView(cog=cog)` (không có `player`), state thật nạp lại trong `_check()`.
+- **Mọi nút của view persistent phải có `custom_id` ổn định** (`music_loop`, `music_pause`, ...). Không có id thì discord.py sinh id tạm theo vị trí, đổi là khớp hỏng.
+- **Label/emoji bị đóng băng trong payload tin nhắn**: muốn theo ngôn ngữ server thì gán lại trong `__init__` lúc *đang tạo view để gửi* (`tr(guild_settings, key)`), đừng chỉ để ở decorator — decorator chạy một lần lúc import nên chỉ dùng `t(key)` làm giá trị mặc định.
+
 - Luôn truyền `timeout=None` vào class kế thừa `discord.ui.View`.
 - Mọi nút bấm hoặc dropdown phải có `custom_id` tĩnh, không đổi (ví dụ: `custom_id="ticket:create:support"`).
 - Đăng ký view tĩnh trong sự kiện `on_ready()` hoặc `setup_hook()` của `bot.py`:
