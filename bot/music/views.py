@@ -43,7 +43,7 @@ log = logging.getLogger("BotV2.Music")
 
 
 class MusicControlView(discord.ui.View):
-    def __init__(self, player: MusicPlayer, settings: dict = None):
+    def __init__(self, player: MusicPlayer | None = None, settings: dict | None = None, cog=None):
         super().__init__(timeout=None)
         # Label cua nut bi Discord luu vin vien trong payload tin nhan, nen phai gan
         # theo ngon ngu cua server DUNG LUC dung view (khong the doi ve sau).
@@ -53,6 +53,12 @@ class MusicControlView(discord.ui.View):
                     _ch.label = tr(settings, "music.btn_loop")
         self.player = player
         self.settings = settings or {}
+        self.cog = cog or getattr(player, "cog", None)
+        if player is None:
+            # Vo persistent (bot.add_view): nhan vat trong payload giu nguyen custom_id
+            # de nut van dispatch duoc SAU khi bot restart. Trang thai that (player,
+            # ngon ngu, style nut) duoc nap lai trong _check() tu interaction.
+            return
 
         # 1. Nút Autoplay
         self.btn_autoplay.label = "Autoplay"
@@ -96,6 +102,9 @@ class MusicControlView(discord.ui.View):
             self.btn_loop.style = discord.ButtonStyle.primary
 
     async def _check(self, interaction: discord.Interaction) -> bool:
+        if self.player is None and self.cog is not None and interaction.guild is not None:
+            self.player = self.cog._get(interaction.guild.id)
+            self.settings = await async_get_guild_settings(str(interaction.guild.id))
         if not self.player or not self.player.vc or not self.player.vc.channel:
             await interaction.response.send_message(
                 tr(self.settings, "music.not_in_voice"), ephemeral=True
@@ -108,7 +117,7 @@ class MusicControlView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Autoplay", style=discord.ButtonStyle.secondary, emoji="♾️", row=0)
+    @discord.ui.button(label=t("music.btn_autoplay"), custom_id="music_autoplay", style=discord.ButtonStyle.secondary, emoji="♾️", row=0)
     async def btn_autoplay(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -123,7 +132,7 @@ class MusicControlView(discord.ui.View):
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Stop", style=discord.ButtonStyle.secondary, emoji="⏹️", row=0)
+    @discord.ui.button(label=t("music.btn_stop"), custom_id="music_stop", style=discord.ButtonStyle.secondary, emoji="⏹️", row=0)
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -137,7 +146,7 @@ class MusicControlView(discord.ui.View):
             except Exception:
                 pass
 
-    @discord.ui.button(label="Pause", style=discord.ButtonStyle.secondary, emoji=partial("zb_pause", "⏸️"), row=0)
+    @discord.ui.button(label=t("music.btn_pause"), custom_id="music_pause", style=discord.ButtonStyle.secondary, emoji=partial("zb_pause", "⏸️"), row=0)
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -159,7 +168,7 @@ class MusicControlView(discord.ui.View):
         embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
         await interaction.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji=partial("zb_skip", "⏭️"), row=0)
+    @discord.ui.button(label=t("music.btn_skip"), custom_id="music_skip", style=discord.ButtonStyle.secondary, emoji=partial("zb_skip", "⏭️"), row=0)
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return

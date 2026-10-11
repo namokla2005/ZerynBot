@@ -145,9 +145,6 @@ def _render_card(
 
     # ─── Canvas ─────────────────────────────────────────────────────────────
     W, H    = 540, 320
-    CARD_W  = 540
-    CARD_H  = 320
-    CARD_X  = 0
     CARD_Y  = 0
 
     # Transparent background!

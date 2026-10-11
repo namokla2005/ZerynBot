@@ -521,7 +521,6 @@ class Automod(commands.Cog):
 
     async def _lockdown_guild(self, guild: discord.Guild) -> str:
         """Snapshot overwrites của @everyone rồi chặn gửi tin trên mọi kênh text."""
-        guild_id = str(guild.id)
         def_role = guild.default_role
         snapshot = []
         for channel in guild.text_channels:

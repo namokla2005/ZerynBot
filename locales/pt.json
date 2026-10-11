@@ -1791,5 +1791,6 @@
   "music.btn_loop": "Repetir",
   "music.chon_bai_hat_muon_xoa": "🎵 Escolha a música para remover...",
   "music.live_stream_bi_gian_duan": "⚠️ A live **{title}** foi interrompida e não reconectou após 3 tentativas.",
-  "music.trang_nguon_lrclib_view": "Página {page}/{total} • Fonte: LrcLib | {requested}"
+  "music.trang_nguon_lrclib_view": "Página {page}/{total} • Fonte: LrcLib | {requested}",
+  "music.btn_autoplay": "Autoplay"
 }

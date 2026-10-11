@@ -1791,5 +1791,6 @@
   "music.btn_loop": "循环",
   "music.chon_bai_hat_muon_xoa": "🎵 选择要删除的歌曲……",
   "music.live_stream_bi_gian_duan": "⚠️ 直播 **{title}** 已中断，重试 3 次后仍无法连接。",
-  "music.trang_nguon_lrclib_view": "第 {page}/{total} 页 • 来源：LrcLib | {requested}"
+  "music.trang_nguon_lrclib_view": "第 {page}/{total} 页 • 来源：LrcLib | {requested}",
+  "music.btn_autoplay": "自动播放"
 }

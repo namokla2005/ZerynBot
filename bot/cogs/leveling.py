@@ -140,7 +140,7 @@ class Leveling(commands.Cog):
             guild_id, str(message.author.id), xp_gain,
             level_from_xp=calc_level_from_xp, last_message_at=now,
         )
-        new_xp, old_level, new_level = result["xp"], result["old_level"], result["level"]
+        old_level, new_level = result["old_level"], result["level"]
         
         if new_level > old_level:
             await self._handle_level_up(message.author, old_level, new_level, settings, current_channel=message.channel)

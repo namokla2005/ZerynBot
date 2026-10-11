@@ -1791,5 +1791,6 @@
   "music.btn_loop": "Lặp lại",
   "music.chon_bai_hat_muon_xoa": "🎵 Chọn bài hát muốn xóa...",
   "music.live_stream_bi_gian_duan": "⚠️ Live stream **{title}** bị gián đoạn và không thể kết nối lại sau 3 lần thử.",
-  "music.trang_nguon_lrclib_view": "Trang {page}/{total} • Nguồn: LrcLib | {requested}"
+  "music.trang_nguon_lrclib_view": "Trang {page}/{total} • Nguồn: LrcLib | {requested}",
+  "music.btn_autoplay": "Autoplay"
 }

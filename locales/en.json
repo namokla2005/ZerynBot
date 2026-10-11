@@ -1791,5 +1791,6 @@
   "music.btn_loop": "Loop",
   "music.chon_bai_hat_muon_xoa": "🎵 Choose a song to remove...",
   "music.live_stream_bi_gian_duan": "⚠️ The live stream **{title}** was interrupted and could not be reconnected after 3 attempts.",
-  "music.trang_nguon_lrclib_view": "Page {page}/{total} • Source: LrcLib | {requested}"
+  "music.trang_nguon_lrclib_view": "Page {page}/{total} • Source: LrcLib | {requested}",
+  "music.btn_autoplay": "Autoplay"
 }

@@ -60,7 +60,6 @@ class Language(commands.Cog, name="Language"):
         await async_set_guild_language(guild_id, lang_code)
 
         # Phản hồi bằng ngôn ngữ vừa được chọn
-        lang_display = supported[lang_code]             # e.g. "🇻🇳 Tiếng Việt"
         lang_flag = i18n.translate(lang_code, "lang.flag")
         lang_name = i18n.translate(lang_code, "lang.name")
         response = tr(lang_code, "lang.changed", lang_name=lang_name, lang_flag=lang_flag)

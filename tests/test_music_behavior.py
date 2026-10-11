@@ -635,3 +635,41 @@ def test_music_control_view_builds_buttons():
         assert all(isinstance(x, str) for x in labels)
 
     asyncio.run(_scenario())
+
+
+def test_persistent_music_view_survives_restart():
+    """`MusicControlView` gan `timeout=None` cho the Now Playing. Neu khong dang ky
+    persistent (bot.add_view) thi sau khi restart, moi nuttren the cu cua user
+    tra 'This interaction failed' vin vin — nguoi dung nhin nut sang but bo dieu khien.
+    Vo shell phai dung duoc KHONG co player (trang thai nap lai trong _check()).
+    """
+    import asyncio, os, sys, types
+
+    BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for x in (BASE, os.path.join(BASE, "bot")):
+        if x not in sys.path:
+            sys.path.insert(0, x)
+    from music.views import MusicControlView
+
+    shell = MusicControlView()          # player=None = vo persistent
+    ids = sorted(getattr(c, "custom_id", None) for c in shell.children)
+    assert None not in ids, f"nut khong co custom_id on dinh -> restart la lost: {ids}"
+    assert "music_loop" in ids and "music_skip" in ids, ids
+
+    # _check() cua vo shell khong duoc crash khi chua co player: phai tam dung hop le
+    cog = types.SimpleNamespace(_get=lambda gid: None)
+    shell2 = MusicControlView(cog=cog)
+    guild = types.SimpleNamespace(id=4242)
+    inter = types.SimpleNamespace(
+        guild=guild, user=types.SimpleNamespace(voice=None, id=1),
+        response=types.SimpleNamespace(send_message=lambda *a, **k: asyncio.sleep(0)),
+    )
+    sent = []
+
+    async def fake_send(*a, **k):
+        sent.append(a or k)
+
+    inter.response.send_message = fake_send
+    ok = asyncio.run(shell2._check(inter))
+    assert ok is False, "khong co player thi phai tu choi lenh, khong duoc nem exception"
+    assert sent, "phai phan hoi cho user thay vi im lang"

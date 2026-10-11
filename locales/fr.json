@@ -1791,5 +1791,6 @@
   "music.btn_loop": "Boucle",
   "music.chon_bai_hat_muon_xoa": "🎵 Choisissez le morceau à supprimer...",
   "music.live_stream_bi_gian_duan": "⚠️ Le direct **{title}** a été interrompu et n'a pas pu se reconnecter après 3 essais.",
-  "music.trang_nguon_lrclib_view": "Page {page}/{total} • Source : LrcLib | {requested}"
+  "music.trang_nguon_lrclib_view": "Page {page}/{total} • Source : LrcLib | {requested}",
+  "music.btn_autoplay": "Autolecture"
 }

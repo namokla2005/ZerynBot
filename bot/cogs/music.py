@@ -1003,4 +1003,9 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         await ctx.send(embed=embed)
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Music(bot))
+    cog = Music(bot)
+    await bot.add_cog(cog)
+    # The Next-Playing card is sent with timeout=None, so its buttons must survive a
+    # restart. Without this registration every old card answers "This interaction
+    # failed" forever; the shell view re-loads the real player in _check().
+    bot.add_view(MusicControlView(cog=cog))
