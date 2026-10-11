@@ -257,6 +257,26 @@ WORK_JOBS = [
 ]
 
 
+# ─── Bang tra ten tai nguyen (dich luc render, khong migration DB) ─────────────
+# Ten mon an (ca, nghe) duoc luu NGUYEN VAN trong economy_inventory va note cua
+# economy_transactions; migration DB se rung row cua nguoi dung. An toan hon: giu
+# nguyen chuoi duoi DB, dich luc hien thi; ten khong co trong bang (item tu tao) tra
+# ve dung chuoi cu, nen khong bao gio lo chuoi key tren Discord.
+_CATALOG_KEYS = {it["name"]: f"economy.item_{it['id']}" for it in FISH_ITEMS}
+_CATALOG_KEYS.update({j["name"]: f"economy.job_{i:02d}" for i, j in enumerate(WORK_JOBS)})
+
+
+def cat_name(settings: dict, stored: str) -> str:
+    """Ten hien thi theo ngon ngu cua server, fallback ve dung chuoi da luu trong DB."""
+    key = _CATALOG_KEYS.get(stored)
+    if not key:
+        return stored
+    txt = tr(settings, key)
+    # Chua co key trong locale → tr() tra lai CHINH TEN KEY, con te hon ten goc.
+    return stored if txt == key else txt
+
+
+
 class InventoryView(discord.ui.View):
     def __init__(self, cog, user_id: str, guild_id: str, settings: dict, author_name: str, author_avatar: str):
         super().__init__(timeout=90.0)
@@ -776,7 +796,7 @@ class Economy(commands.Cog):
                 continue
             lines = []
             for it in r_items:
-                lines.append(f"• **{it['item_name']}** x{it['quantity']} — `ID: {it['item_id']}` (*{it['sell_price']:,} {sym}/món*)")
+                lines.append(f"• **{cat_name(settings, it['item_name'])}** x{it['quantity']} — `ID: {it['item_id']}` (*{it['sell_price']:,} {sym}/món*)")
             embed.add_field(name=rarity_titles[r_key], value="\n".join(lines), inline=False)
 
         embed.set_footer(
@@ -869,7 +889,7 @@ class Economy(commands.Cog):
         rarity_text = tr(s, f"economy.rarity_{caught['rarity']}")
         embed = discord.Embed(
             title=embed_title("zb_fish", tr(s, "economy.fish_title")),
-            description=tr(s, "economy.fish_success", item=caught["name"], rarity=rarity_text, price=caught["price"], sym=sym),
+            description=tr(s, "economy.fish_success", item=cat_name(s, caught["name"]), rarity=rarity_text, price=caught["price"], sym=sym),
             color=0x3498DB if caught["rarity"] == "common" else (0x2ECC71 if caught["rarity"] == "rare" else 0xF1C40F),
             timestamp=datetime.now(timezone.utc)
         )
@@ -955,7 +975,7 @@ class Economy(commands.Cog):
 
         embed = discord.Embed(
             title=embed_title("zb_sell", tr(s, "economy.sell_success_title")),
-            description=tr(s, "economy.sell_success_desc", qty=quantity, item=item_name, earned=earned, sym=sym),
+            description=tr(s, "economy.sell_success_desc", qty=quantity, item=cat_name(s, item_name), earned=earned, sym=sym),
             color=0x57F287,
             timestamp=datetime.now(timezone.utc)
         )
@@ -967,9 +987,12 @@ class Economy(commands.Cog):
         if not interaction.guild:
             return []
         items = await async_get_inventory(str(interaction.guild.id), str(interaction.user.id))
+        # Autocomplete cung phai dung bang ngon ngu cua server. Khong co guild (DM)
+        # → dict rong de tr() tu roi ve ngon ngu nen, khong NameError.
+        s = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else {}
         choices = []
         for it in items:
-            label = f"{it['item_name']} (x{it['quantity']} — {it['sell_price']}🪙)"
+            label = f"{cat_name(s, it['item_name'])} (x{it['quantity']} — {it['sell_price']}🪙)"
             if not current or current.lower() in it["item_name"].lower() or current.lower() in it["item_id"].lower():
                 choices.append(app_commands.Choice(name=label[:100], value=it["item_id"]))
             if len(choices) >= 25:

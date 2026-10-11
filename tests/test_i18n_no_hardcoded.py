@@ -158,3 +158,32 @@ def test_every_referenced_key_exists_in_all_six_locales():
         "thay TEN KEY ngay tren Discord):"
         + "".join(f"\n  {m}" for m in missing[:25])
     )
+
+
+def test_catalog_names_translate_without_leaking_keys_or_breaking_rows():
+    """Ten mon an luu nguyen van tieng Viet trong DB (khong migration duoc, no la du
+    lieu cua nguoi dung). `cat_name` phai: dich khi co key, giu nguyen ten khi ten la
+    cua ng dung tu dat, va DAC BIET khong bao gio tra lai ten key when locale thieu dich.
+    """
+    import os, sys
+    BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for x in (BASE, os.path.join(BASE, "bot")):
+        if x not in sys.path:
+            sys.path.insert(0, x)
+    import cogs.economy as E
+    import json
+
+    stored = "🐟 Cá Rô Phi"
+    assert stored in E._CATALOG_KEYS, "catalog khong duoc doi ten khi ma chua cap nhat"
+    assert E.cat_name({"language": "en"}, stored) == "🐟 Tilapia"
+    assert E.cat_name({"language": "vi"}, stored) == stored
+    # ten tu dat (khong thuoc bang) → giu nguyen, khong co chuoi "economy.item_..."
+    assert E.cat_name({"language": "en"}, "Tua sua cua me") == "Tua sua cua me"
+    # mot key catalog phai co mat o DU 6 locale va vi == dung chuoi da luu trong DB
+    vi = json.load(open(os.path.join(BASE, "locales", "vi.json"), encoding="utf-8"))
+    for key in E._CATALOG_KEYS.values():
+        assert key in vi, f"key {key} thieu trong vi.json"
+    for lang in ("en", "zh", "es", "pt", "fr"):
+        d = json.load(open(os.path.join(BASE, "locales", f"{lang}.json"), encoding="utf-8"))
+        missing = [k for k in set(E._CATALOG_KEYS.values()) if k not in d]
+        assert not missing, f"{lang} thieu {len(missing)} key catalog: {missing[:3]}"
