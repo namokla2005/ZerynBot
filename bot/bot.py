@@ -27,6 +27,15 @@ import config
 from database import init_db
 from i18n import tr
 
+
+async def _gs(guild):
+    """Guild settings cho thong diep cooldown — None khi khong co guild (DM), luc do
+    `tr()` tu roi ve ngon ngu nen. Import local de tranh vong tron database <-> bot."""
+    if guild is None:
+        return None
+    from database import async_get_guild_settings
+    return await async_get_guild_settings(str(guild.id))
+
 # ─── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -291,7 +300,7 @@ class BotV2(commands.Bot):
             if now - self.last_used[user_id] < config.GLOBAL_COOLDOWN:
                 remaining = int(config.GLOBAL_COOLDOWN - (now - self.last_used[user_id]))
                 await interaction.response.send_message(
-                    f"⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.", ephemeral=True
+                    tr(await _gs(interaction.guild), "bot.cooldown_wait", remaining=remaining), ephemeral=True
                 )
                 return False
 
@@ -319,7 +328,7 @@ class BotV2(commands.Bot):
                 remaining = int(config.GLOBAL_COOLDOWN - elapsed)
                 try:
                     await ctx.send(
-                        f"⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.",
+                        tr(await _gs(ctx.guild), "bot.cooldown_wait", remaining=remaining),
                         delete_after=5,
                     )
                 except Exception:

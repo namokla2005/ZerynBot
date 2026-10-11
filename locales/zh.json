@@ -1776,5 +1776,20 @@
   "tempvoice.loi": "❌ 错误：{e}",
   "utility.dong": "关闭",
   "utility.lenh_nay_chi_co_the": "此命令只能在服务器中使用。",
-  "leveling.nhan_tin_chat_xp_dam": "💬 聊天消息（+15-25 XP）• 🎙️ 语音≥2 人（+10 XP）"
+  "leveling.nhan_tin_chat_xp_dam": "💬 聊天消息（+15-25 XP）• 🎙️ 语音≥2 人（+10 XP）",
+  "automod.dang_lockdown": "🔒 正在封锁",
+  "automod.binh_thuong": "🟢 正常",
+  "bot.cooldown_wait": "⏳ 请等待 {remaining} 秒后再使用命令。",
+  "common.not_your_interaction": "⛔ 此交互不属于您。",
+  "economy.bj_close": "关闭",
+  "economy.bj_hidden_dealer": "`{card}` `🎴` (*? 点)",
+  "economy.bj_hit": "要牌 (Hit)",
+  "economy.bj_stand": "停牌 (Stand)",
+  "fun.marry_accept": "💖 愿意",
+  "fun.marry_reject": "💔 拒绝",
+  "music.autoplay_tu_dong_phat": "♾️ **自动播放：** 接下来播放 **[{title}]({url})**",
+  "music.btn_loop": "循环",
+  "music.chon_bai_hat_muon_xoa": "🎵 选择要删除的歌曲……",
+  "music.live_stream_bi_gian_duan": "⚠️ 直播 **{title}** 已中断，重试 3 次后仍无法连接。",
+  "music.trang_nguon_lrclib_view": "第 {page}/{total} 页 • 来源：LrcLib | {requested}"
 }

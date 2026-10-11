@@ -19,7 +19,7 @@ from database import (
     async_add_love_points,
     async_increment_fun_interaction, async_get_fun_interaction_count,
 )
-from i18n import tr
+from i18n import t, tr
 try:
     from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
@@ -164,8 +164,13 @@ class MarryView(discord.ui.View):
         self.s = settings
         self.cog = cog
         self.result = None
+        for _ch in self.children:
+            if _ch.custom_id == "marry_accept":
+                _ch.label = tr(self.s, "fun.marry_accept")
+            elif _ch.custom_id == "marry_reject":
+                _ch.label = tr(self.s, "fun.marry_reject")
 
-    @discord.ui.button(label="💖 Đồng ý", style=discord.ButtonStyle.success)
+    @discord.ui.button(label=t("fun.marry_accept"), custom_id="marry_accept", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.target.id:
             return await interaction.response.send_message(
@@ -196,7 +201,7 @@ class MarryView(discord.ui.View):
                 tr(self.s, "fun.marry_already_married"), ephemeral=True
             )
 
-    @discord.ui.button(label="💔 Từ chối", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label=t("fun.marry_reject"), custom_id="marry_reject", style=discord.ButtonStyle.danger)
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.target.id:
             return await interaction.response.send_message(

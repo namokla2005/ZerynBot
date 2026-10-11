@@ -1776,5 +1776,20 @@
   "tempvoice.loi": "❌ Erreur : {e}",
   "utility.dong": "Fermer",
   "utility.lenh_nay_chi_co_the": "Cette commande ne peut être utilisée que dans un serveur.",
-  "leveling.nhan_tin_chat_xp_dam": "💬 Messages written (+15-25 XP) • 🎙️ Vocal à ≥2 (+10 XP)"
+  "leveling.nhan_tin_chat_xp_dam": "💬 Messages written (+15-25 XP) • 🎙️ Vocal à ≥2 (+10 XP)",
+  "automod.dang_lockdown": "🔒 En confinement",
+  "automod.binh_thuong": "🟢 Normal",
+  "bot.cooldown_wait": "⏳ Veuillez attendre {remaining} s avant d'utiliser une autre commande.",
+  "common.not_your_interaction": "⛔ Cette interaction ne vous est pas destinée.",
+  "economy.bj_close": "Fermer",
+  "economy.bj_hidden_dealer": "`{card}` `🎴` (*? points)",
+  "economy.bj_hit": "Tirer (Hit)",
+  "economy.bj_stand": "Reste (Stand)",
+  "fun.marry_accept": "💖 J'accepte",
+  "fun.marry_reject": "💔 Je refuse",
+  "music.autoplay_tu_dong_phat": "♾️ **Lecture auto :** Voici le prochain morceau **[{title}]({url})**",
+  "music.btn_loop": "Boucle",
+  "music.chon_bai_hat_muon_xoa": "🎵 Choisissez le morceau à supprimer...",
+  "music.live_stream_bi_gian_duan": "⚠️ Le direct **{title}** a été interrompu et n'a pas pu se reconnecter après 3 essais.",
+  "music.trang_nguon_lrclib_view": "Page {page}/{total} • Source : LrcLib | {requested}"
 }

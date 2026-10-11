@@ -106,3 +106,55 @@ def test_total_hardcoded_count_is_countable_and_declining(budget):
         f"Tong chuoi DISCORD hien tai {total_now} > tong ngan sach {sum(budget.values())} — "
         "budget da cu (chi duoc giam)."
     )
+
+# ─── Chieu nguoc lai: key ma code tham chieu phai ton tai o DU 6 locale ─────────
+
+def _referenced_keys(mod) -> dict[str, str]:
+    """Quet AST cua bot/ + dashboard/ lay moi literal key trong tr(...)/t(...)."""
+    import ast
+    out: dict[str, str] = {}
+    for base in ("bot", "dashboard"):
+        for py in sorted((ROOT / base).rglob("*.py")):
+            if "__pycache__" in str(py):
+                continue
+            try:
+                tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
+            except SyntaxError:
+                continue
+            rel = str(py.relative_to(ROOT)).replace("\\", "/")
+            for n in ast.walk(tree):
+                if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                        and n.func.id in ("tr", "t") and n.args):
+                    continue
+                args = n.args[1:] if n.func.id == "tr" else n.args[:1]
+                for a in args:
+                    if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                        k = a.value
+                        if "." in k and " " not in k and k.replace("_", "").replace(".", "").isalnum():
+                            out.setdefault(k, rel)
+    return out
+
+
+def test_every_referenced_key_exists_in_all_six_locales():
+    """`tr()` roi ve TEN KEY khi key khong co trong file nao → nguoi dung thay chuoi
+    "common.not_your_interaction" ngay tren Discord (da xay ra that, pre-existing).
+    Test nay khop moi key trong code voi ca 6 locale; them key ma quen 1 ngon ngu
+    la do ngay lap tuc."""
+    import json
+
+    refs = _referenced_keys(None)
+    assert refs, "khong doc duoc key nao tu code — regex/AST hong?"
+    locales = {
+        lang: json.loads((ROOT / "locales" / f"{lang}.json").read_text(encoding="utf-8"))
+        for lang in ("vi", "en", "zh", "es", "pt", "fr")
+    }
+    missing = []
+    for key, where in sorted(refs.items()):
+        absent = [lang for lang, data in locales.items() if key not in data]
+        if absent:
+            missing.append(f"{key} (thieu {','.join(absent)}) ← {where}")
+    assert not missing, (
+        f"{len(missing)} key duoc code dung nhung khong co du 6 locale (nguoi dung se "
+        "thay TEN KEY ngay tren Discord):"
+        + "".join(f"\n  {m}" for m in missing[:25])
+    )

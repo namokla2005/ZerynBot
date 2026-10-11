@@ -25,7 +25,7 @@ from database import (
     async_claim_economy_cooldown,
     async_place_bet, async_log_transaction
 )
-from i18n import tr
+from i18n import t, tr
 try:
     from emojis import e, partial, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
@@ -98,7 +98,7 @@ class BlackjackView(discord.ui.View):
         )
         
         if hide_dealer:
-            dealer_str = f"`{self.dealer_hand[0]}` `🎴` (*? điểm*)"
+            dealer_str = tr(self.settings, "economy.bj_hidden_dealer", card=self.dealer_hand[0])
         else:
             dealer_str = fmt_hand(self.dealer_hand)
 
@@ -146,7 +146,7 @@ class BlackjackView(discord.ui.View):
         elif self.message:
             await self.message.edit(embed=embed, view=self)
 
-    @discord.ui.button(label="Rút (Hit)", style=discord.ButtonStyle.primary, emoji="🃏")
+    @discord.ui.button(label=t("economy.bj_hit"), custom_id="bj_hit", style=discord.ButtonStyle.primary, emoji="🃏")
     async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.is_finished:
             return
@@ -160,7 +160,7 @@ class BlackjackView(discord.ui.View):
             embed = self.build_embed(hide_dealer=True)
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="Dừng (Stand)", style=discord.ButtonStyle.secondary, emoji="🛑")
+    @discord.ui.button(label=t("economy.bj_stand"), custom_id="bj_stand", style=discord.ButtonStyle.secondary, emoji="🛑")
     async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.is_finished:
             return
@@ -306,7 +306,7 @@ class InventoryView(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Đóng", style=discord.ButtonStyle.secondary, emoji="❌", custom_id="inv_close")
+    @discord.ui.button(label=t("economy.bj_close"), style=discord.ButtonStyle.secondary, emoji="❌", custom_id="inv_close")
     async def close_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         for child in self.children:
             child.disabled = True

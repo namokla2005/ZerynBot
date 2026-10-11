@@ -1776,5 +1776,20 @@
   "tempvoice.loi": "❌ Lỗi: {e}",
   "utility.dong": "Đóng",
   "utility.lenh_nay_chi_co_the": "Lệnh này chỉ có thể sử dụng trong máy chủ.",
-  "leveling.nhan_tin_chat_xp_dam": "💬 Nhắn tin chat (+15-25 XP) • 🎙️ Đàm thoại Voice ≥2 người (+10 XP)"
+  "leveling.nhan_tin_chat_xp_dam": "💬 Nhắn tin chat (+15-25 XP) • 🎙️ Đàm thoại Voice ≥2 người (+10 XP)",
+  "automod.dang_lockdown": "🔒 Đang lockdown",
+  "automod.binh_thuong": "🟢 Bình thường",
+  "bot.cooldown_wait": "⏳ Vui lòng đợi {remaining}s nữa trước khi dùng lệnh.",
+  "common.not_your_interaction": "⛔ Tương tác này không dành cho bạn.",
+  "economy.bj_close": "Đóng",
+  "economy.bj_hidden_dealer": "`{card}` `🎴` (*? điểm*)",
+  "economy.bj_hit": "Rút (Hit)",
+  "economy.bj_stand": "Dừng (Stand)",
+  "fun.marry_accept": "💖 Đồng ý",
+  "fun.marry_reject": "💔 Từ chối",
+  "music.autoplay_tu_dong_phat": "♾️ **Autoplay:** Tự động phát bài tiếp theo **[{title}]({url})**",
+  "music.btn_loop": "Lặp lại",
+  "music.chon_bai_hat_muon_xoa": "🎵 Chọn bài hát muốn xóa...",
+  "music.live_stream_bi_gian_duan": "⚠️ Live stream **{title}** bị gián đoạn và không thể kết nối lại sau 3 lần thử.",
+  "music.trang_nguon_lrclib_view": "Trang {page}/{total} • Nguồn: LrcLib | {requested}"
 }

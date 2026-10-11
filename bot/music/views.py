@@ -21,7 +21,7 @@ from discord.ext import commands
 
 from cache import cache
 from database import async_get_guild_settings
-from i18n import tr
+from i18n import t, tr
 
 try:
     from emojis import e, embed_title, partial
@@ -45,6 +45,12 @@ log = logging.getLogger("BotV2.Music")
 class MusicControlView(discord.ui.View):
     def __init__(self, player: MusicPlayer, settings: dict = None):
         super().__init__(timeout=None)
+        # Label cua nut bi Discord luu vin vien trong payload tin nhan, nen phai gan
+        # theo ngon ngu cua server DUNG LUC dung view (khong the doi ve sau).
+        if settings:
+            for _ch in self.children:
+                if getattr(_ch, "custom_id", None) == "music_loop":
+                    _ch.label = tr(settings, "music.btn_loop")
         self.player = player
         self.settings = settings or {}
 
@@ -160,7 +166,7 @@ class MusicControlView(discord.ui.View):
         await interaction.response.defer()
         self.player.skip()
 
-    @discord.ui.button(label="Lặp lại", style=discord.ButtonStyle.secondary, emoji=partial("zb_loop", "🔁"), row=0)
+    @discord.ui.button(label=t("music.btn_loop"), custom_id="music_loop", style=discord.ButtonStyle.secondary, emoji=partial("zb_loop", "🔁"), row=0)
     async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self._check(interaction):
             return
@@ -184,7 +190,7 @@ class MusicControlView(discord.ui.View):
         await interaction.message.edit(embed=embed, view=self)
 
 class RemoveSongSelect(discord.ui.Select):
-    def __init__(self, tracks: list):
+    def __init__(self, tracks: list, settings: dict | None = None):
         options = []
         for i, t in enumerate(tracks[:25]):
             title = t.get("title", "Unknown")
@@ -196,7 +202,7 @@ class RemoveSongSelect(discord.ui.Select):
                 description=_fmt_duration(t.get("duration", 0)),
             ))
         super().__init__(
-            placeholder="🎵 Chọn bài hát muốn xóa...",
+            placeholder=tr(settings, "music.chon_bai_hat_muon_xoa") if settings else t("music.chon_bai_hat_muon_xoa"),
             min_values=1, max_values=1, options=options
         )
 
@@ -205,14 +211,15 @@ class RemoveSongSelect(discord.ui.Select):
         await interaction.response.defer()
 
 class RemoveSongView(discord.ui.View):
-    def __init__(self, ctx: commands.Context, pl: dict, tracks: list):
+    def __init__(self, ctx: commands.Context, pl: dict, tracks: list, settings: dict | None = None):
         super().__init__(timeout=60)
         self.ctx            = ctx
+        self.settings       = settings or {}
         self.pl             = pl
         self.tracks         = tracks
         self.selected_index : int | None = None
         self.message        : discord.Message | None = None
-        self.add_item(RemoveSongSelect(tracks))
+        self.add_item(RemoveSongSelect(tracks, self.settings))
 
     @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger, row=1)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -453,7 +460,6 @@ class LyricsPaginatorView(discord.ui.View):
 
     @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.secondary, custom_id="lyrics_prev")
     async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        gs = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else None
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(tr(self.settings, "common.not_your_interaction"), ephemeral=True)
             return
@@ -461,7 +467,7 @@ class LyricsPaginatorView(discord.ui.View):
             self.current_page -= 1
             self._update_buttons()
             embed = self.get_embed()
-            embed.set_footer(text=f"Trang {self.current_page + 1}/{len(self.pages)} • Nguồn: LrcLib | {tr(self.settings, 'common.requested_by', user=interaction.user.display_name)}")
+            embed.set_footer(text=tr(self.settings, "music.trang_nguon_lrclib_view", page=self.current_page + 1, total=len(self.pages), requested=tr(self.settings, "common.requested_by", user=interaction.user.display_name)))
             try:
                 await interaction.response.edit_message(embed=embed, view=self)
             except (discord.NotFound, discord.HTTPException):
@@ -473,7 +479,6 @@ class LyricsPaginatorView(discord.ui.View):
 
     @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.secondary, custom_id="lyrics_next")
     async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        gs = await async_get_guild_settings(str(interaction.guild.id)) if interaction.guild else None
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(tr(self.settings, "common.not_your_interaction"), ephemeral=True)
             return
@@ -481,7 +486,7 @@ class LyricsPaginatorView(discord.ui.View):
             self.current_page += 1
             self._update_buttons()
             embed = self.get_embed()
-            embed.set_footer(text=f"Trang {self.current_page + 1}/{len(self.pages)} • Nguồn: LrcLib | {tr(self.settings, 'common.requested_by', user=interaction.user.display_name)}")
+            embed.set_footer(text=tr(self.settings, "music.trang_nguon_lrclib_view", page=self.current_page + 1, total=len(self.pages), requested=tr(self.settings, "common.requested_by", user=interaction.user.display_name)))
             try:
                 await interaction.response.edit_message(embed=embed, view=self)
             except (discord.NotFound, discord.HTTPException):

@@ -750,7 +750,7 @@ class Automod(commands.Cog):
             raid_locked = settings.get("raid_locked")
             embed.add_field(
                 name=tr(s, "automod.bao_ve_server"),
-                value=tr(s, "automod.raid_action_nguong_join_60s", raid_action=raid_action, get=settings.get('raid_join_per_window', 5), p5='🔒 Đang lockdown' if raid_locked else '🟢 Bình thường'),
+                value=tr(s, "automod.raid_action_nguong_join_60s", raid_action=raid_action, get=settings.get('raid_join_per_window', 5), p5=tr(s, 'automod.dang_lockdown') if raid_locked else tr(s, 'automod.binh_thuong')),
                 inline=False,
             )
         

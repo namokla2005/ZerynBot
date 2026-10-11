@@ -173,6 +173,13 @@ class MusicPlayer:
             removed = self._played_history.pop(0)
             self._played_history_set.discard(removed.lower().strip())
 
+    async def gs(self) -> dict | None:
+        """Guild settings cua player — nguon ngon ngu duyet cho moi thong diep tu day."""
+        try:
+            return await async_get_guild_settings(str(self.guild.id))
+        except Exception:
+            return None
+
     def get_elapsed(self) -> int:
         if not self.current or self.start_time <= 0:
             return 0
@@ -483,7 +490,7 @@ class MusicPlayer:
                     if self.text_channel:
                         await self.text_channel.send(
                             embed=discord.Embed(
-                                description=f"⚠️ Live stream **{track.title}** bị gián đoạn và không thể kết nối lại sau 3 lần thử.",
+                                description=tr(await self.gs(), "music.live_stream_bi_gian_duan", title=track.title),
                                 color=0xED4245
                             )
                         )
@@ -622,7 +629,7 @@ class MusicPlayer:
                 if self.text_channel:
                     try:
                         await self.text_channel.send(
-                            f"♾️ **Autoplay:** Tự động phát bài tiếp theo **[{new_track.title}]({new_track.url})**",
+                            tr(await self.gs(), "music.autoplay_tu_dong_phat", title=new_track.title, url=new_track.url),
                             delete_after=10
                         )
                     except Exception:

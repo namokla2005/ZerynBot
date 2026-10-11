@@ -1776,5 +1776,20 @@
   "tempvoice.loi": "❌ Error: {e}",
   "utility.dong": "Close",
   "utility.lenh_nay_chi_co_the": "This command can only be used in a server.",
-  "leveling.nhan_tin_chat_xp_dam": "💬 Chat messages (+15-25 XP) • 🎙️ Voice with ≥2 people (+10 XP)"
+  "leveling.nhan_tin_chat_xp_dam": "💬 Chat messages (+15-25 XP) • 🎙️ Voice with ≥2 people (+10 XP)",
+  "automod.dang_lockdown": "🔒 Locked down",
+  "automod.binh_thuong": "🟢 Normal",
+  "bot.cooldown_wait": "⏳ Please wait {remaining}s before using another command.",
+  "common.not_your_interaction": "⛔ This interaction is not for you.",
+  "economy.bj_close": "Close",
+  "economy.bj_hidden_dealer": "`{card}` `🎴` (*? points*)",
+  "economy.bj_hit": "Hit",
+  "economy.bj_stand": "Stand",
+  "fun.marry_accept": "💖 Yes",
+  "fun.marry_reject": "💔 Decline",
+  "music.autoplay_tu_dong_phat": "♾️ **Autoplay:** Now playing next **[{title}]({url})**",
+  "music.btn_loop": "Loop",
+  "music.chon_bai_hat_muon_xoa": "🎵 Choose a song to remove...",
+  "music.live_stream_bi_gian_duan": "⚠️ The live stream **{title}** was interrupted and could not be reconnected after 3 attempts.",
+  "music.trang_nguon_lrclib_view": "Page {page}/{total} • Source: LrcLib | {requested}"
 }
