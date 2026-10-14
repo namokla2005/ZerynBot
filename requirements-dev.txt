@@ -11,4 +11,4 @@ ruff==0.16.5
 # pydantic : scripts/dual_model_mcp.py (PreCommitReport) — cung import tran.
 paramiko==5.0.0
 mcp==2.2.0
-pydantic==2.13.5
+pydantic==2.14.0
