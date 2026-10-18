@@ -363,7 +363,7 @@ ZerynBot/
 │                        #   i18n_migrate.py — fetch/plan/apply de-hardcode + ghi 6 locale,
 │                        #   command_registry_audit.py — đối chiếu lệnh thật trong cog với _COMMANDS_DATA,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 306 tests (cache, i18n + ngân sách chống hardcode, độ đầy đủ registry lệnh, database, permissions,
+├── tests/               # 🧪 312 tests (cache, i18n + ngân sách chống hardcode, độ đầy đủ registry lệnh, database, permissions,
 │                        #   Termux optimizations, dashboard security/routes/tenant isolation, music
 │                        #   behavior + stream watchdog, AI guardrails + chat dài, races, automod)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
@@ -405,7 +405,7 @@ Gợi ý nhịp: chạy `cleanup` mỗi 2–4 tuần, hoặc khi `du -sh data` v
 # Cài đặt thư viện dev/test (chỉ cần trên máy dev):
 pip install -r requirements-dev.txt
 
-# Chạy toàn bộ test suite (306 test; vài test dashboard tự skip nếu chưa cài flask)
+# Chạy toàn bộ test suite (312 test; vài test dashboard tự skip nếu chưa cài flask)
 pytest -q
 ```
 

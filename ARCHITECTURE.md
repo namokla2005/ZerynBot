@@ -909,6 +909,23 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   - `tests/test_phase1_remind_delivery.py` (5 tests) pins both invariants. Proved red by
     restoring each old behaviour on its own: unconditional delete → 2 failures; batch-wide
     try → the healthy reminder behind the poison row never fires.
+- **v3.3 audit Phase 2 — a pending `/skip` is never left dangling** (H3):
+  - `skip()` sets `_skipped=True` then `vc.stop()`. Five early-return sites used to bail
+    out **on sight of the flag without consuming it** (both auto-recovery backoffs in
+    `_handle_after_play_async`, three in `resume_after_reconnect`). Since `_play()` refuses
+    to run while `_skipped` is set, the queue froze until the user pressed skip a *second*
+    time (while nothing was playing) or the bot restarted — and the second recovery window
+    is exactly when users press skip, because the stream is visibly stuck.
+  - All five now call `_honour_pending_skip()`: consume the flag and hand the queue to
+    `_dispatch_next_async()`. It deliberately refuses to consume while the voice client is
+    disconnected, otherwise the dispatch would keep the queue and nobody would call it again.
+  - The remaining hole was `_after_play()`'s own guard: `vc.play()` has already run but
+    `_recovering` stays up until the `finally`, so a skip landing in that microsecond-second
+    window was dropped with no other consumer. Such a call now schedules `_drain_pending_skip()`
+    (one instance, strong-referenced on the player), which waits for the recovery/reconnect
+    flags to drop, honours the skip, and bails out permanently if `/stop` came first.
+  - `tests/test_phase2_skip_recovery_race.py` (6). Reverting the whole patch turns 5 red,
+    including the behavioral assertion `_skipped treo sau khi recovery return`.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.
