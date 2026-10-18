@@ -992,6 +992,15 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     is the silent-wipe bug this repo has now hit twice.
   - `.qoder/` (generated Repo Wiki / knowledge cards) is ignored instead of littering
     `git status`.
+- **v3.3 optimisation O1 — every SQLite connection is closed, not GC'd**: `_connect_sync()`
+  now returns a `_ClosingConnection(sqlite3.Connection)` subclass whose `__exit__` closes the
+  handle after commit/rollback. Base `sqlite3.Connection.__exit__` only commits, so all ~83
+  `with _connect_sync() as db:` sites across `database/` were leaving file descriptors to the
+  garbage collector — on a 24/7 Termux process (bot + 4 Waitress threads) that is an
+  unbounded, hard-to-attribute fd count. Fixed at the helper instead of at 83 call sites, and
+  the three raw callers (`bot/tester.py`, two tests) that never used `with` still work.
+  `tests/test_db_connection_lifecycle.py` asserts close-after-with, commit-before-close,
+  rollback-then-close, and (on Linux/Termux) that 300 open/close cycles do not grow `/proc/self/fd`.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

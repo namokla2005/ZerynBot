@@ -70,13 +70,34 @@ def set_db_path(path: str) -> None:
 def _row_to_dict(row: sqlite3.Row) -> Dict:
     return dict(row)
 
+class _ClosingConnection(sqlite3.Connection):
+    """Kết nối TỰ ĐÓNG khi khối `with` kết thúc.
+
+    `sqlite3.Connection.__exit__` chỉ commit/rollback — nó KHÔNG close. Toàn bộ ~83 chỗ
+    `with _connect_sync() as db:` trong package này vì thế phó mặc file descriptor cho
+    GC: trên Termux (bot 24/7 + 4 thread Waitress phục vụ dashboard) số fd mở là không
+    xác định, và khi chạm trần thì lỗi đến dạng "too many open files" ở một nơi random,
+    cực khó truy nguyên.
+    """
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            return super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            try:
+                self.close()
+            except Exception:
+                pass
+
+
 def _connect_sync(timeout: float = 15.0):
     """Mở kết nối SQLite (sync) đã áp PRAGMA tối ưu.
 
     DB_PATH được đọc tại thời điểm gọi (không cache) để giữ nguyên khả năng
-    monkeypatch database.DB_PATH trong test.
+    monkeypatch database.DB_PATH trong test. Trả về `_ClosingConnection`: dùng trong
+    `with` thì đóng fd ngay, gọi thô (tester.py) thì vẫn là connection bình thường.
     """
-    conn = sqlite3.connect(get_db_path(), timeout=timeout)
+    conn = sqlite3.connect(get_db_path(), timeout=timeout, factory=_ClosingConnection)
     try:
         conn.executescript(_DB_PRAGMA_SCRIPT)
     except Exception:
