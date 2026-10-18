@@ -7,6 +7,7 @@ Tách từ `database.py` (Giai đoạn 3.3).
 import json
 import logging
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -81,6 +82,31 @@ async def async_set_maintenance_job(job_key: str, ts: float = None) -> None:
         )
         await db.commit()
 
+async def _delete_in_batches(db, table: str, where: str, params: tuple, batch: int = 1000) -> int:
+    """Xóa theo mẻ nhỏ và commit giữa mẻ, trả về tổng số dòng đã xóa.
+
+    `DELETE FROM <bảng lớn nhất> WHERE <cũ hơn 1 năm>` trong MỘT câu sẽ giữ write-lock
+    của WAL đủ lâu để /work, /pay, /bet xếp hàng sau lưng — trên Helio G85 đó là bot
+    treo thật, không phải làm chậm. `id IN (SELECT ... LIMIT ?)` đi theo khóa chính nên
+    mỗi mẻ ngắn và nhả lock sau mỗi commit.
+    """
+    if not re.fullmatch(r"[a-z_][a-z0-9_]*", table):
+        # Tên bảng không parameter-bind được trong SQLite, nên nó đi vào f-string.
+        # Chặn ngay ở cổng để một call site tương lai không biến helper này thành SQLi.
+        raise ValueError(f"_delete_in_batches: tên bảng không hợp lệ: {table!r}")
+    total = 0
+    while True:
+        async with db.execute(
+            f"DELETE FROM {table} WHERE id IN (SELECT id FROM {table} WHERE {where} LIMIT ?)",
+            (*params, batch),
+        ) as cur:
+            n = cur.rowcount
+        await db.commit()
+        total += n
+        if n < batch:
+            return total
+
+
 async def async_prune_old_data(
     stats_days: int = 60,
     warnings_days: int = 2,
@@ -88,15 +114,17 @@ async def async_prune_old_data(
     reminders_days: int = 30,
     song_cache_days: int = 7,
     activity_days: int = 7,
+    economy_tx_days: int = 365,
 ) -> dict:
     """
     Dọn dữ liệu cũ để giữ DB gọn (chỉ ghi đúng các bảng tích luỹ theo thời gian):
-    - guild_stats      : > stats_days ngày
-    - automod_warnings : > warnings_days ngày (cảnh cáo chỉ có ý nghĩa trong 24h)
-    - fun_interactions : > interactions_days ngày
-    - reminders        : > reminders_days ngày (reminder đã cũ)
-    - music_song_cache : > song_cache_days ngày (mặc định 7 ngày)
-    - activity_logs    : > activity_days ngày (mặc định 7 ngày, phiên cũ biến mất)
+    - guild_stats          : > stats_days ngày
+    - automod_warnings     : > warnings_days ngày (cảnh cáo chỉ có ý nghĩa trong 24h)
+    - fun_interactions     : > interactions_days ngày
+    - reminders            : > reminders_days ngày (reminder đã cũ)
+    - music_song_cache     : > song_cache_days ngày (mặc định 7 ngày)
+    - activity_logs        : > activity_days ngày (mặc định 7 ngày, phiên cũ biến mất)
+    - economy_transactions : > economy_tx_days ngày (sổ phụ chỉ cần 1 năm; user đã duyệt)
     KHÔNG đụng user_levels / economy_users (dữ liệu member, phải giữ).
 
     Trả về dict {table: số dòng đã xoá}.
@@ -174,6 +202,20 @@ async def async_prune_old_data(
             )
         except Exception as exc:
             logger.warning(f"[Prune] activity_logs error: {exc}")
+
+        try:
+            # economy_transactions là bảng PHÌ NHẤT của một server chạy 24/7 (mỗi /work,
+            # /fish, /bet, /pay đều ghi một dòng) và trước đây không có retention nào.
+            # `created_at` là REAL epoch (schema.py) nên phải so với SỐ: dùng
+            # datetime('now', ...) là so chuỗi với số — SQLite xếp hạng theo kiểu dữ liệu
+            # nên vị từ đúng/sai một cách im lặng, đúng cái bẫy từng khiến reminders bị
+            # xóa sạch.
+            econ_cutoff = time.time() - (economy_tx_days * 86400)
+            deleted["economy_transactions"] = await _delete_in_batches(
+                db, "economy_transactions", "created_at < ?", (econ_cutoff,)
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] economy_transactions error: {exc}")
 
         try:
             # Dọn dẹp ai_activity_logs: xóa các log cũ hơn 2 ngày theo timestamp, an toàn tuyệt đối

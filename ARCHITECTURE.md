@@ -926,6 +926,23 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     flags to drop, honours the skip, and bails out permanently if `/stop` came first.
   - `tests/test_phase2_skip_recovery_race.py` (6). Reverting the whole patch turns 5 red,
     including the behavioral assertion `_skipped treo sau khi recovery return`.
+- **v3.3 audit Phase 3 — `economy_transactions` finally has a retention window** (M1):
+  - Every `/work`, `/fish`, `/bet`, `/pay` writes a row and nothing ever deleted them — the
+    fastest-growing table on a 6 GB device running 24/7. `async_prune_old_data()` now takes
+    `economy_tx_days` (default **365**, owner-approved) and reports the deleted count like
+    every other table. `economy_users` / `user_levels` balances are explicitly out of scope
+    and a test asserts a 900-day-old `last_daily_at` does not cost anyone their money.
+  - The predicate compares REAL epoch numbers, not `datetime('now', …)`: SQLite orders by
+    storage class, so a string/number mix silently matches everything (this exact bug used
+    to wipe un-due reminders). `tests/test_phase3_economy_retention.py` pins the column type
+    so a future schema change breaks a test instead of deleting history.
+  - Deletion runs through `_delete_in_batches()` (`id IN (SELECT … LIMIT 1000)`, commit per
+    batch) and `economy_transactions(created_at)` got its own index. Both came out of the
+    Model-2 pre-commit gate rejecting the first version: one unbounded `DELETE` holds the
+    WAL write lock long enough to stall `/work`, `/pay`, `/bet` on the Helio G85, and without
+    an index starting on `created_at` every batch would full-scan the largest table — worse
+    than the single statement it replaced. The helper rejects any `table` argument that is
+    not a plain identifier, since identifiers cannot be parameter-bound.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

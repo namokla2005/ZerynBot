@@ -341,6 +341,11 @@ def init_db():
             );
 
             CREATE INDEX IF NOT EXISTS idx_econ_tx ON economy_transactions (guild_id, user_id, created_at DESC);
+            -- Job prune theo `created_at` (database/maintenance.py::_delete_in_batches) quét
+            -- bảng bằng WHERE created_at < ? LIMIT n. Index (guild_id, user_id, created_at)
+            -- KHÔNG dùng được ở đây (cột đầu tiên không nằm trong vị từ) → mỗi mẻ sẽ
+            -- full-scan bảng lớn nhất, tệ hơn cả một câu DELETE đơn lẻ.
+            CREATE INDEX IF NOT EXISTS idx_econ_tx_created_at ON economy_transactions (created_at);
 
             CREATE TABLE IF NOT EXISTS tempvoice_settings (
                 guild_id            TEXT PRIMARY KEY,
