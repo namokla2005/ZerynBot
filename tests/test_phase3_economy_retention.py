@@ -196,3 +196,43 @@ async def test_prune_predicate_is_covered_by_an_index(temp_db):
         f"không index nào bắt đầu bằng created_at (idx: {idx_names}) — "
         "_delete_in_batches sẽ quét toàn bộ bảng ở mỗi mẻ"
     )
+
+
+async def test_old_mod_warnings_are_pruned_but_recent_ones_survive(temp_db):
+    """mod_warnings la TEXT 'YYYY-MM-DD HH:MM:SS' — khong phai epoch, dung sai la mat lich su."""
+    import sqlite3
+    from database import async_prune_old_data, init_db
+
+    init_db()
+    con = sqlite3.connect(database_path())
+    try:
+        now = time.time()
+        for who, age in (("u_old", 500), ("u_new", 10)):
+            con.execute(
+                "INSERT INTO mod_warnings (guild_id, user_id, mod_id, reason, created_at) "
+                "VALUES ('g_warn', ?, 'm1', 'vi pham', datetime(?, 'unixepoch'))",
+                (who, now - age * DAY),
+            )
+        con.commit()
+    finally:
+        con.close()
+
+    deleted = await async_prune_old_data()
+
+    assert deleted.get("mod_warnings") == 1, deleted
+    assert _warning_users("g_warn") == ["u_new"]
+
+
+def database_path():
+    import database
+    return database.get_db_path()
+
+
+def _warning_users(guild_id: str):
+    con = sqlite3.connect(database_path())
+    try:
+        return sorted(r[0] for r in con.execute(
+            "SELECT user_id FROM mod_warnings WHERE guild_id = ?", (guild_id,)
+        ).fetchall())
+    finally:
+        con.close()

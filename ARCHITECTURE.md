@@ -45,7 +45,7 @@
 - **Audio Pipeline:** `yt-dlp` (`player_client: ["android"]`) + `FFmpegOpusAudio` optimized for ARM (`-threads 1 -rw_timeout 10000000 -fflags +genpts -probesize 512K -analyzeduration 500000`, plus `-reconnect_on_network_error`/`-reconnect_on_http_error` only when the probed FFmpeg is ≥ 5.0), subprocess CPU priority niceness (+10) to prevent async event loop starvation, queue length clamping (`MAX_QUEUE_SIZE = 100`), thread-safe `threading.local` yt-dlp instances, dynamic 403 / stream expire auto-recovery with `-ss <elapsed>` resume, **audio-frame stall watchdog** (`source.read()` is instrumented so a wedged FFmpeg is cut and resumed from the *real* audible position after `MUSIC_STALL_TIMEOUT`=30s of zero frames), dual-tier caching (RAM Cache + compact SQLite disk cache `music_song_cache` with 7-day auto-prune, < 0.5 KB/song), resilient playlist loading with title fallback and burst rate limit protection, and rich queue management (`/seek`, `/search`, `/remove`, `/clearqueue`, `/jump` — all through identity-preserving `MusicPlayer` helpers). The Now-Playing card view is registered with `bot.add_view()` and every button carries a stable `custom_id`, so cards from before a restart still dispatch; a `player=None` shell reloads the live player and the server language lazily in `_check()`.
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1834 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1857 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
 
 ---
 
@@ -134,12 +134,12 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   └── templates/              # Jinja2 HTML templates
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1834 keys
-│   ├── en.json                 # English — 1834 keys
-│   ├── zh.json                 # Chinese — 1834 keys
-│   ├── es.json                 # Spanish — 1834 keys
-│   ├── pt.json                 # Portuguese — 1834 keys
-│   └── fr.json                 # French — 1834 keys
+│   ├── vi.json                 # Vietnamese (Default) — 1857 keys
+│   ├── en.json                 # English — 1857 keys
+│   ├── zh.json                 # Chinese — 1857 keys
+│   ├── es.json                 # Spanish — 1857 keys
+│   ├── pt.json                 # Portuguese — 1857 keys
+│   └── fr.json                 # French — 1857 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -450,7 +450,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1834 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **1857 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
    - Two frozen guards in `tests/test_i18n_no_hardcoded.py`: (a) every `tr()`/`t()` literal referenced in `bot/`+`dashboard/` must exist in **all 6** dictionaries — a missing key prints the raw key name on Discord, which actually happened with `common.not_your_interaction`; (b) the per-file count of Discord-facing Vietnamese literals may only **decrease** (`tests/i18n_budget.json`, currently 0), refreshed with `python scripts/i18n_audit.py --budget`.
    - Locale files are hand-grouped by module: **never** rewrite them with `json.dumps(..., sort_keys=True)` (that produces a ~1800-line diff that hides the real change); append at the end and keep CRLF.
 2. **Async vs. Sync Separation:**
@@ -977,6 +977,21 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   - `tests/test_phase5_ops_nits.py` (7): runs the audit script under a forced cp1252
     console, drives `_run_ssh` with a broken paramiko to prove the tunnel branch executes,
     and loads the real `pid_is()` out of `watchdog.sh` into bash to test accept/reject.
+- **v3.3 audit clean-up — every command is translated, and no table grows forever**:
+  - The 23 registry commands that had no `cmd.*.desc` key (all ten `verify *`, both
+    `automods raid*`, `lang`, `config`, `sync`, `backup`, `ticket`, `topmusic`, `work`,
+    `fish`, `hunt`, `inventory`, `sell`) now have one in all six locales (1834 → 1857), so
+    `/docs` on an English server no longer falls back to Vietnamese for them.
+  - `tests/test_command_registry_complete.py` pins it: a command without a translated
+    description in every locale fails, and a Vietnamese description that drifts from the
+    registry fails too — except for 19 pre-existing wordings frozen in `KNOWN_DESC_DRIFT`,
+    so the list can only shrink.
+  - `mod_warnings` gets a retention window as well (default 365 days). Its `created_at` is
+    TEXT `'YYYY-MM-DD HH:MM:SS'`, deliberately compared with `datetime('now', …)` while
+    `economy_transactions.created_at` is compared with an epoch number — mixing those two
+    is the silent-wipe bug this repo has now hit twice.
+  - `.qoder/` (generated Repo Wiki / knowledge cards) is ignored instead of littering
+    `git status`.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

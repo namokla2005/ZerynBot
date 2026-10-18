@@ -115,6 +115,7 @@ async def async_prune_old_data(
     song_cache_days: int = 7,
     activity_days: int = 7,
     economy_tx_days: int = 365,
+    mod_warnings_days: int = 365,
 ) -> dict:
     """
     Dọn dữ liệu cũ để giữ DB gọn (chỉ ghi đúng các bảng tích luỹ theo thời gian):
@@ -125,6 +126,7 @@ async def async_prune_old_data(
     - music_song_cache     : > song_cache_days ngày (mặc định 7 ngày)
     - activity_logs        : > activity_days ngày (mặc định 7 ngày, phiên cũ biến mất)
     - economy_transactions : > economy_tx_days ngày (sổ phụ chỉ cần 1 năm; user đã duyệt)
+    - mod_warnings         : > mod_warnings_days ngày (lịch sử mod cũng phình mãi)
     KHÔNG đụng user_levels / economy_users (dữ liệu member, phải giữ).
 
     Trả về dict {table: số dòng đã xoá}.
@@ -216,6 +218,19 @@ async def async_prune_old_data(
             )
         except Exception as exc:
             logger.warning(f"[Prune] economy_transactions error: {exc}")
+
+        try:
+            # mod_warnings.created_at là TEXT dạng 'YYYY-MM-DD HH:MM:SS' (CURRENT_TIMESTAMP),
+            # KHAC voi economy_transactions (REAL epoch) — dung nham 1 trong 2 kieu la vi tu
+            # dung sai im lặng. So voi datetime('now', ...) o day la dao duoc theo chieu
+            # nguoc lai: ki tu so luu tru theo thu tu tu dien.
+            await _delete(
+                "mod_warnings",
+                "created_at <= datetime('now', ?)",
+                (f"-{mod_warnings_days} days",),
+            )
+        except Exception as exc:
+            logger.warning(f"[Prune] mod_warnings error: {exc}")
 
         try:
             # Dọn dẹp ai_activity_logs: xóa các log cũ hơn 2 ngày theo timestamp, an toàn tuyệt đối

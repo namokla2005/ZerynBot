@@ -116,3 +116,56 @@ def test_ai_never_advises_a_command_that_does_not_exist():
         if m.group(1).lower() not in known
     })
     assert not ghosts, f"Chỉ dẫn AI gợi ý lệnh ma: {ghosts}"
+
+
+def test_every_registry_command_has_a_translated_description():
+    """/docs render `cmd.<ten>.desc` cho 6 ngon ngu; thieu key la trang en/zh/fr lo
+    chu Tieng Viet — chinh la loi i18n da sua ca thang nay.
+
+    Vi du that: 23 lenh (toan bo `verify *`, `automods raid*`, `work`, `fish`, `hunt`,
+    `inventory`, `sell`, `topmusic`, `ticket`, `lang`, `config`, `sync`, `backup`) khong
+    co key, nen khong test nao bat duoc khi them lenh moi ma khong dich.
+    """
+    import json
+
+    locales = {}
+    for lang in ("vi", "en", "zh", "es", "pt", "fr"):
+        with open(ROOT / "locales" / f"{lang}.json", encoding="utf-8") as f:
+            locales[lang] = json.load(f)
+
+    missing = []
+    for cat in audit.registry_raw():
+        for cmd in cat.get("commands", []):
+            key = f"cmd.{cmd['name'].replace(' ', '_')}.desc"
+            for lang, data in locales.items():
+                if key not in data:
+                    missing.append(f"{key} [{lang}]")
+                elif lang == "vi" and data[key] != cmd["desc"] and key not in KNOWN_DESC_DRIFT:
+                    missing.append(f"{key} [vi] khop voi desc trong registry")
+    assert not missing, "Thieu/lech ban dich mo ta lenh:\n" + "\n".join(missing[:40])
+
+
+# 19 mo ta cu da duoc viet lai trong `commands_data.py` ma khong cap nhat lai 6 locale
+# (registry phong phu hon: them cooldown, them chi dan...). Dong bang nay CHAT: them
+# key moi ma noi dung vi khong khop registry la test do, muon them phai chu dich.
+KNOWN_DESC_DRIFT = {
+    "cmd.remindme.desc",
+    "cmd.reactionroles.desc",
+    "cmd.search.desc",
+    "cmd.lofi.desc",
+    "cmd.deposit.desc",
+    "cmd.withdraw.desc",
+    "cmd.ask.desc",
+    "cmd.summarize.desc",
+    "cmd.warn.desc",
+    "cmd.slap.desc",
+    "cmd.feed.desc",
+    "cmd.cuddle.desc",
+    "cmd.highfive.desc",
+    "cmd.marry.desc",
+    "cmd.divorce.desc",
+    "cmd.profile.desc",
+    "cmd.birthday_set.desc",
+    "cmd.birthday_list.desc",
+    "cmd.birthday_remove.desc",
+}

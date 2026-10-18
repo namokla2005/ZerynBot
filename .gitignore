@@ -40,3 +40,4 @@ scripts/generate_all_emojis_v2.py
 scripts/generate_preview_grid.py
 scratch/
 .freebuff/
+.qoder/
