@@ -1023,6 +1023,15 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `oauth_token_id` for 10 s and uses a non-blocking lock, so a late thread reuses the
     in-flight result (or the previous list) instead of queueing behind a network call.
     The memo key is the vault pointer, never the access token.
+- **v3.3 optimisation O3 — evaluated and deliberately NOT done**: the proposal was to fold
+  the two `_after_play()` guards into one `_play_generation` counter. They answer different
+  questions: the flags say *"another flow owns the player right now"* (auto-recovery, voice
+  reconnect, `/stop`), while `bound_source is self._active_source` says *"this callback
+  belongs to a stream that was already replaced"*. A generation counter subsumes only the
+  second — and it does nothing for the bug class it was sold on, because H3 was a flag that
+  nobody consumed (fixed in audit Phase 2 by `_honour_pending_skip()`), not a stale-source
+  misclassification. Rewriting the most fragile, freshly-tested path of the audio pipeline
+  for a marginal readability win is not the trade; revisit if a third guard ever appears.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.
