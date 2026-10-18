@@ -894,6 +894,21 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     missing entries, ghost entries, unresolvable declarations, empty fields, and any
     `/command` named in the AI's own instruction block that is not in the catalog.
     `ai_knowledge.py` no longer hardcodes "20 modules / 110 lệnh" — both numbers are derived.
+- **v3.3 audit Phase 1 — a reminder is deleted only after it was delivered** (`docs/BAO CAO_AUDIT_LOI_AN_2026-10-18.md` H1+H2):
+  - `reminder_task` ran `async_delete_reminder()` **unconditionally** after two
+    `except: pass` delivery attempts, so "channel lost permission + user closed DMs"
+    (a normal state, not an edge case) silently destroyed the reminder and nobody was
+    told. Deletion is now gated on `sent`; a failed attempt bumps the new
+    `reminders.attempts` column (added in `schema.py` + `async_set_reminder_attempts`)
+    and the row is dropped with a `logger.warning` only after `REMIND_MAX_ATTEMPTS = 3`
+    cycles — bounded so a stuck row cannot be re-scanned every 60 s forever.
+  - The single `try/except Exception: pass` that wrapped the whole `for` loop is now
+    per-row: one poison row (`int(user_id)` on a non-numeric id, a broken embed, …) used
+    to abort the entire batch **every** cycle and starve every reminder queued behind it,
+    without leaving a single log line.
+  - `tests/test_phase1_remind_delivery.py` (5 tests) pins both invariants. Proved red by
+    restoring each old behaviour on its own: unconditional delete → 2 failures; batch-wide
+    try → the healthy reminder behind the poison row never fires.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

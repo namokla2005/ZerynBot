@@ -396,6 +396,7 @@ def init_db():
                 channel_id  TEXT,
                 reason      TEXT NOT NULL,
                 remind_at   INTEGER NOT NULL,
+                attempts    INTEGER NOT NULL DEFAULT 0,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -625,6 +626,14 @@ def init_db():
             # Dữ liệu cũ không có mốc thời gian → coi như vừa dùng, để lần prune đầu
             # tiên KHÔNG xoá sạch lịch sử đếm (nhờ vậy không mất dữ liệu của user).
             conn.execute("UPDATE fun_interactions SET last_used = ? WHERE last_used IS NULL OR last_used = 0", (time.time(),))
+
+        # `attempts` đếm số lần bot KHÔNG gửi được một nhắc nhở. Không có nó thì vòng
+        # retry hoặc là vô hạn (row kẹt quét mãi), hoặc phải xóa ngay lần đầu (mất dữ
+        # liệu của user) — xem bot/cogs/remind.py::_deliver_due_reminders.
+        cursor.execute("PRAGMA table_info(reminders)")
+        rem_cols = [row[1] for row in cursor.fetchall()]
+        if "attempts" not in rem_cols:
+            conn.execute("ALTER TABLE reminders ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
 
         # ─── Support thread: một người chỉ được có MỘT thread đang mở ──────────
         # get_or_create_support_thread từng kiểu SELECT-rồi-INSERT, nên hai phiên cùng

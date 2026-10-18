@@ -1,7 +1,7 @@
 """
 Cog: Remind (v2) — Hệ thống nhắc nhở & hẹn giờ thông minh (/remindme, /reminders, /delreminder)
 """
-import sys, os, time as _time, re
+import sys, os, time as _time, re, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import discord
@@ -15,6 +15,7 @@ from database import (
     async_add_reminder,
     async_get_due_reminders,
     async_delete_reminder,
+    async_set_reminder_attempts,
     async_get_user_reminders
 )
 from i18n import tr
@@ -22,6 +23,13 @@ try:
     from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
     from bot.emojis import e, embed_title, clean_title
+
+log = logging.getLogger("BotV2.Remind")
+
+# Số lần thử gửi tối đa cho một nhắc nhở trước khi bỏ + log (user đã duyệt: 3).
+# Loop chạy mỗi 60s → cửa sổ retry ~3 phút, đủ cho một chợp mạng, không thành
+# hàng đợi rác quét mãi trên thiết bị 6GB.
+REMIND_MAX_ATTEMPTS = 3
 
 
 def parse_time_duration(time_str: str) -> int | None:
@@ -90,67 +98,112 @@ class Remind(commands.Cog):
     @tasks.loop(seconds=60)
     async def reminder_task(self):
         """Quét và gửi các thông báo nhắc nhở đến hạn mỗi 60 giây."""
+        await self._deliver_due_reminders()
+
+    async def _deliver_due_reminders(self) -> None:
+        """Gửi mọi nhắc nhở đến hạn, mỗi row một lần try/except RIÊNG.
+
+        Bản cũ bọc cả vòng `for` trong MỘT `try` rồi `except Exception: pass`: chỉ cần
+        một row hỏng (`int(user_id)` với user_id không phải số, embed build lỗi, thiếu
+        key dịch...) là toàn bộ batch abort, không để lại dòng log nào, và chu kỳ 60s
+        sau lại dừng đúng ở row đó — mọi nhắc nhở xếp sau chết đói vĩnh viễn.
+        """
         try:
-            now_ts = int(_time.time())
-            due_reminders = await async_get_due_reminders(now_ts)
-            for r in due_reminders:
-                remind_id = r["id"]
-                user_id = int(r["user_id"])
-                guild_id_str = r.get("guild_id") or ""
-                channel_id = int(r["channel_id"]) if r.get("channel_id") else None
-                reason = r["reason"]
-
-                s = await async_get_guild_settings(guild_id_str) if guild_id_str else {}
-
-                # 1. Tìm user
-                user = self.bot.get_user(user_id)
-                if not user:
-                    try:
-                        user = await self.bot.fetch_user(user_id)
-                    except Exception:
-                        user = None
-
-                embed = discord.Embed(
-                    title=embed_title("zb_reminder", tr(s, "remind.due_title")),
-                    description=tr(s, "remind.due_content", reason=reason),
-                    color=config.COLOR_PING,
-                    timestamp=datetime.now(timezone.utc)
-                )
-                embed.set_footer(
-                    text=tr(s, "remind.footer_bot"),
-                    icon_url=self.bot.user.display_avatar.url if self.bot.user else None
-                )
-
-                sent = False
-                # 2. Thử gửi vào kênh chat ban đầu
-                if channel_id:
-                    channel = self.bot.get_channel(channel_id)
-                    if channel and hasattr(channel, "send"):
-                        try:
-                            mention_str = user.mention if user else f"<@{user_id}>"
-                            await channel.send(
-                                content=tr(s, "remind.due_ping", mention=mention_str),
-                                embed=embed
-                            )
-                            sent = True
-                        except Exception:
-                            pass
-
-                # 3. Nếu chưa gửi được (hoặc kênh bị xóa / không có quyền), gửi qua DM
-                if not sent and user:
-                    try:
-                        await user.send(
-                            content=tr(s, "remind.due_dm"),
-                            embed=embed
-                        )
-                        sent = True
-                    except Exception:
-                        pass
-
-                # 4. Xóa nhắc nhở khỏi database
-                await async_delete_reminder(remind_id)
+            due = await async_get_due_reminders(int(_time.time()))
         except Exception:
-            pass
+            log.exception("[Remind] Không đọc được danh sách nhắc nhở đến hạn")
+            return
+
+        for r in due:
+            try:
+                await self._deliver_one(r)
+            except Exception:
+                log.exception(f"[Remind] Nhắc nhở #{r.get('id')} raise lỗi khi xử lý")
+                await self._register_failed_attempt(r)
+
+    async def _deliver_one(self, r: dict) -> None:
+        remind_id = r["id"]
+        user_id = int(r["user_id"])
+        guild_id_str = r.get("guild_id") or ""
+        channel_id = int(r["channel_id"]) if r.get("channel_id") else None
+        reason = r["reason"]
+
+        s = await async_get_guild_settings(guild_id_str) if guild_id_str else {}
+
+        # 1. Tìm user
+        user = self.bot.get_user(user_id)
+        if not user:
+            try:
+                user = await self.bot.fetch_user(user_id)
+            except Exception:
+                user = None
+
+        embed = discord.Embed(
+            title=embed_title("zb_reminder", tr(s, "remind.due_title")),
+            description=tr(s, "remind.due_content", reason=reason),
+            color=config.COLOR_PING,
+            timestamp=datetime.now(timezone.utc)
+        )
+        embed.set_footer(
+            text=tr(s, "remind.footer_bot"),
+            icon_url=self.bot.user.display_avatar.url if self.bot.user else None
+        )
+
+        sent = False
+        # 2. Thử gửi vào kênh chat ban đầu
+        if channel_id:
+            channel = self.bot.get_channel(channel_id)
+            if channel and hasattr(channel, "send"):
+                try:
+                    mention_str = user.mention if user else f"<@{user_id}>"
+                    await channel.send(
+                        content=tr(s, "remind.due_ping", mention=mention_str),
+                        embed=embed
+                    )
+                    sent = True
+                except Exception:
+                    pass
+
+        # 3. Nếu chưa gửi được (hoặc kênh bị xóa / không có quyền), gửi qua DM
+        if not sent and user:
+            try:
+                await user.send(
+                    content=tr(s, "remind.due_dm"),
+                    embed=embed
+                )
+                sent = True
+            except Exception:
+                pass
+
+        # 4. CHỈ xóa khi đã gửi thành công. Trước đây bước này chạy vô điều kiện, nên
+        # kênh mất quyền + user tắt DM (trạng thái bình thường, không phải edge case) là
+        # nhắc nhở biến mất không dấu vết và người dùng không bao giờ được báo.
+        if sent:
+            await async_delete_reminder(remind_id)
+            return
+        await self._register_failed_attempt(r)
+
+    async def _register_failed_attempt(self, r: dict) -> None:
+        """Đếm thêm một lần thử; bỏ nhắc nhở sau REMIND_MAX_ATTEMPTS lần và log lại."""
+        remind_id = r["id"]
+        attempts = int(r.get("attempts") or 0) + 1
+        try:
+            if attempts >= REMIND_MAX_ATTEMPTS:
+                await async_delete_reminder(remind_id)
+                log.warning(
+                    f"[Remind] Bỏ nhắc nhở #{remind_id} của user {r.get('user_id')} sau {attempts} lần "
+                    "không gửi được (cả kênh lẫn DM đều từ chối)."
+                )
+            else:
+                await async_set_reminder_attempts(remind_id, attempts)
+                log.warning(
+                    f"[Remind] Chưa gửi được nhắc nhở #{remind_id} — lần {attempts}/{REMIND_MAX_ATTEMPTS}, "
+                    "sẽ thử lại ở chu kỳ sau."
+                )
+        except Exception:
+            # Row vẫn còn nguyên nên chu kỳ sau sẽ thử lại; không được để lỗi ghi DB
+            # làm sập cả batch đang chạy.
+            log.exception(f"[Remind] Không ghi được số lần thử cho nhắc nhở #{remind_id}")
 
     @reminder_task.before_loop
     async def before_reminder_task(self):

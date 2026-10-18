@@ -113,6 +113,13 @@ async def async_delete_reminder(reminder_id: int):
         await db.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
         await db.commit()
 
+
+async def async_set_reminder_attempts(reminder_id: int, attempts: int):
+    """Ghi số lần đã thử gửi cho một nhắc nhở chưa gửi được (để cycle sau thử tiếp)."""
+    async with _connect_async() as db:
+        await db.execute("UPDATE reminders SET attempts = ? WHERE id = ?", (int(attempts), reminder_id))
+        await db.commit()
+
 async def async_get_user_reminders(user_id: str, guild_id: str = None) -> list:
     """Fetch active upcoming reminders for a user."""
     async with _connect_async() as db:
