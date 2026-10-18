@@ -1001,6 +1001,15 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   the three raw callers (`bot/tester.py`, two tests) that never used `with` still work.
   `tests/test_db_connection_lifecycle.py` asserts close-after-with, commit-before-close,
   rollback-then-close, and (on Linux/Termux) that 300 open/close cycles do not grow `/proc/self/fd`.
+- **v3.3 optimisation O2 — the RAM cache can no longer be poisoned by a stray write**:
+  `MemoryCache.get/set` now pass dict/list values through `_snapshot()`, a shallow copy.
+  Previously the cache stored and handed back the *same* object, so any caller doing
+  `settings = get_guild_settings(gid); settings["language"] = "en"` (convenience or bug)
+  corrupted that guild's values for every command for the whole 30 s TTL — no exception, no
+  log, just wrong output. Cost is one ~25-key dict copy (~0.3 µs), cheaper than anything it
+  protects; immutable values still pass through untouched. The copy is deliberately shallow
+  and `tests/test_cache_snapshot_isolation.py` documents that boundary rather than pretending
+  deepcopy safety.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

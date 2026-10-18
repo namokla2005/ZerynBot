@@ -30,6 +30,23 @@ SETTINGS_TTL = 30
 GLOBAL_SETTINGS_TTL = 60
 
 
+def _snapshot(value: Any) -> Any:
+    """Bản sao nông cho dict/list khi vào/ra cache — chặn HEAD POISONING.
+
+    Cache trước đây lưu và trả về ĐÚNG một object, nên bất kỳ chỗ nào làm
+    `settings = get_guild_settings(gid); settings["language"] = "en"` (để tiện, hoặc
+    do bug) là đầu độc giá trị cho MỌI lệnh của server đó suốt TTL 30s — không exception,
+    không log, chỉ có sai. Cái giá phải trả là một lần copy dict ~25 khóa (~0.3 µs),
+    rẻ hơn bất cứ thao tác nào mà nó bảo vệ. Giá trị bất biến (str/int) trả nguyên trạng.
+
+    Ghi chú: đây là sao CHẪN — dict lồng trong list (vd hàng role Discord) vẫn chia sẻ
+    object bên trong; chỉ dữ liệu cấp phát trực tiếp được cô lập.
+    """
+    if isinstance(value, (dict, list)):
+        return value.copy()
+    return value
+
+
 class MemoryCache:
     """High-performance, thread-safe, in-memory TTL LRU cache."""
 
@@ -88,12 +105,13 @@ class MemoryCache:
                 self._store.pop(key, None)
                 return None
             self._touch(key)  # LRU: vừa dùng → đưa lên cuối
-            return val
+            return _snapshot(val)
 
     def set(self, key: str, value: Any, ttl: int = 300):
+        snapshotted = _snapshot(value)
         with self._lock:
             self._cleanup_expired()
-            self._store[key] = (value, time.time() + ttl)
+            self._store[key] = (snapshotted, time.time() + ttl)
             self._touch(key)  # vừa ghi → coi là recently used
             self._cleanup_expired()
 
