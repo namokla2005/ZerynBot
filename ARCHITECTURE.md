@@ -960,6 +960,23 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     a 400 machine token like the other validation failures.
   - `tests/test_phase4_task_and_input_hygiene.py` (8), including a source guard that fails if
     anyone adds a new unassigned `asyncio.create_task(...)` under `bot/`.
+- **v3.3 audit Phase 5 — the diagnostic tools stop failing at the worst moment** (L3, L4, L5):
+  - `scripts/command_registry_audit.py` crashed with `UnicodeEncodeError` on a default
+    Windows console (cp1252) the moment it printed Vietnamese — i.e. exactly on the
+    developer machine where it is meant to be run. It now reconfigures stdout/stderr to
+    UTF-8 with `errors="replace"`, same idiom as `dashboard/app_factory.py`.
+  - `scripts/termux_mcp.py` imported `paramiko` at module level and built the SSH client
+    *outside* the `try`, so a missing optional dependency killed the whole MCP server and
+    the Cloudflare-tunnel fallback could never run. The import is now guarded and the LAN
+    branch falls through to the tunnel when paramiko is absent or broken.
+  - `scripts/watchdog.sh` trusted `kill -0 "$pid"` as proof of identity. After a reboot the
+    numbers in `data/*.pid` can belong to unrelated processes — the watchdog would SIGTERM
+    a stranger and simultaneously believe the bot/dashboard was still alive. Every kill and
+    liveness check now goes through `pid_is <pid> <cmdline-needle>`, which reads
+    `/proc/<pid>/cmdline`.
+  - `tests/test_phase5_ops_nits.py` (7): runs the audit script under a forced cp1252
+    console, drives `_run_ssh` with a broken paramiko to prove the tunnel branch executes,
+    and loads the real `pid_is()` out of `watchdog.sh` into bash to test accept/reject.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

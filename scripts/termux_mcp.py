@@ -6,7 +6,10 @@ import os
 import sys
 import time
 import socket
-import paramiko
+try:
+    import paramiko
+except ImportError:          # termux_deploy.py chay duoc ma khong can paramiko
+    paramiko = None          # (subprocess ssh); o day None = bo qua nhanh LAN
 from mcp.server.mcpserver import MCPServer
 
 try:
@@ -35,10 +38,14 @@ def _get_config():
 
 def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     cfg = _get_config()
-    # 1. Thử kết nối mạng LAN nội bộ trước (khi ở nhà) bằng SSH Key
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # 1. Thử kết nối mạng LAN nội bộ trước (khi ở nhà) bằng SSH Key.
+    # Cả khối phải nằm trong try: thiếu/hỏng paramiko thì rơi xuống nhánh Cloudflare
+    # Tunnel bên dưới — trước đây nó nằm ngoài nên chỉ cần không có paramiko là cả tool
+    # chết ngay lúc import, nhánh fallback không bao giờ chạy.
+    client = None
     try:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         conn_args = {
             "hostname": cfg["host"],
             "port": cfg["port"],
@@ -60,10 +67,11 @@ def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     except Exception:
         pass
     finally:
-        try:
-            client.close()
-        except Exception:
-            pass
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
 
     # 2. Tự động chuyển hướng qua Cloudflare Tunnel khi ở xa (ssh.zerynbot.id.vn)
     try:

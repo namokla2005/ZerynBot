@@ -12,6 +12,14 @@ import json
 import sys
 from pathlib import Path
 
+# Console Windows mac dinh cp1252: in chu co dau cua Viet Nam ra la UnicodeEncodeError,
+# nen phai ep UTF-8 truoc khi bat ky print nao chay (giong dashboard/app_factory.py).
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):  # pragma: no cover - Python < 3.7 / stream da dong
+        pass
+
 ROOT = Path(__file__).resolve().parents[1]
 COGS = ROOT / "bot" / "cogs"
 sys.path.insert(0, str(ROOT))

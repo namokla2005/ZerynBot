@@ -19,10 +19,21 @@ STOPALL_FLAG="data/stopall.flag"
 mkdir -p data
 termux-wake-lock 2>/dev/null
 
+# ─── Chống PID reuse sau khi máy khởi động lại ───────────────────────────────────
+# `kill -0` chỉ trả lời 'còn tiến trình mang PID này', KHÔNG xác nhận nó là của chúng ta.
+# Sau một lần reboot, số trong data/*.pid rất có thể đã do tiến trình khác kế -> SIGTERM
+# vào đó là giết nhầm tiến trình của người dùng khác trên máy (và watchdog còn tưởng
+# dashboard/bot 'vẫn đang chạy' mà không khởi động lại chúng).
+pid_is() {   # pid_is <pid> <chuoi-phai-co-trong-cmdline>
+    _pid="$1"; _needle="$2"
+    [ -n "$_pid" ] || return 1
+    [ -r "/proc/$_pid/cmdline" ] || return 1
+    tr '\0' ' ' < "/proc/$_pid/cmdline" 2>/dev/null | grep -q -- "$_needle"
+}
 # ─── Đảm bảo duy nhất 1 watchdog chạy (Singleton Guard) ─────────────────────────
 if [ -f "$PID_FILE" ]; then
     old_pid=$(cat "$PID_FILE" 2>/dev/null)
-    if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
+    if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && pid_is "$old_pid" "watchdog.sh"; then
         echo "[Watchdog] Đã phát hiện watchdog cũ (PID $old_pid). Đang dừng..."
         # Dọn sạch các tiến trình con của watchdog cũ để tránh mồ côi
         for c in $(pgrep -P "$old_pid" 2>/dev/null); do
@@ -85,7 +96,7 @@ except Exception:
 restart_dashboard() {
     if [ -f "$DASH_PID_FILE" ]; then
         d_pid=$(cat "$DASH_PID_FILE" 2>/dev/null)
-        if [ -n "$d_pid" ] && kill -0 "$d_pid" 2>/dev/null; then
+        if [ -n "$d_pid" ] && pid_is "$d_pid" "main.py --dashboard"; then
             echo "[Watchdog] Dashboard PID $d_pid còn sống nhưng không trả /health -> SIGTERM..."
             kill -15 "$d_pid" 2>/dev/null
             sleep 3
@@ -134,7 +145,7 @@ health_loop() {
             echo "[Watchdog] Bot offline liên tục $fail_streak × ${HEALTH_INTERVAL}s → Gửi SIGTERM dừng bot..."
             if [ -f "$BOT_PID_FILE" ]; then
                 b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
-                if [ -n "$b_pid" ] && kill -0 "$b_pid" 2>/dev/null; then
+                if [ -n "$b_pid" ] && pid_is "$b_pid" "main.py --bot"; then
                     kill -15 "$b_pid" 2>/dev/null
                     # Chờ tối đa 5 giây cho aiosqlite đóng và Discord ngắt kết nối an toàn
                     for i in 1 2 3 4 5; do
@@ -161,7 +172,7 @@ cleanup_and_exit() {
     [ -n "$HEALTH_PID" ] && kill -15 "$HEALTH_PID" 2>/dev/null
     if [ -f "$BOT_PID_FILE" ]; then
         b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
-        [ -n "$b_pid" ] && kill -15 "$b_pid" 2>/dev/null
+        [ -n "$b_pid" ] && pid_is "$b_pid" "main.py --bot" && kill -15 "$b_pid" 2>/dev/null
     fi
     rm -f "$PID_FILE" "$BOT_PID_FILE" 2>/dev/null
     termux-wake-unlock 2>/dev/null
@@ -194,7 +205,7 @@ while true; do
     if [ -f "$BOT_PID_FILE" ]; then
         old_b=$(cat "$BOT_PID_FILE" 2>/dev/null)
         if [ -n "$old_b" ]; then
-            if kill -0 "$old_b" 2>/dev/null; then
+            if pid_is "$old_b" "main.py --bot"; then
                 echo "[Watchdog] Dọn dẹp tiến trình bot cũ (PID $old_b)..."
                 kill -15 "$old_b" 2>/dev/null
                 sleep 2
@@ -258,7 +269,7 @@ while true; do
     dash_running=0
     if [ -f "$DASH_PID_FILE" ]; then
         d_pid=$(cat "$DASH_PID_FILE" 2>/dev/null)
-        if [ -n "$d_pid" ] && kill -0 "$d_pid" 2>/dev/null; then
+        if [ -n "$d_pid" ] && pid_is "$d_pid" "main.py --dashboard"; then
             dash_running=1
         else
             rm -f "$DASH_PID_FILE" 2>/dev/null
