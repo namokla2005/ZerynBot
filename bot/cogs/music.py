@@ -14,6 +14,7 @@ LƯU Ý QUAN TRỌNG:
 
 import asyncio
 import logging
+import taskbag
 import time
 from datetime import datetime, timezone
 
@@ -151,7 +152,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         # qua package (không re-export) để luôn lấy giá trị hiện thời, tránh giữ
         # bản sao cũ (None) và rò rỉ ClientSession.
         if _music_pkg._spotify_session and not _music_pkg._spotify_session.closed:
-            asyncio.create_task(_music_pkg._spotify_session.close())
+            taskbag.spawn(_music_pkg._spotify_session.close())
 
     @tasks.loop(seconds=60)
     async def task_cleanup_loop(self):

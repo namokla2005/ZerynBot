@@ -26,6 +26,7 @@ from discord.ext import commands
 import config
 from database import init_db
 from i18n import tr
+import taskbag
 
 
 async def _gs(guild):
@@ -531,7 +532,7 @@ class BotV2(commands.Bot):
                 avatar_url = str(interaction.user.display_avatar.url) if interaction.user.display_avatar else None
                 channel_name = getattr(interaction.channel, "name", None)
 
-                asyncio.create_task(async_log_activity(
+                taskbag.spawn(async_log_activity(
                     action=cmd_name,
                     event_type="command",
                     guild_id=guild_id,
@@ -557,7 +558,7 @@ class BotV2(commands.Bot):
             avatar_url = str(ctx.author.display_avatar.url) if ctx.author.display_avatar else None
             channel_name = getattr(ctx.channel, "name", None)
 
-            asyncio.create_task(async_log_activity(
+            taskbag.spawn(async_log_activity(
                 action=cmd_name,
                 event_type="command",
                 guild_id=guild_id,

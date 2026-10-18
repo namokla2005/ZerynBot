@@ -129,7 +129,8 @@ def toggle_module(guild_id: str, module_name: str):
         return err
     data = request.json or {}
     enabled = bool(data.get("enabled", True))
-    db.set_module(guild_id, module_name, enabled)
+    if not db.set_module(guild_id, module_name, enabled):
+        return jsonify({"ok": False, "error": "unknown_module"}), 400
     return jsonify({"ok": True, "enabled": enabled})
 
 

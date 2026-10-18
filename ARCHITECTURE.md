@@ -943,6 +943,23 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     an index starting on `created_at` every batch would full-scan the largest table — worse
     than the single statement it replaced. The helper rejects any `table` argument that is
     not a plain identifier, since identifiers cannot be parameter-bound.
+- **v3.3 audit Phase 4 — background tasks survive GC, and inputs stop being SQL** (M2, M3, L1, L2):
+  - New root module `taskbag.py`: `spawn(coro)` keeps a strong reference in a module set and
+    discards it on completion. An event loop only holds a **weak** reference to tasks created
+    with bare `create_task()`, so `async_log_activity`, `async_increment_stat`,
+    `update_now_playing`, `player.stop()` and `stats._force_flush()` could be collected
+    mid-flight — no exception, no log, just a silently missing row. `spawn()` also returns
+    `None` instead of raising when no loop is running (the `cog_unload` case).
+  - `upsert_guild()` now validates every keyword against `PRAGMA table_info(guilds)` before
+    building the `SET` clause. Column names cannot be parameter-bound, so the f-string was a
+    live SQL-injection gadget waiting for one future caller that passes user-supplied keys.
+    The cache is keyed by DB path so tests swapping databases cannot inherit a stale schema.
+  - `set_module()` rejects names outside `DEFAULT_MODULES` (returns `False`, logs) instead of
+    writing orphan rows into `guild_modules` forever; the dashboard API maps that to HTTP 400.
+  - `?after_id=abc` on `/api/support/messages` returned a 500 with a traceback; it now returns
+    a 400 machine token like the other validation failures.
+  - `tests/test_phase4_task_and_input_hygiene.py` (8), including a source guard that fails if
+    anyone adds a new unassigned `asyncio.create_task(...)` under `bot/`.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

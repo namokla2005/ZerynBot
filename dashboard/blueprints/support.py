@@ -52,7 +52,11 @@ def api_support_messages():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     user_id = str(session["user"].get("id"))
     thread_id = request.args.get("thread_id", "").strip()
-    after_id = int(request.args.get("after_id", 0) or 0)
+    try:
+        after_id = int(request.args.get("after_id", 0) or 0)
+    except (TypeError, ValueError):
+        # `?after_id=abc` từng trả 500 kèm traceback ngay trên trang support đang mở.
+        return jsonify({"ok": False, "error": "bad_after_id"}), 400
 
     thread = db.get_support_thread(thread_id, user_id=user_id)
     if not thread:

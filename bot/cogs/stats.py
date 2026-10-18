@@ -6,6 +6,7 @@ import asyncio
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from database import async_increment_stat
+import taskbag
 
 class Stats(commands.Cog):
     """Ghi nhận số liệu hoạt động ngầm để phục vụ cho Dashboard Analytics."""
@@ -18,7 +19,7 @@ class Stats(commands.Cog):
     def cog_unload(self):
         self._flush_task.cancel()
         if self._stat_buffer:
-            asyncio.create_task(self._force_flush())
+            taskbag.spawn(self._force_flush())
 
     async def _flush_stats(self):
         """Gom stats và ghi vào DB mỗi 60 giây thay vì mỗi event.

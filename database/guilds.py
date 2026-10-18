@@ -65,10 +65,30 @@ def get_guild_settings(guild_id: str) -> Dict:
     cache.set(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
+_GUILD_COLUMNS: Dict[str, set] = {}
+
+
+def _guild_columns() -> set:
+    """Tập tên cột thật của bảng `guilds`, cache theo ĐƯỜNG DẪN DB (test đổi DB liên tục)."""
+    path = get_db_path()
+    cols = _GUILD_COLUMNS.get(path)
+    if cols is None:
+        with _connect_sync() as conn:
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(guilds)")}
+        _GUILD_COLUMNS[path] = cols
+    return cols
+
+
 def upsert_guild(guild_id: str, **fields):
     """Insert or update specific guild settings columns."""
     if not fields:
         return
+    # Tên CỘT không parameter-bind được trong SQL, nên nó đi vào f-string. Hôm nay cả
+    # 8 call site đều truyền key tĩnh, nhưng chỉ một caller tương lai nhận key từ payload
+    # người dùng (settings dạng dict, import JSON...) là chỗ này thành SQL injection.
+    unknown = sorted(k for k in fields if k not in _guild_columns())
+    if unknown:
+        raise ValueError(f"upsert_guild: cột không tồn tại trong bảng guilds: {unknown}")
     with _connect_sync() as conn:
         conn.execute(
             "INSERT OR IGNORE INTO guilds (guild_id) VALUES (?)", (guild_id,)
@@ -99,7 +119,16 @@ def get_guild_modules(guild_id: str) -> Dict[str, bool]:
     cache.set(cache_key, result, ttl=SETTINGS_TTL)
     return result
 
-def set_module(guild_id: str, module_name: str, enabled: bool):
+def set_module(guild_id: str, module_name: str, enabled: bool) -> bool:
+    """Bật/tắt một module ĐÃ BIẾT. Tên rác bị từ chối trả False.
+
+    `guild_modules` không có FK nào trỏ vào danh sách module, nên một dòng tên sai (do
+    UI cũ gửi lên, do typo, hoặc do caller nhận module_name từ URL) nằm lại đó vĩnh
+    viễn và không module toggle nào đọc được nó.
+    """
+    if module_name not in DEFAULT_MODULES:
+        logger.warning(f"[Guilds] set_module: tên module không hợp lệ bị từ chối: {module_name!r}")
+        return False
     with _connect_sync() as conn:
         conn.execute(
             """INSERT INTO guild_modules (guild_id, module_name, enabled) VALUES (?, ?, ?)
@@ -108,6 +137,7 @@ def set_module(guild_id: str, module_name: str, enabled: bool):
         )
         conn.commit()
     cache.delete(f"modules:{guild_id}")
+    return True
 
 def get_guild_channels(guild_id: str) -> List[Dict]:
     """Return cached text channels (type=0) for a guild."""

@@ -22,6 +22,7 @@ from discord.ext import commands
 
 from database import async_get_guild_settings
 from i18n import tr
+import taskbag
 
 from .config import INACTIVITY_TIMEOUT, MAX_PLAYERS
 from .player import MusicPlayer
@@ -48,7 +49,7 @@ class VoiceLifecycleMixin:
                 try:
                     loop = getattr(self.bot, "loop", None)
                     if loop and loop.is_running():
-                        asyncio.create_task(player.stop())
+                        taskbag.spawn(player.stop())
                 except Exception:
                     pass
 

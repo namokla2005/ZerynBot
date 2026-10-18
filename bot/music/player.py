@@ -20,6 +20,7 @@ import discord
 from cache import cache
 from database import async_get_guild_settings, async_increment_stat
 from i18n import tr
+import taskbag
 
 try:
     from emojis import e, embed_title, partial
@@ -778,7 +779,7 @@ class MusicPlayer:
             # khiến số liệu bị chia làm 2 loại và `/topmusic` luôn trắng.
             try:
                 from database import async_increment_stat
-                asyncio.create_task(async_increment_stat(str(self.guild.id), "music_play", track.title[:80]))
+                taskbag.spawn(async_increment_stat(str(self.guild.id), "music_play", track.title[:80]))
             except Exception as stat_err:
                 log.debug(f"[Music] Increment stat error: {stat_err}")
 
@@ -959,7 +960,7 @@ class MusicPlayer:
         if self.vc and self.vc.source and isinstance(self.vc.source, discord.PCMVolumeTransformer):
             self.vc.source.volume = self.volume
         if self.now_playing_msg:
-            asyncio.create_task(self.update_now_playing())
+            taskbag.spawn(self.update_now_playing())
 
     async def update_now_playing(self):
         """Cập nhật embed Now Playing khi trạng thái thay đổi (volume/pause/autoplay)."""
