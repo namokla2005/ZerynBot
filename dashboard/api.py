@@ -2,7 +2,7 @@
 api.py — REST JSON API endpoints for the dashboard.
 Imported as a Blueprint and registered in app.py.
 """
-import sys, os, time, json
+import sys, os, time, json, threading
 _V2_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _V2_DIR)
 sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho card_generator, checks, etc.
@@ -16,6 +16,43 @@ from dashboard import auth as _auth
 from dashboard.extensions import limiter
 
 api = Blueprint("api", __name__, url_prefix="/api")
+
+# ─── O4: mot lan goi Discord cho ca dam request, khong phai tung endpoint ──────
+# Dashboard poll nhieu API cung luc (4 thread Waitress). Khi TTL danh sach guild trong
+# session het han, CA BON thread cung thay "cu" va cung goi /users/@me/guilds +
+# /users/@me/guilds/<id>/bot — gap 4 lan round-trip Discord cho MOT lan refresh, va
+# Discord gioi han rate-limit theo token nen no thang thanh 429.
+_GUILD_REFRESH_MEMO_TTL = 10.0
+_guild_refresh_lock = threading.Lock()
+_guild_refresh_memo: dict = {}   # oauth_token_id -> (ts, guilds) — KHONG bao gio giu token
+
+
+def _refresh_guilds_once(token_id: str, access_token: str):
+    """Trả về danh sách guild mới, bản đang có, hoặc None (để caller dùng tiếp list cũ).
+
+    Thread kh lay duoc lock se KHONG cho — no dung ket qua cua thread dang refresh hoac
+    danh sach cu trong session. Duoc danh doi: permission co the cu them toi
+    _GUILD_REFRESH_MEMO_TTL giay, thay vi 4 request cung cho Discord.
+    """
+    now = time.time()
+    hit = _guild_refresh_memo.get(token_id)
+    if hit and now - hit[0] < _GUILD_REFRESH_MEMO_TTL:
+        return hit[1]
+    if not _guild_refresh_lock.acquire(blocking=False):
+        return hit[1] if hit else None
+    try:
+        hit = _guild_refresh_memo.get(token_id)
+        if hit and time.time() - hit[0] < _GUILD_REFRESH_MEMO_TTL:
+            return hit[1]
+        guilds = _auth.get_manageable_guilds(access_token)
+        _guild_refresh_memo[token_id] = (time.time(), guilds)
+        if len(_guild_refresh_memo) > 200:
+            cutoff = time.time() - _GUILD_REFRESH_MEMO_TTL
+            for stale in [k for k, v in _guild_refresh_memo.items() if v[0] < cutoff]:
+                _guild_refresh_memo.pop(stale, None)
+        return guilds
+    finally:
+        _guild_refresh_lock.release()
 
 
 def _require_guild_access(guild_id: str):
@@ -37,9 +74,12 @@ def _require_guild_access(guild_id: str):
     fetched_at = session.get("guilds_fetched_at", 0) or 0
     if now - fetched_at >= _auth.SESSION_GUILD_TTL:
         try:
-            guilds = _auth.get_manageable_guilds(token)
-            session["guilds"] = guilds
-            session["guilds_fetched_at"] = now
+            guilds = _refresh_guilds_once(str(session.get("oauth_token_id") or ""), token)
+            if guilds is not None:
+                session["guilds"] = guilds
+                session["guilds_fetched_at"] = now
+            # None = dang co thread khac refresh: giu list cu, KHONG cap nhat
+            # guilds_fetched_at de request sau thu lai.
         except requests.HTTPError as e:
             if getattr(e.response, "status_code", None) == 401:
                 session.clear()

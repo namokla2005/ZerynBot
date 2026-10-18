@@ -1010,6 +1010,19 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   protects; immutable values still pass through untouched. The copy is deliberately shallow
   and `tests/test_cache_snapshot_isolation.py` documents that boundary rather than pretending
   deepcopy safety.
+- **v3.3 optimisation O4/O5 — fewer provider and Discord round-trips**:
+  - `scripts/dual_model_mcp.py`: the three `_call_*` functions each carried their own
+    `try / requests.post / parse` copy. They now share `_post_json()` (the single place
+    for timeout and error wording — 1 `requests.post` left in the file, asserted by a test)
+    and `_openai_chat()` for the two OpenAI-shaped providers; Gemini keeps its own parser
+    but uses the same transport. This is exactly how the `maxOutputTokens` gap between
+    providers was born in the first place.
+  - `dashboard/api.py`: when a session's guild list went stale, all four Waitress threads
+    could decide to re-fetch at once — four `/users/@me/guilds` round-trips for one
+    refresh, and Discord rate-limits per token. `_refresh_guilds_once()` memoises per
+    `oauth_token_id` for 10 s and uses a non-blocking lock, so a late thread reuses the
+    in-flight result (or the previous list) instead of queueing behind a network call.
+    The memo key is the vault pointer, never the access token.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

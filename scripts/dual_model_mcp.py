@@ -307,6 +307,41 @@ def _get_api_keys():
     }
 
 
+def _post_json(url: str, headers: dict, payload: dict, *, timeout: int = 30):
+    """MỘT chỗ duy nhất cho POST JSON tới provider.
+
+    Cả ba provider từng copy nguyên khối try/post/parse lẫn nhau, nên đổi timeout hay
+    cách dựng thông báo lỗi là phải nhớ đủ ba — và thực sự đã có lúc quên (Gemini thiếu
+    maxOutputTokens trong khi Groq/OpenRouter có từ lâu). Trả (response, None) khi có
+    phản hồi HTTP, (None, thông_báo_lỗi) khi không.
+    """
+    try:
+        return requests.post(url, headers=headers, json=payload, timeout=timeout), None
+    except Exception as e:
+        return None, f"Error: {e}"
+
+
+def _openai_chat(label: str, url: str, headers: dict, model: str, prompt: str,
+                 system_instruction: str, max_tokens: int) -> tuple[bool, str]:
+    """Groq và OpenRouter dùng chung shape /chat/completions — chỉ khác URL, header, trần token."""
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+    messages.append({"role": "user", "content": prompt})
+    payload = {"model": model, "messages": messages, "temperature": 0.3, "max_tokens": max_tokens}
+
+    resp, err = _post_json(url, headers, payload)
+    if resp is None:
+        return False, f"{label} {err}"
+    if resp.status_code == 200:
+        choice = (resp.json().get("choices") or [{}])[0]
+        content = ((choice.get("message") or {}).get("content") or "").strip()
+        return (True, content) if content else (False, f"{label} trả về content rỗng.")
+    if resp.status_code == 429:
+        return False, f"{label} HTTP 429 Rate Limit / Token Exceeded on {model}"
+    return False, f"{label} HTTP {resp.status_code}: {resp.text[:120]}"
+
+
 def _call_gemini_single(api_key: str, model: str, prompt: str, system_instruction: str = "") -> tuple[bool, str]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     contents = []
@@ -320,87 +355,43 @@ def _call_gemini_single(api_key: str, model: str, prompt: str, system_instructio
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2000}
     }
     headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                cparts = candidates[0].get("content", {}).get("parts", [])
-                if cparts:
-                    return True, cparts[0].get("text", "").strip()
-            return False, "Gemini trả về candidate rỗng."
-        elif r.status_code in (429, 404, 503):
-            return False, f"Gemini HTTP {r.status_code} on {model}"
-        else:
-            return False, f"Gemini HTTP {r.status_code}: {r.text[:120]}"
-    except Exception as e:
-        return False, f"Gemini Error: {e}"
+
+    resp, err = _post_json(url, headers, payload)
+    if resp is None:
+        return False, f"Gemini {err}"
+    if resp.status_code != 200:
+        if resp.status_code in (429, 404, 503):
+            return False, f"Gemini HTTP {resp.status_code} on {model}"
+        return False, f"Gemini HTTP {resp.status_code}: {resp.text[:120]}"
+    candidates = resp.json().get("candidates", [])
+    if candidates:
+        cparts = candidates[0].get("content", {}).get("parts", [])
+        if cparts:
+            return True, cparts[0].get("text", "").strip()
+    return False, "Gemini trả về candidate rỗng."
 
 
 def _call_groq_single(api_key: str, model: str, prompt: str, system_instruction: str = "") -> tuple[bool, str]:
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
-
-    payload = {
-        "model": model,
-        "messages": messages,
-        "temperature": 0.3,
-        "max_tokens": 1800
-    }
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-            if content:
-                return True, content
-            return False, "Groq trả về content rỗng."
-        elif r.status_code == 429:
-            return False, f"Groq HTTP 429 Rate Limit on {model}"
-        else:
-            return False, f"Groq HTTP {r.status_code}: {r.text[:120]}"
-    except Exception as e:
-        return False, f"Groq Error: {e}"
+    return _openai_chat(
+        "Groq",
+        "https://api.groq.com/openai/v1/chat/completions",
+        {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        model, prompt, system_instruction, 1800,
+    )
 
 
 def _call_openrouter(api_key: str, model: str, prompt: str, system_instruction: str = "") -> tuple[bool, str]:
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://zerynbot.id.vn",
-        "X-Title": "ZerynBot Architecture Reviewer"
-    }
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
-
-    payload = {
-        "model": model,
-        "messages": messages,
-        "temperature": 0.3,
-        "max_tokens": 1500
-    }
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-            if content:
-                return True, content
-            return False, "OpenRouter trả về content rỗng."
-        elif r.status_code == 429:
-            return False, f"OpenRouter HTTP 429 Rate Limit / Token Exceeded on {model}"
-        else:
-            return False, f"OpenRouter HTTP {r.status_code}: {r.text[:120]}"
-    except Exception as e:
-        return False, f"OpenRouter Error: {e}"
+    return _openai_chat(
+        "OpenRouter",
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://zerynbot.id.vn",
+            "X-Title": "ZerynBot Architecture Reviewer",
+        },
+        model, prompt, system_instruction, 1500,
+    )
 
 
 def _call_gemini(api_key: str, model: str, prompt: str, system_instruction: str = "") -> str:
