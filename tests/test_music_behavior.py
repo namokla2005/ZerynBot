@@ -637,11 +637,15 @@ def test_music_control_view_builds_buttons():
     asyncio.run(_scenario())
 
 
-def test_persistent_music_view_survives_restart():
+def test_persistent_music_view_survives_restart(temp_db):
     """`MusicControlView` gan `timeout=None` cho the Now Playing. Neu khong dang ky
     persistent (bot.add_view) thi sau khi restart, moi nuttren the cu cua user
     tra 'This interaction failed' vin vin — nguoi dung nhin nut sang but bo dieu khien.
     Vo shell phai dung duoc KHONG co player (trang thai nap lai trong _check()).
+
+    `temp_db` la bat buoc, khong phai thu tuc: _check() doc guild settings bang SQLite.
+    Thieu no thi test an trên may dev (luon co `data/bot.db` that) nhung do tren CI,
+    noi checkout sach khong co file DB — aiosqlite tra "unable to open database file".
     """
     import asyncio, os, sys, types
 
@@ -673,3 +677,39 @@ def test_persistent_music_view_survives_restart():
     ok = asyncio.run(shell2._check(inter))
     assert ok is False, "khong co player thi phai tu choi lenh, khong duoc nem exception"
     assert sent, "phai phan hoi cho user thay vi im lang"
+
+
+def test_music_view_check_survives_a_db_failure(temp_db, monkeypatch):
+    """SQLite giay do khong duoc bien nut dieu khien thanh 'This interaction failed'.
+
+    _check() nap lại guild settings moi lan bam; khong co guard thi mot lan doc loi la
+    discord.py nem exception ra ngoai, user bam nut khong co phan hoi gi ca.
+    """
+    import asyncio
+    import types
+
+    import music.views as V
+    from music.views import MusicControlView
+
+    async def boom(_gid):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(V, "async_get_guild_settings", boom)
+
+    cog = types.SimpleNamespace(_get=lambda gid: None)
+    view = MusicControlView(cog=cog)
+    sent = []
+
+    async def fake_send(*a, **k):
+        sent.append(a or k)
+
+    inter = types.SimpleNamespace(
+        guild=types.SimpleNamespace(id=4242),
+        user=types.SimpleNamespace(voice=None, id=1),
+        response=types.SimpleNamespace(send_message=fake_send),
+    )
+
+    ok = asyncio.run(view._check(inter))
+
+    assert ok is False, "van phai tu choi dieu khien, nhung khong duoc nang loi"
+    assert sent, "user phai nhan duoc phan hoi thay vi im lang"

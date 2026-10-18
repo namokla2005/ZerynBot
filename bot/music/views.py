@@ -104,7 +104,13 @@ class MusicControlView(discord.ui.View):
     async def _check(self, interaction: discord.Interaction) -> bool:
         if self.player is None and self.cog is not None and interaction.guild is not None:
             self.player = self.cog._get(interaction.guild.id)
-            self.settings = await async_get_guild_settings(str(interaction.guild.id))
+            try:
+                self.settings = await async_get_guild_settings(str(interaction.guild.id))
+            except Exception as exc:
+                # Một lần đọc DB lỗi không được biến cú bấm thành "This interaction
+                # failed" vĩnh viễn: giữ nguyên settings cũ (mặc định tiếng Việt của
+                # server) rồi cho luồng trả lời bình thường.
+                log.debug(f"[Music] _check không đọc được guild settings, dùng bản cu: {exc}")
         if not self.player or not self.player.vc or not self.player.vc.channel:
             await interaction.response.send_message(
                 tr(self.settings, "music.not_in_voice"), ephemeral=True

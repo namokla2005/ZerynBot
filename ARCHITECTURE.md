@@ -1032,6 +1032,17 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   nobody consumed (fixed in audit Phase 2 by `_honour_pending_skip()`), not a stale-source
   misclassification. Rewriting the most fragile, freshly-tested path of the audio pipeline
   for a marginal readability win is not the trade; revisit if a third guard ever appears.
+- **Why CI was red for 46 runs while the local suite was green**: `MusicControlView._check()`
+  reloads guild settings through SQLite, and `test_persistent_music_view_survives_restart`
+  called it without the `temp_db` fixture. On a developer machine `data/bot.db` exists, so the
+  read succeeds; in a clean CI checkout there is no `data/` at all and aiosqlite raises
+  "unable to open database file" — a test that passed only because of files the repository
+  does not track. Fixed on both ends: the test now declares `temp_db`, and `_check()` wraps the
+  reload so a transient DB error can never turn a Now-Playing button into
+  "This interaction failed" for the user (that is the same insurance `VerifyView` already had).
+  `tests/test_music_behavior.py::test_music_view_check_survives_a_db_failure` locks it.
+  Reproduced properly, not guessed: `git worktree add` a clean checkout (no `.env`, no `data/`)
+  and run the suite there — 1 failed before, 367 passed after.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.
