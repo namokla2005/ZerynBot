@@ -83,6 +83,7 @@ def callback():
         user         = get_user(access_token)
         guilds       = get_manageable_guilds(access_token)
         session.permanent = True  # áp dụng PERMANENT_SESSION_LIFETIME
+        session["auth_at"]      = _time.time()
         session["user"]         = user
         # Cookie chỉ mang con trỏ ngẫu nhiên; access token thật nằm trong vault của
         # tiến trình dashboard (Flask ký chứ không mã hóa session).

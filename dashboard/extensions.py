@@ -72,7 +72,7 @@ try:
     from flask_limiter.util import get_remote_address
 
     def _client_key():
-        """Khóa rate-limit theo IP THẬT của người truy cập.
+        """Khóa rate-limit theo user đã đăng nhập, fallback về IP thật.
 
         zerynbot.id.vn chạy sau Cloudflare (Server: cloudflare + CF-RAY), và dashboard
         bind 127.0.0.1 nên cloudflared là peer duy nhất — nếu dùng get_remote_address()
@@ -82,6 +82,10 @@ try:
         được client gửi lên giả mạo. Chỉ tin khi BEHIND_PROXY=1.
         """
         from flask import request
+
+        user = session.get("user") or {}
+        if isinstance(user, dict) and user.get("id"):
+            return f"user:{user['id']}"
 
         if getattr(config, "BEHIND_PROXY", False):
             ip = (request.headers.get("CF-Connecting-IP") or "").strip()

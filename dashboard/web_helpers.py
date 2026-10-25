@@ -33,11 +33,39 @@ from dashboard.auth import (
 from dashboard.extensions import logger
 
 
+def _session_expired() -> bool:
+    """Trần tuyệt đối cho session, không bị gia hạn bởi SESSION_REFRESH_EACH_REQUEST."""
+    now = _time.time()
+    auth_at = session.get("auth_at")
+    if auth_at is None:
+        # Session cũ trước bản vá: bắt đầu tính trần từ request đầu tiên.
+        session["auth_at"] = now
+        return False
+    try:
+        return now - float(auth_at) > config.SESSION_LIFETIME_DAYS * 86400
+    except (TypeError, ValueError):
+        return True
+
+
+def _session_has_live_token() -> bool:
+    from dashboard import auth as _auth
+
+    return bool(_auth.get_access_token())
+
+
+def _expire_session() -> None:
+    session.clear()
+    flash("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "error")
+
+
 def login_required(f):
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user" not in session:
+            return redirect(url_for("public.login"))
+        if not _session_has_live_token() or _session_expired():
+            _expire_session()
             return redirect(url_for("public.login"))
         return f(*args, **kwargs)
     return decorated
@@ -54,6 +82,9 @@ def _refresh_guilds_if_stale() -> None:
         return
     token = _auth.get_access_token()
     if not token:
+        # Vault token mất (dashboard restart / hết hạn): không có cách nào xác minh
+        # lại quyền, nên fail-closed thay vì tiếp tục tin snapshot trong cookie.
+        session.clear()
         return
     try:
         guilds = get_manageable_guilds(token)
@@ -71,6 +102,9 @@ def guild_access_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user" not in session:
+            return redirect(url_for("public.login"))
+        if not _session_has_live_token() or _session_expired():
+            _expire_session()
             return redirect(url_for("public.login"))
         _refresh_guilds_if_stale()
         if "user" not in session:  # token Discord hết hạn trong lúc refresh
