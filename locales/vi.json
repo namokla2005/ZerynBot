@@ -1718,6 +1718,8 @@
   "verify.trang_thai": "Trạng thái",
   "verify.vai_tro_cho": "Vai trò chờ",
   "verify.vai_tro_da_xac_thuc": "Vai trò đã xác thực",
+  "verify.vai_tro_khong_hop_le": "❌ Vai trò không hợp lệ: phải thấp hơn vai trò cao nhất của bạn và không phải vai trò được quản lý.",
+  "verify.khong_the_gan_vai_tro": "❌ Không gán được vai trò xác thực — bot thiếu quyền hoặc vai trò nằm trên vai trò cao nhất của bot.",
   "verify.xac_thuc_thanh_cong_chuc": "{ok_emoji} Xác thực thành công, chúc mừng **{display_name}**!",
   "verify.da_bat_che_do_hard": "✅ Đã bật chế độ **hard gate** — thành viên mới chỉ thấy kênh xác thực.",
   "verify.da_dat_kenh_xac_thuc": "✅ Đã đặt kênh xác thực: {mention}",

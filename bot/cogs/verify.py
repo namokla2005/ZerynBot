@@ -129,19 +129,30 @@ class VerifyView(discord.ui.View):
 
         added = []
         removed = []
+        verified_ok = True
 
         # 1. Gán vai trò verified
         verified_role_id = s.get("verified_role_id")
         if verified_role_id:
             role = guild.get_role(int(verified_role_id))
-            if role and role not in member.roles:
+            if role is None:
+                verified_ok = False
+            elif role not in member.roles:
                 try:
                     await member.add_roles(role, reason=f"Verified via button ({interaction.user})")
                     added.append(role.name)
                 except discord.Forbidden:
+                    verified_ok = False
                     log.warning(f"[Verify] Missing perms to add role {role.name} in {guild.name}")
                 except Exception as exc:
+                    verified_ok = False
                     log.warning(f"[Verify] Failed to add role {role.name}: {exc}")
+
+        if not verified_ok:
+            await interaction.followup.send(
+                tr(gs, "verify.khong_the_gan_vai_tro"), ephemeral=True
+            )
+            return
 
         # 2. Gỡ vai trò pending
         pending_role_id = s.get("pending_role_id")
@@ -358,10 +369,11 @@ class Verify(commands.Cog, name="Verify"):
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
 
-        restore_count = await self._restore_gate(ctx)
+        restore_count, restore_failed = await self._restore_gate(ctx)
 
         # Gỡ vai trò pending khỏi mọi thành viên
         removed_members = 0
+        remove_failed = 0
         pending_role_id = s.get("pending_role_id")
         if pending_role_id:
             role = ctx.guild.get_role(int(pending_role_id))
@@ -372,13 +384,28 @@ class Verify(commands.Cog, name="Verify"):
                         await m.remove_roles(role, reason="Verify disabled")
                         removed_members += 1
                     except discord.Forbidden:
-                        break
-                    except Exception:
-                        break
+                        remove_failed += 1
+                        log.warning(
+                            "[Verify] Không gỡ được pending role khỏi %s trong %s",
+                            m.id, ctx.guild.name,
+                        )
+                    except Exception as exc:
+                        remove_failed += 1
+                        log.warning(
+                            "[Verify] Lỗi gỡ pending role khỏi %s: %s", m.id, exc
+                        )
 
+        # Nếu còn kênh khôi phục lỗi, giữ snapshot để lần disable sau thử lại;
+        # xoá snapshot chỉ khi mọi kênh đã được xử lý.
+        saved_overrides = "[]" if restore_failed == 0 else s.get("saved_overrides", "[]")
         await async_upsert_verify_settings(
-            guild_id, enabled=0, hide_channels=0, saved_overrides="[]"
+            guild_id, enabled=0, hide_channels=0, saved_overrides=saved_overrides
         )
+        if restore_failed or remove_failed:
+            log.warning(
+                "[Verify] disable không trọn vẹn tại guild %s: restore_failed=%d, remove_failed=%d",
+                guild_id, restore_failed, remove_failed,
+            )
 
         await ctx.send(
             tr(gs, "verify.da_tat_verify_gate_da", restore_count=restore_count, removed_members=removed_members),
@@ -408,6 +435,21 @@ class Verify(commands.Cog, name="Verify"):
     async def verify_role(self, ctx: commands.Context, role: discord.Role = None):
         gs = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else None
         guild_id = str(ctx.guild.id)
+        if role is not None:
+            member = getattr(ctx, "author", None) or getattr(ctx, "user", None)
+            member_top = getattr(getattr(member, "top_role", None), "position", -1)
+            is_owner = getattr(member, "id", None) == getattr(ctx.guild, "owner_id", None)
+            bot_top = getattr(getattr(ctx.guild, "me", None), "top_role", None)
+            bot_top_pos = getattr(bot_top, "position", -1)
+            invalid = (
+                role.is_default()
+                or role.managed
+                or role.position >= bot_top_pos
+                or (not is_owner and role.position >= member_top)
+            )
+            if invalid:
+                await ctx.send(tr(gs, "verify.vai_tro_khong_hop_le"), ephemeral=True)
+                return
         rid = str(role.id) if role else None
         await async_upsert_verify_settings(guild_id, verified_role_id=rid)
         if role:
@@ -590,6 +632,7 @@ class Verify(commands.Cog, name="Verify"):
                 current = channel.overwrites_for(pending_role)
                 snapshots.append({
                     "channel_id": str(channel.id),
+                    "target_id": str(pending_role.id),
                     "overwrite": _serialize_overwrite(current),
                 })
 
@@ -614,29 +657,51 @@ class Verify(commands.Cog, name="Verify"):
 
         return snapshots, errors
 
-    async def _restore_gate(self, ctx: commands.Context) -> int:
+    async def _restore_gate(self, ctx: commands.Context) -> tuple[int, int]:
         """
         Khôi phục overwrites từ snapshot đã lưu trong DB.
-        Với các kênh trong snapshot: khôi phục lại overwrite gốc của pending role.
-        Trả về số kênh đã khôi phục.
+
+        Mỗi entry phải khôi phục đúng role đã snapshot (`target_id`). Nếu role đó
+        không còn, bỏ qua kênh — TUYỆT ĐỐI không fallback `@everyone`, vì
+        `set_permissions(@everyone, overwrite=None)` sẽ xoá overwrite thật của
+        @everyone và biến kênh riêng tư thành công khai.
+
+        Trả về (số kênh khôi phục thành công, số kênh lỗi quyền/exception).
         """
         guild_id = str(ctx.guild.id)
         s = await async_get_verify_settings(guild_id)
         snapshots = _load_saved_overrides(s.get("saved_overrides", "[]"))
 
-        # Xác định target: pending role nếu còn, ngược lại @everyone
-        target = None
-        if s.get("pending_role_id"):
-            target = ctx.guild.get_role(int(s["pending_role_id"]))
-        if target is None:
-            target = ctx.guild.default_role
-
         restored = 0
+        failed = 0
         for entry in snapshots:
             try:
                 channel = ctx.guild.get_channel(int(entry["channel_id"]))
-                if channel is None:
-                    continue
+            except (KeyError, TypeError, ValueError):
+                failed += 1
+                continue
+            if channel is None:
+                continue
+
+            target = None
+            target_id = entry.get("target_id")
+            if target_id:
+                try:
+                    target = ctx.guild.get_role(int(target_id))
+                except (TypeError, ValueError):
+                    target = None
+            # Snapshot cũ (trước bản vá) không có target_id: chỉ dùng pending role
+            # nếu nó vẫn tồn tại. Không có pending role thì bỏ qua.
+            if target is None and s.get("pending_role_id"):
+                target = ctx.guild.get_role(int(s["pending_role_id"]))
+            if target is None:
+                log.warning(
+                    "[Verify] Bỏ qua khôi phục kênh %s: role đích không còn tồn tại",
+                    entry.get("channel_id"),
+                )
+                continue
+
+            try:
                 original = _deserialize_overwrite(entry.get("overwrite"))
                 await channel.set_permissions(
                     target,
@@ -645,11 +710,13 @@ class Verify(commands.Cog, name="Verify"):
                 )
                 restored += 1
             except discord.Forbidden:
+                failed += 1
                 log.warning(f"[Verify] Missing perms to restore channel {entry.get('channel_id')}")
             except Exception as exc:
+                failed += 1
                 log.warning(f"[Verify] restore error on {entry.get('channel_id')}: {exc}")
 
-        return restored
+        return restored, failed
 
 
 async def setup(bot):

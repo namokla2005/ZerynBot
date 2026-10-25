@@ -1718,6 +1718,8 @@
   "verify.trang_thai": "État",
   "verify.vai_tro_cho": "Rôle en attente",
   "verify.vai_tro_da_xac_thuc": "Rôle vérifié",
+  "verify.vai_tro_khong_hop_le": "❌ Rôle invalide : il doit être inférieur à votre rôle le plus élevé et ne doit pas être un rôle géré.",
+  "verify.khong_the_gan_vai_tro": "❌ Impossible d'attribuer le rôle vérifié — le bot manque de permissions ou le rôle est au-dessus de son rôle le plus élevé.",
   "verify.xac_thuc_thanh_cong_chuc": "{ok_emoji} Vérification réussie, félicitations **{display_name}** !",
   "verify.da_bat_che_do_hard": "✅ Mode hard gate activé — les nouveaux membres ne voient que le canal de vérification.",
   "verify.da_dat_kenh_xac_thuc": "✅ Canal de vérification défini : {mention}",

@@ -1718,6 +1718,8 @@
   "verify.trang_thai": "状态",
   "verify.vai_tro_cho": "待处理身份组",
   "verify.vai_tro_da_xac_thuc": "已验证身份组",
+  "verify.vai_tro_khong_hop_le": "❌ 无效身份组：必须低于你的最高身份组，且不能是受管理的身份组。",
+  "verify.khong_the_gan_vai_tro": "❌ 无法分配已验证身份组——机器人权限不足，或该身份组高于机器人的最高身份组。",
   "verify.xac_thuc_thanh_cong_chuc": "{ok_emoji} 验证成功，祝贺 **{display_name}**！",
   "verify.da_bat_che_do_hard": "✅ 已启用严格模式——新成员只能看到验证频道。",
   "verify.da_dat_kenh_xac_thuc": "✅ 已设置验证频道：{mention}",

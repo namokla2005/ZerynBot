@@ -1718,6 +1718,8 @@
   "verify.trang_thai": "Estado",
   "verify.vai_tro_cho": "Cargo pendente",
   "verify.vai_tro_da_xac_thuc": "Cargo verificado",
+  "verify.vai_tro_khong_hop_le": "❌ Cargo inválido: deve estar abaixo do seu cargo mais alto e não pode ser um cargo gerenciado.",
+  "verify.khong_the_gan_vai_tro": "❌ Não foi possível atribuir o cargo verificado — o bot não tem permissão ou o cargo está acima do cargo mais alto do bot.",
   "verify.xac_thuc_thanh_cong_chuc": "{ok_emoji} Verificação concluída, parabéns **{display_name}**!",
   "verify.da_bat_che_do_hard": "✅ Modo hard gate ativado — novos membros veem apenas o canal de verificação.",
   "verify.da_dat_kenh_xac_thuc": "✅ Canal de verificação definido: {mention}",

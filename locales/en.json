@@ -1718,6 +1718,8 @@
   "verify.trang_thai": "Status",
   "verify.vai_tro_cho": "Pending role",
   "verify.vai_tro_da_xac_thuc": "Verified role",
+  "verify.vai_tro_khong_hop_le": "❌ Invalid role: it must be lower than your highest role and must not be a managed role.",
+  "verify.khong_the_gan_vai_tro": "❌ Could not assign the verified role — the bot lacks permission or the role is above the bot's highest role.",
   "verify.xac_thuc_thanh_cong_chuc": "{ok_emoji} Verification successful, congratulations **{display_name}**!",
   "verify.da_bat_che_do_hard": "✅ Hard gate enabled — new members only see the verification channel.",
   "verify.da_dat_kenh_xac_thuc": "✅ Verification channel set: {mention}",

@@ -1718,6 +1718,8 @@
   "verify.trang_thai": "Estado",
   "verify.vai_tro_cho": "Rol pendiente",
   "verify.vai_tro_da_xac_thuc": "Rol verificado",
+  "verify.vai_tro_khong_hop_le": "❌ Rol no válido: debe estar por debajo de tu rol más alto y no puede ser un rol gestionado.",
+  "verify.khong_the_gan_vai_tro": "❌ No se pudo asignar el rol verificado: al bot le faltan permisos o el rol está por encima de su rol más alto.",
   "verify.xac_thuc_thanh_cong_chuc": "{ok_emoji} Verificación exitosa, ¡enhorabuena **{display_name}**!",
   "verify.da_bat_che_do_hard": "✅ Modo hard gate activado — los nuevos miembros solo ven el canal de verificación.",
   "verify.da_dat_kenh_xac_thuc": "✅ Canal de verificación configurado: {mention}",
