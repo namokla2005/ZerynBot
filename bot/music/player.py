@@ -39,6 +39,7 @@ from .config import (
     STALL_CHECK_SECONDS,
     STALL_CLEANUP_TIMEOUT_SECONDS,
     STALL_TIMEOUT_SECONDS,
+    _extract_semaphore,
     _lower_process_priority,
     load_opus_library,
 )
@@ -663,13 +664,17 @@ class MusicPlayer:
 
     async def _drain_pending_skip(self):
         """Chờ `_recovering`/`_is_reconnecting` hạ rồi mới tiêu cờ skip còn sót."""
-        for _ in range(50):                       # ~10s: dài hơn một lần recovery đơn
+        for _ in range(150):                      # ~30s: đủ cho extract dưới _play_lock trên Termux
             await asyncio.sleep(0.2)
             if self._manual_stopped or not self._skipped:
                 return                            # đã có nhánh khác (hoặc stop()) lo
             if not (self._recovering or self._is_reconnecting):
                 await self._honour_pending_skip()
                 return
+        if self._skipped and not self._manual_stopped:
+            # Bỏ cuộc nhưng không được để cờ treo làm _play() chặn vĩnh viễn.
+            self._skipped = False
+            log.warning("[Music] pending-skip drain quá 30s; đã hạ cờ để không treo hàng đợi.")
 
     def _drain_pending_end_soon(self):
         """Xử lý END event bị chặn trong recovery/reconnect, sau khi cờ đã hạ."""
@@ -707,13 +712,19 @@ class MusicPlayer:
                 curr_id = m.group(1)
 
         try:
-            related_info = await asyncio.to_thread(
-                _find_related_track_sync,
-                last_track.title,
-                last_track.uploader,
-                self._played_history_set,
-                curr_id,
-            )
+            # Autoplay không được chiếm default executor (yt-dlp/ảnh cũng dùng);
+            # share semaphore với extract_info để giới hạn số luồng trên Helio G85.
+            async with _extract_semaphore:
+                related_info = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        _find_related_track_sync,
+                        last_track.title,
+                        last_track.uploader,
+                        self._played_history_set,
+                        curr_id,
+                    ),
+                    timeout=20.0,
+                )
             if related_info:
                 # Đảm bảo stream_url luôn None để _play() giải mã stream audio đầy đủ
                 related_info.pop("stream_url", None)

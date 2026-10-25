@@ -133,6 +133,30 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         self._grace_tasks: dict[int, asyncio.Task] = {}
         self.task_cleanup_loop.start()
 
+    _VOICE_REQUIRED_COMMANDS = {
+        "stop", "skip", "leave", "volume", "loop", "autoplay", "shuffle",
+        "clearqueue", "remove", "jump", "replay", "pause", "resume",
+    }
+
+    async def cog_before_invoke(self, ctx: commands.Context):
+        """Lệnh điều khiển phải do người đang ở CÙNG kênh voice bấm.
+
+        View đã có check này; slash/prefix thì chưa, nên một người ngoài kênh
+        vẫn /stop hoặc /volume phá nhạc của cả guild.
+        """
+        name = getattr(getattr(ctx, "command", None), "name", "")
+        if name not in self._VOICE_REQUIRED_COMMANDS or not ctx.guild:
+            return
+        player = self._get(ctx.guild.id)
+        if not player or not player.vc or not player.vc.channel:
+            return
+        member = getattr(ctx, "author", None) or getattr(ctx, "user", None)
+        voice = getattr(member, "voice", None)
+        if not voice or voice.channel != player.vc.channel:
+            s = await async_get_guild_settings(str(ctx.guild.id))
+            await ctx.send(tr(s, "music.same_voice_err"), ephemeral=True)
+            raise commands.CheckFailure("music_same_voice_channel")
+
     def cog_unload(self):
         """Cancel tất cả background tasks khi cog bị unload."""
         self.task_cleanup_loop.cancel()
@@ -153,6 +177,13 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         # bản sao cũ (None) và rò rỉ ClientSession.
         if _music_pkg._spotify_session and not _music_pkg._spotify_session.closed:
             taskbag.spawn(_music_pkg._spotify_session.close())
+        for player in list(self._players.values()):
+            try:
+                taskbag.spawn(player.stop())
+            except Exception:
+                pass
+        self._players.clear()
+        self._player_locks.clear()
 
     @tasks.loop(seconds=60)
     async def task_cleanup_loop(self):

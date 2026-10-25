@@ -107,8 +107,8 @@ def test_immutable_values_pass_through_unchanged():
     assert cache.get("k_o2d") == 42
 
 
-def test_snapshot_is_shallow_by_design():
-    """Giới hạn có chủ đích: chỉ cô lập cấp phát trực tiếp, không deepcopy mỗi lần đọc."""
+def test_snapshot_deep_copies_nested_containers():
+    """Object lồng nhau cũng phải được cô lập (cache từng bị poison qua dict con)."""
     from cache import cache
     inner = {"n": 1}
     cache.set("k_o2e", [inner])
@@ -117,4 +117,4 @@ def test_snapshot_is_shallow_by_design():
     assert len(cache.get("k_o2e")) == 1, "list cấp ngoài phải được cô lập"
     got2 = cache.get("k_o2e")
     got2[0]["n"] = 5
-    assert cache.get("k_o2e")[0]["n"] == 5, "dict LỒNG NHAU vẫn chia sẻ — tài liệu hoá trong _snapshot"
+    assert cache.get("k_o2e")[0]["n"] == 1, "dict lồng nhau vẫn chia sẻ object"

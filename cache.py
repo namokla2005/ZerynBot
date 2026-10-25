@@ -8,6 +8,7 @@ Eviction policy (true LRU):
 - When capacity is exceeded, the LEAST-recently-used (oldest) key is evicted first
   (``popitem(last=False)``) instead of blindly dropping the first 20%.
 """
+import copy
 import fnmatch
 import logging
 import threading
@@ -43,7 +44,7 @@ def _snapshot(value: Any) -> Any:
     object bên trong; chỉ dữ liệu cấp phát trực tiếp được cô lập.
     """
     if isinstance(value, (dict, list)):
-        return value.copy()
+        return copy.deepcopy(value)
     return value
 
 

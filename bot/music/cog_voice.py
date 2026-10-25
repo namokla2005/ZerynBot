@@ -253,6 +253,10 @@ class VoiceLifecycleMixin:
                 log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
                 player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
                 self._players[guild_id] = player
+                # Nếu lệnh phát thất bại ngay sau khi join (link hỏng, search rỗng),
+                # timer này dọn player thay vì giữ slot MAX_PLAYERS vô thời hạn.
+                if not player.current and not player.queue:
+                    player._start_inactivity_timer()
                 return player
             finally:
                 self._connecting.discard(guild_id)

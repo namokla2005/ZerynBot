@@ -102,7 +102,9 @@ class MusicControlView(discord.ui.View):
             self.btn_loop.style = discord.ButtonStyle.primary
 
     async def _check(self, interaction: discord.Interaction) -> bool:
-        if self.player is None and self.cog is not None and interaction.guild is not None:
+        # View persistent được add_view() một lần cho MỌI guild; player phải được
+        # resolve lại theo guild của interaction, không chỉ lần bấm đầu tiên.
+        if self.cog is not None and interaction.guild is not None:
             self.player = self.cog._get(interaction.guild.id)
             try:
                 self.settings = await async_get_guild_settings(str(interaction.guild.id))

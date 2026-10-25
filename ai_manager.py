@@ -249,12 +249,12 @@ class AIProviderManager:
 
             info = self._cooldowns.get(key)
             if info:
-                until, prev_backoff = info
-                # Only increase if current cooldown has passed or within 5s
-                if now >= until - 5.0:
-                    new_backoff = min(prev_backoff * 1.5, 300.0)
-                    self._cooldowns[key] = (now + new_backoff, new_backoff)
-                    logger.warning(f"[AIManager] Key {mask_key(key)} hit rate limit again! Cooldown extended to {new_backoff:.0f}s")
+                _until, prev_backoff = info
+                # 429 lặp trong cùng cửa sổ vẫn phải tăng backoff (bản cũ chỉ tăng
+                # khi còn <=5s cuối, nên 429 liên tiếp giữ nguyên cooldown ngắn).
+                new_backoff = min(max(prev_backoff, base_cooldown) * 1.5, 300.0)
+                self._cooldowns[key] = (now + new_backoff, new_backoff)
+                logger.warning(f"[AIManager] Key {mask_key(key)} hit rate limit again! Cooldown extended to {new_backoff:.0f}s")
             else:
                 self._cooldowns[key] = (now + base_cooldown, base_cooldown)
                 logger.warning(f"[AIManager] Key {mask_key(key)} hit rate limit! Cooldown for {base_cooldown:.0f}s")
@@ -282,10 +282,9 @@ class AIProviderManager:
                     self._rr_idx[provider] = (idx + 1) % len(keys)
                     return k
 
-            # All keys are in cooldown: pick the one expiring soonest
-            soonest_key = min(keys, key=lambda k: self._cooldowns.get(k, (0, 0))[0])
-            self._rr_idx[provider] = (keys.index(soonest_key) + 1) % len(keys)
-            return soonest_key
+            # Tất cả đang cooldown -> trả None. Bản cũ trả key sớm nhất, khiến
+            # vòng lặp gọi lại đúng key vừa 429 thêm 4 lần.
+            return None
 
     # ─── Configuration Loader ──────────────────────────────────────────────────
 
@@ -437,7 +436,7 @@ class AIProviderManager:
 
     def _call_groq_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "qwen/qwen3.8-27b", timeout: int = 12, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Synchronous Groq Cloud call with SSRF defense."""
-        target_models = [model] if model and not model.startswith("gemini-") else []
+        target_models = [model] if model and not model.startswith(("gemini-", "openrouter/", "nvidia/")) and ":free" not in model else []
         for m in GROQ_MODELS:
             if m not in target_models:
                 target_models.append(m)
@@ -514,8 +513,15 @@ class AIProviderManager:
             messages.append({"role": "system", "content": system_instruction})
         messages.append({"role": "user", "content": prompt})
 
+        target_models = []
+        if model and (":free" in model or model.startswith(("openrouter/", "nvidia/", "google/gemma"))):
+            target_models.append(model)
+        for m in OPENROUTER_MODELS:
+            if m not in target_models:
+                target_models.append(m)
+
         last_error = ""
-        for m in OPENROUTER_MODELS[:MAX_MODELS_PER_PROVIDER]:
+        for m in target_models[:MAX_MODELS_PER_PROVIDER]:
 
             if deadline is not None and time.monotonic() >= deadline:
                 last_error = "BUDGET_EXHAUSTED"
@@ -791,7 +797,7 @@ class AIProviderManager:
             target_models = [GROQ_VISION_MODEL]
         else:
             messages.append({"role": "user", "content": prompt})
-            target_models = [model] if model and not model.startswith("gemini-") else []
+            target_models = [model] if model and not model.startswith(("gemini-", "openrouter/", "nvidia/")) and ":free" not in model else []
             for m in GROQ_MODELS:
                 if m not in target_models:
                     target_models.append(m)
@@ -834,7 +840,7 @@ class AIProviderManager:
 
         return False, last_error or "Groq API Error"
 
-    async def _call_openrouter_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", image_url: str = None, timeout: int = 15, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
+    async def _call_openrouter_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", image_url: str = None, timeout: int = 15, deadline: float | None = None, request_budget: list[int] | None = None, model: str = None) -> Tuple[bool, str]:
         """Asynchronous OpenRouter call."""
         url = "https://openrouter.ai/api/v1/chat/completions"
         parsed = urlparse(url)
@@ -867,7 +873,12 @@ class AIProviderManager:
             target_models = [OPENROUTER_VISION_MODEL]
         else:
             messages.append({"role": "user", "content": prompt})
-            target_models = OPENROUTER_MODELS
+            target_models = []
+            if model and (":free" in model or model.startswith(("openrouter/", "nvidia/", "google/gemma"))):
+                target_models.append(model)
+            for m in OPENROUTER_MODELS:
+                if m not in target_models:
+                    target_models.append(m)
 
         last_error = ""
         for m in target_models[:MAX_MODELS_PER_PROVIDER]:
@@ -964,7 +975,7 @@ class AIProviderManager:
                     elif provider == "groq":
                         ok, res = await self._call_groq_async(session, active_key, prompt, system_instruction, model=model, image_url=image_url, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                     elif provider == "openrouter":
-                        ok, res = await self._call_openrouter_async(session, active_key, prompt, system_instruction, image_url=image_url, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
+                        ok, res = await self._call_openrouter_async(session, active_key, prompt, system_instruction, image_url=image_url, timeout=call_timeout, deadline=deadline, request_budget=request_budget, model=model)
                     else:
                         ok, res = False, "Unknown provider"
 

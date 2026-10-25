@@ -93,10 +93,19 @@ def _download_avatar_sync(url: str) -> bytes | None:
 
 
 # ─── Card renderer ─────────────────────────────────────────────────────────────
+def _open_rgba(raw: bytes):
+    from PIL import Image
+    img = Image.open(io.BytesIO(raw))
+    # Chặn decompression bomb: ảnh nén nhỏ vẫn có thể giải nén >200MB RAM.
+    if img.width * img.height > 20_000_000 or max(img.width, img.height) > 8192:
+        raise ValueError("image dimensions too large")
+    return img.convert("RGBA")
+
+
 def _make_circle_avatar(img_bytes: bytes, size: int):
     """Crop image into a circle with the given diameter."""
     from PIL import Image, ImageDraw
-    avatar = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+    avatar = _open_rgba(img_bytes)
     avatar = avatar.resize((size, size), Image.LANCZOS)
 
     mask = Image.new("L", (size, size), 0)
@@ -156,13 +165,13 @@ def _render_card(
     try:
         raw_bg = None
         if bg_bytes:
-            raw_bg = Image.open(io.BytesIO(bg_bytes)).convert("RGBA")
+            raw_bg = _open_rgba(bg_bytes)
         else:
-            # Use absolute path so it works regardless of cwd
-            _base = Path(__file__).resolve().parent.parent.parent
+            # v2/bot/card_generator.py -> v2, không phải parent.parent.parent
+            _base = Path(__file__).resolve().parent.parent
             _fallback = _base / "dashboard" / "static" / "bg.png"
             if _fallback.exists():
-                raw_bg = Image.open(str(_fallback)).convert("RGBA")
+                raw_bg = _open_rgba(_fallback.read_bytes())
             
         if raw_bg:
             # Crop/resize bg to WxH

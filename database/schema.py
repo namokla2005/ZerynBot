@@ -23,7 +23,9 @@ logger = logging.getLogger("ZerynBot.Database")
 
 def init_db():
     """Create all tables if they don't exist (sync, called at startup)."""
-    os.makedirs(os.path.dirname(get_db_path()), exist_ok=True)
+    _p = get_db_path()
+    if _p != ":memory:" and not str(_p).startswith("file:"):
+        os.makedirs(os.path.dirname(_p) or ".", exist_ok=True)
     with _connect_sync() as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
