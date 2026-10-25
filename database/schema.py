@@ -418,6 +418,7 @@ def init_db():
                 reason      TEXT NOT NULL,
                 remind_at   INTEGER NOT NULL,
                 attempts    INTEGER NOT NULL DEFAULT 0,
+                is_dm       INTEGER NOT NULL DEFAULT 0,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -668,6 +669,8 @@ def init_db():
         rem_cols = [row[1] for row in cursor.fetchall()]
         if "attempts" not in rem_cols:
             conn.execute("ALTER TABLE reminders ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+        if "is_dm" not in rem_cols:
+            conn.execute("ALTER TABLE reminders ADD COLUMN is_dm INTEGER NOT NULL DEFAULT 0")
 
         # ─── Support thread: một người chỉ được có MỘT thread đang mở ──────────
         # get_or_create_support_thread từng kiểu SELECT-rồi-INSERT, nên hai phiên cùng

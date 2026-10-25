@@ -89,13 +89,14 @@ async def async_get_active_giveaways() -> list:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-async def async_add_reminder(user_id: str, guild_id: str, channel_id: str, reason: str, remind_at: int) -> int:
-    """Add a new reminder for user."""
+async def async_add_reminder(user_id: str, guild_id: str, channel_id: str, reason: str,
+                             remind_at: int, is_dm: int = 0) -> int:
+    """Add a new reminder for user. Giữ guild_id cả khi gửi DM để còn ngôn ngữ."""
     async with _connect_async() as db:
         cur = await db.execute("""
-            INSERT INTO reminders (user_id, guild_id, channel_id, reason, remind_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (user_id, guild_id, channel_id, reason, remind_at))
+            INSERT INTO reminders (user_id, guild_id, channel_id, reason, remind_at, is_dm)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (user_id, guild_id, channel_id, reason, remind_at, int(bool(is_dm))))
         await db.commit()
         return cur.lastrowid
 
@@ -119,6 +120,15 @@ async def async_set_reminder_attempts(reminder_id: int, attempts: int):
     async with _connect_async() as db:
         await db.execute("UPDATE reminders SET attempts = ? WHERE id = ?", (int(attempts), reminder_id))
         await db.commit()
+
+async def async_get_reminder(reminder_id: int, user_id: str) -> dict | None:
+    async with _connect_async() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM reminders WHERE id = ? AND user_id = ?", (int(reminder_id), str(user_id))
+        ) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
 
 async def async_get_user_reminders(user_id: str, guild_id: str = None) -> list:
     """Fetch active upcoming reminders for a user."""
@@ -360,13 +370,20 @@ def upsert_birthday_settings_sync(guild_id: str, **fields):
             )
         conn.commit()
 
-def get_birthdays_this_month_count(guild_id: str, month: int) -> int:
-    """Sync — count members with birthdays this month who are in the guild (approximation)."""
+def get_birthdays_this_month_count(guild_id: str, month: int, member_ids=None) -> int:
+    """Đếm sinh nhật trong tháng; nếu có member_ids thì chỉ đếm người thuộc guild."""
+    if member_ids is None:
+        with _connect_sync() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM user_birthdays WHERE month = ?", (month,)
+            ).fetchone()
+            return row[0] if row else 0
+    allowed = {str(x) for x in member_ids}
     with _connect_sync() as conn:
-        row = conn.execute(
-            "SELECT COUNT(*) FROM user_birthdays WHERE month = ?", (month,)
-        ).fetchone()
-        return row[0] if row else 0
+        rows = conn.execute(
+            "SELECT user_id FROM user_birthdays WHERE month = ?", (month,)
+        ).fetchall()
+        return sum(1 for r in rows if str(r[0]) in allowed)
 
 def get_tempvoice_settings(guild_id: str) -> dict:
     """Sync — Get tempvoice settings."""

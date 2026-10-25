@@ -13,6 +13,7 @@ from database import (
     async_get_guild_settings,
     async_is_module_enabled,
     async_add_reminder,
+    async_get_reminder,
     async_get_due_reminders,
     async_delete_reminder,
     async_set_reminder_attempts,
@@ -230,15 +231,19 @@ class Remind(commands.Cog):
 
         now_ts = int(_time.time())
         target_ts = now_ts + seconds
-        guild_id = str(ctx.guild.id) if (ctx.guild and not dm) else ""
+        # Giữ guild_id cả khi gửi DM: nếu để rỗng thì lúc gửi `s={}` và
+        # tr() rơi về tiếng Việt dù user đang ở server en/zh/es.
+        guild_id = str(ctx.guild.id) if ctx.guild else ""
         channel_id = str(ctx.channel.id) if (ctx.guild and not dm) else ""
+        is_dm = 1 if (dm or not ctx.guild) else 0
 
         reminder_id = await async_add_reminder(
             user_id=str(ctx.author.id),
             guild_id=guild_id,
             channel_id=channel_id,
             reason=reason.strip(),
-            remind_at=target_ts
+            remind_at=target_ts,
+            is_dm=is_dm,
         )
 
         target_text = tr(s, "remind.target_dm") if (dm or not ctx.guild) else f"💬 {ctx.channel.mention}"
@@ -287,8 +292,8 @@ class Remind(commands.Cog):
     @app_commands.describe(reminder_id="ID của lời nhắc (xem qua /reminders)")
     async def delreminder(self, ctx: commands.Context, reminder_id: int):
         s = await async_get_guild_settings(str(ctx.guild.id)) if ctx.guild else {}
-        reminders = await async_get_user_reminders(str(ctx.author.id))
-        target = next((r for r in reminders if r["id"] == reminder_id), None)
+        # Tra trực tiếp theo (id, owner), không phụ thuộc LIMIT 20 của list.
+        target = await async_get_reminder(reminder_id, str(ctx.author.id))
         if not target:
             return await ctx.send(tr(s, "remind.not_found", id=reminder_id), ephemeral=True)
 
