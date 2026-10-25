@@ -36,12 +36,18 @@ def get_ticket_panels(guild_id: str) -> List[Dict]:
             result.append(p_dict)
         return result
 
-def get_ticket_panel(panel_id: int) -> Optional[Dict]:
+def get_ticket_panel(panel_id: int, guild_id: Optional[str] = None) -> Optional[Dict]:
     with _connect_sync() as conn:
         conn.row_factory = sqlite3.Row
-        panel = conn.execute(
-            "SELECT * FROM ticket_panels WHERE id = ?", (panel_id,)
-        ).fetchone()
+        if guild_id is None:
+            panel = conn.execute(
+                "SELECT * FROM ticket_panels WHERE id = ?", (panel_id,)
+            ).fetchone()
+        else:
+            panel = conn.execute(
+                "SELECT * FROM ticket_panels WHERE id = ? AND guild_id = ?",
+                (panel_id, str(guild_id)),
+            ).fetchone()
         if not panel:
             return None
         p_dict = _row_to_dict(panel)
@@ -57,7 +63,7 @@ def save_ticket_panel(guild_id: str, panel_data: dict, buttons_data: List[dict])
         panel_id = panel_data.get("id")
         
         if panel_id:
-            conn.execute(
+            cur = conn.execute(
                 """UPDATE ticket_panels 
                    SET name = ?, channel_id = ?, title = ?, description = ?, color = ?, 
                        image_url = ?, thumbnail_url = ?, footer_text = ?, support_role_id = ?
@@ -70,6 +76,8 @@ def save_ticket_panel(guild_id: str, panel_data: dict, buttons_data: List[dict])
                     panel_id, guild_id
                 )
             )
+            if cur.rowcount != 1:
+                return 0
         else:
             cursor = conn.execute(
                 """INSERT INTO ticket_panels 
@@ -94,16 +102,26 @@ def save_ticket_panel(guild_id: str, panel_data: dict, buttons_data: List[dict])
         conn.commit()
         return panel_id
 
-def delete_ticket_panel(panel_id: int, guild_id: str):
+def delete_ticket_panel(panel_id: int, guild_id: str) -> bool:
     with _connect_sync() as conn:
-        conn.execute("DELETE FROM ticket_panels WHERE id = ? AND guild_id = ?", (panel_id, guild_id))
+        cur = conn.execute(
+            "DELETE FROM ticket_panels WHERE id = ? AND guild_id = ?",
+            (panel_id, str(guild_id)),
+        )
+        if cur.rowcount != 1:
+            return False
         conn.execute("DELETE FROM ticket_buttons WHERE panel_id = ?", (panel_id,))
         conn.commit()
+        return True
 
-def update_panel_message_id(panel_id: int, message_id: str):
+def update_panel_message_id(panel_id: int, guild_id: str, message_id: str) -> bool:
     with _connect_sync() as conn:
-        conn.execute("UPDATE ticket_panels SET message_id = ? WHERE id = ?", (message_id, panel_id))
+        cur = conn.execute(
+            "UPDATE ticket_panels SET message_id = ? WHERE id = ? AND guild_id = ?",
+            (message_id, panel_id, str(guild_id)),
+        )
         conn.commit()
+        return cur.rowcount == 1
 
 def get_reaction_roles_panels(guild_id: str) -> List[Dict]:
     with _connect_sync() as conn:
@@ -122,12 +140,18 @@ def get_reaction_roles_panels(guild_id: str) -> List[Dict]:
             result.append(p_dict)
         return result
 
-def get_reaction_roles_panel(panel_id: int) -> Optional[Dict]:
+def get_reaction_roles_panel(panel_id: int, guild_id: Optional[str] = None) -> Optional[Dict]:
     with _connect_sync() as conn:
         conn.row_factory = sqlite3.Row
-        panel = conn.execute(
-            "SELECT * FROM reaction_roles_panels WHERE id = ?", (panel_id,)
-        ).fetchone()
+        if guild_id is None:
+            panel = conn.execute(
+                "SELECT * FROM reaction_roles_panels WHERE id = ?", (panel_id,)
+            ).fetchone()
+        else:
+            panel = conn.execute(
+                "SELECT * FROM reaction_roles_panels WHERE id = ? AND guild_id = ?",
+                (panel_id, str(guild_id)),
+            ).fetchone()
         if not panel:
             return None
         p_dict = _row_to_dict(panel)
@@ -143,7 +167,7 @@ def save_reaction_roles_panel(guild_id: str, panel_data: dict, items_data: List[
         panel_id = panel_data.get("id")
         
         if panel_id:
-            conn.execute(
+            cur = conn.execute(
                 """UPDATE reaction_roles_panels 
                    SET name = ?, channel_id = ?, title = ?, description = ?, color = ?, 
                        image_url = ?, thumbnail_url = ?, footer_text = ?
@@ -156,6 +180,8 @@ def save_reaction_roles_panel(guild_id: str, panel_data: dict, items_data: List[
                     panel_id, guild_id
                 )
             )
+            if cur.rowcount != 1:
+                return 0
         else:
             cursor = conn.execute(
                 """INSERT INTO reaction_roles_panels 
@@ -180,16 +206,26 @@ def save_reaction_roles_panel(guild_id: str, panel_data: dict, items_data: List[
         conn.commit()
         return panel_id
 
-def delete_reaction_roles_panel(panel_id: int, guild_id: str):
+def delete_reaction_roles_panel(panel_id: int, guild_id: str) -> bool:
     with _connect_sync() as conn:
-        conn.execute("DELETE FROM reaction_roles_panels WHERE id = ? AND guild_id = ?", (panel_id, guild_id))
+        cur = conn.execute(
+            "DELETE FROM reaction_roles_panels WHERE id = ? AND guild_id = ?",
+            (panel_id, str(guild_id)),
+        )
+        if cur.rowcount != 1:
+            return False
         conn.execute("DELETE FROM reaction_roles_items WHERE panel_id = ?", (panel_id,))
         conn.commit()
+        return True
 
-def update_reaction_roles_message_id(panel_id: int, message_id: str):
+def update_reaction_roles_message_id(panel_id: int, guild_id: str, message_id: str) -> bool:
     with _connect_sync() as conn:
-        conn.execute("UPDATE reaction_roles_panels SET message_id = ? WHERE id = ?", (message_id, panel_id))
+        cur = conn.execute(
+            "UPDATE reaction_roles_panels SET message_id = ? WHERE id = ? AND guild_id = ?",
+            (message_id, panel_id, str(guild_id)),
+        )
         conn.commit()
+        return cur.rowcount == 1
 
 async def async_get_all_ticket_panels() -> List[Dict]:
     async with _connect_async() as db:

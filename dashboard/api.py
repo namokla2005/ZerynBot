@@ -370,6 +370,8 @@ def save_ticket(guild_id: str):
     buttons_data = data.get("buttons", [])
     
     panel_id = db.save_ticket_panel(guild_id, panel_data, buttons_data)
+    if not panel_id:
+        return jsonify({"error": "Không tìm thấy panel"}), 404
     return jsonify({"ok": True, "id": panel_id})
 
 
@@ -379,7 +381,8 @@ def delete_ticket(guild_id: str, panel_id: int):
     if err:
         return err
     
-    db.delete_ticket_panel(panel_id, guild_id)
+    if not db.delete_ticket_panel(panel_id, guild_id):
+        return jsonify({"error": "Không tìm thấy panel"}), 404
     return jsonify({"ok": True})
 
 
@@ -389,7 +392,7 @@ def send_ticket_panel(guild_id: str, panel_id: int):
     if err:
         return err
         
-    panel = db.get_ticket_panel(panel_id)
+    panel = db.get_ticket_panel(panel_id, guild_id)
     if not panel:
         return jsonify({"error": "Không tìm thấy panel"}), 404
 
@@ -464,7 +467,7 @@ def send_ticket_panel(guild_id: str, panel_id: int):
         )
         if resp.status_code in (200, 201):
             new_msg_id = resp.json().get("id")
-            db.update_panel_message_id(panel_id, new_msg_id)
+            db.update_panel_message_id(panel_id, guild_id, new_msg_id)
             return jsonify({"ok": True, "message_id": new_msg_id})
             
         try:
@@ -488,6 +491,8 @@ def save_reaction_role(guild_id: str):
     items_data = data.get("items", [])
     
     panel_id = db.save_reaction_roles_panel(guild_id, panel_data, items_data)
+    if not panel_id:
+        return jsonify({"error": "Không tìm thấy panel"}), 404
     return jsonify({"ok": True, "id": panel_id})
 
 
@@ -497,7 +502,8 @@ def delete_reaction_role(guild_id: str, panel_id: int):
     if err:
         return err
     
-    db.delete_reaction_roles_panel(panel_id, guild_id)
+    if not db.delete_reaction_roles_panel(panel_id, guild_id):
+        return jsonify({"error": "Không tìm thấy panel"}), 404
     return jsonify({"ok": True})
 
 
@@ -507,7 +513,7 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
     if err:
         return err
         
-    panel = db.get_reaction_roles_panel(panel_id)
+    panel = db.get_reaction_roles_panel(panel_id, guild_id)
     if not panel:
         return jsonify({"error": "Không tìm thấy panel"}), 404
 
@@ -555,7 +561,7 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
         )
         if resp.status_code in (200, 201):
             new_msg_id = resp.json().get("id")
-            db.update_reaction_roles_message_id(panel_id, new_msg_id)
+            db.update_reaction_roles_message_id(panel_id, guild_id, new_msg_id)
             
             # Add reactions
             items = panel.get("items", [])
