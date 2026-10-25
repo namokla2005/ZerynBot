@@ -108,11 +108,8 @@ def authed_client(client, user_id: str = MOCK_USER_ID):
 
 
 @pytest.fixture()
-def health_file():
-    """Dọn file data/health.json sau mỗi test (file nằm trong gitignore)."""
-    path = os.path.join(BASE_DIR, "data", "health.json")
-    yield path
-    try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
+def health_file(tmp_path, monkeypatch):
+    """Test không bao giờ ghi data/health.json thật (có thể làm watchdog restart bot)."""
+    path = tmp_path / "health.json"
+    monkeypatch.setenv("ZERYN_HEALTH_FILE", str(path))
+    yield str(path)

@@ -206,6 +206,25 @@ def run_remote_deploy():
         executor.close()
         return False
 
+    # 1.5 Backup DB + cài dependency trước khi restart
+    print("\n📦 Backup DB + cài dependencies (requirements.txt)...")
+    cmd_prepare = (
+        f"cd {cfg['bot_dir']} && mkdir -p data/backups && "
+        "python -c \"import sqlite3; s=sqlite3.connect('data/bot.db'); "
+        "d=sqlite3.connect('data/backups/pre_deploy.db'); s.backup(d); d.close(); s.close()\" && "
+        "pip install -r requirements.txt"
+    )
+    out_prep, err_prep, code_prep = executor.exec(cmd_prepare, timeout=180.0)
+    if out_prep:
+        print(out_prep[-800:])
+    if err_prep:
+        print(f"⚠️ prepare stderr: {err_prep[-400:]}")
+    if code_prep != 0:
+        print("❌ Backup/pip install thất bại — không restart, rollback code.")
+        _rollback_remote(executor, cfg, prev_head)
+        executor.close()
+        return False
+
     # 2. Restart Bot
     print("\n🔄 [2/3] Đang khởi động lại Bot & Dashboard: python main.py --restart...")
     cmd_restart = f"cd {cfg['bot_dir']} && python main.py --restart"

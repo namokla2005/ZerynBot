@@ -146,7 +146,7 @@ def _health_is_fresh(data: dict) -> bool:
 def health():
     # `_V2_DIR` là repo root (xem preamble) — KHÔNG tính theo __file__ của blueprint,
     # vì file này nằm sâu thêm một cấp (dashboard/blueprints/).
-    health_file = os.path.join(_V2_DIR, "data", "health.json")
+    health_file = os.environ.get("ZERYN_HEALTH_FILE") or os.path.join(_V2_DIR, "data", "health.json")
     data = {"online": False, "pid": None, "last_ready": None, "last_change": None}
     try:
         with open(health_file, "r", encoding="utf-8") as f:

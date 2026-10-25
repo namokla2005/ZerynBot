@@ -318,6 +318,7 @@ def print_status():
 
 
 def run_only_bot():
+    os.environ["ZERYN_PROCESS_ROLE"] = "bot"
     _enforce_file_security()
     print("[Bot] Starting Bot Discord v2...")
     _write_pid(PID_BOT, os.getpid())
@@ -332,6 +333,7 @@ def run_only_bot():
 
 
 def run_only_dashboard():
+    os.environ["ZERYN_PROCESS_ROLE"] = "dashboard"
     _enforce_file_security()
     dash_host = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
     dash_port = int(os.environ.get("DASHBOARD_PORT", "5000"))

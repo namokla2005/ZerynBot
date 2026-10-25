@@ -1096,6 +1096,30 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   - Active Groq models alignment (Qwen 3.8 27B, GPT-OSS 20B/120B, Groq Compound) with dual-prefix fallback.
   - Multimodal Vision support for image attachments in `/ask` and `#ai-chat`.
   - Essential Bot style Giveaway redesign with dark header banner and key-value fields.
+- **v3.4 (2026-10-25) — full-repo audit: 5 critical + 20 high, all fixed**:
+  - **P0**: ticket/reaction panels are tenant-scoped at DB + API (no cross-guild button
+    replacement); `/verify disable` never falls back to `@everyone` (which used to delete
+    its overwrite and expose private channels); `/verify role` blocks roles ≥ the caller's
+    top role; `/automods raidunlock` consumes the already-parsed list and keeps the
+    snapshot when a restore fails; admin activity-log JSON is HTML-escaped before the
+    `innerHTML` sink.
+  - **P1**: dashboard sessions fail closed when the in-memory OAuth vault is gone;
+    music reconnect actually resumes, skip/backoff uses a play sequence, after-play END
+    events are drained, and private URLs are rejected before yt-dlp; AI calls carry a
+    deadline/request budget plus daily per-user/guild caps; deploy is fail-closed with
+    SHA compare + rollback; watchdog separates bot-offline (503) from dashboard HTTP
+    failures and uses `RejectPolicy` SSH host keys.
+  - **P2**: `temp_roles` makes Birthday VIP removal survive restarts; 29/02 maps to
+    28/02 in non-leap years; economy rejects price ≤ 0 and writes a `buy` ledger row;
+    automod sees bare domains and Unicode dashes, and re-checks caps/mentions on edit;
+    pure `app_commands.Group` cogs now enforce module toggles via `interaction_check`.
+  - **P3**: every role/channel id from dashboard forms is verified against the guild;
+    language switch blocks off-origin referrers; hunt/job names and the last 9 template
+    keys are translated in all 6 locales (**1883 keys**); cache deep-copies nested
+    containers; bot and dashboard write separate AI activity logs; self-test aborts
+    instead of writing to the production DB when its sandbox cannot be created.
+  - Verification: 449+ pytest cases green, `ruff F821/E9` clean, DB integrity/foreign
+    keys clean, 31 indexes, 2 watchdog processes, public `/health` 200 after deploy.
 - **v2.5 (2026-08)**: 
   - Music Player UI redesign (Music \| 2 style: compact card with right-aligned thumbnail, progress bar, 5 interactive buttons, `/nowplaying`).
   - Full 6-language i18n synchronization at 1535 keys per file.

@@ -41,7 +41,7 @@ if BOT_DIR not in sys.path:
 
 import config
 from cache import cache
-from database import get_db_path, init_db, set_db_path, snapshot_database
+from database import get_db_connection, get_db_path, init_db, set_db_path, snapshot_database
 
 def _safe_print(text: str):
     """Safe print wrapper preventing UnicodeEncodeError on non-UTF8 terminals."""
@@ -340,7 +340,8 @@ class SystemTester:
             set_db_path(sandbox)
             isolated = True
         except Exception as e:
-            _safe_print(f"⚠️  [Tester] Không tạo được sandbox DB ({e}) — chạy trên DB thật.")
+            _safe_print(f"❌ [Tester] Không tạo được sandbox DB ({e}) — huỷ self-test để không ghi vào DB thật.")
+            return False
         try:
             return await SystemTester._run_all_tests(db_health=db_health, sandboxed=isolated)
         finally:
@@ -405,7 +406,7 @@ class SystemTester:
             init_db()
             asserts += 1
             def _check():
-                with sqlite3.connect(get_db_path(), timeout=5) as conn:
+                with get_db_connection() as conn:
                     cur = conn.cursor()
                     cur.execute("PRAGMA journal_mode;")
                     jmode = cur.fetchone()[0].lower()
@@ -489,7 +490,7 @@ class SystemTester:
             asserts += 1
 
             # 2. AutoRoles (part of guild_settings)
-            assert "autorole_ids" in s or "autoroles" in s or isinstance(s, dict), "autoroles config missing"
+            assert "autoroles_user" in s and "autoroles_bot" in s, "autoroles config missing"
             asserts += 1
 
             # 3. Leveling

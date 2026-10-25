@@ -86,7 +86,11 @@ class AiActivityLogger:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(base_dir, "data")
         os.makedirs(data_dir, exist_ok=True)
-        log_file = os.path.join(data_dir, "ai_activity.log")
+        # Bot giữ tên cũ; dashboard dùng file riêng để hai process không cùng
+        # RotatingFileHandler trên một file (rotate chéo làm mất log).
+        _role = os.environ.get("ZERYN_PROCESS_ROLE", "")
+        _log_name = "ai_activity.log" if _role in ("", "bot") else f"ai_activity_{_role}.log"
+        log_file = os.path.join(data_dir, _log_name)
 
         try:
             self._log_queue = queue.Queue(maxsize=1000)

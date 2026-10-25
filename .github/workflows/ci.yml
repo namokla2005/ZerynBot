@@ -18,13 +18,17 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -34,6 +38,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Kiểm tra cú pháp shell
+        run: bash -n scripts/watchdog.sh scripts/termux_boot.sh
 
       - name: Kiểm tra cú pháp mọi file Python
         # py_compile chỉ chứng minh file PARSE được — nó không phát hiện tên hàm sai

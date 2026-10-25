@@ -195,9 +195,8 @@ class BotV2(commands.Bot):
     # Bot ghi data/health.json để dashboard trả /health. Khi bot offline quá
     # OFFLINE_THRESHOLD giây, _offline_watchdog_task sẽ close() cho watchdog
     # bên ngoài restart → bot tự online lại sau mất mạng.
-    HEALTH_FILE = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "data", "health.json",
+    HEALTH_FILE = os.environ.get("ZERYN_HEALTH_FILE") or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "health.json"
     )
     OFFLINE_THRESHOLD = 5 * 60  # 5 phút: đủ thời gian cho wifi khôi phục tạm thời
 
