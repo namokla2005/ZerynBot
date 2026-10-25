@@ -209,7 +209,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
                 # Hủy task cũ nếu có
                 self._cancel_grace_task(guild_id)
-                self._cancel_reconnect_task(guild_id)
+                self._cancel_reconnect_task(guild_id, clear_flag=False)
                 self._cancel_empty_voice_task(guild_id)
 
                 async def _safe_grace_wrapper():

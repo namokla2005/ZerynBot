@@ -71,10 +71,22 @@ def clean_youtube_query(query: str) -> str:
         return f"https://www.youtube.com/watch?v={video_id}"
     return q
 
+def _is_safe_remote_url(url: str) -> bool:
+    """Chặn SSRF trước khi đưa URL vào yt-dlp. Fail-closed nếu không import được."""
+    try:
+        from dashboard.auth import is_safe_http_url
+        return bool(is_safe_http_url(url))
+    except Exception:
+        return False
+
+
 def _extract_sync(query: str) -> dict | None:
     """Đồng bộ yt-dlp (chạy trong thread pool qua singleton session)."""
     try:
         clean_q = clean_youtube_query(query)
+        if clean_q.startswith("http") and not _is_safe_remote_url(clean_q):
+            log.warning(f"[Music] Chặn URL không an toàn: {clean_q[:120]}")
+            return None
         if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
             clean_q = f"ytsearch1:{clean_q}"
         elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
@@ -99,6 +111,9 @@ def _extract_metadata_sync(query: str) -> dict | None:
     """Trích xuất nhanh metadata bài hát qua Flat Extraction (< 1s)."""
     try:
         clean_q = clean_youtube_query(query)
+        if clean_q.startswith("http") and not _is_safe_remote_url(clean_q):
+            log.warning(f"[Music] Chặn URL không an toàn (metadata): {clean_q[:120]}")
+            return None
         if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
             clean_q = f"ytsearch1:{clean_q}"
         elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
@@ -402,7 +417,11 @@ def _compact_song_info(info: dict) -> dict:
 
 async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
     """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
-    key = query.strip().lower()
+    query = (query or "").strip()
+    if query.startswith("http") and not _is_safe_remote_url(query):
+        log.warning(f"[Music] Chặn URL không an toàn trước cache/yt-dlp: {query[:120]}")
+        return None
+    key = query.lower()
     cache_key = f"song_info:{key}"
 
     if not force_refresh:

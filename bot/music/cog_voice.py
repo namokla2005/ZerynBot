@@ -90,7 +90,7 @@ class VoiceLifecycleMixin:
                 pass
 
 
-    def _cancel_reconnect_task(self, guild_id: int):
+    def _cancel_reconnect_task(self, guild_id: int, clear_flag: bool = True):
         task = self._reconnect_tasks.pop(guild_id, None)
         if task and not task.done():
             try:
@@ -109,24 +109,29 @@ class VoiceLifecycleMixin:
             except Exception:
                 pass
         player = self._players.get(guild_id)
-        if player:
+        if player and clear_flag:
             player.set_reconnecting(False)
 
 
     def _schedule_reconnect_task(self, guild_id: int, player: MusicPlayer):
         """Khởi tạo và quản lý vòng đời của reconnect task an toàn với timeout 30s chống rò rỉ bộ nhớ."""
-        self._cancel_reconnect_task(guild_id)
+        # KHÔNG xoá cờ ở đây: task chỉ được tạo khi player ĐANG reconnect, và
+        # `resume_after_reconnect` mở đầu bằng guard `not self._is_reconnecting`.
+        # Bản cũ gọi cancel mặc định (clear_flag=True) rồi mới tạo task, nên task
+        # luôn return ngay và nhạc im lặng vĩnh viễn sau khi voice WS reconnect.
+        self._cancel_reconnect_task(guild_id, clear_flag=False)
+        player.set_reconnecting(True)
         try:
             async def _safe_resume_wrapper():
                 try:
                     await asyncio.wait_for(player.resume_after_reconnect(), timeout=30.0)
                 except asyncio.TimeoutError:
                     log.warning(f"[Music] Reconnect task bị timeout sau 30s tại guild {guild_id}")
-                    player.set_reconnecting(False)
                 except asyncio.CancelledError:
                     pass
                 except Exception as e:
                     log.error(f"[Music] Lỗi trong reconnect task tại guild {guild_id}: {e}")
+                finally:
                     player.set_reconnecting(False)
 
             rec_task = asyncio.create_task(_safe_resume_wrapper())

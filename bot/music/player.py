@@ -126,6 +126,9 @@ class MusicPlayer:
         self.total_paused_time : float = 0.0
         self._skipped      : bool = False
         self._skip_drain   = None   # Future của _drain_pending_skip (giu strong reference)
+        self._end_drain    = None   # Future của _drain_pending_end
+        self._pending_end  = None   # (error, elapsed, track) bị chặn trong recovery
+        self._play_seq     : int = 0  # tăng mỗi lần có bài mới; recovery cũ phải bỏ
         self._recovering   : bool = False
         self._last_recovery_time : float = 0.0
         self._preload_task : asyncio.Task | None = None
@@ -398,11 +401,18 @@ class MusicPlayer:
         """Callback từ audio thread của discord.py khi stream dừng (chuyển sang event loop an toàn)."""
         if self._manual_stopped or self._recovering or self._is_reconnecting:
             log.debug(f"[Music] _after_play ignored (stopped={self._manual_stopped}, recovering={self._recovering}, reconnecting={self._is_reconnecting})")
-            if self._skipped and not self._manual_stopped:
+            if self._manual_stopped:
+                return
+            if self._skipped:
                 # `vc.play()` đã chạy nhưng `_recovering` còn bật tới hết finally: skip
                 # trong khe hẹp ấy bị bỏ ở đây và KHÔNG còn ai tiêu cờ nữa -> hàng đợi
                 # chết. Giao lại cho một coroutine chờ cờ recovery hạ xuống.
                 self._schedule_pending_skip_drain()
+            elif self.current is not None:
+                # END event bị chặn trong lúc recovery/reconnect. Không được nuốt:
+                # ghi lại để drain sau khi cờ hạ; nếu recovery đã phát lại bài này thì
+                # `_play()` sẽ xoá pending.
+                self._pending_end = (error, self.get_elapsed(), self.current)
             return
 
         # `bound_source` do functools.partial gắn tại lúc vc.play(). Callback mang source
@@ -442,6 +452,9 @@ class MusicPlayer:
         """Xử lý kết thúc phát nhạc trên Main Event Loop (100% thread-safe)."""
         if self._manual_stopped or self._is_reconnecting or self._recovering:
             return
+        if self.current is not None and self.current is not track:
+            # Callback của bài cũ tới trễ sau khi user đã chuyển bài.
+            return
 
         # `vc.stop()` do skip() gọi cũng kích hoạt after-callback này. Trước đây cờ
         # `_skipped` nằm chung điều kiện chặn ở đầu hàm nên lời gọi quay về đây luôn
@@ -479,9 +492,13 @@ class MusicPlayer:
                     f"Đang tự động làm mới stream URL và tiếp tục phát sau 2s..."
                 )
                 self._recovering = True
+                seq = self._play_seq
                 try:
                     await asyncio.sleep(2)
                     if self._manual_stopped or self._is_reconnecting:
+                        return
+                    if self._play_seq != seq:
+                        log.info(f"[Music] Bỏ recovery live '{track.title}': user đã chuyển bài.")
                         return
                     if await self._honour_pending_skip():
                         return
@@ -492,6 +509,7 @@ class MusicPlayer:
                     await self._on_queue_empty()
                 finally:
                     self._recovering = False
+                    self._drain_pending_end_soon()
                 return
             else:
                 log.error(f"[Music] Live stream '{track.title}' lỗi liên tục 3 lần, dừng stream.")
@@ -529,9 +547,13 @@ class MusicPlayer:
                 f"Tự động làm mới URL và phát tiếp sau {backoff_delay}s..."
             )
             self._recovering = True
+            seq = self._play_seq
             try:
                 await asyncio.sleep(backoff_delay)
                 if self._manual_stopped or self._is_reconnecting:
+                    return
+                if self._play_seq != seq:
+                    log.info(f"[Music] Bỏ recovery '{track.title}': user đã chuyển bài.")
                     return
                 if await self._honour_pending_skip():
                     return
@@ -543,6 +565,7 @@ class MusicPlayer:
                 await self._report_play_failure(track, "music.cannot_decode")
             finally:
                 self._recovering = False
+                self._drain_pending_end_soon()
             return
         elif (error or is_premature) and getattr(track, "recovery_attempts", 0) >= 2 and not self._skipped:
             log.warning(f"[Music] Bài hát '{track.title}' vượt quá 2 lần khôi phục, bỏ qua và phát bài tiếp theo.")
@@ -648,6 +671,29 @@ class MusicPlayer:
                 await self._honour_pending_skip()
                 return
 
+    def _drain_pending_end_soon(self):
+        """Xử lý END event bị chặn trong recovery/reconnect, sau khi cờ đã hạ."""
+        if not self._pending_end:
+            return
+        if self._end_drain and not self._end_drain.done():
+            return
+        try:
+            taskbag.spawn(self._drain_pending_end())
+        except Exception as exc:
+            log.debug(f"[Music] Không schedule được pending-end drain: {exc}")
+
+    async def _drain_pending_end(self):
+        pending = self._pending_end
+        self._pending_end = None
+        if not pending or self._manual_stopped:
+            return
+        error, elapsed, track = pending
+        if self.current is not track:
+            return
+        if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
+            return
+        await self._handle_after_play_async(error, elapsed, track)
+
     async def _handle_autoplay(self):
         """Tự động tìm kiếm và phát bài hát cùng thể loại khi bật Autoplay."""
         if not self.current:
@@ -746,6 +792,10 @@ class MusicPlayer:
                 return
             if self._manual_stopped or self._skipped:
                 return
+
+            # Bất kỳ lượt phát mới nào cũng vô hiệu hoá recovery cũ đang ngủ.
+            self._play_seq += 1
+            self._pending_end = None
 
             if self.vc.is_playing() or self.vc.is_paused():
                 self.vc.stop()
@@ -902,6 +952,8 @@ class MusicPlayer:
 
     def skip(self):
         self._is_reconnecting = False
+        self._play_seq += 1
+        self._pending_end = None
         cog = getattr(self, "cog", None)
         if cog and hasattr(cog, "_cancel_reconnect_task"):
             try:
@@ -985,10 +1037,14 @@ class MusicPlayer:
             return
 
         self._recovering = True
+        seq = self._play_seq
         try:
             # Đệm 1.5s để Discord Voice UDP socket ổn định
             await asyncio.sleep(1.5)
             if self._manual_stopped or not self._is_reconnecting:
+                return
+            if self._play_seq != seq:
+                log.info("[Music] Bỏ resume reconnect: user đã chuyển bài.")
                 return
             if await self._honour_pending_skip():
                 return
@@ -1038,6 +1094,7 @@ class MusicPlayer:
         finally:
             self._recovering = False
             self._is_reconnecting = False
+            self._drain_pending_end_soon()
 
     async def stop(self):
         async with self._stop_lock:
@@ -1046,6 +1103,7 @@ class MusicPlayer:
             self._cleanup_done = True
             self._manual_stopped = True
             self._is_reconnecting = False
+            self._pending_end = None
             self._reset_inactivity_timer()
             self._cancel_stall_watchdog()
             self._active_source = None
