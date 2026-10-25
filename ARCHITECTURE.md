@@ -1118,7 +1118,7 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     keys are translated in all 6 locales (**1883 keys**); cache deep-copies nested
     containers; bot and dashboard write separate AI activity logs; self-test aborts
     instead of writing to the production DB when its sandbox cannot be created.
-  - Verification: 449+ pytest cases green, `ruff F821/E9` clean, DB integrity/foreign
+  - Verification: 464+ pytest cases green, `ruff F821/E9` clean, DB integrity/foreign
     keys clean, 31 indexes, 2 watchdog processes, public `/health` 200 after deploy.
 - **v2.5 (2026-08)**: 
   - Music Player UI redesign (Music \| 2 style: compact card with right-aligned thumbnail, progress bar, 5 interactive buttons, `/nowplaying`).
