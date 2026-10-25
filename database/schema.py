@@ -349,6 +349,20 @@ def init_db():
             -- full-scan bảng lớn nhất, tệ hơn cả một câu DELETE đơn lẻ.
             CREATE INDEX IF NOT EXISTS idx_econ_tx_created_at ON economy_transactions (created_at);
 
+            CREATE TABLE IF NOT EXISTS blackjack_games (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                user_id     TEXT NOT NULL,
+                bet         INTEGER NOT NULL,
+                player_hand TEXT NOT NULL,
+                dealer_hand TEXT NOT NULL,
+                deck        TEXT NOT NULL,
+                status      TEXT NOT NULL DEFAULT 'active',
+                created_at  REAL NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_blackjack_status ON blackjack_games (status);
+
             CREATE TABLE IF NOT EXISTS tempvoice_settings (
                 guild_id            TEXT PRIMARY KEY,
                 enabled             INTEGER DEFAULT 0,

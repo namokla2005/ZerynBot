@@ -484,6 +484,105 @@ async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tupl
         await db.commit()
         return True, item["role_id"], item["name"], price
 
+async def async_create_blackjack_game(guild_id: str, user_id: str, bet: int,
+                                       player_hand: list, dealer_hand: list, deck: list) -> int:
+    async with _connect_async() as db:
+        cur = await db.execute("""
+            INSERT INTO blackjack_games
+                (guild_id, user_id, bet, player_hand, dealer_hand, deck, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
+        """, (guild_id, user_id, int(bet), json.dumps(player_hand), json.dumps(dealer_hand),
+              json.dumps(deck), time.time()))
+        await db.commit()
+        return cur.lastrowid
+
+
+async def async_update_blackjack_game(game_id: int, player_hand: list = None,
+                                      dealer_hand: list = None, deck: list = None) -> bool:
+    parts, params = [], []
+    if player_hand is not None:
+        parts.append("player_hand = ?"); params.append(json.dumps(player_hand))
+    if dealer_hand is not None:
+        parts.append("dealer_hand = ?"); params.append(json.dumps(dealer_hand))
+    if deck is not None:
+        parts.append("deck = ?"); params.append(json.dumps(deck))
+    if not parts:
+        return False
+    params.append(game_id)
+    async with _connect_async() as db:
+        cur = await db.execute(
+            f"UPDATE blackjack_games SET {', '.join(parts)} WHERE id = ? AND status = 'active'",
+            params,
+        )
+        await db.commit()
+        return cur.rowcount == 1
+
+
+async def async_get_blackjack_game(game_id: int) -> dict | None:
+    async with _connect_async() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM blackjack_games WHERE id = ?", (game_id,)) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return None
+            data = dict(row)
+            for key in ("player_hand", "dealer_hand", "deck"):
+                try:
+                    data[key] = json.loads(data[key])
+                except (TypeError, ValueError):
+                    data[key] = []
+            return data
+
+
+async def async_settle_blackjack_game(game_id: int, guild_id: str, user_id: str,
+                                      payout: int, kind: str, note: str) -> bool:
+    """Trả thưởng + xoá ván trong CÙNG transaction; gọi 2 lần không trả 2 lần."""
+    async with _connect_async() as db:
+        cur = await db.execute(
+            "DELETE FROM blackjack_games WHERE id = ? AND guild_id = ? AND user_id = ? AND status = 'active'",
+            (game_id, guild_id, user_id),
+        )
+        if cur.rowcount != 1:
+            return False
+        payout = max(0, int(payout))
+        if payout > 0:
+            await db.execute(
+                "UPDATE economy_users SET wallet = wallet + ? WHERE guild_id = ? AND user_id = ?",
+                (payout, guild_id, user_id),
+            )
+            await db.execute("""
+                INSERT INTO economy_transactions
+                    (guild_id, user_id, kind, amount, counterparty, note, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (guild_id, user_id, kind, payout, None, note, time.time()))
+        await db.commit()
+        return True
+
+
+async def async_refund_stale_blackjack_games() -> int:
+    """Hoàn cược mọi ván đang active khi bot khởi động lại (view RAM đã mất)."""
+    async with _connect_async() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, guild_id, user_id, bet FROM blackjack_games WHERE status = 'active'"
+        ) as cur:
+            rows = await cur.fetchall()
+        for row in rows:
+            await db.execute(
+                "UPDATE economy_users SET wallet = wallet + ? WHERE guild_id = ? AND user_id = ?",
+                (int(row["bet"]), row["guild_id"], row["user_id"]),
+            )
+            await db.execute("""
+                INSERT INTO economy_transactions
+                    (guild_id, user_id, kind, amount, counterparty, note, created_at)
+                VALUES (?, ?, 'refund', ?, ?, ?, ?)
+            """, (row["guild_id"], row["user_id"], int(row["bet"]), None,
+                  "blackjack refund (bot restart)", time.time()))
+            await db.execute("DELETE FROM blackjack_games WHERE id = ?", (row["id"],))
+        await db.commit()
+        return len(rows)
+
+
 async def async_refund_shop_purchase(
     guild_id: str,
     user_id: str,

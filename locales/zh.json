@@ -998,6 +998,7 @@
   "economy.out_of_stock": "❌ This item is currently out of stock!",
   "economy.role_assign_error": "⚠️ Purchased successfully but the bot lacks permissions to assign **{role}**.",
   "economy.buy_success": "🎉 You successfully purchased **{item}**!",
+  "economy.already_own_role": "⚠️ 你已拥有 **{role}** 身份组——已退款。",
   "economy.work_cooldown": "⏳ 你刚工作完需要休息！请在 **{minutes}分 {seconds}秒** 后再来。",
   "economy.work_title": "💼 辛勤工作",
   "economy.work_desc": "{user} 担任 **{job}** 并获得了 **+{amount:,}** {sym} 的工资！",

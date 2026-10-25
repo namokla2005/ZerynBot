@@ -23,7 +23,9 @@ from database import (
     async_sell_inventory_item, async_sell_all_inventory,
     async_get_economy_cooldown, async_set_economy_cooldown,
     async_claim_economy_cooldown,
-    async_place_bet, async_log_transaction
+    async_place_bet, async_log_transaction,
+    async_create_blackjack_game, async_update_blackjack_game,
+    async_settle_blackjack_game, async_refund_stale_blackjack_games,
 )
 from i18n import t, tr
 try:
@@ -71,12 +73,14 @@ def fmt_hand(hand: list[str]) -> str:
 
 
 class BlackjackView(discord.ui.View):
-    def __init__(self, cog, ctx: commands.Context, bet: int, settings: dict):
+    def __init__(self, cog, ctx: commands.Context, bet: int, settings: dict, eco_s: dict = None):
         super().__init__(timeout=60.0)
         self.cog = cog
         self.ctx = ctx
         self.bet = bet
         self.settings = settings
+        self.eco_s = eco_s or settings
+        self.game_id = None
         self.deck = create_deck()
         self.player_hand = [self.deck.pop(), self.deck.pop()]
         self.dealer_hand = [self.deck.pop(), self.deck.pop()]
@@ -90,7 +94,7 @@ class BlackjackView(discord.ui.View):
         return True
 
     def build_embed(self, hide_dealer: bool = True, title_status: str = None, color: int = 0x5865F2) -> discord.Embed:
-        sym = get_sym(self.settings)
+        sym = get_sym(self.eco_s)
         embed = discord.Embed(
             title=title_status or tr(self.settings, "economy.bj_title"),
             color=color,
@@ -108,37 +112,43 @@ class BlackjackView(discord.ui.View):
         return embed
 
     async def finish_game(self, result: str, interaction: discord.Interaction = None):
-        """result: 'win', 'lose', 'bust', 'tie', 'blackjack'"""
+        """result: 'win', 'lose', 'bust', 'tie', 'blackjack'. Tiền + xoá ván trong 1 transaction."""
         self.is_finished = True
         self.stop()
-        sym = get_sym(self.settings)
-        
+        sym = get_sym(self.eco_s)
+
         for child in self.children:
             child.disabled = True
 
         if result == "win":
-            payout = self.bet * 2
-            await async_modify_wallet(str(self.ctx.guild.id), str(self.ctx.author.id), payout)
-            await async_log_transaction(str(self.ctx.guild.id), str(self.ctx.author.id), "win", payout, "blackjack win")
+            payout, kind, note = self.bet * 2, "win", "blackjack win"
             status = tr(self.settings, "economy.bj_win", amount=self.bet, sym=sym)
             color = 0x57F287
         elif result == "blackjack":
-            payout = int(self.bet * 2.5)
-            await async_modify_wallet(str(self.ctx.guild.id), str(self.ctx.author.id), payout)
-            await async_log_transaction(str(self.ctx.guild.id), str(self.ctx.author.id), "win", payout, "blackjack 21")
+            payout, kind, note = int(self.bet * 2.5), "win", "blackjack 21"
             status = tr(self.settings, "economy.bj_blackjack", amount=int(self.bet * 1.5), sym=sym)
             color = 0xFEE75C
         elif result == "tie":
-            await async_modify_wallet(str(self.ctx.guild.id), str(self.ctx.author.id), self.bet)
-            await async_log_transaction(str(self.ctx.guild.id), str(self.ctx.author.id), "refund", self.bet, "blackjack tie")
+            payout, kind, note = self.bet, "refund", "blackjack tie"
             status = tr(self.settings, "economy.bj_tie", sym=sym)
             color = 0x95A5A6
         elif result == "bust":
+            payout, kind, note = 0, "blackjack_lose", "blackjack bust"
             status = tr(self.settings, "economy.bj_bust", amount=self.bet, sym=sym)
             color = 0xED4245
-        else: # lose
+        else:
+            payout, kind, note = 0, "blackjack_lose", "blackjack lose"
             status = tr(self.settings, "economy.bj_lose", amount=self.bet, sym=sym)
             color = 0xED4245
+
+        if not self.game_id:
+            log.error("[Economy] Blackjack finish_game thiếu game_id — không trả thưởng")
+        else:
+            settled = await async_settle_blackjack_game(
+                self.game_id, str(self.ctx.guild.id), str(self.ctx.author.id), payout, kind, note
+            )
+            if not settled:
+                log.warning("[Economy] Blackjack game %s đã được settle/refund trước đó", self.game_id)
 
         embed = self.build_embed(hide_dealer=False, title_status=status, color=color)
         if interaction:
@@ -151,6 +161,10 @@ class BlackjackView(discord.ui.View):
         if self.is_finished:
             return
         self.player_hand.append(self.deck.pop())
+        if self.game_id:
+            await async_update_blackjack_game(
+                self.game_id, player_hand=self.player_hand, deck=self.deck
+            )
         pval = calc_hand(self.player_hand)
         if pval > 21:
             await self.finish_game("bust", interaction)
@@ -170,7 +184,11 @@ class BlackjackView(discord.ui.View):
         # Dealer draws until 17 or higher
         while calc_hand(self.dealer_hand) < 17:
             self.dealer_hand.append(self.deck.pop())
-            
+        if self.game_id:
+            await async_update_blackjack_game(
+                self.game_id, dealer_hand=self.dealer_hand, deck=self.deck
+            )
+
         pval = calc_hand(self.player_hand)
         dval = calc_hand(self.dealer_hand)
         
@@ -186,6 +204,10 @@ class BlackjackView(discord.ui.View):
             # Auto-stand fairness: dealer draws until >= 17, then compare hands
             while calc_hand(self.dealer_hand) < 17:
                 self.dealer_hand.append(self.deck.pop())
+            if self.game_id:
+                await async_update_blackjack_game(
+                    self.game_id, dealer_hand=self.dealer_hand, deck=self.deck
+                )
             pval = calc_hand(self.player_hand)
             dval = calc_hand(self.dealer_hand)
             if dval > 21 or pval > dval:
@@ -279,12 +301,13 @@ def cat_name(settings: dict, stored: str) -> str:
 
 
 class InventoryView(discord.ui.View):
-    def __init__(self, cog, user_id: str, guild_id: str, settings: dict, author_name: str, author_avatar: str):
+    def __init__(self, cog, user_id: str, guild_id: str, settings: dict, eco_s: dict, author_name: str, author_avatar: str):
         super().__init__(timeout=90.0)
         self.cog = cog
         self.user_id = user_id
         self.guild_id = guild_id
         self.settings = settings
+        self.eco_s = eco_s or settings
         self.author_name = author_name
         self.author_avatar = author_avatar
 
@@ -300,12 +323,12 @@ class InventoryView(discord.ui.View):
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="💰", custom_id="inv_sell_common")
     async def sell_common(self, interaction: discord.Interaction, button: discord.ui.Button):
         count, earned = await async_sell_all_inventory(self.guild_id, self.user_id, rarity="common")
-        sym = get_sym(self.settings)
+        sym = get_sym(self.eco_s)
         if count == 0:
             await interaction.response.send_message(tr(self.settings, "economy.sell_no_items"), ephemeral=True)
             return
 
-        embed = await self.cog.build_inventory_embed(self.guild_id, self.user_id, self.settings, self.author_name, self.author_avatar)
+        embed = await self.cog.build_inventory_embed(self.guild_id, self.user_id, self.settings, self.eco_s, self.author_name, self.author_avatar)
         await interaction.response.edit_message(embed=embed, view=self)
         await interaction.followup.send(
             tr(self.settings, "economy.sell_all_success", count=count, earned=earned, sym=sym),
@@ -315,12 +338,12 @@ class InventoryView(discord.ui.View):
     @discord.ui.button(style=discord.ButtonStyle.success, emoji="💎", custom_id="inv_sell_all")
     async def sell_all(self, interaction: discord.Interaction, button: discord.ui.Button):
         count, earned = await async_sell_all_inventory(self.guild_id, self.user_id)
-        sym = get_sym(self.settings)
+        sym = get_sym(self.eco_s)
         if count == 0:
             await interaction.response.send_message(tr(self.settings, "economy.sell_no_items"), ephemeral=True)
             return
 
-        embed = await self.cog.build_inventory_embed(self.guild_id, self.user_id, self.settings, self.author_name, self.author_avatar)
+        embed = await self.cog.build_inventory_embed(self.guild_id, self.user_id, self.settings, self.eco_s, self.author_name, self.author_avatar)
         await interaction.response.edit_message(embed=embed, view=self)
         await interaction.followup.send(
             tr(self.settings, "economy.sell_all_success", count=count, earned=earned, sym=sym),
@@ -340,6 +363,15 @@ class Economy(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def cog_load(self):
+        # View blackjack sống trong RAM; restart là mất. Hoàn cược mọi ván active.
+        try:
+            refunded = await async_refund_stale_blackjack_games()
+            if refunded:
+                log.warning("[Economy] Đã hoàn cược %d ván blackjack bị bỏ dở do restart", refunded)
+        except Exception:
+            log.exception("[Economy] Không hoàn được cược blackjack tồn đọng lúc khởi động")
 
     async def cog_check(self, ctx: commands.Context) -> bool:
         if not ctx.guild:
@@ -669,25 +701,53 @@ class Economy(commands.Cog):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
             return
 
-        view = BlackjackView(self, ctx, bet, s)
-        
+        view = BlackjackView(self, ctx, bet, s, eco_s=eco_s)
+        try:
+            view.game_id = await async_create_blackjack_game(
+                str(ctx.guild.id), str(ctx.author.id), bet,
+                view.player_hand, view.dealer_hand, view.deck,
+            )
+        except Exception:
+            # Không tạo được ván -> trả lại cược vừa trừ.
+            await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), bet)
+            await async_log_transaction(
+                str(ctx.guild.id), str(ctx.author.id), "refund", bet,
+                "blackjack create failed",
+            )
+            raise
+
         # Check instant Blackjack 21 on deal
         pval = calc_hand(view.player_hand)
         dval = calc_hand(view.dealer_hand)
-        
+
         if pval == 21 and dval == 21:
             await view.finish_game("tie")
             embed = view.build_embed(hide_dealer=False)
-            view.message = await ctx.send(embed=embed, view=view)
+            try:
+                view.message = await ctx.send(embed=embed, view=view)
+            except Exception:
+                log.exception("[Economy] Gửi embed blackjack tie thất bại (cược đã được xử lý)")
             return
         elif pval == 21:
             await view.finish_game("blackjack")
             embed = view.build_embed(hide_dealer=False)
-            view.message = await ctx.send(embed=embed, view=view)
+            try:
+                view.message = await ctx.send(embed=embed, view=view)
+            except Exception:
+                log.exception("[Economy] Gửi embed blackjack thắng thất bại (tiền thắng đã trả)")
             return
 
         embed = view.build_embed(hide_dealer=True)
-        view.message = await ctx.send(embed=embed, view=view)
+        try:
+            view.message = await ctx.send(embed=embed, view=view)
+        except Exception:
+            # Chưa có lượt chơi nào: hoàn cược thay vì để người dùng mất tiền.
+            await async_settle_blackjack_game(
+                view.game_id, str(ctx.guild.id), str(ctx.author.id),
+                bet, "refund", "blackjack send failed",
+            )
+            log.exception("[Economy] Gửi embed blackjack thất bại — đã hoàn cược")
+            raise
 
     # ─── shop ──────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="shop", description="Xem cửa hàng mua Role bằng tiền ảo của server")
@@ -755,6 +815,12 @@ class Economy(commands.Cog):
                 )
                 await ctx.send(tr(s, "economy.role_not_found"), ephemeral=True)
                 return
+            if role in ctx.author.roles:
+                await async_refund_shop_purchase(
+                    str(ctx.guild.id), str(ctx.author.id), info, price, item_id
+                )
+                await ctx.send(tr(s, "economy.already_own_role", role=role.name), ephemeral=True)
+                return
             try:
                 await ctx.author.add_roles(role, reason="Mua role từ Economy Shop")
             except Exception as e:
@@ -768,9 +834,10 @@ class Economy(commands.Cog):
         await ctx.send(tr(s, "economy.buy_success", item=info, sym=sym))
 
     # ─── build_inventory_embed ─────────────────────────────────────────────────
-    async def build_inventory_embed(self, guild_id: str, user_id: str, settings: dict, user_name: str, avatar_url: str) -> discord.Embed:
+    async def build_inventory_embed(self, guild_id: str, user_id: str, settings: dict,
+                                    eco_s: dict, user_name: str, avatar_url: str) -> discord.Embed:
         items = await async_get_inventory(guild_id, user_id)
-        sym = get_sym(settings)
+        sym = get_sym(eco_s)
         if not items:
             embed = discord.Embed(
                 title=embed_title("zb_inventory", tr(settings, "economy.inv_title", user=user_name)),
@@ -955,12 +1022,13 @@ class Economy(commands.Cog):
     @commands.hybrid_command(name="inventory", aliases=["inv", "bag"], description="Xem túi đồ cá nhân và quản lý các vật phẩm bạn đang sở hữu")
     async def inventory(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
+        eco_s = await async_get_economy_settings(str(ctx.guild.id))
         embed = await self.build_inventory_embed(
-            str(ctx.guild.id), str(ctx.author.id), s,
+            str(ctx.guild.id), str(ctx.author.id), s, eco_s,
             ctx.author.display_name, ctx.author.display_avatar.url
         )
         view = InventoryView(
-            self, str(ctx.author.id), str(ctx.guild.id), s,
+            self, str(ctx.author.id), str(ctx.guild.id), s, eco_s,
             ctx.author.display_name, ctx.author.display_avatar.url
         )
         view.message = await ctx.send(embed=embed, view=view)

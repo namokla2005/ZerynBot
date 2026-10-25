@@ -998,6 +998,7 @@
   "economy.out_of_stock": "❌ Vật phẩm này trong cửa hàng đã hết hàng!",
   "economy.role_assign_error": "⚠️ Đã mua thành công nhưng bot không đủ quyền để cấp Role **{role}**.",
   "economy.buy_success": "🎉 Bạn đã mua thành công **{item}**!",
+  "economy.already_own_role": "⚠️ Bạn đã sở hữu role **{role}** — đã hoàn tiền.",
   "economy.work_cooldown": "⏳ Bạn vừa làm việc xong và cần nghỉ ngơi! Hãy quay lại sau **{minutes} phút {seconds} giây**.",
   "economy.work_title": "💼 Lao Động Hăng Say",
   "economy.work_desc": "{user} đã làm công việc **{job}** và nhận được tiền lương **+{amount:,}** {sym}!",

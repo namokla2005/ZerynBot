@@ -998,6 +998,7 @@
   "economy.out_of_stock": "❌ This item is currently out of stock!",
   "economy.role_assign_error": "⚠️ Purchased successfully but the bot lacks permissions to assign **{role}**.",
   "economy.buy_success": "🎉 You successfully purchased **{item}**!",
+  "economy.already_own_role": "⚠️ You already own the **{role}** role — your payment was refunded.",
   "economy.work_cooldown": "⏳ You have just finished working and need to rest! Come back in **{minutes}m {seconds}s**.",
   "economy.work_title": "💼 Hard at Work",
   "economy.work_desc": "{user} worked as a **{job}** and earned a wage of **+{amount:,}** {sym}!",
