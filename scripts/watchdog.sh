@@ -32,7 +32,12 @@ pid_is() {   # pid_is <pid> <chuoi-phai-co-trong-cmdline>
     _pid="$1"; _needle="$2"
     [ -n "$_pid" ] || return 1
     [ -r "/proc/$_pid/cmdline" ] || return 1
-    tr '\0' ' ' < "/proc/$_pid/cmdline" 2>/dev/null | grep -q -- "$_needle"
+    _cmdline=$(tr '\0' ' ' < "/proc/$_pid/cmdline" 2>/dev/null)
+    case "$_needle" in
+        # Khớp basename của script, không khớp chuỗi con trong cmdline của editor.
+        *watchdog.sh) printf '%s' "$_cmdline" | grep -Eq '(^|/)watchdog\.sh( |$)' ;;
+        *) printf '%s' "$_cmdline" | grep -Fq -- "$_needle" ;;
+    esac
 }
 
 # ─── Cloudflared: watchdog giám sát luôn cả đường ra Internet ────────────────────
@@ -121,7 +126,7 @@ HEALTH_FAIL_THRESHOLD=4   # ~6 phút (4 × 90s) → khớp với OFFLINE_THRESHO
 # trình — thứ không ai quản lý và có thể phình vô hạn.
 MAX_STDOUT_LOG_BYTES=$((5 * 1024 * 1024))   # 5MB
 rotate_if_big() {
-    for f in data/bot.stdout.log data/dashboard.stdout.log; do
+    for f in data/bot.stdout.log data/dashboard.stdout.log "$TUNNEL_LOG"; do
         [ -f "$f" ] || continue
         size=$(wc -c < "$f" 2>/dev/null || echo 0)
         if [ "$size" -gt "$MAX_STDOUT_LOG_BYTES" ]; then
@@ -174,11 +179,16 @@ restart_dashboard() {
 
 # ─── Cơ chế 2: Health-check nền ────────────────────────────────────────────────
 health_loop() {
-    local fail_streak=0
+    local bot_fail=0
     local dash_fail=0
     local tick=0
     local tunnel_fail=0
     while true; do
+        # Watchdog bị SIGKILL/OOM -> health_loop bị reparent về init. Không để nó
+        # tiếp tục restart dashboard/kill bot mà không còn supervisor.
+        if [ "$PPID" -eq 1 ]; then
+            exit 0
+        fi
         sleep "$HEALTH_INTERVAL"
         tick=$((tick + 1))
 
@@ -209,13 +219,14 @@ health_loop() {
         http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_URL" 2>/dev/null)
 
         if [ "$http_code" = "200" ]; then
-            fail_streak=0
+            bot_fail=0
             dash_fail=0
             continue
         fi
 
         if [ -z "$http_code" ] || [ "$http_code" = "000" ]; then
             dash_fail=$((dash_fail + 1))
+            bot_fail=0
             echo "[Watchdog] Dashboard không trả lời HTTP (lần $dash_fail) - đang restart..."
             if [ "$dash_fail" -ge 2 ]; then
                 restart_dashboard
@@ -224,29 +235,42 @@ health_loop() {
             continue
         fi
 
-        # Dashboard còn sống nhưng báo lỗi (503 = bot offline/heartbeat cụt)
-        dash_fail=0
-        fail_streak=$((fail_streak + 1))
-        echo "[Watchdog] Health-check FAIL lần $fail_streak (http=$http_code)"
-        if [ "$http_code" = "503" ] && [ "$fail_streak" -ge "$HEALTH_FAIL_THRESHOLD" ]; then
-            echo "[Watchdog] Bot offline liên tục $fail_streak × ${HEALTH_INTERVAL}s → Gửi SIGTERM dừng bot..."
-            if [ -f "$BOT_PID_FILE" ]; then
-                b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
-                if [ -n "$b_pid" ] && pid_is "$b_pid" "main.py --bot"; then
-                    kill -15 "$b_pid" 2>/dev/null
-                    # Chờ tối đa 5 giây cho aiosqlite đóng và Discord ngắt kết nối an toàn
-                    for i in 1 2 3 4 5; do
-                        if ! kill -0 "$b_pid" 2>/dev/null; then
-                            break
+        # 503 = dashboard sống nhưng bot offline/heartbeat cụt.
+        # Mọi mã khác (500/502/404) = dashboard hỏng -> restart dashboard, KHÔNG kill bot.
+        if [ "$http_code" = "503" ]; then
+            dash_fail=0
+            bot_fail=$((bot_fail + 1))
+            echo "[Watchdog] Bot offline lần $bot_fail (http=503)"
+            if [ "$bot_fail" -ge "$HEALTH_FAIL_THRESHOLD" ]; then
+                echo "[Watchdog] Bot offline liên tục $bot_fail × ${HEALTH_INTERVAL}s → Gửi SIGTERM dừng bot..."
+                if [ -f "$BOT_PID_FILE" ]; then
+                    b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
+                    if [ -n "$b_pid" ] && pid_is "$b_pid" "main.py --bot"; then
+                        kill -15 "$b_pid" 2>/dev/null
+                        # Chờ tối đa 15 giây cho aiosqlite đóng WAL và Discord ngắt kết nối an toàn
+                        for i in $(seq 1 15); do
+                            if ! kill -0 "$b_pid" 2>/dev/null; then
+                                break
+                            fi
+                            sleep 1
+                        done
+                        # Chỉ SIGKILL nếu PID vẫn còn là bot của mình (chống PID reuse)
+                        if pid_is "$b_pid" "main.py --bot"; then
+                            kill -9 "$b_pid" 2>/dev/null
                         fi
-                        sleep 1
-                    done
-                    # Nếu vẫn còn sống thì buộc kill -9
-                    kill -9 "$b_pid" 2>/dev/null
+                    fi
+                    rm -f "$BOT_PID_FILE" 2>/dev/null
                 fi
-                rm -f "$BOT_PID_FILE" 2>/dev/null
+                bot_fail=0
             fi
-            fail_streak=0  # reset sau khi kill
+        else
+            dash_fail=$((dash_fail + 1))
+            bot_fail=0
+            echo "[Watchdog] Dashboard lỗi HTTP $http_code (lần $dash_fail) - restart dashboard"
+            if [ "$dash_fail" -ge 2 ]; then
+                restart_dashboard
+                dash_fail=0
+            fi
         fi
     done
 }

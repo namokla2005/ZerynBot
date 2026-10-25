@@ -65,7 +65,11 @@ class RemoteExecutor:
             if paramiko is None:
                 raise RuntimeError("Thiếu thư viện paramiko (pip install paramiko)")
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                client.load_system_host_keys(os.path.expanduser("~/.ssh/known_hosts"))
+            except Exception:
+                pass
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
             conn_args = {
                 "hostname": self.cfg["host"],
                 "port": self.cfg["port"],
@@ -89,7 +93,7 @@ class RemoteExecutor:
         try:
             cf_h = self.cfg["cf_host"]
             res = subprocess.run(
-                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", cf_h, "echo OK"],
+                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=5", cf_h, "echo OK"],
                 capture_output=True, text=True, timeout=8.0
             )
             if res.returncode == 0 and "OK" in res.stdout:
@@ -109,7 +113,7 @@ class RemoteExecutor:
             return out, err, code
         elif self.mode == "cf":
             res = subprocess.run(
-                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", self.cfg["cf_host"], cmd],
+                ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", self.cfg["cf_host"], cmd],
                 capture_output=True, timeout=timeout
             )
             out = res.stdout.decode("utf-8", errors="replace").strip() if res.stdout else ""
@@ -123,6 +127,47 @@ class RemoteExecutor:
                 self.client.close()
             except Exception:
                 pass
+
+def _local_git_head() -> str:
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=BASE_DIR,
+            capture_output=True, text=True, timeout=10,
+        )
+    except Exception:
+        return ""
+    return (res.stdout or "").strip() if res.returncode == 0 else ""
+
+
+def _deploy_health_ok(raw_health: str, dash_running: bool) -> bool:
+    if not dash_running:
+        return False
+    try:
+        data = json.loads(raw_health)
+    except Exception:
+        return False
+    return data.get("online") is True
+
+
+def _rollback_remote(executor, cfg, prev_head: str) -> None:
+    import re
+
+    if not prev_head or not re.fullmatch(r"[0-9a-f]{7,40}", prev_head):
+        print("⚠️ Không có SHA hợp lệ để rollback.")
+        return
+    out, _, _ = executor.exec(
+        f"cd {cfg['bot_dir']} && git status --porcelain --untracked-files=no",
+        timeout=10.0,
+    )
+    if out.strip():
+        print("⚠️ Không rollback: repo Termux có thay đổi chưa commit (tránh mất việc).")
+        return
+    print(f"↩️ Rollback về {prev_head[:8]} và restart...")
+    executor.exec(
+        f"cd {cfg['bot_dir']} && git reset --hard {prev_head} && python main.py --restart",
+        timeout=45.0,
+    )
+
 
 def run_remote_deploy():
     cfg = get_config()
@@ -145,6 +190,19 @@ def run_remote_deploy():
         print(out_pull)
     if err_pull and "Already up to date" not in out_pull:
         print(f"⚠️ Git stderr: {err_pull}")
+    if code_pull != 0:
+        print("❌ git pull thất bại — KHÔNG restart, giữ nguyên code đang chạy.")
+        executor.close()
+        return False
+
+    remote_head, _, _ = executor.exec(f"cd {cfg['bot_dir']} && git rev-parse HEAD", timeout=10.0)
+    remote_head = remote_head.strip()
+    local_head = _local_git_head()
+    if local_head and remote_head != local_head:
+        print(f"❌ SHA lệch: local={local_head[:8]} remote={remote_head[:8]} — rollback.")
+        _rollback_remote(executor, cfg, prev_head)
+        executor.close()
+        return False
 
     # 2. Restart Bot
     print("\n🔄 [2/3] Đang khởi động lại Bot & Dashboard: python main.py --restart...")
@@ -154,6 +212,11 @@ def run_remote_deploy():
         print(out_restart)
     if err_restart:
         print(f"⚠️ Restart stderr: {err_restart}")
+    if code_restart != 0:
+        print("❌ restart thất bại — rollback về bản trước.")
+        _rollback_remote(executor, cfg, prev_head)
+        executor.close()
+        return False
 
     # 3. Post-Deployment Comprehensive Inspection (Kiểm tra 1 lượt hoàn chỉnh)
     print("\n🔍 [3/3] Đang kiểm tra 1 lượt hoàn chỉnh toàn bộ hệ thống trên Termux...")
@@ -174,12 +237,7 @@ def run_remote_deploy():
     out_health, _, _ = executor.exec(cmd_health, timeout=10.0)
     print(f"\n🌐 2. Kiểm tra Health Endpoint (http://localhost:5000/health):")
     print(f"   Response: {out_health or '(không có phản hồi)'}")
-    dash_healthy = False
-    try:
-        health_data = json.loads(out_health)
-        dash_healthy = health_data.get("online", False) or dash_running
-    except Exception:
-        dash_healthy = dash_running
+    dash_healthy = _deploy_health_ok(out_health, dash_running)
 
     # 3.3 Check latest logs for crashes / tracebacks
     cmd_logs = f"cd {cfg['bot_dir']} && tail -n 12 data/bot.log 2>/dev/null"
@@ -211,13 +269,14 @@ def run_remote_deploy():
         or "thành công" in out_test.lower()
     )
 
-    executor.close()
-
-    if not (bot_running and dash_running) or has_traceback or not test_passed:
+    if not (bot_running and dash_running and dash_healthy) or has_traceback or not test_passed:
         print("\n❌ CẢNH BÁO: Phát hiện lỗi logic hoặc chức năng chưa đạt chuẩn 100% trên Termux!")
         print("👉 AI BẮT BUỘC PHẢI TIẾP TỤC SỬA LỖI, KHÔNG ĐƯỢC BÁO HOÀN TẤT CHO NGƯỜI DÙNG.")
+        _rollback_remote(executor, cfg, prev_head)
+        executor.close()
         return False
 
+    executor.close()
     print("\n🎉 XÁC THỰC HOÀN TẤT 100%: Tất cả tiến trình đều RUNNING, Health Check HEALTHY, và toàn bộ 20/20 modules chức năng đều PASS trên Termux!")
     return True
 

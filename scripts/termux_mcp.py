@@ -45,7 +45,13 @@ def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
     client = None
     try:
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        # Host key đã có trong ~/.ssh/known_hosts (cả LAN và Cloudflare Tunnel).
+        # RejectPolicy: fail-closed thay vì tự tin host lạ (chống MITM).
+        try:
+            client.load_system_host_keys(os.path.expanduser("~/.ssh/known_hosts"))
+        except Exception:
+            pass
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
         conn_args = {
             "hostname": cfg["host"],
             "port": cfg["port"],
@@ -78,7 +84,7 @@ def _run_ssh(cmd: str, timeout: float = 15.0) -> str:
         import subprocess
         cf_host = os.environ.get("TERMUX_CF_HOST", "ssh.zerynbot.id.vn")
         res = subprocess.run(
-            ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", cf_host, cmd],
+            ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", cf_host, cmd],
             capture_output=True, timeout=timeout
         )
         out = res.stdout.decode("utf-8", errors="replace").strip() if res.stdout else ""
@@ -163,9 +169,11 @@ def termux_git_pull() -> str:
     return _run_ssh(cmd, timeout=20.0)
 
 
-@server.tool(name="termux_run_command", description="Chạy một lệnh bash tùy ý trên thiết bị Termux")
+@server.tool(name="termux_run_command", description="Chạy một lệnh bash tùy ý trên thiết bị Termux (mặc định TẮT, cần TERMUX_MCP_ALLOW_SHELL=1)")
 def termux_run_command(command: str) -> str:
-    """Chạy lệnh tùy chọn trên Termux."""
+    """Chạy lệnh tùy chọn trên Termux — chỉ khi owner bật rõ ràng."""
+    if os.environ.get("TERMUX_MCP_ALLOW_SHELL", "").strip().lower() not in ("1", "true", "yes"):
+        return "❌ termux_run_command đang bị tắt (fail-closed). Đặt TERMUX_MCP_ALLOW_SHELL=1 nếu thật sự cần."
     cfg = _get_config()
     cmd = f"cd {cfg['bot_dir']} && {command}"
     return _run_ssh(cmd, timeout=30.0)

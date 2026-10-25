@@ -44,8 +44,11 @@ def send_status(status_type: str):
         response = requests.post(webhook_url, json=payload, timeout=5)
         response.raise_for_status()
         print(f"[StatusWebhook] Sent '{status_type}' notification successfully!")
+    except requests.exceptions.HTTPError as e:
+        # Không in URL/exception thô: URL webhook chứa token bí mật.
+        print(f"[StatusWebhook] HTTP error: {getattr(e.response, 'status_code', '?')}")
     except Exception as e:
-        print(f"[StatusWebhook] Error sending webhook: {e}")
+        print(f"[StatusWebhook] Error sending webhook: {type(e).__name__}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

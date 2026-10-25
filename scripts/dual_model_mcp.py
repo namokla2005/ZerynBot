@@ -152,6 +152,13 @@ SECRET_PATTERNS = [
     (r"AIzaSy[a-zA-Z0-9_\-]{30,}", "AIzaSy***REDACTED***"),
     (r"[a-zA-Z0-9_\-]{24}\.[a-zA-Z0-9_\-]{6}\.[a-zA-Z0-9_\-]{27,}", "***DISCORD_TOKEN_REDACTED***"),
     (r"(password|secret|token)\s*[:=]\s*['\"][^'\"]+['\"]", r"\1: '***REDACTED***'"),
+    # Assignment không có dấu nháy (đúng kiểu .env)
+    (r"(?im)^\s*(?:export\s+)?([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|WEBHOOK)[A-Z0-9_]*)\s*=\s*([^\s#]+)",
+     r"\1=***REDACTED***"),
+    (r"https://(?:discord|discordapp)\.com/api/webhooks/\d+/[A-Za-z0-9_\-]+",
+     "***DISCORD_WEBHOOK_REDACTED***"),
+    (r"eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}",
+     "***JWT_REDACTED***"),
 ]
 
 
@@ -175,6 +182,16 @@ def _resolve_safe_path(user_path: str) -> str:
             raise PermissionError(f"Truy cập ngoài thư mục dự án bị từ chối: {user_path}")
     except ValueError:
         raise PermissionError(f"Đường dẫn không hợp lệ: {user_path}")
+
+    rel = os.path.relpath(target_path, real_base).replace(os.sep, "/")
+    base = os.path.basename(target_path).lower()
+    if (
+        base == ".env" or base.startswith(".env.")
+        or rel.startswith("data/")
+        or base.endswith((".pem", ".key", ".p12", ".pfx"))
+        or "secret" in base or "token" in base
+    ):
+        raise PermissionError(f"Tệp chứa bí mật bị từ chối: {user_path}")
 
     if not os.path.exists(target_path):
         raise FileNotFoundError(f"Không tìm thấy tệp: {user_path}")
@@ -703,8 +720,12 @@ def execute_review_code_file(file_path: str) -> str:
     return "\n".join(lines_out)
 
 
+_last_pre_commit_verdict = None
+
+
 def execute_pre_commit_check() -> str:
     """Quét git diff, kiểm tra các bất biến của repo và yêu cầu Model 2 đánh giá rủi ro hồi quy."""
+    global _last_pre_commit_verdict
     try:
         # 1. Lấy diff đã staged
         r_staged = subprocess.run(
@@ -732,6 +753,7 @@ def execute_pre_commit_check() -> str:
             is_staged = False
 
         if not diff_text:
+            _last_pre_commit_verdict = "READY_TO_COMMIT"
             return "🟢 Working tree hoàn toàn sạch sẽ! Không có thay đổi nào trong git diff."
 
         # 2. Lấy danh sách files đã thay đổi
@@ -747,6 +769,7 @@ def execute_pre_commit_check() -> str:
         changed_files = [f.strip() for f in r_files.stdout.splitlines() if f.strip()]
 
     except Exception as e:
+        _last_pre_commit_verdict = "FIX_REQUIRED"
         return f"❌ Lỗi khi thực thi lệnh git: {e}"
 
     # Lọc bỏ lockfile và binary
@@ -791,6 +814,14 @@ def execute_pre_commit_check() -> str:
     raw_resp = _invoke_ai(prompt, role="critic")
     json_data = _extract_json_block(raw_resp)
 
+    if not isinstance(json_data, dict) or not json_data:
+        json_data = {
+            "staged_files": changed_files,
+            "risk_level": "HIGH",
+            "verdict": "FIX_REQUIRED",
+            "breaking_risks": ["Không parse được phản hồi Model 2 — không thể xác nhận an toàn."],
+            "summary": f"Phản hồi không phải JSON hợp lệ: {raw_resp[:350]}...",
+        }
     if isinstance(json_data, dict) and json_data:
         json_data.setdefault("staged_files", changed_files)
         rl = str(json_data.get("risk_level", "LOW")).upper()
@@ -812,9 +843,9 @@ def execute_pre_commit_check() -> str:
     except Exception:
         report = PreCommitReport(
             staged_files=changed_files,
-            risk_level="MEDIUM",
-            verdict="READY_TO_COMMIT",
-            breaking_risks=[],
+            risk_level="HIGH",
+            verdict="FIX_REQUIRED",
+            breaking_risks=["Phản hồi Model 2 không đúng cấu trúc."],
             summary=f"Phản hồi phi cấu trúc:\n{raw_resp[:350]}..."
         )
 
@@ -854,6 +885,7 @@ def execute_pre_commit_check() -> str:
             status="AUDIT",
             message=f"Pre-commit audit: {verdict_icons.get(report.verdict, report.verdict)} ({len(changed_files)} files)"
         )
+    _last_pre_commit_verdict = report.verdict
     return "\n".join(lines_out)
 
 
@@ -949,7 +981,12 @@ if __name__ == "__main__":
         elif args.review_file:
             print(execute_review_code_file(args.review_file))
         elif args.pre_commit_check:
-            print(execute_pre_commit_check())
+            text = execute_pre_commit_check()
+            print(text)
+            if _last_pre_commit_verdict == "FIX_REQUIRED":
+                if ai_logger:
+                    ai_logger.flush(timeout=2.0)
+                sys.exit(2)
 
         if ai_logger:
             ai_logger.flush(timeout=2.0)

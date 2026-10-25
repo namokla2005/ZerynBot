@@ -166,7 +166,7 @@ def run_termux_cleanup(dry_run: bool = False, local: bool = False) -> bool:
             f'f="{runner.bot_dir}/data/{name}"; '
             'if [ -f "$f" ]; then '
             '  sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
-            f'  if [ "$sz" -gt {MAX_STDOUT_LOG_BYTES} ]; then mv -f "$f" "$f.1" && : > "$f" && echo "Đã xoay $f"; '
+            f'  if [ "$sz" -gt {MAX_STDOUT_LOG_BYTES} ]; then cp -f "$f" "$f.1" && : > "$f" && echo "Đã xoay $f"; '
             '  else echo "OK: $f còn nhỏ"; fi; '
             'else echo "Không có $f"; fi'
         )
