@@ -1738,6 +1738,7 @@
   "automod.bao_ve_server": "🚨 Server Protection",
   "automod.da_chuyen_server_sang_lockdown": "🔒 The server has been put into **lockdown** (@everyone cannot send). Use `/automods raidunlock` to lift it.",
   "automod.da_mo_khoa_server_khoi": "🔓 Server unlocked. Overwrites restored for {restored} channels.",
+  "automod.mo_khoa_chua_tron_ven": "⚠️ Only {restored} channels were restored; the server remains locked down to avoid exposing channels. Check `Manage Channels` permission and try again.",
   "automod.gui_link_moi_discord_server": "Posted an invite link to another Discord server (Anti-Invite)",
   "automod.object_bi_xoa_trong_giay": "🔍 **{count} objects** deleted within 10 seconds by {mention} (`{p5}`) — this user is in the staff exemption group, so NO action was taken.",
   "automod.phat_hien_luot_join_trong": "🚨 Detected **{count} joins** within 60 seconds.\n**Action:** Lockdown (blocks @everyone from sending). Use `/automods raidunlock` to lift it.",

@@ -492,13 +492,18 @@ class Automod(commands.Cog):
 
         threshold = int(settings.get("raid_join_per_window", 5) or 5)
         if len(self.join_cache[guild_id]) >= threshold:
-            if guild_id in self.raid_locked_guilds:
+            if guild_id in self.raid_locked_guilds or settings.get("raid_locked"):
                 return
             await self._trigger_raid_lockdown(member.guild, settings, len(self.join_cache[guild_id]))
 
     async def _trigger_raid_lockdown(self, guild: discord.Guild, settings: dict, count: int):
         """Khi phát hiện join ồ ạt: thực hiện raid_action và ghi log."""
         guild_id = str(guild.id)
+        if int(settings.get("raid_locked") or 0) or guild_id in self.raid_locked_guilds:
+            # Đã lockdown từ trước (kể cả sau restart): không snapshot lại, vì
+            # snapshot mới sẽ ghi đè trạng thái ĐÃ KHOÁ và làm mất bản gốc.
+            self.raid_locked_guilds.add(guild_id)
+            return
         action = settings.get("raid_action", "lockdown")
 
         if action == "verify":
@@ -537,16 +542,26 @@ class Automod(commands.Cog):
                 logger.warning(f"[AutoMod] lockdown error on {channel.name}: {exc}")
         return json.dumps(snapshot, ensure_ascii=False)
 
-    async def _unlock_guild(self, guild: discord.Guild, settings: dict) -> int:
+    async def _unlock_guild(self, guild: discord.Guild, settings: dict) -> tuple[int, int]:
         """Khôi phục overwrites của @everyone từ snapshot đã lưu."""
         guild_id = str(guild.id)
-        try:
-            snapshot = json.loads(settings.get("raid_snapshot") or "[]")
-        except (json.JSONDecodeError, TypeError):
+        raw = settings.get("raid_snapshot") or "[]"
+        if isinstance(raw, list):
+            snapshot = raw
+        else:
+            try:
+                snapshot = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                snapshot = []
+        if not isinstance(snapshot, list):
             snapshot = []
         def_role = guild.default_role
         restored = 0
+        failed = 0
         for entry in snapshot:
+            if not isinstance(entry, dict):
+                failed += 1
+                continue
             channel = guild.get_channel(int(entry.get("channel_id", 0)))
             if channel is None:
                 continue
@@ -555,12 +570,25 @@ class Automod(commands.Cog):
                 await channel.set_permissions(def_role, overwrite=original, reason="Anti-Raid unlock")
                 restored += 1
             except discord.Forbidden:
+                failed += 1
                 logger.warning(f"[AutoMod] Missing perms to unlock {channel.name}")
             except Exception as exc:
+                failed += 1
                 logger.warning(f"[AutoMod] unlock error on {channel.name}: {exc}")
+
+        if failed:
+            # Còn kênh chưa mở được: giữ lockdown + snapshot để lần sau thử lại,
+            # tránh trường hợp báo "đã mở khoá" trong khi kênh vẫn bị chặn.
+            self.raid_locked_guilds.add(guild_id)
+            await async_update_automod_settings(
+                guild_id, raid_locked=1,
+                raid_snapshot=json.dumps(snapshot, ensure_ascii=False),
+            )
+            return restored, failed
+
         self.raid_locked_guilds.discard(guild_id)
         await async_update_automod_settings(guild_id, raid_locked=0, raid_snapshot="[]")
-        return restored
+        return restored, 0
 
     # ══════════════════════════════════════════════════════════════════════════
     # ─── ANTI-NUKE (Chặn xoá role/kênh hàng loạt) ─────────────────────────────
@@ -637,7 +665,7 @@ class Automod(commands.Cog):
             desc += "\n**Hành động:** ⚠️ Lỗi khi ban."
 
         # Bảo vệ: chuyển sang lockdown để chặn thiệt hại tiếp
-        if guild_id not in self.raid_locked_guilds:
+        if guild_id not in self.raid_locked_guilds and not settings.get("raid_locked"):
             try:
                 snapshot = await self._lockdown_guild(guild)
                 self.raid_locked_guilds.add(guild_id)
@@ -661,13 +689,24 @@ class Automod(commands.Cog):
             return True
 
         try:
-            admin_roles = set(json.loads(settings.get("bot_admin_roles") or "[]"))
+            guild_settings = await async_get_guild_settings(str(guild.id))
+        except Exception:
+            guild_settings = {}
+        raw_admin = guild_settings.get("bot_admin_roles") or "[]"
+        try:
+            admin_roles = set(raw_admin if isinstance(raw_admin, list) else json.loads(raw_admin))
         except Exception:
             admin_roles = set()
-        if admin_roles:
-            allowed = {str(r) for r in admin_roles}
-            if allowed & {str(r.id) for r in member.roles}:
-                return True
+
+        raw_immune = settings.get("immune_roles") or []
+        try:
+            immune_roles = set(raw_immune if isinstance(raw_immune, list) else json.loads(raw_immune))
+        except Exception:
+            immune_roles = set()
+
+        allowed = {str(r) for r in admin_roles} | {str(r) for r in immune_roles}
+        if allowed & {str(r.id) for r in member.roles}:
+            return True
         return False
 
     async def _find_nuke_actor(self, guild: discord.Guild, kinds: set = None) -> discord.User | None:
@@ -823,11 +862,17 @@ class Automod(commands.Cog):
         guild_id = str(ctx.guild.id)
         settings = await async_get_automod_settings(guild_id)
 
-        restored = await self._unlock_guild(ctx.guild, settings)
-        await ctx.send(
-            tr(gs, "automod.da_mo_khoa_server_khoi", restored=restored),
-            ephemeral=True,
-        )
+        restored, failed = await self._unlock_guild(ctx.guild, settings)
+        if failed:
+            await ctx.send(
+                tr(gs, "automod.mo_khoa_chua_tron_ven", restored=restored),
+                ephemeral=True,
+            )
+        else:
+            await ctx.send(
+                tr(gs, "automod.da_mo_khoa_server_khoi", restored=restored),
+                ephemeral=True,
+            )
 
 
 async def setup(bot: commands.Bot):

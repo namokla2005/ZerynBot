@@ -1738,6 +1738,7 @@
   "automod.bao_ve_server": "🚨 服务器防护",
   "automod.da_chuyen_server_sang_lockdown": "🔒 服务器已进入**封锁**（@everyone 无法发言）。使用 `/automods raidunlock` 解除。",
   "automod.da_mo_khoa_server_khoi": "🔓 已解除封锁，恢复了 {restored} 个频道的权限。",
+  "automod.mo_khoa_chua_tron_ven": "⚠️ 仅恢复了 {restored} 个频道；服务器仍保持锁定以避免频道暴露。请检查“管理频道”权限后重试。",
   "automod.gui_link_moi_discord_server": "发布其他 Discord 服务器的邀请链接（反邀请）",
   "automod.object_bi_xoa_trong_giay": "🔍 **{count} 个对象**在 10 秒内被 {mention}（`{p5}`）删除——该用户属于管理层豁免名单，因此未采取处理。",
   "automod.phat_hien_luot_join_trong": "🚨 60 秒内检测到 **{count} 次加入**。\n**处理：** 封锁（禁止 @everyone 发言）。使用 `/automods raidunlock` 解除。",

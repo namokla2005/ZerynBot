@@ -1738,6 +1738,7 @@
   "automod.bao_ve_server": "🚨 Bảo vệ Server",
   "automod.da_chuyen_server_sang_lockdown": "🔒 Đã chuyển server sang **lockdown** (chặn @everyone gửi tin). Dùng `/automods raidunlock` để mở lại.",
   "automod.da_mo_khoa_server_khoi": "🔓 Đã mở khoá server. Khôi phục overwrite cho {restored} kênh.",
+  "automod.mo_khoa_chua_tron_ven": "⚠️ Chỉ khôi phục được {restored} kênh; server vẫn giữ lockdown để tránh lộ kênh. Kiểm tra quyền `Quản lý kênh` rồi thử lại.",
   "automod.gui_link_moi_discord_server": "Gửi link mời Discord server khác (Anti-Invite)",
   "automod.object_bi_xoa_trong_giay": "🔍 **{count} object** bị xoá trong 10 giây bởi {mention} (`{p5}`) — người này thuộc nhóm quản trị được miễn trừ nên KHÔNG bị xử lý.",
   "automod.phat_hien_luot_join_trong": "🚨 Phát hiện **{count} lượt join** trong 60 giây.\n**Hành động:** Lockdown (chặn @everyone gửi tin). Dùng `/automods raidunlock` để mở lại.",

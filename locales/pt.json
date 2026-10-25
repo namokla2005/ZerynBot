@@ -1738,6 +1738,7 @@
   "automod.bao_ve_server": "🚨 Proteção do servidor",
   "automod.da_chuyen_server_sang_lockdown": "🔒 O servidor entrou em **bloqueio** (@everyone não pode escrever). Use `/automods raidunlock` para liberar.",
   "automod.da_mo_khoa_server_khoi": "🔓 Servidor liberado. Permissões restauradas em {restored} canais.",
+  "automod.mo_khoa_chua_tron_ven": "⚠️ Apenas {restored} canais foram restaurados; o servidor permanece bloqueado para evitar expor canais. Verifique a permissão `Gerenciar canais` e tente novamente.",
   "automod.gui_link_moi_discord_server": "Publicou link de convite para outro servidor do Discord (Anti-Convite)",
   "automod.object_bi_xoa_trong_giay": "🔍 **{count} objetos** excluídos em 10 segundos por {mention} (`{p5}`) — este usuário é isento como staff, então NADA foi feito.",
   "automod.phat_hien_luot_join_trong": "🚨 Detectadas **{count} entradas** em 60 segundos.\n**Ação:** Bloqueio (impede @everyone de escrever). Use `/automods raidunlock` para liberar.",

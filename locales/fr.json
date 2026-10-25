@@ -1738,6 +1738,7 @@
   "automod.bao_ve_server": "🚨 Protection du serveur",
   "automod.da_chuyen_server_sang_lockdown": "🔒 Le serveur est passé en **confinement** (@everyone ne peut plus écrire). Utilisez `/automods raidunlock`.",
   "automod.da_mo_khoa_server_khoi": "🔓 Serveur déconfiné. Permissions restaurées dans {restored} canaux.",
+  "automod.mo_khoa_chua_tron_ven": "⚠️ Seuls {restored} salons ont été restaurés ; le serveur reste verrouillé pour éviter d'exposer des salons. Vérifiez la permission `Gérer les salons` puis réessayez.",
   "automod.gui_link_moi_discord_server": "Lien d'invitation vers un autre serveur Discord (Anti-Invitation)",
   "automod.object_bi_xoa_trong_giay": "🔍 **{count} objets** supprimés en 10 secondes par {mention} (`{p5}`) — cet utilisateur est exempté (staff), aucune mesure prise.",
   "automod.phat_hien_luot_join_trong": "🚨 **{count} arrivées** détectées en 60 secondes.\n**Action :** Bouclier (bloque l'écriture de @everyone). Utilisez `/automods raidunlock` pour lever.",
