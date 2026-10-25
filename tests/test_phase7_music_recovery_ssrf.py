@@ -39,9 +39,9 @@ def test_schedule_reconnect_sets_flag_and_runs_resume():
 
         cog._schedule_reconnect_task(7, player)
         assert player._is_reconnecting is True, "schedule đã xoá cờ trước khi task chạy"
-        await asyncio.sleep(0)
+        task = cog._reconnect_tasks[7]
+        await asyncio.wait_for(task, timeout=1.0)
         assert player.resumed == 1, "resume_after_reconnect không được gọi"
-        await asyncio.sleep(0)
         assert player._is_reconnecting is False
 
     asyncio.run(run())

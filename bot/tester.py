@@ -251,6 +251,10 @@ def _db_health(db_path: str) -> dict:
     `data/bot.db` thật; `mode=ro` đảm bảo không giành write-lock của bot đang chạy.
     """
     health = {"path": db_path, "rows": {}, "orphans": {}}
+    if not os.path.exists(db_path):
+        # Fresh checkout/CI: không được tạo DB rỗng bằng sqlite3.connect().
+        health["missing"] = True
+        return health
     try:
         health["size_kib"] = round(os.path.getsize(db_path) / 1024)
         wal = db_path + "-wal"

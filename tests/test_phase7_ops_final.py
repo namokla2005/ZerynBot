@@ -16,7 +16,7 @@ def _read(rel):
     return open(os.path.join(ROOT, rel), encoding="utf-8").read()
 
 
-def test_self_test_aborts_when_sandbox_cannot_be_created(monkeypatch):
+def test_self_test_aborts_when_sandbox_cannot_be_created(temp_db, monkeypatch):
     called = []
 
     def fail_snapshot(path):
