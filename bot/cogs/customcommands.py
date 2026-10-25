@@ -66,6 +66,17 @@ class CustomCommands(commands.Cog):
             return False
         return await async_is_module_enabled(str(ctx.guild.id), "customcommands")
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if not interaction.guild:
+            return False
+        if not await async_is_module_enabled(str(interaction.guild.id), "customcommands"):
+            settings = await async_get_guild_settings(str(interaction.guild.id))
+            await interaction.response.send_message(
+                tr(settings, "common.module_disabled", module="CustomCommands"), ephemeral=True
+            )
+            return False
+        return True
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:

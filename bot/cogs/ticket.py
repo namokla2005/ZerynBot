@@ -185,6 +185,9 @@ class Ticket(commands.Cog, name="Tickets"):
                 return
 
             settings = await db.async_get_guild_settings(str(guild.id))
+            if not await db.async_is_module_enabled(str(guild.id), "tickets"):
+                await interaction.followup.send(tr(settings, "ticket.disabled"), ephemeral=True)
+                return
 
             # Verify it is a ticket channel
             if not channel.name.startswith("ticket-"):

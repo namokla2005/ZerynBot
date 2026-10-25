@@ -18,7 +18,9 @@ class ReactionRoles(commands.Cog):
         # Check if reaction is in a guild
         if not payload.guild_id:
             return
-            
+        if not await db.async_is_module_enabled(str(payload.guild_id), "reactionroles"):
+            return
+
         emoji_str = str(payload.emoji)
         
         # Check database for this reaction role
@@ -52,7 +54,9 @@ class ReactionRoles(commands.Cog):
         # Check if reaction is in a guild
         if not payload.guild_id:
             return
-            
+        if not await db.async_is_module_enabled(str(payload.guild_id), "reactionroles"):
+            return
+
         emoji_str = str(payload.emoji)
         
         # Check database for this reaction role

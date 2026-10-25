@@ -157,7 +157,9 @@ class Birthday(commands.Cog):
             return
 
         now = datetime.now(timezone.utc)
-        upcoming = await async_get_upcoming_birthdays(now.month, now.day, limit=10)
+        # Lấy nhiều hơn rồi lọc theo guild; LIMIT 10 toàn cục từng làm server
+        # không thấy sinh nhật nào dù member của mình có.
+        upcoming = await async_get_upcoming_birthdays(now.month, now.day, limit=100)
 
         # Filter to members in this guild
         guild_members = {str(m.id): m for m in interaction.guild.members}

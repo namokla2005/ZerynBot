@@ -363,6 +363,10 @@ class Events(commands.Cog):
                 duration = tr(s, "events.days", days=days) if days > 0 else tr(s, "events.less_than_day")
 
             roles = [r.mention for r in member.roles if r.name != "@everyone"]
+            # Field embed tối đa 1024 ký tự; member nhiều role từng làm goodbye
+            # không gửi được (HTTP 400). Hiển thị tối đa 20 role + phần còn lại.
+            if len(roles) > 20:
+                roles = roles[:20] + [f"+{len(roles) - 20}"]
             no_roles_txt = tr(s, "events.no_roles")
             g_title = s.get("goodbye_embed_title")
             if not g_title:

@@ -160,10 +160,8 @@ def get_system_activity_logs(limit: int = 50, days_ttl: int = 7) -> list:
     try:
         cutoff = time.time() - (days_ttl * 86400)
         with _connect_sync(timeout=10.0) as conn:
-            # Tự động dọn rác các phiên cũ hơn 7 ngày
-            conn.execute("DELETE FROM activity_logs WHERE created_at < ?", (cutoff,))
-            conn.commit()
-
+            # Đường ĐỌC không được ghi: mỗi poll /admin trước đây giành write-lock WAL
+            # để DELETE. Việc prune thuộc async_prune_old_data (maintenance job).
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 """

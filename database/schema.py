@@ -563,6 +563,8 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_tempvoice_guild ON tempvoice_active (guild_id);
             CREATE INDEX IF NOT EXISTS idx_saved_embeds_guild ON saved_embeds (guild_id);
             CREATE INDEX IF NOT EXISTS idx_birthdays_month_day ON user_birthdays (month, day);
+            CREATE INDEX IF NOT EXISTS idx_mod_warnings_created ON mod_warnings (created_at);
+            CREATE INDEX IF NOT EXISTS idx_ai_logs_created ON ai_activity_logs (created_at);
             CREATE INDEX IF NOT EXISTS idx_temp_roles_expire ON temp_roles (expire_at);
             CREATE INDEX IF NOT EXISTS idx_support_threads_status ON support_threads (status, updated_at);
             CREATE INDEX IF NOT EXISTS idx_ticket_panels_guild ON ticket_panels (guild_id);

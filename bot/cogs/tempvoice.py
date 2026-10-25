@@ -209,6 +209,19 @@ class TempVoice(commands.Cog):
             return False
         return await async_is_module_enabled(str(ctx.guild.id), "tempvoice")
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # app_commands.Group không gọi cog_check; thiếu check này thì tắt module
+        # vẫn dùng được /voice ...
+        if not interaction.guild:
+            return False
+        if not await async_is_module_enabled(str(interaction.guild.id), "tempvoice"):
+            settings = await async_get_guild_settings(str(interaction.guild.id))
+            await interaction.response.send_message(
+                tr(settings, "common.module_disabled", module="TempVoice"), ephemeral=True
+            )
+            return False
+        return True
+
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         if member.bot or not member.guild:

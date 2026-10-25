@@ -53,6 +53,9 @@ def _deser_overwrite(data):
 
 # Extract domains from URLs
 URL_PATTERN = re.compile(r'https?://((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})')
+# Domain trần (không scheme) — Discord tự linkify `discord-nitro.com/claim`,
+# nên automod cũng phải thấy nó. Lookbehind @ để không bắt domain trong email.
+BARE_DOMAIN_PATTERN = re.compile(r'(?<![\w@])((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})(?![\w])')
 DISCORD_INVITE_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]+)', re.IGNORECASE)
 
 GLOBAL_SAFE_DOMAINS = {
@@ -90,7 +93,11 @@ def normalize_scan_text(text: str) -> str:
     """
     if not text:
         return ""
-    text = _ZERO_WIDTH_RE.sub("", unicodedata.normalize("NFKC", text)).lower()
+    text = unicodedata.normalize("NFKC", text)
+    text = unicodedata.normalize("NFKD", text)
+    # Bỏ dấu combining: `free\u0301-nitro` phải khớp `free-nitro`.
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = _ZERO_WIDTH_RE.sub("", text).lower()
     return text.translate(HOSTILE_LOOKALIKES)
 
 
@@ -100,6 +107,8 @@ HOSTILE_LOOKALIKES = {ord(c): ord(t) for c, t in [
     ("ɡ", "g"), ("і", "i"), ("ј", "j"), ("к", "k"), ("м", "m"), ("о", "o"),
     ("р", "p"), ("т", "t"), ("s", "s"), ("v", "v"), ("ѕ", "s"), ("х", "x"),
     ("у", "y"), ("ԁ", "d"), ("ԏ", "y"), ("օ", "o"), ("ɑ", "a"), ("σ", "o"),
+    ("‐", "-"), ("‑", "-"), ("‒", "-"), ("–", "-"), ("—", "-"), ("―", "-"),
+    ("−", "-"), ("。", "."), ("．", "."),
 ]}
 
 
@@ -387,6 +396,30 @@ class Automod(commands.Cog):
         if await self._check_text_rules(after, settings, message_scan_text(after)):
             return
 
+        # Edit cũng phải chịu anti-caps/anti-mentions (spam không đếm lại để tránh
+        # một tin nhắn bị sửa nhiều lần thành spam oan).
+        if settings.get("anti_caps_enabled") and len(after.content) > 10:
+            letters = [c for c in after.content if c.isalpha()]
+            if letters:
+                ratio = sum(1 for c in letters if c.isupper()) / len(letters)
+                if ratio > 0.7:
+                    await self._handle_violation(
+                        after,
+                        tr(await self._reason_lang(after.guild), "automod.spam_chu_in_hoa_caps", p1=int(ratio * 100)),
+                        settings,
+                    )
+                    return
+        if settings.get("anti_mentions_enabled"):
+            max_mentions = int(settings.get("max_mentions", 5) or 5)
+            total_mentions = len(after.mentions) + len(after.role_mentions)
+            if total_mentions > max_mentions:
+                await self._handle_violation(
+                    after,
+                    tr(await self._reason_lang(after.guild), "automod.tag_qua_nhieu_nguoi_role", total_mentions=total_mentions, max_mentions=max_mentions),
+                    settings,
+                )
+                return
+
     async def _check_text_rules(self, message: discord.Message, settings: dict, content: str) -> bool:
         """Chạy các luật dựa trên NỘI DUNG VĂN BẢN. Trả về True nếu đã xử lý vi phạm.
 
@@ -403,10 +436,12 @@ class Automod(commands.Cog):
                     await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.su_dung_tu_cam", word=word), settings)
                     return True
 
-        # 3. Links check
-        if settings.get("links_enabled") and ("http://" in content or "https://" in content):
+        # 3. Links check — luôn chạy khi bật, kể cả domain trần không scheme.
+        if settings.get("links_enabled"):
             whitelist = settings.get("whitelist_links", [])
-            domains = URL_PATTERN.findall(content)
+            domains = list(dict.fromkeys(
+                URL_PATTERN.findall(content) + BARE_DOMAIN_PATTERN.findall(content)
+            ))
         
             violation_reason = None
             blacklist = settings.get("blacklist_links", [])

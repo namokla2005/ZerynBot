@@ -562,6 +562,10 @@ class Economy(commands.Cog):
         if bet <= 0:
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
+        # Prefix không đi qua app_commands.choices: phải tự validate trước khi trừ tiền.
+        if str(choice).lower() not in ("heads", "tails"):
+            await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
+            return
 
         if not await async_place_bet(str(ctx.guild.id), str(ctx.author.id), bet):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
@@ -601,6 +605,10 @@ class Economy(commands.Cog):
         sym = get_sym(eco_s)
 
         if bet <= 0:
+            await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
+            return
+        # Prefix không đi qua app_commands.choices: phải tự validate trước khi trừ tiền.
+        if str(choice).lower() not in ("heads", "tails"):
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
 
@@ -659,6 +667,10 @@ class Economy(commands.Cog):
         if bet <= 0:
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
+        # Prefix không đi qua app_commands.choices: phải tự validate trước khi trừ tiền.
+        if str(choice).lower() not in ("heads", "tails"):
+            await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
+            return
 
         if not await async_place_bet(str(ctx.guild.id), str(ctx.author.id), bet):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
@@ -697,11 +709,18 @@ class Economy(commands.Cog):
             return
 
         desc = tr(s, "economy.shop_guide") + "\n\n"
+        skipped = 0
         for it in items:
             role = ctx.guild.get_role(int(it["role_id"])) if it.get("role_id") else None
             role_mention = role.mention if role else f"`{tr(s, 'economy.role_not_found')}`"
             stock_str = f"({tr(s, 'economy.stock')}: {it['stock']})" if it["stock"] >= 0 else ""
-            desc += f"`ID: {it['id']}` • **{it['name']}** ({role_mention}) — **{it['price']:,}** {sym} {stock_str}\n"
+            line = f"`ID: {it['id']}` • **{it['name']}** ({role_mention}) — **{it['price']:,}** {sym} {stock_str}\n"
+            if len(desc) + len(line) > 3800:
+                skipped += 1
+                continue
+            desc += line
+        if skipped:
+            desc += f"… (+{skipped})\n"
 
         desc += f"\n{tr(s, 'economy.shop_bank_hint')}"
 

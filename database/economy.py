@@ -30,7 +30,10 @@ def get_economy_settings(guild_id: str) -> dict:
         return _row_to_dict(row)
 
 def update_economy_settings(guild_id: str, daily_amount: int, streak_bonus: int, starting_balance: int, currency_symbol: str = "🪙", currency_name: str = "Coins") -> None:
-    """Sync — Update economy settings."""
+    """Sync — Update economy settings (mọi giá trị tiền phải >= 0)."""
+    daily_amount = max(0, int(daily_amount))
+    streak_bonus = max(0, int(streak_bonus))
+    starting_balance = max(0, int(starting_balance))
     with _connect_sync() as conn:
         conn.execute("""
             INSERT INTO economy_settings (guild_id, daily_amount, streak_bonus, starting_balance, currency_symbol, currency_name)
@@ -52,7 +55,8 @@ def get_economy_shop(guild_id: str) -> list:
         return [_row_to_dict(r) for r in rows]
 
 def add_economy_shop_item(guild_id: str, role_id: str, name: str, price: int, stock: int = -1) -> int:
-    """Sync — Add new role to server shop."""
+    """Sync — Add new role to server shop. Giá âm bị chặn tại biên DB."""
+    price = max(1, int(price))
     with _connect_sync() as conn:
         cursor = conn.execute("""
             INSERT INTO economy_shop (guild_id, role_id, name, price, stock)
@@ -80,7 +84,9 @@ def get_top_economy_users(guild_id: str, limit: int = 10) -> list:
         return [_row_to_dict(r) for r in rows]
 
 def update_user_balance(guild_id: str, user_id: str, wallet: int, bank: int) -> None:
-    """Sync — Admin update user balance on web."""
+    """Sync — Admin update user balance on web (không cho số dư âm)."""
+    wallet = max(0, int(wallet))
+    bank = max(0, int(bank))
     with _connect_sync() as conn:
         conn.execute("""
             INSERT INTO economy_users (guild_id, user_id, wallet, bank)
@@ -155,6 +161,7 @@ async def async_claim_daily(
     `cutoff=None` = bỏ qua kiểm tra (dùng cho lần điểm danh đầu / admin set).
     """
     now = time.time() if now is None else now
+    reward = max(0, int(reward))
     async with _connect_async() as db:
         if cutoff is None:
             await db.execute("""
@@ -436,7 +443,9 @@ async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tupl
             if item["stock"] == 0:
                 return False, "", "out_of_stock", item["price"]
 
-        price = item["price"]
+        price = int(item["price"])
+        if price <= 0:
+            return False, "", "invalid_price", price
         # P2: Đảm bảo user tồn tại trên CHÍNH KẾT NỐI NÀY (tránh deadlock kết nối lồng)
         await db.execute("""
             INSERT OR IGNORE INTO economy_users (guild_id, user_id, wallet, bank, daily_streak, last_daily_at)
@@ -467,6 +476,11 @@ async def async_buy_shop_item(guild_id: str, user_id: str, item_id: int) -> tupl
                 await db.commit()
                 return False, "", "out_of_stock", price
 
+        # Ghi ledger cùng transaction với việc trừ bank/stock.
+        await db.execute("""
+            INSERT INTO economy_transactions (guild_id, user_id, kind, amount, counterparty, note, created_at)
+            VALUES (?, ?, 'buy', ?, ?, ?, ?)
+        """, (guild_id, user_id, -price, item["role_id"], item["name"], time.time()))
         await db.commit()
         return True, item["role_id"], item["name"], price
 
