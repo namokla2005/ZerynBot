@@ -1043,6 +1043,17 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   `tests/test_music_behavior.py::test_music_view_check_survives_a_db_failure` locks it.
   Reproduced properly, not guessed: `git worktree add` a clean checkout (no `.env`, no `data/`)
   and run the suite there — 1 failed before, 367 passed after.
+- **The watchdog now supervises the tunnel too**: `cloudflared` used to be started by hand,
+  so the bot could stay healthy while `zerynbot.id.vn` went dark and nothing noticed. The
+  watchdog owns `data/cloudflared.pid`, re-spawns on death, and every third health cycle
+  (~4.5 min) curls the public `/health`; two consecutive failures rebuild the tunnel.
+  The token is read from `CLOUDFLARED_TOKEN` in `.env` and passed via `TUNNEL_TOKEN` **in the
+  environment** — a `--token …` argv is readable by every process on the device via `ps`.
+  `CLOUDFLARED_BIN` lets ops pin a binary path. `ensure_tunnel` adopts an already-running
+  process only after `pid_is <pid> cloudflared`, so a reused PID after reboot cannot be
+  mistaken for the tunnel (and a second cloudflared would flap the same tunnel).
+  `tests/test_tunnel_supervision.py` (7) runs the real functions from `watchdog.sh` against a
+  fake binary: start-once, adopt-own-pid, reject-foreign-pid, stop, missing-token, CRLF token.
 - **v3.2 (2026-10)**:
   - **Modular Architecture Refactor (Phase 3)**:
     - **Database Package (`database/`)**: Decomposed monolithic `database.py` (4262 lines) into a cohesive 14-module package (`conn`, `schema`, `guilds`, `economy`, `leveling`, `music`, `activity`, `community`, `events`, `tickets`, `ai`, `maintenance`, `embeds`). `database/conn.py` serves as the single source of truth for `DB_PATH`, `set_db_path()`, `get_db_path()`, and per-connection PRAGMA tuning. `database/__init__.py` re-exports 100% public API for seamless backwards compatibility.

@@ -15,6 +15,10 @@ cd "$DIR"
 PID_FILE="data/watchdog.pid"
 BOT_PID_FILE="data/bot.pid"
 DASH_PID_FILE="data/dashboard.pid"
+TUNNEL_PID_FILE="data/cloudflared.pid"
+TUNNEL_LOG="data/cloudflared.log"
+# Cho phép chỉ định binary (vd bản tải tay trong ~/bin) mà không phải sửa script.
+CLOUDFLARED_BIN="${CLOUDFLARED_BIN:-cloudflared}"
 STOPALL_FLAG="data/stopall.flag"
 mkdir -p data
 termux-wake-lock 2>/dev/null
@@ -30,6 +34,65 @@ pid_is() {   # pid_is <pid> <chuoi-phai-co-trong-cmdline>
     [ -r "/proc/$_pid/cmdline" ] || return 1
     tr '\0' ' ' < "/proc/$_pid/cmdline" 2>/dev/null | grep -q -- "$_needle"
 }
+
+# ─── Cloudflared: watchdog giám sát luôn cả đường ra Internet ────────────────────
+# Trước đây cloudflared do người dùng bật tay. Bot vẫn sống nếu tunnel chết, nên
+# không lớp nào phát hiện: web zerynbot.id.vn tắt im lặng cho tới khi có người nhìn.
+TUNNEL_HEALTH_URL="https://zerynbot.id.vn/health"
+TUNNEL_CHECK_EVERY=3      # cứ 3 vòng health (~4.5 phút) mới thử URL công khai 1 lần
+TUNNEL_FAIL_THRESHOLD=2   # 2 lần liên tiếp (~9 phút) → coi là tunnel chết hẳn
+
+cloudflared_token() {
+    if [ -n "$CLOUDFLARED_TOKEN" ]; then printf '%s' "$CLOUDFLARED_TOKEN"; return 0; fi
+    [ -f ".env" ] || return 0
+    # Bỏ CR (file .env có thể được sửa trên Windows) và nháy bao quanh nếu có.
+    grep -m1 '^CLOUDFLARED_TOKEN=' .env 2>/dev/null | cut -d= -f2- | tr -d '\r' | tr -d '"'
+}
+
+stop_tunnel() {
+    if [ -f "$TUNNEL_PID_FILE" ]; then
+        t_pid=$(cat "$TUNNEL_PID_FILE" 2>/dev/null)
+        if [ -n "$t_pid" ] && pid_is "$t_pid" "cloudflared"; then
+            kill -15 "$t_pid" 2>/dev/null
+            for i in 1 2 3; do
+                kill -0 "$t_pid" 2>/dev/null || break
+                sleep 1
+            done
+            kill -9 "$t_pid" 2>/dev/null
+        fi
+        rm -f "$TUNNEL_PID_FILE" 2>/dev/null
+    fi
+}
+
+ensure_tunnel() {
+    if [ -f "$TUNNEL_PID_FILE" ]; then
+        t_pid=$(cat "$TUNNEL_PID_FILE" 2>/dev/null)
+        # Không chỉ `kill -0`: pid_is bắt buộc cmdline phải là cloudflared, nên sau
+        # reboot PID bị tái sử dụng không làm watchdog tưởng tunnel còn sống.
+        pid_is "$t_pid" "cloudflared" && return 0
+    fi
+    if ! command -v "$CLOUDFLARED_BIN" >/dev/null 2>&1; then
+        echo "[Watchdog] Không có $CLOUDFLARED_BIN trong PATH — bỏ qua tunnel."
+        return 1
+    fi
+    _tok=$(cloudflared_token)
+    if [ -z "$_tok" ]; then
+        echo "[Watchdog] Thiếu CLOUDFLARED_TOKEN trong .env — không dựng được tunnel."
+        return 1
+    fi
+    echo "[Watchdog] Khởi động cloudflared..."
+    # Token truyền qua ENV chứ KHÔNG qua argv: `ps` đọc được toàn bộ command line của
+    # mọi tiến trình, còn /proc/<pid>/environ thì chỉ cùng user mới đọc được.
+    nohup env TUNNEL_TOKEN="$_tok" "$CLOUDFLARED_BIN" tunnel run >> "$TUNNEL_LOG" 2>&1 &
+    echo "$!" > "$TUNNEL_PID_FILE"
+    sleep 3
+    if ! pid_is "$(cat "$TUNNEL_PID_FILE" 2>/dev/null)" "cloudflared"; then
+        echo "[Watchdog] cloudflared vừa khởi động đã thoát — xem $TUNNEL_LOG"
+        return 1
+    fi
+    return 0
+}
+
 # ─── Đảm bảo duy nhất 1 watchdog chạy (Singleton Guard) ─────────────────────────
 if [ -f "$PID_FILE" ]; then
     old_pid=$(cat "$PID_FILE" 2>/dev/null)
@@ -113,8 +176,32 @@ restart_dashboard() {
 health_loop() {
     local fail_streak=0
     local dash_fail=0
+    local tick=0
+    local tunnel_fail=0
     while true; do
         sleep "$HEALTH_INTERVAL"
+        tick=$((tick + 1))
+
+        # ─── Cloudflared: tiến trình còn sống, và tunnel còn thật sự thông ──────
+        # Kiểm tra tiến trình mỗi vòng (bắt được OOM/kill), còn URL công khai thì thưa
+        # hơn vì nó đi vòng qua Cloudflare — không nên đập vào đó mỗi 90 giây.
+        ensure_tunnel
+        if [ $((tick % TUNNEL_CHECK_EVERY)) -eq 0 ]; then
+            pub_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$TUNNEL_HEALTH_URL" 2>/dev/null)
+            if [ "$pub_code" = "200" ]; then
+                tunnel_fail=0
+            else
+                tunnel_fail=$((tunnel_fail + 1))
+                echo "[Watchdog] Tunnel công khai trả '$pub_code' (lần $tunnel_fail/$TUNNEL_FAIL_THRESHOLD)"
+                if [ "$tunnel_fail" -ge "$TUNNEL_FAIL_THRESHOLD" ]; then
+                    echo "[Watchdog] Tunnel chết hẳn → dựng lại cloudflared"
+                    stop_tunnel
+                    ensure_tunnel
+                    tunnel_fail=0
+                fi
+            fi
+        fi
+
         # Một lần curl duy nhất, lấy cả mã HTTP. Bản cũ gọi `curl -sf` rồi mới gọi lại
         # để lấy http_code: khi dashboard CHẾT hẳn thì http_code rỗng, nhánh "503" không
         # bao giờ chạy và zerynbot.id.vn nằm ngoài không phục vụ vô thời hạn trong khi
@@ -168,12 +255,18 @@ health_loop() {
 health_loop &
 HEALTH_PID=$!
 
+# Dựng tunnel ngay khi watchdog lên, không đợi vòng health đầu tiên (90 giây).
+ensure_tunnel
+
 cleanup_and_exit() {
     [ -n "$HEALTH_PID" ] && kill -15 "$HEALTH_PID" 2>/dev/null
     if [ -f "$BOT_PID_FILE" ]; then
         b_pid=$(cat "$BOT_PID_FILE" 2>/dev/null)
         [ -n "$b_pid" ] && pid_is "$b_pid" "main.py --bot" && kill -15 "$b_pid" 2>/dev/null
     fi
+    # Tunnel là con của watchdog: để nó sống sót sau khi watchdog chết sẽ thành orphan,
+    # và lần khởi động sau sẽ có HAI cloudflared cùng tunnel -> tunnel flap liên tục.
+    stop_tunnel
     rm -f "$PID_FILE" "$BOT_PID_FILE" 2>/dev/null
     termux-wake-unlock 2>/dev/null
     exit 0
