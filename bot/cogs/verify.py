@@ -535,7 +535,7 @@ class Verify(commands.Cog, name="Verify"):
         text = (s.get("verify_text") or "Chào mừng đến với **{server}**! Bấm nút bên dưới để xác thực.").replace(
             "{server}", ctx.guild.name
         )
-        label = s.get("button_label") or "Tôi đã đọc nội quy & Xác thực"
+        label = s.get("button_label") or tr(s, "verify.nut_xac_thuc")
 
         embed = discord.Embed(
             title=embed_title("zb_verified", "🔐 Xác thực thành viên"),

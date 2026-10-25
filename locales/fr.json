@@ -1627,6 +1627,8 @@
   "help.cmd_example_field": "💡 Exemple",
   "help.cmd_aliases_field": "🔗 Alias",
   "help.cmd_params_field": "⚙️ Paramètres",
+  "help.required": "obligatoire",
+  "help.optional": "facultatif",
   "help.cmd_perm_field": "🔒 Permission Requise",
   "admin.stepup_not_set_title": "⚠️ L'authentification renforcée n'est pas activée",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD n'est pas défini dans .env : Terminal Web / Git Pull / Redémarrage ne sont protégés que par votre session. Définissez ADMIN_PASSWORD dans .env puis redémarrez le tableau de bord.",

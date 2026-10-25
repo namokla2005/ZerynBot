@@ -1627,6 +1627,8 @@
   "help.cmd_example_field": "💡 Example",
   "help.cmd_aliases_field": "🔗 Aliases",
   "help.cmd_params_field": "⚙️ Parameters",
+  "help.required": "required",
+  "help.optional": "optional",
   "help.cmd_perm_field": "🔒 Required Permission",
   "admin.stepup_not_set_title": "⚠️ Step-Up Auth is not enabled",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD is not set in .env, so Web Terminal / Git Pull / Restart are protected only by your login session. Set ADMIN_PASSWORD in .env and restart the dashboard.",

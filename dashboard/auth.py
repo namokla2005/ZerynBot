@@ -226,6 +226,56 @@ def get_member_roles(guild_id: str, user_id: str) -> list:
         return cached[1] if cached else []
 
 
+_MEMBER_IDS_TTL = 300.0
+_member_ids_cache: dict[str, tuple[float, list[str]]] = {}
+
+
+def get_guild_member_ids(guild_id: str) -> list[str] | None:
+    """Danh sách member id của guild (bot token, cache 5 phút).
+
+    Trả None nếu Discord API lỗi để caller fallback thay vì hiển thị 0 sai.
+    """
+    now = time.time()
+    gid = str(guild_id)
+    cached = _member_ids_cache.get(gid)
+    if cached and now - cached[0] < _MEMBER_IDS_TTL:
+        return cached[1]
+
+    ids: list[str] = []
+    after = None
+    try:
+        for _ in range(10):  # tối đa 10k member; đủ cho bot cộng đồng
+            params = {"limit": "1000"}
+            if after:
+                params["after"] = after
+            resp = requests.get(
+                f"{config.DISCORD_API_BASE}/guilds/{gid}/members",
+                headers={"Authorization": f"Bot {config.TOKEN}"},
+                params=params,
+                timeout=5,
+            )
+            if not resp.ok:
+                return cached[1] if cached else None
+            data = resp.json()
+            if not isinstance(data, list) or not data:
+                break
+            for member in data:
+                uid = (member.get("user") or {}).get("id")
+                if uid:
+                    ids.append(str(uid))
+            if len(data) < 1000:
+                break
+            after = data[-1].get("user", {}).get("id")
+            if not after:
+                break
+    except Exception as exc:
+        logger.warning("Lỗi fetch guild members %s: %s", gid, exc)
+        return cached[1] if cached else None
+
+    _member_ids_cache[gid] = (now, ids)
+    return ids
+
+
 def get_guild_icon_url(guild_id: str | None, icon_hash: str | None) -> str | None:
     """Xây dựng Discord CDN URL an toàn cho Server Icon, validate chặt chống injection."""
     if not guild_id or not icon_hash:

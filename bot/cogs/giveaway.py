@@ -25,7 +25,7 @@ from database import (
     async_get_active_giveaways,
     async_get_guild_settings
 )
-from i18n import tr
+from i18n import t, tr
 try:
     from emojis import e, embed_title, clean_title
 except (ImportError, ModuleNotFoundError):
@@ -167,7 +167,8 @@ class DynamicJoinView(discord.ui.View):
 
 
 class DisabledJoinView(discord.ui.View):
-    def __init__(self, label: str = "🎉 Đã kết thúc"):
+    def __init__(self, label: str = None):
+        label = label or t("giveaway.btn_ended")
         super().__init__(timeout=None)
         btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id="gw_join_btn_ended", disabled=True)
         self.add_item(btn)

@@ -1627,6 +1627,8 @@
   "help.cmd_example_field": "💡 使用示例",
   "help.cmd_aliases_field": "🔗 别名 (Aliases)",
   "help.cmd_params_field": "⚙️ 参数列表",
+  "help.required": "必填",
+  "help.optional": "可选",
   "help.cmd_perm_field": "🔒 所需权限",
   "admin.stepup_not_set_title": "⚠️ 未启用二次验证（Step-Up Auth）",
   "admin.stepup_not_set_desc": "ADMIN_PASSWORD 尚未在 .env 中设置，Web 终端 / Git Pull / 重启 仅由登录会话保护。请在 .env 中设置 ADMIN_PASSWORD 并重启面板。",

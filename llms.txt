@@ -18,7 +18,7 @@
 - **Web Dashboard**: Flask 3.x with Jinja2 templates, Discord OAuth2 authentication (`https://zerynbot.id.vn/callback`).
 - **Database**: SQLite in WAL mode (`data/bot.db`) with `PRAGMA busy_timeout = 15000` and automated 24h `.zip` backups routed to private `BACKUP_DB` webhook.
 - **Cache Layer**: Pure Python In-Memory RAM Cache (`cache.py`) with thread-safe/async-safe TTL eviction.
-- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1884 keys per file.
+- **Internationalization (i18n)**: 6 synchronized dictionaries (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1886 keys per file.
 - **Audio Pipeline**: `yt-dlp` (`player_client: ["android"]`, thread-local persistent sessions, `-rw_timeout 10000000`) + `FFmpegOpusAudio` with single-thread optimization (`-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000`; `-reconnect_on_network_error`/`-reconnect_on_http_error` are added only when the probed FFmpeg is ≥ 5.0), dual-tier caching (RAM Cache + SQLite disk cache `music_song_cache` with real expire timestamps, <0.8s playback start), 403 stream auto-recovery, audio-frame stall watchdog (`MUSIC_STALL_TIMEOUT`, default 30s: cuts a wedged FFmpeg, cleans the orphaned child and resumes from the real audible position), resilient playlist loading with title fallback, Music | 2 compact player card UI, progress bar, 5 interactive buttons, `/seek`, `/search`, `/remove`, `/clearqueue`, `/jump`, and `/nowplaying`.
 - **DevOps & MCP Integration**: Model Context Protocol integration (`mcp_config.json`, `uvx mcp-server-sqlite`, and `scripts/termux_mcp.py` mapped to `main.py` CLI over Paramiko SSH port 8022 via LAN or Tailscale Mesh).
 - **Image Generation**: Pillow (`PIL`) for dynamic rank cards, welcome/goodbye banners, and level cards.
@@ -66,5 +66,5 @@
 - `scripts/i18n_audit.py`: AST inventory of Vietnamese literals by role (DISCORD/META/CATALOG/INTERNAL) + frozen budget writer.
 - `scripts/i18n_migrate.py`: fetch → plan → apply de-hardcode pipeline (rewrites call sites by verified AST byte offsets, appends keys to all 6 locales without reordering).
 - `scripts/command_registry_audit.py`: AST-diffs every command declared in `bot/cogs/` against `_COMMANDS_DATA` (exit 1 on drift) — the registry is the AI's only knowledge of its own commands.
-- `locales/`: 6 locale dictionary files (1884 keys each), hand-grouped by module — never re-sorted.
+- `locales/`: 6 locale dictionary files (1886 keys each), hand-grouped by module — never re-sorted.
 - `tests/`: 374 tests, incl. `test_i18n_no_hardcoded.py` (frozen hardcode budget + every referenced key must exist in all 6 locales), `test_command_registry_complete.py` (registry == real commands, AI payload completeness) and `test_phase5c_music_watchdog.py` (audio-frame stall watchdog).

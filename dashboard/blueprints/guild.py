@@ -408,7 +408,9 @@ def server_birthday(guild_id: str):
     roles = db.get_guild_roles(guild_id)
     bday_settings = db.get_birthday_settings_sync(guild_id)
     now_month = datetime.now(timezone.utc).month
-    bday_count = db.get_birthdays_this_month_count(guild_id, now_month)
+    from dashboard import auth as _auth
+    member_ids = _auth.get_guild_member_ids(guild_id)
+    bday_count = db.get_birthdays_this_month_count(guild_id, now_month, member_ids)
 
     return render_template(
         "server_birthday.html",

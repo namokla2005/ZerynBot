@@ -444,7 +444,7 @@ class Utility(commands.Cog):
             if cmd_data.get("args"):
                 args_lines = []
                 for a in cmd_data["args"]:
-                    req_str = "bắt buộc" if a.get("required") else "tùy chọn"
+                    req_str = tr(settings, "help.required") if a.get("required") else tr(settings, "help.optional")
                     type_str = a.get("type", "Text")
                     args_lines.append(f"• `{a['name']}` ({type_str}, {req_str}): {a.get('desc', '')}")
                 embed.add_field(
