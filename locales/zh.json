@@ -1079,6 +1079,7 @@
   "ai.summarize_title": "Conversation Summary — #{channel}",
   "ai.summarize_footer": "Analyzed {count} recent messages.",
   "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds.",
+  "ai.daily_limit_reached": "⏳ 您已达到今日 AI 使用上限，请明天（UTC）再试。",
   "landing.f7_title": "AI 智能助手与聊天机器人",
   "landing.f7_desc": "集成新一代人工智能（Groq Cloud 与 Google Gemini），0.2秒极速响应，支持 #ai-chat 自动对话、/ask 智能问答和 /summarize 消息摘要。",
   "landing.f8_title": "虚拟货币系统与身份组商店",

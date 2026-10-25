@@ -11,6 +11,8 @@ Chịu trách nhiệm:
 import os
 import sys
 import logging
+import threading
+import time
 import requests
 import json
 from datetime import datetime, timezone
@@ -21,6 +23,33 @@ import config
 import database as db
 
 logger = logging.getLogger("ZerynBot.SupportService")
+
+# ─── Trần AI hỗ trợ theo ngày (dashboard process, reset khi restart) ──────────
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(0, int(os.getenv(name, str(default)) or default))
+    except (TypeError, ValueError):
+        return default
+
+
+SUPPORT_AI_DAILY_LIMIT = _env_int("SUPPORT_AI_DAILY_LIMIT", 50)
+_support_daily_lock = threading.Lock()
+_support_daily_counts: dict[str, int] = {}
+
+
+def _consume_support_budget(user_id: str) -> bool:
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    key = f"{today}:{user_id}"
+    with _support_daily_lock:
+        if len(_support_daily_counts) > 5000:
+            for k in [k for k in _support_daily_counts if not k.startswith(today)]:
+                _support_daily_counts.pop(k, None)
+        count = _support_daily_counts.get(key, 0)
+        if SUPPORT_AI_DAILY_LIMIT and count >= SUPPORT_AI_DAILY_LIMIT:
+            return False
+        _support_daily_counts[key] = count + 1
+        return True
+
 
 # Giới hạn tối đa 2 workers để không chiếm dụng CPU Helio G85 8 nhân trên Termux
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="SupportWorker")
@@ -206,8 +235,12 @@ def process_user_support_message_async(thread_id: str, user_id: str, user_name: 
     """
     def _worker():
         try:
-            # 1. Sinh phản hồi từ AI
-            ai_reply, needs_escalate = _call_ai_support(message_content, user_name)
+            # 1. Sinh phản hồi từ AI (có trần theo ngày cho từng user)
+            if not _consume_support_budget(user_id):
+                ai_reply = "⏳ Bạn đã dùng hết lượt hỗ trợ AI hôm nay. Vui lòng thử lại vào ngày mai (giờ UTC) hoặc bấm nút gặp nhân viên."
+                needs_escalate = False
+            else:
+                ai_reply, needs_escalate = _call_ai_support(message_content, user_name)
 
             # 2. Lưu tin nhắn của AI vào CSDL
             if ai_reply:

@@ -78,28 +78,32 @@ async def test_call_provider_async_does_not_block_loop(mgr, monkeypatch):
 # ─── 2. Ngân sách AI chung mọi cửa ────────────────────────────────────────────
 
 async def test_ai_budget_enforced_and_shared_across_surfaces(temp_db):
-    from cogs.ai import AI
+    from cogs.ai import AI, _ai_daily_guild, _ai_daily_user
 
+    _ai_daily_user.clear()
+    _ai_daily_guild.clear()
     guild, user = "g_budget_1", "u_budget_1"
     ai_s = {"rate_limit": 3}
 
     results = [await AI._consume_ai_budget(None, guild, user, ai_s) for _ in range(5)]
-    assert results == [True, True, True, False, False], (
+    assert results == ["", "", "", "minute", "minute"], (
         f"phải cho đúng 3 lượt/60s rồi chặn, thực tế: {results}"
     )
     # Cửa khác (listener #ai-chat, /summarize) dùng cùng key → cùng ngân sách.
-    assert await AI._consume_ai_budget(None, guild, user, {"rate_limit": 3}) is False
+    assert await AI._consume_ai_budget(None, guild, user, {"rate_limit": 3}) == "minute"
     # User khác trong cùng guild không bị ảnh hưởng.
-    assert await AI._consume_ai_budget(None, guild, "u_other_1", ai_s) is True
+    assert await AI._consume_ai_budget(None, guild, "u_other_1", ai_s) == ""
 
 
 async def test_ai_budget_invalid_limit_falls_back(temp_db):
-    from cogs.ai import AI
+    from cogs.ai import AI, _ai_daily_guild, _ai_daily_user
 
+    _ai_daily_user.clear()
+    _ai_daily_guild.clear()
     # rate_limit rác (string/None) không được khiến lệnh AI nổ.
-    assert await AI._consume_ai_budget(None, "g_budget_2", "u1", {"rate_limit": "abc"}) is True
+    assert await AI._consume_ai_budget(None, "g_budget_2", "u1", {"rate_limit": "abc"}) == ""
     # 0 hoặc âm = chủ guild tắt giới hạn → không chặn.
-    assert await AI._consume_ai_budget(None, "g_budget_2", "u2", {"rate_limit": 0}) is True
+    assert await AI._consume_ai_budget(None, "g_budget_2", "u2", {"rate_limit": 0}) == ""
 
 
 # ─── 3. Ảnh: chặn kích thước, không gọi model đã chết ─────────────────────────

@@ -1079,6 +1079,7 @@
   "ai.summarize_title": "Tóm Tắt Cuộc Trò Chuyện — #{channel}",
   "ai.summarize_footer": "Đã phân tích {count} tin nhắn gần nhất.",
   "ai.rate_limited": "⏳ Bạn đang chat quá nhanh với AI! Vui lòng chờ vài giây.",
+  "ai.daily_limit_reached": "⏳ Bạn đã dùng hết lượt AI trong ngày. Vui lòng thử lại vào ngày mai (giờ UTC).",
   "landing.f7_title": "Trợ Lý AI & Smart Chatbot",
   "landing.f7_desc": "Tích hợp AI siêu tốc (Groq LPU & Gemini 2.0) phản hồi trong 0.2s. Tự động trò chuyện thông minh trong kênh #ai-chat, giải đáp mọi thắc mắc /ask và tóm tắt cuộc hội thoại /summarize.",
   "landing.f8_title": "Hệ Thống Tiền Tệ & Shop Role",

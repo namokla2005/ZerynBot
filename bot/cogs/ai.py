@@ -16,6 +16,8 @@ import logging
 import os
 import re
 import sys
+import threading
+import time
 import urllib.parse
 from html.parser import HTMLParser
 
@@ -40,6 +42,47 @@ from database import (
 from i18n import tr
 
 logger = logging.getLogger("BotV2.AI")
+
+# ─── Trần AI theo ngày (in-memory, reset khi process restart) ─────────────────
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(0, int(os.getenv(name, str(default)) or default))
+    except (TypeError, ValueError):
+        return default
+
+
+AI_DAILY_USER_LIMIT = _env_int("AI_DAILY_USER_LIMIT", 100)
+AI_DAILY_GUILD_LIMIT = _env_int("AI_DAILY_GUILD_LIMIT", 500)
+_ai_daily_lock = threading.Lock()
+_ai_daily_user: dict[str, int] = {}
+_ai_daily_guild: dict[str, int] = {}
+
+
+def _ai_today() -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def _consume_daily_ai(guild_id: str, user_id) -> bool:
+    """Trần theo ngày (UTC) cho từng user và từng guild, độc lập với rate-limit 60s."""
+    today = _ai_today()
+    ukey = f"{today}:{guild_id}:{user_id}"
+    gkey = f"{today}:{guild_id}"
+    with _ai_daily_lock:
+        if len(_ai_daily_user) > 5000:
+            for k in [k for k in _ai_daily_user if not k.startswith(today)]:
+                _ai_daily_user.pop(k, None)
+            for k in [k for k in _ai_daily_guild if not k.startswith(today)]:
+                _ai_daily_guild.pop(k, None)
+        u_count = _ai_daily_user.get(ukey, 0)
+        g_count = _ai_daily_guild.get(gkey, 0)
+        if AI_DAILY_USER_LIMIT and u_count >= AI_DAILY_USER_LIMIT:
+            return False
+        if AI_DAILY_GUILD_LIMIT and g_count >= AI_DAILY_GUILD_LIMIT:
+            return False
+        _ai_daily_user[ukey] = u_count + 1
+        _ai_daily_guild[gkey] = g_count + 1
+        return True
+
 
 
 # Chống SSRF: tái sử dụng helper đã có ở dashboard/auth.py (không vòng lặp import)
@@ -532,7 +575,7 @@ class AI(commands.Cog):
 
         return base_prompt
 
-    async def _consume_ai_budget(self, guild_id: str, user_id, ai_s: dict) -> bool:
+    async def _consume_ai_budget(self, guild_id: str, user_id, ai_s: dict) -> str:
         """Trích 1 lượt trong ngân sách AI 60 giây của user này.
 
         `ai_settings.rate_limit` trước đây CHỈ được áp ở listener #ai-chat; `/ask` và
@@ -545,14 +588,15 @@ class AI(commands.Cog):
             limit = int(ai_s.get("rate_limit", 5) or 5)
         except (TypeError, ValueError):
             limit = 5
-        if limit <= 0:
-            return True
-        rate_key = f"ai_rate:{guild_id}:{user_id}"
-        calls = int(await cache.aget(rate_key) or 0)
-        if calls >= limit:
-            return False
-        await cache.aset(rate_key, calls + 1, ttl=60)
-        return True
+        if limit > 0:
+            rate_key = f"ai_rate:{guild_id}:{user_id}"
+            calls = int(await cache.aget(rate_key) or 0)
+            if calls >= limit:
+                return "minute"
+            await cache.aset(rate_key, calls + 1, ttl=60)
+        if not _consume_daily_ai(guild_id, user_id):
+            return "daily"
+        return ""
 
     # ─── ask ───────────────────────────────────────────────────────────────────
     @commands.hybrid_command(name="ask", description="Đặt câu hỏi thông minh cho trợ lý AI Zeryn (hỗ trợ kèm ảnh & tìm kiếm web)")
@@ -570,8 +614,9 @@ class AI(commands.Cog):
             await ctx.send(tr(s, "ai.ask_disabled"), ephemeral=True)
             return
 
-        if not await self._consume_ai_budget(str(ctx.guild.id), ctx.author.id, ai_s):
-            await ctx.send(tr(s, "ai.rate_limited"), ephemeral=True)
+        deny = await self._consume_ai_budget(str(ctx.guild.id), ctx.author.id, ai_s)
+        if deny:
+            await ctx.send(tr(s, "ai.daily_limit_reached" if deny == "daily" else "ai.rate_limited"), ephemeral=True)
             return
 
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
@@ -639,8 +684,9 @@ class AI(commands.Cog):
             await ctx.send(tr(s, "ai.summarize_disabled"), ephemeral=True)
             return
 
-        if not await self._consume_ai_budget(str(ctx.guild.id), ctx.author.id, ai_s):
-            await ctx.send(tr(s, "ai.rate_limited"), ephemeral=True)
+        deny = await self._consume_ai_budget(str(ctx.guild.id), ctx.author.id, ai_s)
+        if deny:
+            await ctx.send(tr(s, "ai.daily_limit_reached" if deny == "daily" else "ai.rate_limited"), ephemeral=True)
             return
 
         is_owner = (config.BOT_OWNER_ID and ctx.author.id == config.BOT_OWNER_ID)
@@ -728,9 +774,14 @@ class AI(commands.Cog):
             return
 
         # Rate-limiting per user — dùng chung ngân sách với /ask và /summarize
-        if not await self._consume_ai_budget(str(message.guild.id), message.author.id, ai_s):
+        deny = await self._consume_ai_budget(str(message.guild.id), message.author.id, ai_s)
+        if deny:
             s = await async_get_guild_settings(str(message.guild.id))
-            await message.reply(tr(s, "ai.rate_limited"), delete_after=5)
+            await message.reply(
+                tr(s, "ai.daily_limit_reached" if deny == "daily" else "ai.rate_limited"),
+                delete_after=5,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
             return
         # Check for image attachments in the message
         image_url = None
@@ -769,7 +820,7 @@ class AI(commands.Cog):
             # Tin nối tiếp không được ping lại: nội dung AI sinh ra có thể chứa
             # @everyone, chia nhiều tin mà cho phép mention là spam cả server.
             no_ping = discord.AllowedMentions.none()
-            await message.reply(chunks[0])
+            await message.reply(chunks[0], allowed_mentions=no_ping)
             for extra in chunks[1:]:
                 await message.channel.send(extra, allowed_mentions=no_ping)
 

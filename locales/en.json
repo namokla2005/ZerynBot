@@ -1079,6 +1079,7 @@
   "ai.summarize_title": "Conversation Summary — #{channel}",
   "ai.summarize_footer": "Analyzed {count} recent messages.",
   "ai.rate_limited": "⏳ You are chatting too fast with AI! Please wait a few seconds.",
+  "ai.daily_limit_reached": "⏳ You have reached today's AI limit. Please try again tomorrow (UTC).",
   "landing.f7_title": "AI Assistant & Smart Chatbot",
   "landing.f7_desc": "Next-gen AI integration (Groq Cloud & Google Gemini) with blazing 0.2s response, automated #ai-chat, /ask Q&A, and /summarize channel history.",
   "landing.f8_title": "Virtual Currency & Role Shop",

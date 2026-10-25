@@ -18,6 +18,7 @@ import os
 import json
 import time
 import shutil
+import shlex
 import subprocess
 import signal
 import asyncio
@@ -81,6 +82,26 @@ def _is_pid_running(pid: int | None) -> bool:
             return True
     except Exception:
         return False
+
+
+def _pgrep_pid(pattern: str, exclude_self: bool = True) -> Optional[int]:
+    """Trả PID đầu tiên khớp pattern, hoặc None. Không bao giờ raise khi không khớp."""
+    if os.name == "nt":
+        return None
+    try:
+        res = subprocess.run(
+            ["pgrep", "-f", pattern], capture_output=True, text=True, timeout=5
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if res.returncode != 0:
+        return None
+    my_pid = os.getpid() if exclude_self else None
+    for line in (res.stdout or "").splitlines():
+        line = line.strip()
+        if line.isdigit() and int(line) != my_pid:
+            return int(line)
+    return None
 
 
 def _enforce_file_security():
@@ -266,14 +287,9 @@ def get_live_bot_pid() -> Optional[int]:
         except Exception:
             pass
     if os.name != "nt":
-        try:
-            out = subprocess.check_output("pgrep -f 'main.py.*--bot' 2>/dev/null", shell=True, text=True).strip()
-            if out:
-                pids = [int(p) for p in out.splitlines() if int(p) != os.getpid()]
-                if pids:
-                    return pids[0]
-        except Exception:
-            pass
+        pid = _pgrep_pid("main.py.*--bot")
+        if pid:
+            return pid
     return None
 
 
@@ -282,14 +298,9 @@ def get_live_dash_pid() -> Optional[int]:
     if pid and _is_pid_running(pid):
         return pid
     if os.name != "nt":
-        try:
-            out = subprocess.check_output("pgrep -f 'main.py.*--dashboard' 2>/dev/null", shell=True, text=True).strip()
-            if out:
-                pids = [int(p) for p in out.splitlines() if int(p) != os.getpid()]
-                if pids:
-                    return pids[0]
-        except Exception:
-            pass
+        pid = _pgrep_pid("main.py.*--dashboard")
+        if pid:
+            return pid
     return None
 
 
@@ -375,18 +386,15 @@ def start_all():
         if os.path.exists(watchdog_script):
             p_bot = subprocess.Popen(f"nohup bash {watchdog_script} > {bot_log} 2>&1 &", shell=True)
             time.sleep(1)
-            try:
-                res_wd = subprocess.check_output("pgrep -f 'watchdog.sh'", shell=True, text=True).strip().splitlines()
-                if res_wd:
-                    _write_pid(PID_WATCHDOG, int(res_wd[0]))
-            except Exception:
-                pass
+            wd_pid = _pgrep_pid("watchdog.sh")
+            if wd_pid:
+                _write_pid(PID_WATCHDOG, wd_pid)
         else:
-            p_bot = subprocess.Popen(f"nohup python main.py --bot > {bot_log} 2>&1 &", shell=True)
+            p_bot = subprocess.Popen(f"nohup {shlex.quote(sys.executable)} main.py --bot > {bot_log} 2>&1 &", shell=True)
         time.sleep(1)
-        res = subprocess.check_output("pgrep -f 'main.py --bot'", shell=True, text=True).strip().splitlines()
-        if res:
-            _write_pid(PID_BOT, int(res[0]))
+        bot_pid = _pgrep_pid("main.py --bot")
+        if bot_pid:
+            _write_pid(PID_BOT, bot_pid)
 
     # 2. Khởi động Dashboard
     print("[2/2] Starting Dashboard...")
@@ -397,11 +405,11 @@ def start_all():
         p_dash = subprocess.Popen([sys.executable, "main.py", "--dashboard"], creationflags=subprocess.CREATE_NEW_CONSOLE)
         _write_pid(PID_DASH, p_dash.pid)
     else:
-        p_dash = subprocess.Popen(f"nohup python main.py --dashboard > {dash_log} 2>&1 &", shell=True)
+        p_dash = subprocess.Popen(f"nohup {shlex.quote(sys.executable)} main.py --dashboard > {dash_log} 2>&1 &", shell=True)
         time.sleep(1)
-        res = subprocess.check_output("pgrep -f 'main.py --dashboard'", shell=True, text=True).strip().splitlines()
-        if res:
-            _write_pid(PID_DASH, int(res[0]))
+        dash_pid = _pgrep_pid("main.py --dashboard")
+        if dash_pid:
+            _write_pid(PID_DASH, dash_pid)
 
     print("--------------------------------------------------")
     print("[Main] System started successfully!")

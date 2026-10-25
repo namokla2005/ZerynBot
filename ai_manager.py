@@ -47,6 +47,12 @@ SYNC_MAX_KEY_ATTEMPTS = 2     # số key tối đa thử trên mỗi provider �
 ASYNC_TOTAL_BUDGET = 45.0     # giây — tổng thời gian tối đa cho 1 lần call_ai_async
 ASYNC_MAX_KEY_ATTEMPTS = 4    # số key tối đa thử trên mỗi provider ở đường async
 
+# Trần số HTTP request cho MỘT lần gọi: trước đây 1 lần fail có thể bắn
+# 3 provider × 2-4 key × 4-5 model = 16-60 request, đốt quota vô ích.
+SYNC_MAX_REQUESTS = 6
+ASYNC_MAX_REQUESTS = 8
+MAX_MODELS_PER_PROVIDER = 3   # không thử hết 4-5 model khi cả provider đang lỗi
+
 # Ảnh do người dùng đính kèm trên Discord có thể tới hàng chục MB (server boosted);
 # đọc hết rồi base64 (×1.33) + nhân bản trong JSON body sẽ ăn hàng trăm MB RAM trên
 # thiết bị 6GB. Gemini chỉ nhận ảnh ≤ 20MB, cap 5MB là đủ và khớp với safe_download.
@@ -369,7 +375,7 @@ class AIProviderManager:
 
     # ─── Synchronous Execution (Flask / Web Support Chat) ──────────────────────
 
-    def _call_gemini_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "gemini-3.6-flash", timeout: int = 12) -> Tuple[bool, str]:
+    def _call_gemini_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "gemini-3.6-flash", timeout: int = 12, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Synchronous Google Gemini call with SSRF defense."""
         target_models = [model] if model and model.startswith("gemini-") else []
         for m in GEMINI_MODELS:
@@ -388,7 +394,19 @@ class AIProviderManager:
             body["system_instruction"] = {"parts": [{"text": system_instruction}]}
 
         last_error = ""
-        for m in target_models:
+        for m in target_models[:MAX_MODELS_PER_PROVIDER]:
+
+            if deadline is not None and time.monotonic() >= deadline:
+                last_error = "BUDGET_EXHAUSTED"
+                break
+            if request_budget is not None:
+                if request_budget[0] <= 0:
+                    last_error = "REQUEST_BUDGET_EXHAUSTED"
+                    break
+                request_budget[0] -= 1
+            call_timeout = timeout
+            if deadline is not None:
+                call_timeout = max(1, min(timeout, int(deadline - time.monotonic())))
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             # Whitelist check
             parsed = urlparse(url)
@@ -396,7 +414,7 @@ class AIProviderManager:
                 return False, "SSRF Blocked"
 
             try:
-                resp = requests.post(url, headers=headers, json=body, timeout=timeout, allow_redirects=False)
+                resp = requests.post(url, headers=headers, json=body, timeout=call_timeout, allow_redirects=False)
                 if resp.status_code == 200:
                     data = resp.json()
                     candidates = data.get("candidates", [])
@@ -417,7 +435,7 @@ class AIProviderManager:
 
         return False, last_error or "Gemini API Error"
 
-    def _call_groq_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "qwen/qwen3.8-27b", timeout: int = 12) -> Tuple[bool, str]:
+    def _call_groq_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "qwen/qwen3.8-27b", timeout: int = 12, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Synchronous Groq Cloud call with SSRF defense."""
         target_models = [model] if model and not model.startswith("gemini-") else []
         for m in GROQ_MODELS:
@@ -439,7 +457,19 @@ class AIProviderManager:
         messages.append({"role": "user", "content": prompt})
 
         last_error = ""
-        for m in target_models:
+        for m in target_models[:MAX_MODELS_PER_PROVIDER]:
+
+            if deadline is not None and time.monotonic() >= deadline:
+                last_error = "BUDGET_EXHAUSTED"
+                break
+            if request_budget is not None:
+                if request_budget[0] <= 0:
+                    last_error = "REQUEST_BUDGET_EXHAUSTED"
+                    break
+                request_budget[0] -= 1
+            call_timeout = timeout
+            if deadline is not None:
+                call_timeout = max(1, min(timeout, int(deadline - time.monotonic())))
             body = {
                 "model": m,
                 "messages": messages,
@@ -447,7 +477,7 @@ class AIProviderManager:
                 "max_tokens": 1200
             }
             try:
-                resp = requests.post(url, headers=headers, json=body, timeout=timeout, allow_redirects=False)
+                resp = requests.post(url, headers=headers, json=body, timeout=call_timeout, allow_redirects=False)
                 if resp.status_code == 200:
                     data = resp.json()
                     choices = data.get("choices", [])
@@ -466,7 +496,7 @@ class AIProviderManager:
 
         return False, last_error or "Groq API Error"
 
-    def _call_openrouter_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "openrouter/free", timeout: int = 15) -> Tuple[bool, str]:
+    def _call_openrouter_sync(self, key: str, prompt: str, system_instruction: str = "", model: str = "openrouter/free", timeout: int = 15, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Synchronous OpenRouter call with SSRF defense."""
         url = "https://openrouter.ai/api/v1/chat/completions"
         parsed = urlparse(url)
@@ -485,10 +515,22 @@ class AIProviderManager:
         messages.append({"role": "user", "content": prompt})
 
         last_error = ""
-        for m in OPENROUTER_MODELS:
+        for m in OPENROUTER_MODELS[:MAX_MODELS_PER_PROVIDER]:
+
+            if deadline is not None and time.monotonic() >= deadline:
+                last_error = "BUDGET_EXHAUSTED"
+                break
+            if request_budget is not None:
+                if request_budget[0] <= 0:
+                    last_error = "REQUEST_BUDGET_EXHAUSTED"
+                    break
+                request_budget[0] -= 1
+            call_timeout = timeout
+            if deadline is not None:
+                call_timeout = max(1, min(timeout, int(deadline - time.monotonic())))
             body = {"model": m, "messages": messages, "max_tokens": 1200}
             try:
-                resp = requests.post(url, headers=headers, json=body, timeout=timeout, allow_redirects=False)
+                resp = requests.post(url, headers=headers, json=body, timeout=call_timeout, allow_redirects=False)
                 if resp.status_code == 200:
                     data = resp.json()
                     choices = data.get("choices", [])
@@ -530,10 +572,13 @@ class AIProviderManager:
         # Ngân sách thời gian: đường sync chạy trong ThreadPoolExecutor của Flask
         # support chat (chỉ 2 worker) nên tuyệt đối không được giữ thread hàng phút.
         deadline = time.monotonic() + SYNC_TOTAL_BUDGET
+        request_budget = [SYNC_MAX_REQUESTS]
         t0 = time.monotonic()
 
         # Try providers in chain
         for provider in provider_chain:
+            if request_budget[0] <= 0:
+                break
             if time.monotonic() >= deadline:
                 logger.info(
                     "[AIManager] Hết ngân sách %.0fs cho đường sync — dừng thử provider.",
@@ -547,6 +592,8 @@ class AIProviderManager:
             # Giới hạn số key thử trên mỗi provider (sync).
             attempts = min(len(p_keys), SYNC_MAX_KEY_ATTEMPTS)
             for _ in range(attempts):
+                if request_budget[0] <= 0:
+                    break
                 if time.monotonic() >= deadline:
                     break
                 active_key = self.get_next_available_key(provider, p_keys)
@@ -555,13 +602,14 @@ class AIProviderManager:
 
                 # Slight jitter to prevent thundering herd
                 time.sleep(random.uniform(0.005, 0.02))
+                call_timeout = max(1, min(15, int(deadline - time.monotonic())))
 
                 if provider == "gemini":
-                    ok, res = self._call_gemini_sync(active_key, prompt, system_instruction, model=model)
+                    ok, res = self._call_gemini_sync(active_key, prompt, system_instruction, model=model, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                 elif provider == "groq":
-                    ok, res = self._call_groq_sync(active_key, prompt, system_instruction, model=model)
+                    ok, res = self._call_groq_sync(active_key, prompt, system_instruction, model=model, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                 elif provider == "openrouter":
-                    ok, res = self._call_openrouter_sync(active_key, prompt, system_instruction, model=model)
+                    ok, res = self._call_openrouter_sync(active_key, prompt, system_instruction, model=model, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                 else:
                     ok, res = False, "Unknown provider"
 
@@ -618,7 +666,7 @@ class AIProviderManager:
 
     # ─── Asynchronous Execution (Discord Bot / cogs/ai.py) ──────────────────────
 
-    async def _call_gemini_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", model: str = "gemini-3.6-flash", image_url: str = None, timeout: int = 15) -> Tuple[bool, str]:
+    async def _call_gemini_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", model: str = "gemini-3.6-flash", image_url: str = None, timeout: int = 15, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Asynchronous Google Gemini call with SSRF defense and Vision support."""
         parts: List[Dict[str, Any]] = [{"text": prompt}]
         if image_url and not is_safe_image_url(image_url):
@@ -674,14 +722,26 @@ class AIProviderManager:
             body["system_instruction"] = {"parts": [{"text": system_instruction}]}
 
         last_error = ""
-        for m in target_models:
+        for m in target_models[:MAX_MODELS_PER_PROVIDER]:
+
+            if deadline is not None and time.monotonic() >= deadline:
+                last_error = "BUDGET_EXHAUSTED"
+                break
+            if request_budget is not None:
+                if request_budget[0] <= 0:
+                    last_error = "REQUEST_BUDGET_EXHAUSTED"
+                    break
+                request_budget[0] -= 1
+            call_timeout = timeout
+            if deadline is not None:
+                call_timeout = max(1, min(timeout, int(deadline - time.monotonic())))
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
             parsed = urlparse(url)
             if parsed.hostname not in ALLOWED_HOSTS:
                 return False, "SSRF Blocked"
 
             try:
-                async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=timeout), allow_redirects=False) as resp:
+                async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=call_timeout), allow_redirects=False) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         candidates = data.get("candidates", [])
@@ -700,7 +760,7 @@ class AIProviderManager:
 
         return False, last_error or "Gemini API Error"
 
-    async def _call_groq_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", model: str = "qwen/qwen3.8-27b", image_url: str = None, timeout: int = 15) -> Tuple[bool, str]:
+    async def _call_groq_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", model: str = "qwen/qwen3.8-27b", image_url: str = None, timeout: int = 15, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Asynchronous Groq Cloud call."""
         url = "https://api.groq.com/openai/v1/chat/completions"
         parsed = urlparse(url)
@@ -737,7 +797,19 @@ class AIProviderManager:
                     target_models.append(m)
 
         last_error = ""
-        for m in target_models:
+        for m in target_models[:MAX_MODELS_PER_PROVIDER]:
+
+            if deadline is not None and time.monotonic() >= deadline:
+                last_error = "BUDGET_EXHAUSTED"
+                break
+            if request_budget is not None:
+                if request_budget[0] <= 0:
+                    last_error = "REQUEST_BUDGET_EXHAUSTED"
+                    break
+                request_budget[0] -= 1
+            call_timeout = timeout
+            if deadline is not None:
+                call_timeout = max(1, min(timeout, int(deadline - time.monotonic())))
             body = {
                 "model": m,
                 "messages": messages,
@@ -745,7 +817,7 @@ class AIProviderManager:
                 "max_tokens": 1500
             }
             try:
-                async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=timeout), allow_redirects=False) as resp:
+                async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=call_timeout), allow_redirects=False) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         choices = data.get("choices", [])
@@ -762,7 +834,7 @@ class AIProviderManager:
 
         return False, last_error or "Groq API Error"
 
-    async def _call_openrouter_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", image_url: str = None, timeout: int = 15) -> Tuple[bool, str]:
+    async def _call_openrouter_async(self, session: aiohttp.ClientSession, key: str, prompt: str, system_instruction: str = "", image_url: str = None, timeout: int = 15, deadline: float | None = None, request_budget: list[int] | None = None) -> Tuple[bool, str]:
         """Asynchronous OpenRouter call."""
         url = "https://openrouter.ai/api/v1/chat/completions"
         parsed = urlparse(url)
@@ -798,10 +870,22 @@ class AIProviderManager:
             target_models = OPENROUTER_MODELS
 
         last_error = ""
-        for m in target_models:
+        for m in target_models[:MAX_MODELS_PER_PROVIDER]:
+
+            if deadline is not None and time.monotonic() >= deadline:
+                last_error = "BUDGET_EXHAUSTED"
+                break
+            if request_budget is not None:
+                if request_budget[0] <= 0:
+                    last_error = "REQUEST_BUDGET_EXHAUSTED"
+                    break
+                request_budget[0] -= 1
+            call_timeout = timeout
+            if deadline is not None:
+                call_timeout = max(1, min(timeout, int(deadline - time.monotonic())))
             body = {"model": m, "messages": messages, "max_tokens": 1500}
             try:
-                async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=timeout), allow_redirects=False) as resp:
+                async with session.post(url, headers=headers, json=body, timeout=aiohttp.ClientTimeout(total=call_timeout), allow_redirects=False) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         choices = data.get("choices", [])
@@ -834,6 +918,7 @@ class AIProviderManager:
         routing = cfg["routing_mode"]
         model = preferred_model or cfg["model"]
         deadline = time.monotonic() + ASYNC_TOTAL_BUDGET
+        request_budget = [ASYNC_MAX_REQUESTS]
 
         gemini_pool = list(cfg["gemini_keys"])
         groq_pool = list(cfg["groq_keys"])
@@ -850,6 +935,8 @@ class AIProviderManager:
 
         async with aiohttp.ClientSession() as session:
             for provider in provider_chain:
+                if request_budget[0] <= 0:
+                    break
                 if time.monotonic() >= deadline:
                     logger.warning(
                         f"[AIManager] call_ai_async hết ngân sách {ASYNC_TOTAL_BUDGET}s — "
@@ -862,6 +949,8 @@ class AIProviderManager:
 
                 attempts = min(len(p_keys), ASYNC_MAX_KEY_ATTEMPTS)
                 for _ in range(attempts):
+                    if request_budget[0] <= 0:
+                        break
                     if time.monotonic() >= deadline:
                         break
                     active_key = self.get_next_available_key(provider, p_keys)
@@ -869,12 +958,13 @@ class AIProviderManager:
                         break
 
                     t0_attempt = time.time()
+                    call_timeout = max(1, min(15, int(deadline - time.monotonic())))
                     if provider == "gemini":
-                        ok, res = await self._call_gemini_async(session, active_key, prompt, system_instruction, model=model, image_url=image_url)
+                        ok, res = await self._call_gemini_async(session, active_key, prompt, system_instruction, model=model, image_url=image_url, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                     elif provider == "groq":
-                        ok, res = await self._call_groq_async(session, active_key, prompt, system_instruction, model=model, image_url=image_url)
+                        ok, res = await self._call_groq_async(session, active_key, prompt, system_instruction, model=model, image_url=image_url, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                     elif provider == "openrouter":
-                        ok, res = await self._call_openrouter_async(session, active_key, prompt, system_instruction, image_url=image_url)
+                        ok, res = await self._call_openrouter_async(session, active_key, prompt, system_instruction, image_url=image_url, timeout=call_timeout, deadline=deadline, request_budget=request_budget)
                     else:
                         ok, res = False, "Unknown provider"
 
