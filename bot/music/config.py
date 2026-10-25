@@ -99,8 +99,25 @@ def ffmpeg_http_reconnect_supported(executable: str = "ffmpeg") -> bool:
     return True
 
 
-HTTP_RECONNECT_SUPPORTED = ffmpeg_http_reconnect_supported()
-FFMPEG_BEFORE = build_ffmpeg_before(HTTP_RECONNECT_SUPPORTED)
+# Không probe ffmpeg NGAY tại import: subprocess.run(timeout=5) từng chặn event
+# loop mỗi lần cog load. Khởi động với bộ cờ an toàn (không reconnect), probe ở
+# thread nền rồi cập nhật; player đọc get_ffmpeg_before() tại thời điểm play.
+HTTP_RECONNECT_SUPPORTED = False
+FFMPEG_BEFORE = build_ffmpeg_before(False)
+
+
+def get_ffmpeg_before() -> str:
+    return FFMPEG_BEFORE
+
+
+def _probe_ffmpeg_async() -> None:
+    global HTTP_RECONNECT_SUPPORTED, FFMPEG_BEFORE
+    supported = ffmpeg_http_reconnect_supported()
+    HTTP_RECONNECT_SUPPORTED = supported
+    FFMPEG_BEFORE = build_ffmpeg_before(supported)
+
+
+threading.Thread(target=_probe_ffmpeg_async, name="ffmpeg-probe", daemon=True).start()
 
 # ── Stream watchdog: phát hiện FFmpeg treo mà voice vẫn "connected" ───────────
 # discord.py chỉ báo `after()` khi source trả về data rỗng (EOF) hoặc process exit.

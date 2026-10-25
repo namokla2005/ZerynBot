@@ -29,7 +29,6 @@ except (ImportError, ModuleNotFoundError):
 
 from .config import (
     AUDIO_FRAME_SECONDS,
-    FFMPEG_BEFORE,
     FFMPEG_OPTS_COPY,
     FFMPEG_OPTS_ENCODE,
     FAST_FAIL_LIMIT,
@@ -41,6 +40,7 @@ from .config import (
     STALL_TIMEOUT_SECONDS,
     _extract_semaphore,
     _lower_process_priority,
+    get_ffmpeg_before,
     load_opus_library,
 )
 from .embeds import _format_queue_duration, _make_np_embed
@@ -61,7 +61,7 @@ log = logging.getLogger("BotV2.Music")
 
 
 class Track:
-    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus", "recovery_attempts", "is_live")
+    __slots__ = ("duration", "requester", "stream_expire", "stream_url", "thumbnail", "title", "uploader", "url", "is_opus", "recovery_attempts", "is_live", "is_direct_stream")
 
     def __init__(self, info: dict, requester: discord.Member | None = None):
         self.title         = info.get("title", "Unknown")
@@ -81,6 +81,7 @@ class Track:
         # Xác định opus chính xác theo acodec (fallback heuristic nếu không tìm thấy format)
         self.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, self.stream_url) == "opus")
         self.recovery_attempts = 0
+        self.is_direct_stream = False
         self.is_live       = bool(
             info.get("is_live")
             or info.get("live_status") == "is_live"
@@ -317,7 +318,8 @@ class MusicPlayer:
                 return
             track.recovery_attempts = getattr(track, "recovery_attempts", 0) + 1
             self._last_recovery_time = time.time()
-            track.stream_url = None  # buộc extract lại để lấy URL/token mới
+            if not getattr(track, "is_direct_stream", False):
+                track.stream_url = None  # buộc extract lại để lấy URL/token mới
             await self._play(track, seek_offset=position)
         except Exception as e:
             log.error(f"[Music] Lỗi khôi phục stream treo '{getattr(track, 'title', '?')}': {e}")
@@ -503,7 +505,8 @@ class MusicPlayer:
                         return
                     if await self._honour_pending_skip():
                         return
-                    track.stream_url = None
+                    if not getattr(track, "is_direct_stream", False):
+                        track.stream_url = None
                     await self._play(track, seek_offset=0)
                 except Exception as rec_err:
                     log.error(f"[Music] Lỗi khôi phục live stream '{track.title}': {rec_err}")
@@ -558,7 +561,7 @@ class MusicPlayer:
                     return
                 if await self._honour_pending_skip():
                     return
-                if track.is_stream_expired or error:
+                if track.is_stream_expired or (error and not getattr(track, "is_direct_stream", False)):
                     track.stream_url = None
                 await self._play(track, seek_offset=elapsed)
             except Exception as rec_err:
@@ -626,7 +629,12 @@ class MusicPlayer:
             if not self.vc or not self.vc.is_connected():
                 log.debug(f"[Music] Chưa kết nối voice tại guild {self.guild.id}, giữ nguyên {len(self.queue)} bài trong hàng đợi.")
                 return
-            await self._play(self.queue.pop(0))
+            track = self.queue.pop(0)
+            accepted = await self._play(track)
+            if accepted is False and not self._manual_stopped and not self._skipped:
+                # Voice vừa rớt đúng lúc pop: trả bài lại đầu hàng đợi.
+                self.queue.insert(0, track)
+                log.warning("[Music] _play không nhận bài '%s' — đã trả lại hàng đợi", track.title)
         elif self.autoplay and self.current:
             self._reset_inactivity_timer()
             await self._handle_autoplay()
@@ -797,12 +805,12 @@ class MusicPlayer:
                 log.debug(f"[Music] report_play_failure send error: {e}")
         self._dispatch_next()
 
-    async def _play(self, track: Track, seek_offset: int = 0):
+    async def _play(self, track: Track, seek_offset: int = 0) -> bool:
         async with self._play_lock:
             if not self.vc or not self.vc.is_connected():
-                return
+                return False
             if self._manual_stopped or self._skipped:
-                return
+                return False
 
             # Bất kỳ lượt phát mới nào cũng vô hiệu hoá recovery cũ đang ngủ.
             self._play_seq += 1
@@ -821,7 +829,7 @@ class MusicPlayer:
                 if not info:
                     log.warning(f"[Music] Cannot get stream URL for '{track.title}'")
                     await self._report_play_failure(track)
-                    return
+                    return True
                 track.stream_url    = info.get("stream_url") or _get_stream_url(info)
                 track.stream_expire = _extract_stream_expire(track.stream_url, info)
                 track.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, track.stream_url) == "opus")
@@ -831,7 +839,7 @@ class MusicPlayer:
             if not track.stream_url:
                 log.warning(f"[Music] Cannot resolve stream URL for '{track.title}'")
                 await self._report_play_failure(track)
-                return
+                return True
 
             # Ghi nhận thống kê bài hát được phát vào DB.
             # Đây là NGUỒN DUY NHẤT cho `/topmusic` + dashboard (event_type="music_play",
@@ -860,9 +868,10 @@ class MusicPlayer:
 
             source = None
             _t_ffmpeg = time.time()
-            before_opts = FFMPEG_BEFORE
+            _before = get_ffmpeg_before()
+            before_opts = _before
             if seek_offset > 0:
-                before_opts = f"-ss {seek_offset} " + FFMPEG_BEFORE
+                before_opts = f"-ss {seek_offset} " + _before
 
             try:
                 if is_opus and self.volume == 1.0:
@@ -913,7 +922,7 @@ class MusicPlayer:
                     except Exception as cleanup_err:
                         log.debug(f"[Music] cleanup source thất bại: {cleanup_err}")
                 await self._report_play_failure(track)
-                return
+                return True
 
             # Gửi embed Now Playing
             await self._send_now_playing()
@@ -921,6 +930,7 @@ class MusicPlayer:
             # Pre-load bài tiếp theo ở background
             if self.queue:
                 self._schedule_preload()
+            return True
 
     async def _send_now_playing(self):
         if not self.text_channel or not self.current:
@@ -1083,7 +1093,7 @@ class MusicPlayer:
             log.info(f"[Music] Phục hồi bài hát '{track_title}' (live={is_live}) tại {target_elapsed}s sau khi voice reconnect...")
 
             # Kiểm tra URL còn hạn không trước khi stream (với live stream luôn lấy URL mới)
-            if target_track.is_stream_expired or is_live:
+            if target_track.is_stream_expired or (is_live and not getattr(target_track, "is_direct_stream", False)):
                 log.info(f"[Music] Stream URL cho '{track_title}' đã hết hạn hoặc là live stream, trích xuất URL mới...")
                 target_track.stream_url = None
 

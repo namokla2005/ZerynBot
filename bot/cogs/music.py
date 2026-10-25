@@ -619,6 +619,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                 requester=ctx.author,
             )
             track.is_live = True
+            track.is_direct_stream = True
             track.stream_url = stream["url"]
             track.stream_expire = float("inf")  # stream sống mãi, không expire
             await player.add_and_play(track, force_play=True)
