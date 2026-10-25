@@ -186,7 +186,11 @@ health_loop() {
     while true; do
         # Watchdog bị SIGKILL/OOM -> health_loop bị reparent về init. Không để nó
         # tiếp tục restart dashboard/kill bot mà không còn supervisor.
-        if [ "$PPID" -eq 1 ]; then
+        # KHÔNG dùng $PPID: trong subshell bash giữ nguyên PPID của shell cha, nên
+        # khi watchdog được main.py khởi động rồi main.py exit, $PPID = 1 dù watchdog
+        # còn sống -> health_loop tự thoát oan. Đọc ppid thật của BASHPID.
+        _hp=$(ps -o ppid= -p "${BASHPID:-$$}" 2>/dev/null | tr -d ' ')
+        if [ "$_hp" = "1" ]; then
             exit 0
         fi
         sleep "$HEALTH_INTERVAL"

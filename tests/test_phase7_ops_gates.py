@@ -99,7 +99,7 @@ def test_watchdog_has_separate_bot_and_dashboard_counters():
     assert "dash_fail=$((dash_fail + 1))" in src
     assert 'if [ "$http_code" = "503" ]' in src
     assert "seq 1 15" in src, "phải chờ 15s trước SIGKILL"
-    assert 'if [ "$PPID" -eq 1 ]' in src, "health_loop phải tự thoát khi watchdog chết"
+    assert 'ps -o ppid= -p "${BASHPID:-$$}"' in src, "health_loop phải tự thoát khi watchdog chết"
 
 
 def test_cleanup_uses_copytruncate_not_mv():
