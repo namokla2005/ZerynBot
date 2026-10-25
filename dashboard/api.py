@@ -9,11 +9,14 @@ sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho card_generator, checks, 
 
 from flask import Blueprint, request, jsonify, session
 import requests
+import logging
 import database as db
 import config
 from i18n import i18n as i18n_manager
 from dashboard import auth as _auth
 from dashboard.extensions import limiter
+
+logger = logging.getLogger("ZerynBot.DashboardAPI")
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -305,7 +308,8 @@ def send_embed_to_channel(guild_id: str):
             err_msg = resp.text
         return jsonify({"error": err_msg}), resp.status_code
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.warning("[API] send panel error: %s", exc)
+        return jsonify({"error": "internal_error"}), 500
 
 
 def _build_discord_embed(data: dict) -> dict:
@@ -361,6 +365,7 @@ def _build_discord_embed(data: dict) -> dict:
 # ─── Ticket Panels ────────────────────────────────────────────────────────────
 
 @api.route("/guild/<guild_id>/tickets", methods=["POST"])
+@limiter.limit("10/minute")
 def save_ticket(guild_id: str):
     err = _require_guild_access(guild_id)
     if err:
@@ -387,6 +392,7 @@ def delete_ticket(guild_id: str, panel_id: int):
 
 
 @api.route("/guild/<guild_id>/tickets/<int:panel_id>/send", methods=["POST"])
+@limiter.limit("10/minute")
 def send_ticket_panel(guild_id: str, panel_id: int):
     err = _require_guild_access(guild_id)
     if err:
@@ -476,12 +482,14 @@ def send_ticket_panel(guild_id: str, panel_id: int):
             err_msg = resp.text
         return jsonify({"error": f"Discord API Error: {err_msg}"}), resp.status_code
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.warning("[API] send panel error: %s", exc)
+        return jsonify({"error": "internal_error"}), 500
 
 
 # ─── Reaction Roles ───────────────────────────────────────────────────────────
 
 @api.route("/guild/<guild_id>/reactionroles", methods=["POST"])
+@limiter.limit("10/minute")
 def save_reaction_role(guild_id: str):
     err = _require_guild_access(guild_id)
     if err:
@@ -508,6 +516,7 @@ def delete_reaction_role(guild_id: str, panel_id: int):
 
 
 @api.route("/guild/<guild_id>/reactionroles/<int:panel_id>/send", methods=["POST"])
+@limiter.limit("10/minute")
 def send_reaction_role_panel(guild_id: str, panel_id: int):
     err = _require_guild_access(guild_id)
     if err:
@@ -594,7 +603,8 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
             err_msg = resp.text
         return jsonify({"error": f"Discord API Error: {err_msg}"}), resp.status_code
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.warning("[API] send panel error: %s", exc)
+        return jsonify({"error": "internal_error"}), 500
 
 
 # ─── Test welcome/goodbye banner card ─────────────────────────────────────────
@@ -734,7 +744,8 @@ def send_test_card(guild_id: str):
             err_msg = resp.text
         return jsonify({"error": err_msg}), resp.status_code
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        logger.warning("[API] send panel error: %s", exc)
+        return jsonify({"error": "internal_error"}), 500
 
 
 # ─── i18n: Guild Language ────────────────────────────────────────────────────────────

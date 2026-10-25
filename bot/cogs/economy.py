@@ -264,6 +264,7 @@ WORK_JOBS = [
 # ve dung chuoi cu, nen khong bao gio lo chuoi key tren Discord.
 _CATALOG_KEYS = {it["name"]: f"economy.item_{it['id']}" for it in FISH_ITEMS}
 _CATALOG_KEYS.update({j["name"]: f"economy.job_{i:02d}" for i, j in enumerate(WORK_JOBS)})
+_CATALOG_KEYS.update({it["name"]: f"economy.hunt_item_{it['id']}" for it in HUNT_ITEMS})
 
 
 def cat_name(settings: dict, stored: str) -> str:
@@ -607,10 +608,6 @@ class Economy(commands.Cog):
         if bet <= 0:
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
-        # Prefix không đi qua app_commands.choices: phải tự validate trước khi trừ tiền.
-        if str(choice).lower() not in ("heads", "tails"):
-            await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
-            return
 
         if not await async_place_bet(str(ctx.guild.id), str(ctx.author.id), bet):
             await ctx.send(tr(s, "economy.not_enough_money", sym=sym), ephemeral=True)
@@ -665,10 +662,6 @@ class Economy(commands.Cog):
         sym = get_sym(eco_s)
 
         if bet <= 0:
-            await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
-            return
-        # Prefix không đi qua app_commands.choices: phải tự validate trước khi trừ tiền.
-        if str(choice).lower() not in ("heads", "tails"):
             await ctx.send(tr(s, "economy.invalid_bet"), ephemeral=True)
             return
 
@@ -859,7 +852,7 @@ class Economy(commands.Cog):
 
         await async_modify_wallet(str(ctx.guild.id), str(ctx.author.id), total_pay)
         await async_log_transaction(str(ctx.guild.id), str(ctx.author.id), "work", total_pay, f"work: {job['name']}")
-        desc = tr(s, "economy.work_desc", user=ctx.author.mention, job=job["name"], amount=base_pay, sym=sym)
+        desc = tr(s, "economy.work_desc", user=ctx.author.mention, job=cat_name(s, job["name"]), amount=base_pay, sym=sym)
         if is_bonus:
             desc += tr(s, "economy.work_bonus", bonus=bonus_pay, sym=sym)
 
@@ -951,7 +944,7 @@ class Economy(commands.Cog):
         rarity_text = tr(s, f"economy.rarity_{hunted['rarity']}")
         embed = discord.Embed(
             title=embed_title("zb_hunt", tr(s, "economy.hunt_title")),
-            description=tr(s, "economy.hunt_success", item=hunted["name"], rarity=rarity_text, price=hunted["price"], sym=sym),
+            description=tr(s, "economy.hunt_success", item=cat_name(s, hunted["name"]), rarity=rarity_text, price=hunted["price"], sym=sym),
             color=0xE67E22 if hunted["rarity"] == "common" else (0x9B59B6 if hunted["rarity"] == "epic" else 0xF1C40F),
             timestamp=datetime.now(timezone.utc)
         )

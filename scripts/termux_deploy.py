@@ -181,6 +181,8 @@ def run_remote_deploy():
         return False
 
     print(f"✅ Đã kết nối thành công qua kênh: {info}!\n")
+    prev_head, _, _ = executor.exec(f"cd {cfg['bot_dir']} && git rev-parse HEAD", timeout=10.0)
+    prev_head = prev_head.strip()
 
     # 1. Git Pull
     print("📥 [1/3] Đang kéo mã nguồn mới nhất: git pull origin main...")

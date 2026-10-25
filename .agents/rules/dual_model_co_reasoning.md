@@ -81,7 +81,7 @@ Mọi bài toán sửa lỗi hoặc thay đổi logic đều phải tuân thủ 
    - Tự động scrub bí mật, chống path traversal, bóc tách lỗi và xuất báo cáo chuẩn Pydantic: Điểm số, Phán quyết (`APPROVED`/`REQUEST_CHANGES`), danh sách lỗi phân cấp (`CRITICAL`/`WARNING`/`INFO`) kèm tác động Termux.
 2. **`review_pre_commit_diff()`**:
    - Yêu cầu Model 2 quét toàn bộ `git diff` (staged hoặc unstaged) trước khi commit.
-   - Đánh giá rủi ro hồi quy (Regression Risks), kiểm tra checklist quy chuẩn (i18n 1861 keys/file + `tests/i18n_budget.json` (ngân sách chuỗi hardcode = 0), SQLite concurrency, module guards).
+   - Đánh giá rủi ro hồi quy (Regression Risks), kiểm tra checklist quy chuẩn (i18n 1883 keys/file + `tests/i18n_budget.json` (ngân sách chuỗi hardcode = 0), SQLite concurrency, module guards).
 3. **`consult_second_model(prompt, role, model)`**:
    - Gửi yêu cầu/đề xuất sang Model thứ 2 để lấy ý kiến phản biện (Second Opinion).
    - Vai trò: `critic` (Bảo mật/Hiệu năng), `architect` (Kiến trúc sạch), `tester` (Phá hoại/Fuzzing).

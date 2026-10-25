@@ -4,6 +4,7 @@ public.py — Route công khai: landing page, OAuth Discord, pháp lý, health, 
 
 import os
 import sys
+from urllib.parse import urlparse
 
 # File nằm ở dashboard/blueprints/ → cần 3 cấp dirname để tới repo root
 _V2_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -112,7 +113,11 @@ def set_ui_language(lang_code: str):
     """
     if lang_code in i18n_manager.get_supported_languages():
         session["ui_lang"] = lang_code
-    return redirect(request.referrer or url_for("guild.home"))
+    # Chỉ quay lại referrer cùng origin; tránh open redirect qua header.
+    ref = request.referrer or ""
+    if ref and urlparse(ref).netloc == urlparse(request.host_url).netloc:
+        return redirect(ref)
+    return redirect(url_for("guild.home"))
 
 HEALTH_MAX_STALE_SECONDS = 180  # bot gửi heartbeat mỗi 60s; 3 nhịp lỗi = coi như chết
 

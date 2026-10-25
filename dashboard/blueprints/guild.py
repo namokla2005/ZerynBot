@@ -145,8 +145,8 @@ def server_welcome(guild_id: str):
 def server_autoroles(guild_id: str):
     if request.method == "POST":
         form = request.form
-        autoroles_user = form.getlist("autoroles_user")
-        autoroles_bot = form.getlist("autoroles_bot")
+        autoroles_user = [r for r in (_safe_role(guild_id, rid) for rid in form.getlist("autoroles_user")) if r]
+        autoroles_bot = [r for r in (_safe_role(guild_id, rid) for rid in form.getlist("autoroles_bot")) if r]
         
         import json
         fields = {
@@ -203,7 +203,9 @@ def server_leveling(guild_id: str):
         for key, value in form.items():
             if key.startswith("level_role_") and value:
                 level_str = key.replace("level_role_", "")
-                roles[level_str] = value
+                safe_role = _safe_role(guild_id, value)
+                if safe_role:
+                    roles[level_str] = safe_role
                 
         db.set_level_roles(guild_id, roles)
         
@@ -266,8 +268,8 @@ def server_automod(guild_id: str):
         bad_words = [w.strip() for w in form.get("bad_words", "").split(",") if w.strip()]
         blacklist_links = [l.strip() for l in form.get("blacklist_links", "").split(",") if l.strip()]
         whitelist_links = [l.strip() for l in form.get("whitelist_links", "").split(",") if l.strip()]
-        immune_roles = form.getlist("immune_roles")
-        spam_allowed_channels = form.getlist("spam_allowed_channels")
+        immune_roles = [r for r in (_safe_role(guild_id, rid) for rid in form.getlist("immune_roles")) if r]
+        spam_allowed_channels = [c for c in (_safe_channel(guild_id, cid) for cid in form.getlist("spam_allowed_channels")) if c]
         
         fields = {
             "spam_enabled": 1 if form.get("spam_enabled") else 0,
@@ -541,7 +543,7 @@ def server_economy(guild_id: str):
 @guild_access_required
 def server_economy_add_item(guild_id: str):
     name = request.form.get("name", "").strip()
-    role_id = request.form.get("role_id", "").strip()
+    role_id = _safe_role(guild_id, request.form.get("role_id", "").strip())
     price = _to_int(request.form.get("price"), 100)
     stock = _to_int(request.form.get("stock"), -1)
 
