@@ -25,6 +25,7 @@ from functools import wraps
 
 import requests
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from markupsafe import escape as _html_escape
 
 import config
 import database as db
@@ -302,11 +303,28 @@ def api_admin_telemetry():
     stats = get_system_hardware_stats()
     return jsonify({"ok": True, **stats})
 
+def _escape_activity_row(row: dict) -> dict:
+    """Escape mọi field người dùng kiểm soát trước khi admin.html nối vào innerHTML.
+
+    Discord cho phép display name/nickname chứa HTML. Escape ở API là boundary cuối
+    trước sink JS, nên JSON trả về không bao giờ chứa thẻ sống.
+    """
+    out = dict(row)
+    for key in (
+        "guild_id", "guild_name", "user_id", "user_name", "channel_name",
+        "event_type", "action", "details", "avatar_url",
+    ):
+        value = out.get(key)
+        if value is not None:
+            out[key] = str(_html_escape(str(value)))
+    return out
+
+
 @bp.route("/api/admin/activity_logs")
 @owner_required
 def api_admin_activity_logs():
     """Trả về tối đa 50 log hoạt động gần nhất trong vòng 7 ngày (tự động xóa log > 7 ngày)."""
-    logs = db.get_system_activity_logs(limit=50, days_ttl=7)
+    logs = [_escape_activity_row(row) for row in db.get_system_activity_logs(limit=50, days_ttl=7)]
     return jsonify({"ok": True, "logs": logs})
 
 @bp.route("/admin/support")

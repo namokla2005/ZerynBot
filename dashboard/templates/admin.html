@@ -1077,8 +1077,13 @@
   let termHistoryIndex = -1;
 
   function escapeHtml(text) {
-    if (!text) return '';
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    if (text === null || text === undefined) return '';
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function appendTerminalOutput(cmd, output, isError = false) {
@@ -1372,18 +1377,18 @@
           cardsHtml += `
             <div style="background:${bgCol}; border:1px solid ${borderCol}; border-radius:8px; padding:10px 12px; font-size:0.78rem;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <strong style="color:var(--text-primary); font-size:0.8rem;">${isOk ? '🟢' : '🔴'} ${r.provider || 'Provider'}</strong>
-                <span style="background:${badgeBg}; color:#fff; border-radius:12px; padding:2px 8px; font-weight:700; font-size:0.7rem;">${badgeText}</span>
+                <strong style="color:var(--text-primary); font-size:0.8rem;">${isOk ? '🟢' : '🔴'} ${escapeHtml(r.provider || 'Provider')}</strong>
+                <span style="background:${badgeBg}; color:#fff; border-radius:12px; padding:2px 8px; font-weight:700; font-size:0.7rem;">${escapeHtml(badgeText)}</span>
               </div>
-              <div style="color:var(--text-secondary); font-family:monospace; margin-bottom:3px;">Key: ${r.key_masked || '****'}</div>
-              <div style="color:${isOk ? 'var(--text-secondary)' : 'var(--danger)'}; line-height:1.3;">${r.message || ''}</div>
+              <div style="color:var(--text-secondary); font-family:monospace; margin-bottom:3px;">Key: ${escapeHtml(r.key_masked || '****')}</div>
+              <div style="color:${isOk ? 'var(--text-secondary)' : 'var(--danger)'}; line-height:1.3;">${escapeHtml(r.message || '')}</div>
             </div>
           `;
         });
         cardsHtml += '</div>';
         diagBox.innerHTML = cardsHtml;
       } else if (data.message) {
-        diagBox.innerHTML = `<div style="font-size:0.82rem; color:var(--text-secondary);">${data.message}</div>`;
+        diagBox.innerHTML = `<div style="font-size:0.82rem; color:var(--text-secondary);">${escapeHtml(data.message)}</div>`;
       }
 
       if (data.ok) {
@@ -1395,13 +1400,13 @@
         dot.style.background = 'var(--danger)';
         dot.style.boxShadow = '0 0 12px var(--danger)';
         title.innerText = '🔴 ' + (data.status === 'no_key' ? 'Chưa Có API Key Nào' : 'Tất Cả Key Đều Lỗi');
-        desc.innerHTML = '<span style="color:var(--danger); font-weight:600;">' + (data.message || 'Không có key nào kết nối thành công.') + '</span>';
+        desc.innerHTML = '<span style="color:var(--danger); font-weight:600;">' + escapeHtml(data.message || 'Không có key nào kết nối thành công.') + '</span>';
       }
     } catch (err) {
       dot.style.background = 'var(--danger)';
       title.innerText = '❌ Lỗi Kiểm Tra';
       desc.innerText = 'Không thể kết nối tới server: ' + err.message;
-      if (diagBox) diagBox.innerHTML = `<div style="color:var(--danger); font-size:0.8rem;">Lỗi kết nối: ${err.message}</div>`;
+      if (diagBox) diagBox.innerHTML = `<div style="color:var(--danger); font-size:0.8rem;">Lỗi kết nối: ${escapeHtml(err.message)}</div>`;
     } finally {
       if (btn) btn.classList.remove('spin-anim');
     }
