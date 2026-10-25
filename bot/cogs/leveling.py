@@ -38,6 +38,45 @@ def calc_level_from_xp(xp: int) -> int:
 def calc_xp_for_level(level: int) -> int:
     return int((level / 0.1) ** 2)
 
+
+async def apply_level_roles(member, roles_to_add, roles_to_remove) -> None:
+    """Gán role mới TRƯỚC, chỉ gỡ role cũ khi đã gán được ít nhất một role mới.
+
+    Bản cũ gỡ role cũ trước rồi `except: pass`, nên nếu role mới nằm trên top role
+    của bot (hoặc bot thiếu Manage Roles) thì user mất role cũ mà không nhận được gì.
+    """
+    me = getattr(member.guild, "me", None)
+    if not me or not getattr(me.guild_permissions, "manage_roles", False):
+        log.warning("[Leveling] Bỏ qua đổi role: bot thiếu Manage Roles tại %s", member.guild.id)
+        return
+
+    added = []
+    add_attempted = bool(roles_to_add)
+    for role in roles_to_add:
+        if role >= me.top_role:
+            log.warning(
+                "[Leveling] Bỏ qua role %s: cao hơn/xấp xỉ top role của bot tại %s",
+                getattr(role, "id", role), member.guild.id,
+            )
+            continue
+        try:
+            await member.add_roles(role, reason="Level Up")
+            added.append(role)
+        except Exception as exc:
+            log.warning("[Leveling] Không gán được role %s: %s", getattr(role, "id", role), exc)
+
+    if add_attempted and not added:
+        log.warning("[Leveling] Không gán được role mới nào — giữ nguyên role cũ cho %s", member.id)
+        return
+
+    removable = [r for r in roles_to_remove if r < me.top_role]
+    if removable:
+        try:
+            await member.remove_roles(*removable, reason="Level Up (remove old)")
+        except Exception as exc:
+            log.warning("[Leveling] Không gỡ được role cũ: %s", exc)
+
+
 class Leveling(commands.Cog):
     """Hệ thống Leveling / XP cho người dùng."""
 
@@ -87,17 +126,8 @@ class Leveling(commands.Cog):
                         if role in member.roles:
                             roles_to_remove.append(role)
         
-        if roles_to_remove:
-            try:
-                await member.remove_roles(*roles_to_remove, reason=f"Level Up (remove old)")
-            except Exception:
-                pass
-                
-        if roles_to_add:
-            try:
-                await member.add_roles(*roles_to_add, reason=f"Level Up to {new_level}")
-            except Exception:
-                pass
+        if roles_to_remove or roles_to_add:
+            await apply_level_roles(member, roles_to_add, roles_to_remove)
                 
         # Announcement
         channel_id = settings.get("announce_channel_id")

@@ -282,6 +282,8 @@ async def async_get_birthday_settings(guild_id: str) -> dict:
 
 async def async_upsert_birthday_settings(guild_id: str, **fields):
     """Insert or update birthday settings."""
+    allow = {"enabled", "channel_id", "role_id", "message_template", "gift_coins", "gift_xp"}
+    fields = {k: v for k, v in fields.items() if k in allow}
     async with _connect_async() as db:
         await db.execute("INSERT OR IGNORE INTO birthday_settings (guild_id) VALUES (?)", (guild_id,))
         if fields:
@@ -291,6 +293,46 @@ async def async_upsert_birthday_settings(guild_id: str, **fields):
                 [*fields.values(), guild_id],
             )
         await db.commit()
+
+async def async_add_temp_role(guild_id: str, user_id: str, role_id: str, expire_at: float) -> None:
+    async with _connect_async() as db:
+        await db.execute(
+            "INSERT INTO temp_roles (guild_id, user_id, role_id, expire_at) VALUES (?, ?, ?, ?)",
+            (str(guild_id), str(user_id), str(role_id), float(expire_at)),
+        )
+        await db.commit()
+
+async def async_get_expired_temp_roles(now_ts: float, limit: int = 50) -> list:
+    async with _connect_async() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM temp_roles WHERE expire_at <= ? ORDER BY expire_at ASC LIMIT ?",
+            (float(now_ts), int(limit)),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+async def async_delete_temp_role(row_id: int) -> bool:
+    async with _connect_async() as db:
+        cur = await db.execute("DELETE FROM temp_roles WHERE id = ?", (int(row_id),))
+        await db.commit()
+        return cur.rowcount > 0
+
+async def async_fail_temp_role(row_id: int, max_attempts: int = 3) -> bool:
+    """Tăng attempts; trả True nếu đã xoá row sau khi vượt trần (bỏ cuộc)."""
+    async with _connect_async() as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute(
+            "UPDATE temp_roles SET attempts = attempts + 1 WHERE id = ?", (int(row_id),)
+        )
+        async with db.execute("SELECT attempts FROM temp_roles WHERE id = ?", (int(row_id),)) as cur:
+            row = await cur.fetchone()
+        attempts = int(row["attempts"]) if row else max_attempts
+        deleted = False
+        if attempts >= int(max_attempts):
+            await db.execute("DELETE FROM temp_roles WHERE id = ?", (int(row_id),))
+            deleted = True
+        await db.commit()
+        return deleted
 
 def get_birthday_settings_sync(guild_id: str) -> dict:
     """Sync — get birthday settings (for dashboard)."""

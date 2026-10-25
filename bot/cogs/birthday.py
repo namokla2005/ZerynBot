@@ -10,12 +10,15 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from datetime import datetime, timezone, timedelta
 import logging
+import math
+import time
 import config
 from database import (
     async_get_guild_settings, async_is_module_enabled,
     async_set_birthday, async_get_birthday, async_remove_birthday,
     async_get_birthdays_today, async_get_upcoming_birthdays,
     async_get_birthday_settings,
+    async_add_temp_role,
 )
 from i18n import tr
 try:
@@ -24,6 +27,23 @@ except (ImportError, ModuleNotFoundError):
     from bot.emojis import e, embed_title, clean_title
 
 logger = logging.getLogger("BotV2")
+
+
+def _next_occurrence(month: int, day: int, now: datetime) -> datetime:
+    """Lần sinh nhật kế tiếp; 29/02 rơi vào năm không nhuận được coi là 28/02."""
+    for year in (now.year, now.year + 1):
+        try:
+            candidate = datetime(year, month, day, tzinfo=timezone.utc)
+        except ValueError:
+            candidate = datetime(year, month, 28, tzinfo=timezone.utc)
+        if candidate >= now:
+            return candidate
+    return datetime(now.year + 1, month, 28, tzinfo=timezone.utc)
+
+
+def _level_from_xp(xp: int) -> int:
+    return math.floor(0.1 * math.sqrt(max(0, int(xp))))
+
 
 
 
@@ -35,9 +55,11 @@ class Birthday(commands.Cog):
 
     async def cog_load(self):
         self.birthday_loop.start()
+        self.temp_role_loop.start()
 
     async def cog_unload(self):
         self.birthday_loop.cancel()
+        self.temp_role_loop.cancel()
 
     async def _check_module(self, interaction: discord.Interaction) -> dict | None:
         if not interaction.guild:
@@ -102,9 +124,7 @@ class Birthday(commands.Cog):
             )
 
         now = datetime.now(timezone.utc)
-        bday_this_year = datetime(now.year, bday["month"], bday["day"], tzinfo=timezone.utc)
-        if bday_this_year < now:
-            bday_this_year = datetime(now.year + 1, bday["month"], bday["day"], tzinfo=timezone.utc)
+        bday_this_year = _next_occurrence(bday["month"], bday["day"], now)
         days_until = (bday_this_year - now).days
 
         date_str = f"{bday['day']:02d}/{bday['month']:02d}"
@@ -151,9 +171,7 @@ class Birthday(commands.Cog):
         lines = []
         for i, b in enumerate(filtered[:10], 1):
             m = guild_members[b["user_id"]]
-            bday_this_year = datetime(now.year, b["month"], b["day"], tzinfo=timezone.utc)
-            if bday_this_year < now:
-                bday_this_year = datetime(now.year + 1, b["month"], b["day"], tzinfo=timezone.utc)
+            bday_this_year = _next_occurrence(b["month"], b["day"], now)
             days = (bday_this_year - now).days
             lines.append(f"**{i}.** {m.mention} — `{b['day']:02d}/{b['month']:02d}` ({days}d)")
 
@@ -188,10 +206,8 @@ class Birthday(commands.Cog):
         (trước đây có thể gửi lặp vài chục lần trong cùng một buổi tối).
         """
         now = datetime.now(timezone.utc)
-        # Only run at midnight hour (0:xx UTC)
-        if now.hour != 0:
-            return
-
+        # Chạy mọi giờ: marker theo ngày đảm bảo mỗi guild chỉ tặng một lần, và
+        # downtime quanh 00:00 UTC không còn làm mất trọn ngày sinh nhật.
         today_key = now.strftime("%Y-%m-%d")
         today_birthdays = await async_get_birthdays_today(now.day, now.month)
         if not today_birthdays:
@@ -255,13 +271,11 @@ class Birthday(commands.Cog):
                     # Gift XP
                     if gift_xp > 0:
                         try:
-                            import math
-                            from database import async_get_user_level, async_update_user_xp
-                            lvl_data = await async_get_user_level(str(guild.id), str(member.id))
-                            cur_xp = lvl_data.get("xp", 0)
-                            new_xp = cur_xp + gift_xp
-                            new_lvl = math.floor(0.1 * math.sqrt(new_xp))
-                            await async_update_user_xp(str(guild.id), str(member.id), new_xp, new_lvl)
+                            from database import async_add_user_xp
+                            await async_add_user_xp(
+                                str(guild.id), str(member.id), gift_xp,
+                                level_from_xp=_level_from_xp,
+                            )
                             gifts.append(f"⭐ +{gift_xp} XP")
                         except Exception as e:
                             logger.warning(f"[Birthday] Error gifting XP: {e}")
@@ -275,17 +289,21 @@ class Birthday(commands.Cog):
                     if role_id:
                         role = guild.get_role(int(role_id))
                         if role and role < guild.me.top_role:
+                            added = False
                             try:
                                 await member.add_roles(role, reason="Birthday VIP")
-                                # Schedule role removal after 24h
-                                self.bot.loop.call_later(
-                                    86400,
-                                    lambda m=member, r=role: self.bot.loop.create_task(
-                                        m.remove_roles(r, reason="Birthday VIP expired")
-                                    ),
+                                added = True
+                                await async_add_temp_role(
+                                    str(guild.id), str(member.id), str(role.id),
+                                    time.time() + 86400,
                                 )
                             except Exception as e:
-                                logger.warning(f"[Birthday] Failed to add VIP role: {e}")
+                                logger.warning(f"[Birthday] Failed to add/store VIP role: {e}")
+                                if added:
+                                    try:
+                                        await member.remove_roles(role, reason="Birthday VIP rollback")
+                                    except Exception:
+                                        pass
 
                 # Đánh dấu đã xử lý xong cho guild trong ngày → không tặng lại.
                 await async_set_maintenance_job(f"birthday:{guild.id}:{today_key}")
@@ -295,6 +313,43 @@ class Birthday(commands.Cog):
 
     @birthday_loop.before_loop
     async def before_birthday_loop(self):
+        await self.bot.wait_until_ready()
+
+    # ─── Gỡ Birthday VIP role quá hạn (bền qua restart) ──────────────────
+    @tasks.loop(minutes=1)
+    async def temp_role_loop(self):
+        from database import (
+            async_get_expired_temp_roles,
+            async_delete_temp_role,
+            async_fail_temp_role,
+        )
+
+        rows = await async_get_expired_temp_roles(time.time(), limit=50)
+        for row in rows:
+            guild = self.bot.get_guild(int(row["guild_id"]))
+            if guild is None:
+                await async_delete_temp_role(row["id"])
+                continue
+            member = guild.get_member(int(row["user_id"]))
+            role = guild.get_role(int(row["role_id"]))
+            if member is None or role is None:
+                await async_delete_temp_role(row["id"])
+                continue
+            try:
+                await member.remove_roles(role, reason="Birthday VIP expired")
+                await async_delete_temp_role(row["id"])
+            except discord.Forbidden:
+                deleted = await async_fail_temp_role(row["id"], 3)
+                logger.warning(
+                    "[Birthday] Thiếu quyền gỡ VIP role %s khỏi %s (đã thử 3 lần: %s)",
+                    role.id, member.id, deleted,
+                )
+            except Exception as exc:
+                deleted = await async_fail_temp_role(row["id"], 3)
+                logger.warning("[Birthday] Lỗi gỡ VIP role %s: %s (bỏ cuộc: %s)", role.id, exc, deleted)
+
+    @temp_role_loop.before_loop
+    async def before_temp_role_loop(self):
         await self.bot.wait_until_ready()
 
 
