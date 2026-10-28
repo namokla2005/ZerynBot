@@ -229,7 +229,7 @@ GEMINI_API_KEY=optional_ai_key_here
 > trang `/admin`: **Web Terminal**, **Git Pull**, **Restart**. Sinh bằng
 > `python -c "import secrets; print(secrets.token_urlsafe(24))"`.
 >
-> **Fail-closed**: nếu biến này **trống hoặc ngắn hơn 16 ký tự**, ba thao tác đó bị
+> **Fail-closed**: nếu biến này **trống**, ba thao tác đó bị
 > **vô hiệu hóa hẳn (HTTP 503)** kèm hướng dẫn tạo mật khẩu mạnh — chứ không "chạy
 > không cần mật khẩu". Dashboard và bot vẫn phục vụ bình thường. Muốn dùng terminal
 > từ xa thì đặt mật khẩu đủ dài, hoặc chủ động để trống khi biết rõ rủi ro.

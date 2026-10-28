@@ -50,9 +50,9 @@ def owner_required(f):
     return decorated
 
 def _admin_password_ready() -> bool:
-    """ADMIN_PASSWORD có tồn tại và đủ dài để mở các route nguy hiểm hay không."""
+    """ADMIN_PASSWORD có được đặt hay không (chủ bot tự chọn độ dài)."""
     pw = getattr(config, "ADMIN_PASSWORD", "") or ""
-    return len(pw) >= getattr(config, "ADMIN_PASSWORD_MIN_LENGTH", 16)
+    return bool(pw.strip())
 
 
 # Viết vào ô key để xóa toàn bộ pool (ô để trống = giữ nguyên, xem _read_key_field).
@@ -89,8 +89,7 @@ def stepup_required(f):
                 "ok": False,
                 "error": "stepup_unconfigured",
                 "message": (
-                    "🔒 ADMIN_PASSWORD chưa được đặt hoặc ngắn hơn "
-                    f"{getattr(config, 'ADMIN_PASSWORD_MIN_LENGTH', 16)} ký tự — "
+                    "🔒 ADMIN_PASSWORD chưa được đặt — "
                     "các thao tác quản trị cấp cao bị vô hiệu hóa."
                 ),
             }), 503
@@ -714,14 +713,11 @@ def admin_system_stepup():
     # Trước đây nhánh này CẤP quyền step-up khi chưa cấu hình mật khẩu — tức là chính
     # nơi dùng để xác thực lại là chỗ bỏ qua xác thực.
     if not _admin_password_ready():
-        _audit_admin_action("stepup bị chặn", "admin_stepup", "ADMIN_PASSWORD chưa đặt hoặc quá ngắn")
+        _audit_admin_action("stepup bị chặn", "admin_stepup", "ADMIN_PASSWORD chưa đặt")
         return jsonify({
             "ok": False,
             "error": "stepup_unconfigured",
-            "message": (
-                "🔒 ADMIN_PASSWORD chưa được đặt hoặc ngắn hơn "
-                f"{getattr(config, 'ADMIN_PASSWORD_MIN_LENGTH', 16)} ký tự."
-            ),
+            "message": "🔒 ADMIN_PASSWORD chưa được đặt.",
         }), 503
 
     if secrets.compare_digest(str(password), str(admin_pass)):

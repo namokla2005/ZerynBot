@@ -56,36 +56,19 @@ if _secret in _INSECURE_DEFAULT_KEYS:
 FLASK_SECRET_KEY: str = _secret
 
 # P0.4 (security): mật khẩu cho Step-Up Auth của các route nguy hiểm trong /admin
-# (Web Terminal, git-pull, restart). TRƯỚC ĐÂY biến này không tồn tại → các route
-# đó chỉ còn 1 lớp bảo vệ là session owner (7 ngày). Để rỗng = tắt step-up
-# (dashboard sẽ hiện banner cảnh báo); đặt chuỗi ngẫu nhiên trong .env để bật.
+# (Web Terminal, git-pull, restart). Để trống = TẮT step-up (dashboard sẽ hiện banner
+# cảnh báo). Chủ bot tự quyết định độ dài; hệ thống chỉ kiểm tra đúng/sai.
 ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "").strip()
 
-# Trần dưới độ dài ADMIN_PASSWORD. Web Terminal trong /admin chạy
-# `subprocess(..., shell=True)` ngay trên máy chứa DISCORD_TOKEN + key AI, nên một
-# mật khẩu đoán được tương đương RCE. 13 ký tự kiểu "<tên>123@" từng được dùng thực tế.
-ADMIN_PASSWORD_MIN_LENGTH = 16
-
 # Cảnh báo rõ lúc khởi động nếu chưa đặt — tránh "im lặng giả an toàn".
-# Từ Phase 3, thiếu/yếu mật khẩu không còn "bỏ qua xác thực" nữa: dashboard đăng ký
-# route nhưng `stepup_required` trả 503, nên Web Terminal / git-pull / restart TẮT.
+# Thiếu mật khẩu không còn "bỏ qua xác thực": `stepup_required` trả 503, nên
+# Web Terminal / git-pull / restart TẮT.
 if not ADMIN_PASSWORD:
     import warnings as _warnings
 
     _warnings.warn(
         "[SECURITY] ADMIN_PASSWORD chưa được đặt — Web Terminal / git-pull / restart "
-        "trong /admin đã bị VÔ HIỆU HÓA (503). Đặt ADMIN_PASSWORD >= "
-        f"{ADMIN_PASSWORD_MIN_LENGTH} ký tự trong .env để bật lại: "
-        'python -c "import secrets;print(secrets.token_urlsafe(24))"',
-        stacklevel=2,
-    )
-elif len(ADMIN_PASSWORD) < ADMIN_PASSWORD_MIN_LENGTH:
-    import warnings as _warnings
-
-    _warnings.warn(
-        f"[SECURITY] ADMIN_PASSWORD chỉ {len(ADMIN_PASSWORD)} ký tự (yêu cầu >= "
-        f"{ADMIN_PASSWORD_MIN_LENGTH}) — các thao tác quản trị cấp cao đang bị vô hiệu "
-        "hóa cho tới khi đặt mật khẩu đủ mạnh.",
+        "trong /admin đã bị VÔ HIỆU HÓA (503). Đặt ADMIN_PASSWORD trong .env để bật lại.",
         stacklevel=2,
     )
 

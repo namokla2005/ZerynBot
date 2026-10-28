@@ -2,8 +2,8 @@
 
 Ba bất biến:
   1. Admin của guild A KHÔNG được ghi vào dữ liệu của guild B.
-  2. Route nguy hiểm phải TẮT khi ADMIN_PASSWORD thiếu/yếu (fail-closed), chứ không
-     phải "chạy không cần xác thực".
+  2. Route nguy hiểm phải TẮT khi ADMIN_PASSWORD rỗng (fail-closed), chứ không
+     phải "chạy không cần xác thực"; độ dài do chủ bot tự chọn.
   3. Rate-limit phải khóa theo IP thật khi chạy sau Cloudflare.
 """
 import time
@@ -99,15 +99,12 @@ def as_owner(monkeypatch):
     return config
 
 
-@pytest.mark.parametrize("password", ["", "ngan123", "123456789012345"], ids=[
-    "trống", "quá ngắn theo mẫu dễ đoán", "vừa 15 ký tự (dưới trần 16)"])
-def test_dangerous_routes_disabled_without_strong_password(client, temp_db, as_owner, monkeypatch, password):
-    """Thiếu ADMIN_PASSWORD đủ mạnh => route shell bị VÔ HIỆU HÓA (503).
+def test_dangerous_routes_disabled_without_password(client, temp_db, as_owner, monkeypatch):
+    """ADMIN_PASSWORD rỗng => route shell bị VÔ HIỆU HÓA (503).
 
-    Hành vi cũ (đã được một test cũ khóa lại như "đúng"): thiếu mật khẩu là decorator
-    bỏ qua kiểm tra, để Web Terminal chạy với mỗi lớp bảo vệ là session owner.
+    Chủ bot đã chốt: chỉ cần đặt mật khẩu và nhập đúng; không áp trần 16 ký tự.
     """
-    monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", password)
+    monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", "")
     token = authed_client(client)
 
     resp = client.post(
@@ -115,8 +112,30 @@ def test_dangerous_routes_disabled_without_strong_password(client, temp_db, as_o
         json={"command": ""},
         headers={"X-CSRF-Token": token},
     )
-    assert resp.status_code == 503, f"password={password!r} vẫn cho đi qua: {resp.status_code}"
+    assert resp.status_code == 503
     assert resp.get_json()["error"] == "stepup_unconfigured"
+
+
+def test_short_admin_password_works_when_correct(client, temp_db, as_owner, monkeypatch):
+    """Mật khẩu 13 ký tự do chủ bot tự đặt vẫn phải dùng được nếu nhập đúng."""
+    password = "matkhau13ky!"  # 13 ký tự
+    monkeypatch.setattr(as_owner, "ADMIN_PASSWORD", password)
+    token = authed_client(client)
+
+    bad = client.post(
+        "/admin/system/stepup", json={"password": "sai"}, headers={"X-CSRF-Token": token}
+    )
+    assert bad.status_code == 403
+
+    good = client.post(
+        "/admin/system/stepup", json={"password": password}, headers={"X-CSRF-Token": token}
+    )
+    assert good.status_code == 200 and good.get_json()["ok"] is True
+
+    terminal = client.post(
+        "/admin/system/terminal", json={"command": ""}, headers={"X-CSRF-Token": token}
+    )
+    assert terminal.status_code == 200
 
 
 def test_stepup_endpoint_does_not_grant_access_without_password(client, temp_db, as_owner, monkeypatch):

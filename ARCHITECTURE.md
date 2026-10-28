@@ -623,9 +623,10 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     `ADMIN_PASSWORD` was truthy, and `/admin/system/stepup` *granted* the 15-minute
     unlock when it was empty — forgetting the env var silently reduced Web Terminal
     (`subprocess(shell=True)` on the machine holding `DISCORD_TOKEN` + AI keys) to
-    session-only protection. Missing or shorter than `ADMIN_PASSWORD_MIN_LENGTH` (16)
-    now returns 503 and the step-up endpoint can no longer self-grant. A test that
-    asserted the old fail-open (`status_code == 200`) was inverted.
+    session-only protection. Missing `ADMIN_PASSWORD` still returns 503 and the step-up
+    endpoint can no longer self-grant. (Length is the owner's choice; only emptiness
+    disables the routes.) A test that asserted the old fail-open (`status_code == 200`)
+    was inverted.
   - **Rate limits keyed to the real client IP**: `zerynbot.id.vn` terminates at
     Cloudflare and the app binds `127.0.0.1`, so `get_remote_address()` gave **every
     visitor one shared bucket** — the 5/min on `/admin/system/stepup` was a global
