@@ -9,6 +9,6 @@ ruff==0.16.5
 # mcp      : scripts/dual_model_mcp.py, scripts/termux_mcp.py — import tran, khong
 #            co guard, nen phai khai bao o day.
 # pydantic : scripts/dual_model_mcp.py (PreCommitReport) — cung import tran.
-paramiko==5.0.0
+paramiko==5.1.0
 mcp==2.2.0
 pydantic==2.13.5
