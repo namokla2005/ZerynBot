@@ -10,7 +10,7 @@ Pillow==12.3.0
 aiohttp==3.14.3
 # LƯU Ý: yt-dlp hỏng nhanh khi YouTube đổi API — nâng version thường xuyên
 # (Dependabot sẽ tự tạo PR cập nhật mỗi tuần).
-yt-dlp==2026.8.19
+yt-dlp==2026.10.26
 waitress==3.0.2
 Flask-Limiter==4.1.1
 # werkzeug được import TRUC TIEP (dashboard/app_factory.py dung ProxyFix), khong chi
