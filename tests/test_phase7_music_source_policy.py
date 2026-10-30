@@ -225,6 +225,40 @@ def test_primary_options_do_not_hardcode_android_client():
     assert C.YDL_OPTS["extractor_args"]["youtube"]["player_client"] == ["android"]
 
 
+def test_cookie_is_only_attached_to_primary_opts(tmp_path):
+    """Cookie không được gắn vào compat/flat: android + cookie fail extract."""
+    import json
+    import os
+    import subprocess
+    import sys
+
+    cookie = tmp_path / "cookies.txt"
+    cookie.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    code = r'''
+import json, os, sys
+sys.path.insert(0, os.getcwd())
+sys.path.insert(0, os.path.join(os.getcwd(), "bot"))
+import music.config as C
+print("RESULT:" + json.dumps({
+    "compat": C.YDL_OPTS.get("cookiefile"),
+    "flat": C.YDL_OPTS_FLAT.get("cookiefile"),
+    "primary": C.YDL_OPTS_PRIMARY.get("cookiefile"),
+}))
+'''
+    env = os.environ.copy()
+    env["YTDLP_COOKIEFILE"] = str(cookie)
+    res = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT, env=env, capture_output=True, text=True, timeout=30,
+    )
+    assert res.returncode == 0, res.stderr
+    line = [ln for ln in res.stdout.splitlines() if ln.startswith("RESULT:")][-1]
+    data = json.loads(line[len("RESULT:"):])
+    assert data["primary"] == str(cookie), data
+    assert data["compat"] is None, f"compat/android không được dùng cookie: {data}"
+    assert data["flat"] is None, f"flat/android không được dùng cookie: {data}"
+
+
 def test_source_cache_tag_changes_with_mode_and_cookie(tmp_path, monkeypatch):
     cookie = tmp_path / "cookies.txt"
     cookie.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")

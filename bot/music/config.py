@@ -220,7 +220,9 @@ YDL_OPTS_COMPAT = YDL_OPTS
 # Primary dùng default client pool của yt-dlp: có audio-only Opus 251 khi có cookie.
 YDL_OPTS_PRIMARY = {k: v for k, v in YDL_OPTS.items() if k != "extractor_args"}
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
-    YDL_OPTS["cookiefile"] = _COOKIE_FILE
+    # CHỈ primary được dùng cookie. Android/compat + cookie trả
+    # "Failed to extract any player response" trên Termux (đo 2026-10-30),
+    # làm hỏng luôn nhánh fallback; compat phải chạy cookie-free.
     YDL_OPTS_PRIMARY["cookiefile"] = _COOKIE_FILE
 
 YDL_OPTS_FLAT = {
@@ -242,8 +244,7 @@ YDL_OPTS_FLAT = {
     "nocheckcertificate": True,
     "ignoreerrors": True,
 }
-if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
-    YDL_OPTS_FLAT["cookiefile"] = _COOKIE_FILE
+# Flat extraction dùng android: không gắn cookie (android + cookie fail extract).
 
 _extract_semaphore = asyncio.Semaphore(4)
 
