@@ -378,31 +378,43 @@ def _get_stream_url(info: dict) -> str | None:
         u = (fmt.get("url") or "").lower()
         return "m3u8" in proto or ".m3u8" in u
 
-    # 1. Tối ưu nhất: Opus audio-only qua progressive HTTP (không phải HLS)
-    for f in valid_formats:
-        acodec = (f.get("acodec") or "").lower()
-        vcodec = (f.get("vcodec") or "").lower()
-        if acodec == "opus" and vcodec in ("none", "", "null") and not _is_hls(f):
-            return f["url"]
+    # 1. Tối ưu nhất: Opus audio-only qua progressive HTTP (không phải HLS).
+    # Chọn abr CAO NHẤT, không lấy format đầu tiên: yt-dlp có thể chọn 251
+    # (128.93 kbps) trong khi list formats xếp 249 (46 kbps) trước.
+    opus_progressive = [
+        f for f in valid_formats
+        if (f.get("acodec") or "").lower() == "opus"
+        and (f.get("vcodec") or "").lower() in ("none", "", "null")
+        and not _is_hls(f)
+    ]
+    if opus_progressive:
+        return max(opus_progressive, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))["url"]
 
     # 2. Ưu tiên cao: Audio-only bất kỳ (mp3, m4a, aac) qua progressive HTTP (chống HLS m3u8 làm méo nhịp / lúc nhanh lúc chậm)
-    for f in valid_formats:
-        vcodec = (f.get("vcodec") or "").lower()
-        if vcodec in ("none", "", "null") and not _is_hls(f):
-            return f["url"]
+    audio_progressive = [
+        f for f in valid_formats
+        if (f.get("vcodec") or "").lower() in ("none", "", "null")
+        and not _is_hls(f)
+    ]
+    if audio_progressive:
+        return max(audio_progressive, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))["url"]
 
     # 3. Fallback: Opus audio-only (kể cả HLS m3u8)
-    for f in valid_formats:
-        acodec = (f.get("acodec") or "").lower()
-        vcodec = (f.get("vcodec") or "").lower()
-        if acodec == "opus" and vcodec in ("none", "", "null"):
-            return f["url"]
+    opus_any = [
+        f for f in valid_formats
+        if (f.get("acodec") or "").lower() == "opus"
+        and (f.get("vcodec") or "").lower() in ("none", "", "null")
+    ]
+    if opus_any:
+        return max(opus_any, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))["url"]
 
     # 4. Fallback: Audio-only bất kỳ (kể cả HLS m3u8)
-    for f in valid_formats:
-        vcodec = (f.get("vcodec") or "").lower()
-        if vcodec in ("none", "", "null"):
-            return f["url"]
+    audio_any = [
+        f for f in valid_formats
+        if (f.get("vcodec") or "").lower() in ("none", "", "null")
+    ]
+    if audio_any:
+        return max(audio_any, key=lambda x: (x.get("abr") or 0, x.get("tbr") or 0))["url"]
 
     # 5. Fallback: Luồng có audio bitrate tốt nhất (ưu tiên progressive trước)
     prog_formats = [f for f in valid_formats if not _is_hls(f)]

@@ -78,6 +78,14 @@ def test_selected_opus_detection():
     assert E._selected_is_opus(_info(MUXED)) is False
 
 
+def test_get_stream_url_prefers_highest_opus_abr():
+    """yt-dlp chọn 251 (128.93 kbps) nhưng list formats có 249/250 trước; phải lấy 251."""
+    f249 = _fmt("https://cdn/a249.webm", "opus", "none", format_id="249", abr=46.234, asr=48000)
+    f250 = _fmt("https://cdn/a250.webm", "opus", "none", format_id="250", abr=61.149, asr=48000)
+    f251 = _fmt("https://cdn/a251.webm", "opus", "none", format_id="251", abr=128.93, asr=48000)
+    assert E._get_stream_url(_info(f249, f250, f251)) == f251["url"]
+
+
 def test_selected_audio_only_resolves_playlist_entries():
     assert E._selected_is_audio_only({"entries": [_info(OPUS)]}) is True
     assert E._selected_is_audio_only({"entries": [_info(MUXED)]}) is False
