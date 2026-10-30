@@ -156,6 +156,43 @@ def _lower_process_priority(proc, niceness: int = 10) -> None:
 
 _COOKIE_FILE = os.environ.get("YTDLP_COOKIEFILE", None)
 
+SOURCE_MODES = ("auto", "opus", "compat")
+
+
+def get_source_mode() -> str:
+    """`auto` = primary nếu có cookie rồi fallback compat; `opus` = bắt buộc Opus; `compat` = android cũ."""
+    raw = (os.getenv("MUSIC_SOURCE_MODE") or "auto").strip().lower()
+    return raw if raw in SOURCE_MODES else "auto"
+
+
+def _cookie_file_ready() -> bool:
+    return bool(_COOKIE_FILE and os.path.exists(_COOKIE_FILE))
+
+
+def _cookie_file_mtime() -> int:
+    if not _cookie_file_ready():
+        return 0
+    try:
+        return int(os.path.getmtime(_COOKIE_FILE))
+    except OSError:
+        return 0
+
+
+def primary_ready() -> bool:
+    """Primary (`default` client) chỉ đáng thử khi có cookie.
+
+    Không có cookie, YouTube trả "Sign in to confirm you're not a bot" cho mọi
+    client trừ `android` — thử primary chỉ tốn 1-3s mỗi bài rồi vẫn phải fallback.
+    """
+    return _cookie_file_ready()
+
+
+def source_cache_tag() -> str:
+    """Khóa cache phải đổi khi mode/cookie đổi, tránh dùng lại URL format 18 đã cache."""
+    cookie = "c" if _cookie_file_ready() else "n"
+    return f"{get_source_mode()}-{cookie}-{_cookie_file_mtime()}"
+
+
 YDL_OPTS = {
     "format": "bestaudio[ext=webm][acodec=opus]/bestaudio[protocol^=http][abr<=160]/bestaudio[protocol^=http]/bestaudio[abr<=160]/bestaudio/best",
     "noplaylist": True,
@@ -177,8 +214,14 @@ YDL_OPTS = {
     "ignoreerrors": True,
     "skip_download": True,
 }
+# Compat giữ nguyên client android: không cần auth nhưng hiện chỉ trả format 18
+# (MP4 444 kbps có video) -> PCM + libopus. Chỉ dùng khi primary không khả dụng.
+YDL_OPTS_COMPAT = YDL_OPTS
+# Primary dùng default client pool của yt-dlp: có audio-only Opus 251 khi có cookie.
+YDL_OPTS_PRIMARY = {k: v for k, v in YDL_OPTS.items() if k != "extractor_args"}
 if _COOKIE_FILE and os.path.exists(_COOKIE_FILE):
     YDL_OPTS["cookiefile"] = _COOKIE_FILE
+    YDL_OPTS_PRIMARY["cookiefile"] = _COOKIE_FILE
 
 YDL_OPTS_FLAT = {
     "extract_flat": True,
@@ -212,6 +255,20 @@ def _get_ydl() -> yt_dlp.YoutubeDL:
     if ydl is None:
         ydl = yt_dlp.YoutubeDL(YDL_OPTS)
         _thread_local.ydl = ydl
+    return ydl
+
+
+def _get_ydl_primary() -> yt_dlp.YoutubeDL:
+    """Thread-local YoutubeDL cho primary (`default` client + cookie nếu có)."""
+    ydl = getattr(_thread_local, "ydl_primary", None)
+    if ydl is None:
+        opts = YDL_OPTS_PRIMARY
+        # Cookie có thể được thêm sau khi bot đã khởi động; instance thread-local
+        # được tạo ở lần primary đầu tiên nên vẫn nhận được file mới.
+        if _COOKIE_FILE and os.path.exists(_COOKIE_FILE) and not opts.get("cookiefile"):
+            opts = {**opts, "cookiefile": _COOKIE_FILE}
+        ydl = yt_dlp.YoutubeDL(opts)
+        _thread_local.ydl_primary = ydl
     return ydl
 
 

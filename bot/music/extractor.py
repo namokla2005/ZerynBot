@@ -8,6 +8,7 @@ async và KHÔNG chạm voice client — nhờ vậy có thể test hoàn toàn 
 import asyncio
 import logging
 import re
+import threading
 import time
 
 import aiohttp
@@ -20,9 +21,128 @@ from database import (
     async_set_song_cache,
 )
 
-from .config import _extract_semaphore, _get_ydl, _get_ydl_flat
+from .config import (
+    _extract_semaphore,
+    _get_ydl,
+    _get_ydl_flat,
+    _get_ydl_primary,
+    get_source_mode,
+    primary_ready,
+    source_cache_tag,
+)
 
 log = logging.getLogger("BotV2.Music")
+
+_NO_CODEC = (None, "", "none", "null")
+_PRIMARY_FAIL_THRESHOLD = 3
+_PRIMARY_COOLDOWN_SECONDS = 600
+_primary_fail_streak = 0
+_primary_disabled_until = 0.0
+_health_lock = threading.Lock()
+
+
+def _reset_primary_health() -> None:
+    global _primary_fail_streak, _primary_disabled_until
+    with _health_lock:
+        _primary_fail_streak = 0
+        _primary_disabled_until = 0.0
+
+
+def _primary_available() -> bool:
+    with _health_lock:
+        return time.monotonic() >= _primary_disabled_until
+
+
+def _note_primary_result(ok: bool) -> None:
+    global _primary_fail_streak, _primary_disabled_until
+    with _health_lock:
+        if ok:
+            _primary_fail_streak = 0
+            _primary_disabled_until = 0.0
+            return
+        _primary_fail_streak += 1
+        if _primary_fail_streak >= _PRIMARY_FAIL_THRESHOLD:
+            _primary_fail_streak = 0
+            _primary_disabled_until = time.monotonic() + _PRIMARY_COOLDOWN_SECONDS
+            log.warning(
+                "[Music] Primary source lỗi %d lần liên tiếp; dùng compat/android trong %ds",
+                _PRIMARY_FAIL_THRESHOLD, _PRIMARY_COOLDOWN_SECONDS,
+            )
+
+
+def _first_entry(info: dict | None) -> dict | None:
+    if not info:
+        return None
+    if "entries" in info:
+        entries = [entry for entry in (info.get("entries") or []) if entry]
+        return entries[0] if entries else None
+    return info
+
+
+def _is_audio_only_format(fmt: dict | None) -> bool:
+    if not fmt:
+        return False
+    return (fmt.get("vcodec") in _NO_CODEC) and (fmt.get("acodec") not in _NO_CODEC)
+
+
+def _selected_format(info: dict | None) -> dict | None:
+    info = _first_entry(info)
+    if not info:
+        return None
+    stream = _get_stream_url(info)
+    if stream:
+        for fmt in info.get("formats") or []:
+            if fmt.get("url") == stream:
+                return fmt
+    return info
+
+
+def _selected_is_audio_only(info: dict | None) -> bool:
+    return _is_audio_only_format(_selected_format(info))
+
+
+def _selected_is_opus(info: dict | None) -> bool:
+    fmt = _selected_format(info)
+    return _is_audio_only_format(fmt) and (fmt.get("acodec") or "").lower() in ("opus", "libopus")
+
+
+def _should_try_primary(mode: str) -> bool:
+    if mode == "compat":
+        return False
+    if mode == "opus":
+        return True
+    return primary_ready()
+
+
+def _extract_with_fallback(query: str, mode: str) -> tuple[dict | None, str]:
+    """Chạy trong thread pool: primary trước, compat sau (trừ mode opus/compat)."""
+    if mode == "compat":
+        return _extract_sync(query, "compat"), "compat"
+
+    info = _extract_sync(query, "primary")
+    ok = _selected_is_opus(info) if mode == "opus" else _selected_is_audio_only(info)
+    if ok:
+        return info, "primary"
+
+    if mode == "opus":
+        log.warning("[Music] Primary không có Opus audio-only cho '%s'", query[:80])
+        return None, "primary"
+
+    return _extract_sync(query, "compat"), "compat"
+
+
+def _song_info_cache_key(query: str, tag: str | None = None) -> str:
+    return f"song_info:{tag or source_cache_tag()}:{(query or '').lower()}"
+
+
+def _log_source(query: str, info: dict | None, used_mode: str) -> None:
+    fmt = _selected_format(info) or {}
+    log.info(
+        "[Music] source=%s format=%s acodec=%s vcodec=%s abr=%s protocol=%s audio_only=%s query=%s",
+        used_mode, fmt.get("format_id"), fmt.get("acodec"), fmt.get("vcodec"),
+        fmt.get("abr"), fmt.get("protocol"), _selected_is_audio_only(info), query[:80],
+    )
+
 
 _EXPIRE_PATH_RE = re.compile(r"/expire/(\d{9,12})")
 
@@ -80,8 +200,12 @@ def _is_safe_remote_url(url: str) -> bool:
         return False
 
 
-def _extract_sync(query: str) -> dict | None:
-    """Đồng bộ yt-dlp (chạy trong thread pool qua singleton session)."""
+def _extract_sync(query: str, mode: str = "compat") -> dict | None:
+    """Đồng bộ yt-dlp (chạy trong thread pool qua singleton session).
+
+    `mode="compat"` giữ client android cũ; `mode="primary"` dùng default client
+    pool (cần cookie/PO token để có audio-only Opus).
+    """
     try:
         clean_q = clean_youtube_query(query)
         if clean_q.startswith("http") and not _is_safe_remote_url(clean_q):
@@ -92,7 +216,7 @@ def _extract_sync(query: str) -> dict | None:
         elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
             clean_q = clean_q.replace("ytsearch:", "ytsearch1:", 1)
 
-        ydl = _get_ydl()
+        ydl = _get_ydl_primary() if mode == "primary" else _get_ydl()
         info = ydl.extract_info(clean_q, download=False)
         if not info:
             return None
@@ -421,8 +545,9 @@ async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
     if query.startswith("http") and not _is_safe_remote_url(query):
         log.warning(f"[Music] Chặn URL không an toàn trước cache/yt-dlp: {query[:120]}")
         return None
+    tag = source_cache_tag()
     key = query.lower()
-    cache_key = f"song_info:{key}"
+    cache_key = _song_info_cache_key(key, tag)
 
     if not force_refresh:
         # 1. Kiểm tra RAM Cache wrapper
@@ -440,6 +565,7 @@ async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
                 await cache.aset(cache_key, disk, ttl=600)
                 return disk
 
+    mode = get_source_mode()
     # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
     async with _extract_semaphore:
         if force_refresh:
@@ -447,9 +573,33 @@ async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
             await async_delete_song_cache(cache_key)
 
         loop = asyncio.get_running_loop()
-        info = await loop.run_in_executor(None, _extract_sync, query)
+        if not _should_try_primary(mode):
+            info = await loop.run_in_executor(None, _extract_sync, query, "compat")
+            used_mode = "compat"
+        elif not _primary_available():
+            if mode == "opus":
+                log.warning(
+                    "[Music] Primary source đang cooldown; mode=opus nên không fallback cho '%s'",
+                    query[:80],
+                )
+                info = None
+                used_mode = "primary"
+            else:
+                info = await loop.run_in_executor(None, _extract_sync, query, "compat")
+                used_mode = "compat"
+        else:
+            info, used_mode = await loop.run_in_executor(
+                None, _extract_with_fallback, query, mode
+            )
+            _note_primary_result(used_mode == "primary")
+            if used_mode == "compat" and mode == "auto":
+                log.info(
+                    "[Music] Primary source không dùng được; fallback compat/android cho '%s'",
+                    query[:80],
+                )
 
     if info:
+        _log_source(query, info, used_mode)
         compact = _compact_song_info(info)
         exp_ts = compact.get("stream_expire")
         is_live = compact.get("is_live", False)
@@ -459,12 +609,14 @@ async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
             await async_set_song_cache(cache_key, compact, exp_ts)
             vid = compact.get("id")
             if vid:
-                await cache.aset(f"song_info:{vid}", compact, ttl=600)
-                await async_set_song_cache(f"song_info:{vid}", compact, exp_ts)
+                vid_key = _song_info_cache_key(vid, tag)
+                await cache.aset(vid_key, compact, ttl=600)
+                await async_set_song_cache(vid_key, compact, exp_ts)
             web_url = compact.get("webpage_url") or compact.get("url")
             if web_url and isinstance(web_url, str) and web_url.startswith("http"):
-                await cache.aset(f"song_info:{web_url.lower().strip()}", compact, ttl=600)
-                await async_set_song_cache(f"song_info:{web_url.lower().strip()}", compact, exp_ts)
+                web_key = _song_info_cache_key(web_url.lower().strip(), tag)
+                await cache.aset(web_key, compact, ttl=600)
+                await async_set_song_cache(web_key, compact, exp_ts)
         return compact
 
     return None

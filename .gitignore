@@ -4,6 +4,10 @@ env/
 .venv/
 .env
 
+# Cookie YouTube (chứa session) — tuyệt đối không commit
+cookies.txt
+*_cookies.txt
+
 # Cache của Python
 __pycache__/
 *.py[cod]

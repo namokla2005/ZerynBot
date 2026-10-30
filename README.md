@@ -79,7 +79,7 @@
   - `⏭️ Bỏ qua`: Chuyển ngay sang bài tiếp theo.
   - `🔁 Lặp lại`: 3 chế độ thông minh (`Lặp lại: Tắt` ➔ `🔂 Lặp 1 bài` ➔ `🔁 Lặp toàn bộ`).
 - **Lệnh `/nowplaying` (`/np`)**: Tra cứu thông tin bài hát và vị trí phát theo thời gian thực.
-- **Tối ưu hóa âm thanh ARM & yt-dlp**: Mã hóa trực tiếp bằng `FFmpegOpusAudio` (giảm 50% CPU), cờ tối ưu `-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000` triệt tiêu giật lag âm thanh và triệt tiêu 100% hiện tượng co dãn tốc độ/cao độ. Client yt-dlp chuẩn `["android"]` khắc phục triệt để lỗi YouTube *"The page needs to be reloaded"* và lỗi bot verification của client `web`.
+- **Tối ưu hóa âm thanh ARM & yt-dlp**: Khi nguồn là audio-only Opus, bot dùng `FFmpegOpusAudio` copy (ffmpeg `-c:a copy`) — đo trên Termux giảm khoảng 5 lần CPU so với PCM + libopus. Nguồn `auto` ưu tiên client `default` + cookie (`YTDLP_COOKIEFILE`) để lấy Opus 251; thiếu cookie hoặc lỗi thì tự fallback `android`/format 18 để không gián đoạn phát. Cờ tối ưu `-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000` triệt tiêu giật lag âm thanh và hiện tượng co dãn tốc độ/cao độ.
 - **Bộ nhớ đệm 2 tầng (Dual-tier Cache)**: Kết hợp In-Memory RAM Cache (`cache.py`) và SQLite Disk Cache (`music_song_cache` với TTL 6 giờ). Khởi động phát lại tức thì (< 0.5s) ngay cả sau khi bot khởi động lại.
 - **Trích xuất song song (Concurrent Extraction)**: Khởi chạy đồng thời kết nối Voice Channel và trích xuất luồng audio (`extract_info`), giảm 50% độ trễ khởi động bài hát ban đầu.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.
@@ -213,6 +213,11 @@ BEHIND_PROXY=1
 MUSIC_STALL_TIMEOUT=30
 #MUSIC_STALL_CHECK_INTERVAL=5
 #MUSIC_STALL_CLEANUP_TIMEOUT=5
+# Nguồn YouTube: auto = ưu tiên default client + cookie (Opus 251), thiếu cookie thì
+# tự fallback android/format 18; opus = bắt buộc primary + Opus; compat = android cũ.
+#MUSIC_SOURCE_MODE=auto
+# Cookie Netscape cho client default. Đặt ngoài repo/data, chmod 600, restart sau khi đổi.
+#YTDLP_COOKIEFILE=/data/data/com.termux/files/home/.config/zeryn/youtube_cookies.txt
 WEBHOOK_LOG_URL=https://discord.com/api/webhooks/...
 STATUS_WEBHOOK_URL=https://discord.com/api/webhooks/...
 BACKUP_DB=https://discord.com/api/webhooks/...
@@ -363,9 +368,9 @@ ZerynBot/
 │                        #   i18n_migrate.py — fetch/plan/apply de-hardcode + ghi 6 locale,
 │                        #   command_registry_audit.py — đối chiếu lệnh thật trong cog với _COMMANDS_DATA,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 374 tests (cache, i18n + ngân sách chống hardcode, độ đầy đủ registry lệnh, database, permissions,
+├── tests/               # 🧪 498 tests (cache, i18n + ngân sách chống hardcode, độ đầy đủ registry lệnh, database, permissions,
 │                        #   Termux optimizations, dashboard security/routes/tenant isolation, music
-│                        #   behavior + stream watchdog, AI guardrails + chat dài, races, automod)
+│                        #   behavior + stream watchdog + source policy Opus/compat, AI guardrails + chat dài, races, automod)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
 └── data/                # Nơi lưu trữ dữ liệu sqlite bot.db, log file & health.json
 ```
@@ -405,7 +410,7 @@ Gợi ý nhịp: chạy `cleanup` mỗi 2–4 tuần, hoặc khi `du -sh data` v
 # Cài đặt thư viện dev/test (chỉ cần trên máy dev):
 pip install -r requirements-dev.txt
 
-# Chạy toàn bộ test suite (374 test; vài test dashboard tự skip nếu chưa cài flask)
+# Chạy toàn bộ test suite (498 test; vài test dashboard tự skip nếu chưa cài flask)
 pytest -q
 ```
 

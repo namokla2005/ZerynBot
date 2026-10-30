@@ -867,6 +867,7 @@ class MusicPlayer:
                     await asyncio.sleep(0.05)
 
             source = None
+            using_copy = False
             _t_ffmpeg = time.time()
             _before = get_ffmpeg_before()
             before_opts = _before
@@ -881,6 +882,7 @@ class MusicPlayer:
                             before_options=before_opts,
                             options=FFMPEG_OPTS_COPY,
                         )
+                        using_copy = True
                     except Exception as opus_err:
                         log.debug(f"[Music] FFmpegOpusAudio failed ({opus_err}), fallback to PCMAudio...")
                         source = None
@@ -908,7 +910,7 @@ class MusicPlayer:
                 self.total_paused_time = 0.0
                 self._consecutive_errors = 0
                 self._start_stall_watchdog()
-                log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={is_opus}, seek={seek_offset}s)")
+                log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={using_copy}, is_opus={is_opus}, seek={seek_offset}s)")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
                 # `FFmpegPCMAudio(...)`/`FFmpegOpusAudio(...)` spawn tiến trình con NGAY

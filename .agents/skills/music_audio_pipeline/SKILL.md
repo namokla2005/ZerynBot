@@ -47,13 +47,22 @@ FFMPEG_OPTS_ENCODE = "-vn -sn -threads 1"
 ```
 
 > [!WARNING]
-> - **yt-dlp player_client**: Luôn sử dụng `["android"]`. Tuyệt đối **KHÔNG dùng client `web`** vì trên Termux (không có JS runtime/cookies) sẽ gây lỗi bot verification (*"Sign in to confirm you're not a bot"*). Tuyệt đối **KHÔNG dùng client `tv`** vì YouTube trả lỗi `The page needs to be reloaded`.
+> - **yt-dlp source policy (đo 2026-10-30)**: Không hard-code `["android"]`. `android`/`android_vr` hiện chỉ trả format 18 (MP4 444 kbps **có video**) → PCM + libopus, `opus_copy=False`, ~1.40s CPU/10s audio. `default` trả Opus 251 (128.93 kbps) nhưng cần `YTDLP_COOKIEFILE`/PO token; không có thì bị *"Sign in to confirm you're not a bot"*. Dùng `MUSIC_SOURCE_MODE=auto` (primary `default` + cookie → fallback android), `opus` (bắt buộc Opus, dùng cho PO token), `compat` (rollback android). Không có cookie/PO token thì **không thử primary** để tránh tốn 1-3s mỗi bài.
 > - **FFmpeg aresample**: Tuyệt đối không dùng `-af aresample=async=1` vì `async=1` giới hạn tốc độ bù drift về 1 sample/giây, khiến âm thanh bị co dãn cao độ/tốc độ (lúc nhanh lúc chậm) suốt 1 phút đầu.
+
+### 2.2b Source Policy & Đo Hiệu Năng (bắt buộc đọc trước khi sửa extractor)
+
+- **Đường copy Opus chỉ đúng khi format được chọn là audio-only Opus**: `FFmpegOpusAudio` + `-c:a copy` remux WebM/Opus sang Ogg, không decode/encode. Đo trên Termux: 0.26s CPU/10s audio (~2.7% 1 core) so với 1.40s (~14%) của PCM + libopus — nhanh hơn ~5 lần, wall 0.29s vs 1.01s.
+- **Fallback phải giữ hành vi cũ**: `MUSIC_SOURCE_MODE=auto` chỉ thử primary khi `primary_ready()` (có cookie); primary trả muxed/None/non-Opus thì gọi compat `android` để vẫn phát. `mode=opus` không fallback (dùng khi debug PO token). `mode=compat` là rollback khẩn cấp.
+- **Circuit breaker**: sau 3 lần primary lỗi liên tiếp, nghỉ primary 10 phút rồi thử lại; thành công reset ngay. Không có nó, mỗi `/play` sẽ chờ 1-3s bot-check vô ích.
+- **Log chẩn đoán**: `[Music] source=primary|compat format=... acodec=... vcodec=... abr=... audio_only=...` và `[Music][timing] ... opus_copy=True|False`. Khi báo cáo "đã tối ưu", phải có `source=primary`, `format=251`, `opus_copy=True`; chỉ `is_opus=True` không đủ vì nhánh copy có thể fallback PCM.
+- **Script kiểm tra**: `python scripts/music_source_check.py --url <url>` in JSON và exit 0 chỉ khi primary + Opus audio-only.
 
 ### 2.3 Cơ Chế Bộ Nhớ Đệm 2 Tầng & Thread-Safe Worker Pool
 - **Thread-Safety (`threading.local`)**: Mỗi worker thread sở hữu instance `YoutubeDL` độc lập, triệt tiêu hoàn toàn race condition trong khi vẫn giữ nguyên HTTP connection pool.
 - **Tầng 1 (In-Memory RAM Cache - `cache.py`)**: Lưu trữ thông tin bài hát trong RAM (TTL 10 phút).
 - **Tầng 2 (SQLite Disk Cache - `music_song_cache`)**: Lưu `payload` JSON trích xuất từ yt-dlp vào CSDL SQLite (`async_get_song_cache` / `async_set_song_cache`) với **TTL 6 giờ** (hoặc timestamp `expire` thực tế trích từ URL). Khi bot khởi động lại (restart), không cần tốn 2-4 giây trích xuất lại metadata từ YouTube mà phát ngay lập tức (< 0.5s).
+- **Cache key phải tách theo nguồn**: `song_info:<mode>-<cookie|no>-<cookie_mtime>:<query>`. Đổi mode hoặc thêm/refresh cookie là đổi key — nếu không, bot sẽ tái sử dụng URL format 18 đã cache 6h và vẫn `opus_copy=False` dù đã cấu hình cookie.
 - **Trích xuất song song & Khả năng chịu lỗi Playlist**: Khi người dùng gõ `/play`, bot khởi chạy đồng thời tác vụ kết nối voice và trích xuất metadata. Khi chạy `/playlist play`, bot tự động tìm bài đầu tiên khả dụng để phát ngay, nạp các bài còn lại ở background task theo batch 2 bài kèm fallback qua tiêu đề bài hát nếu link hỏng.
 - **Tự cứu luồng phát 403 (Auto-Recovery)**: Khi URL stream hết hạn giữa chừng, bot tự động xóa cache stream URL, trích xuất lại URL mới và tiếp tục phát ngay tại vị trí cũ (`-ss <elapsed>`).
 
