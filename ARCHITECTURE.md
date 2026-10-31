@@ -262,7 +262,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | Cog Name | File Path | Primary Responsibilities & Key Event Listeners |
 |----------|-----------|------------------------------------------------|
 | **Admin** | `bot/cogs/admin.py` | Slash command sync (`/sync`), global broadcast, reload extensions, `/backup` instant database export & 24h automated WAL cleanup & backup task. |
-| **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL regex, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown). Triggers warn/timeout and dispatches `automod_action`. |
+| **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL hostname extraction (`urlsplit`; attachment path/filename never becomes a domain, Discord CDN hosts safe, bare filename tokens skipped unless blacklisted/global-scam), embeds/stickers/polls scan, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown). Triggers warn/timeout and dispatches `automod_action`. |
 | **Autorole** | `bot/cogs/autorole.py` | Listens to `on_member_join`: automatically assigns designated default member roles and bot roles upon entry. |
 | **Birthday** | `bot/cogs/birthday.py` | Member birthday registry (`/birthday set/check/list/remove`), midnight 00:00 celebration scheduler, 24h temporary Birthday VIP role, and bank coins/XP bonus. |
 | **Verify** | `bot/cogs/verify.py` | Verify Gate (`/verify`): button-based verification (`zb_verify_button`), hard gate (member only sees `#xac-thuc` via pending role + saved overrides snapshot), `on_member_join` pending role assignment. |
@@ -1098,6 +1098,18 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
   - Active Groq models alignment (Qwen 3.8 27B, GPT-OSS 20B/120B, Groq Compound) with dual-prefix fallback.
   - Multimodal Vision support for image attachments in `/ask` and `#ai-chat`.
   - Essential Bot style Giveaway redesign with dark header banner and key-value fields.
+- **v3.5 (2026-10-31) — Automod link false-positive & audit**:
+  - **Root cause**: attachment URL `.../image.png` was fed through `BARE_DOMAIN_PATTERN`;
+    the path filename was treated as domain `.png`, producing
+    `Gửi link không rõ nguồn gốc: image.png` and a timeout for an image-only message.
+  - Link detection now parses hostnames with `urlsplit` (userinfo/port safe), removes
+    explicit URLs before bare-domain scanning, consumes bare URL paths, and only scans
+    the host. `cdn.discordapp.com`/`discordapp.net` are safe; bare filename-like tokens
+    (`image.png`, `file.zip`) are skipped unless server blacklist/global scam keyword
+    matches first. Poll questions/answers are scanned; webhook/User authors are guarded;
+    malformed raid-unlock snapshots no longer crash `/automods raidunlock`.
+  - Tests: `test_phase7_automod_links.py` (15 cases), malformed snapshot test; 9 tests
+    red against pre-fix code, 16 pass after; full suite 516 collected / 515 passed / 1 skipped.
 - **v3.4 (2026-10-25) — full-repo audit: 5 critical + 20 high, all fixed**:
   - **P0**: ticket/reaction panels are tenant-scoped at DB + API (no cross-guild button
     replacement); `/verify disable` never falls back to `@everyone` (which used to delete

@@ -195,3 +195,20 @@ def test_anti_nuke_denies_unlisted_moderator(monkeypatch, temp_db):
         types.SimpleNamespace(), guild, member, {"immune_roles": []}))
 
     assert exempt is False
+
+
+def test_raidunlock_invalid_channel_id_does_not_crash(monkeypatch, temp_db):
+    """Snapshot hỏng (channel_id không phải số) không được làm sập /automods raidunlock."""
+    recorded = _patch_update(monkeypatch)
+    guild = Guild()
+    self_obj = types.SimpleNamespace(raid_locked_guilds={"123"})
+    snapshot = [{"channel_id": "not-a-number", "overwrite": {}}, SNAPSHOT[0]]
+
+    restored, failed = _run(am.Automod._unlock_guild(
+        self_obj, guild, {"raid_snapshot": snapshot, "raid_locked": 1}))
+
+    assert (restored, failed) == (1, 1)
+    assert guild.channel.calls and guild.channel.calls[0][0] == 999
+    assert recorded.get("raid_locked") == 1, "còn entry lỗi thì phải giữ lockdown"
+    assert json.loads(recorded.get("raid_snapshot")) == snapshot
+    assert "123" in self_obj.raid_locked_guilds

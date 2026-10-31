@@ -8,6 +8,7 @@ import time
 import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 logger = logging.getLogger("BotV2.AutoMod")
 
@@ -56,10 +57,34 @@ URL_PATTERN = re.compile(r'https?://((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?
 # Domain trần (không scheme) — Discord tự linkify `discord-nitro.com/claim`,
 # nên automod cũng phải thấy nó. Lookbehind @ để không bắt domain trong email.
 BARE_DOMAIN_PATTERN = re.compile(r'(?<![\w@])((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})(?![\w])')
+# URL đầy đủ (gồm path/query) để bóc hostname bằng urlsplit và loại khỏi
+# vùng quét domain trần; nếu không, `.../image.png` bị coi là domain `.png`.
+URL_FULL_PATTERN = re.compile(r'https?://[^\s<>"\']+', re.IGNORECASE)
+# Domain trần có thể kèm path (`example.com/image.png`): chỉ lấy group 1 làm host,
+# nuốt luôn path để filename trong path không bị quét thành domain riêng.
+BARE_URL_PATTERN = re.compile(
+    r'(?<![\w@])((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})(?:/[^\s<>"\']*)?',
+    re.IGNORECASE,
+)
+# Đuôi file phổ biến cũng là TLD hợp lệ (.png, .zip, .mov, .md...). Chỉ dùng để
+# bỏ qua domain trần trông như filename; URL có scheme và blacklist/global keyword
+# vẫn được xét trước.
+FILE_EXTENSIONS = frozenset({
+    "png", "jpg", "jpeg", "jfif", "gif", "webp", "apng", "avif", "jxl", "bmp",
+    "svg", "ico", "tif", "tiff", "heic", "mp4", "mov", "webm", "mkv", "avi",
+    "m4v", "wmv", "flv", "mpeg", "mpg", "3gp", "3g2", "mp3", "m4a", "m4b",
+    "m4p", "wav", "flac", "ogg", "opus", "aac", "wma", "pdf", "doc", "docx",
+    "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv", "md", "json", "xml",
+    "html", "css", "js", "ts", "zip", "rar", "7z", "tar", "gz", "bz2", "xz",
+    "iso", "img", "bin", "apk", "exe", "msi", "dmg", "pkg", "deb", "rpm",
+    "py", "java", "c", "cpp", "h", "cs", "go", "rs", "php", "rb", "sh", "bat",
+    "ps1", "vtt", "srt", "ass", "sub", "epub", "mobi", "azw3", "ttf", "otf",
+    "woff", "woff2",
+})
 DISCORD_INVITE_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]+)', re.IGNORECASE)
 
 GLOBAL_SAFE_DOMAINS = {
-    "discord.com", "discord.gg", "discordapp.com", "discord.media",
+    "discord.com", "discord.gg", "discordapp.com", "discordapp.net", "discord.media",
     "youtube.com", "youtu.be",
     "facebook.com", "fb.com", "messenger.com",
     "google.com", "google.com.vn",
@@ -133,9 +158,53 @@ def message_scan_text(message) -> str:
             parts.append(getattr(author, "name", None) or "")
     for st in getattr(message, "stickers", None) or []:
         parts += [getattr(st, "name", None) or "", getattr(st, "description", None) or ""]
+    poll = getattr(message, "poll", None)
+    if poll is not None:
+        parts.append(getattr(poll, "question", None) or "")
+        for answer in getattr(poll, "answers", None) or []:
+            parts.append(getattr(answer, "text", None) or "")
     for att in getattr(message, "attachments", None) or []:
         parts.append(getattr(att, "url", None) or "")
     return normalize_scan_text(chr(10).join(parts))
+
+
+def _looks_like_filename(domain: str) -> bool:
+    """`image.png` / `file.zip` trông như domain vì đuôi file cũng là TLD."""
+    return "." in domain and domain.rsplit(".", 1)[-1].lower() in FILE_EXTENSIONS
+
+
+def extract_domains(text: str) -> list[tuple[str, str]]:
+    """Trả [(hostname, "url"|"bare")] — parse host, KHÔNG quét filename trong path.
+
+    - URL có scheme: dùng urlsplit.hostname để xử lý cả userinfo/port
+      (`https://discord.com@evil.example` phải là evil.example, không phải discord.com).
+    - Domain trần: BARE_URL_PATTERN nuốt luôn path, nên `example.com/image.png`
+      chỉ trả example.com; `.../image.png` không bao giờ thành domain riêng.
+    """
+    text = text or ""
+    found: list[tuple[str, str]] = []
+
+    for match in URL_FULL_PATTERN.finditer(text):
+        raw = match.group(0).rstrip(".,;:!?)]}'\"")
+        try:
+            host = urlsplit(raw).hostname
+        except ValueError:
+            host = None
+        if host:
+            found.append((host.lower().rstrip("."), "url"))
+
+    bare_text = URL_FULL_PATTERN.sub(" ", text)
+    for match in BARE_URL_PATTERN.finditer(bare_text):
+        host = (match.group(1) or "").lower().rstrip(".")
+        if host:
+            found.append((host, "bare"))
+
+    # Giữ source "url" nếu cùng host xuất hiện cả dạng URL lẫn bare.
+    deduped: dict[str, str] = {}
+    for host, source in found:
+        if host not in deduped or (source == "url" and deduped[host] == "bare"):
+            deduped[host] = source
+    return list(deduped.items())
 
 
 class Automod(commands.Cog):
@@ -285,7 +354,10 @@ class Automod(commands.Cog):
             # Send to Log Channel and Ping Role
             log_channel_id = settings.get("log_channel_id")
             if log_channel_id:
-                channel = guild.get_channel(int(log_channel_id))
+                try:
+                    channel = guild.get_channel(int(log_channel_id))
+                except (TypeError, ValueError):
+                    channel = None
                 if channel:
                     notify_role_id = settings.get("notify_role_id")
                     ping_role = f"<@&{notify_role_id}> " if notify_role_id else ""
@@ -365,15 +437,20 @@ class Automod(commands.Cog):
         """
         if message.author.bot or not message.guild:
             return None
-        if message.author == message.guild.owner or            message.author.guild_permissions.manage_messages or            message.author.guild_permissions.administrator:
-            return None
+        author = message.author
+        is_member = isinstance(author, discord.Member)
+        if is_member:
+            if (author == message.guild.owner
+                    or author.guild_permissions.manage_messages
+                    or author.guild_permissions.administrator):
+                return None
         guild_id = str(message.guild.id)
         if not await async_is_module_enabled(guild_id, "automods"):
             return None
         settings = await async_get_automod_settings(guild_id)
         immune_roles = settings.get("immune_roles", [])
-        if immune_roles:
-            for role in message.author.roles:
+        if immune_roles and is_member:
+            for role in author.roles:
                 if str(role.id) in immune_roles:
                     return None
         return settings
@@ -439,13 +516,11 @@ class Automod(commands.Cog):
         # 3. Links check — luôn chạy khi bật, kể cả domain trần không scheme.
         if settings.get("links_enabled"):
             whitelist = settings.get("whitelist_links", [])
-            domains = list(dict.fromkeys(
-                URL_PATTERN.findall(content) + BARE_DOMAIN_PATTERN.findall(content)
-            ))
-        
+            domains = extract_domains(content)
+
             violation_reason = None
             blacklist = settings.get("blacklist_links", [])
-            for domain in domains:
+            for domain, source in domains:
                 # Bo "www." de so khop voi whitelist luu dang tran domain
                 # (`youtube.com`), khong phai `www.youtube.com`.
                 domain_lower = domain.lower()
@@ -481,16 +556,23 @@ class Automod(commands.Cog):
                 if is_whitelisted:
                     continue  # This link is safe, check next one
 
-                # 3b. Check Global Blacklist (Fake/Scam) — highest priority
+                # 3b. Check Global Blacklist (Fake/Scam) — highest priority.
+                # Chạy TRƯỚC file-extension skip để `discord-nitro.zip` vẫn bị chặn.
                 for bad_kw in GLOBAL_BLACKLIST_KEYWORDS:
                     if bad_kw in domain_lower:
                         violation_reason = f"Gửi link giả mạo/lừa đảo: {domain}"
                         break
+                if violation_reason:
+                    break
 
-                if not violation_reason:
-                    # 3c. Block unknown links
-                    violation_reason = f"Gửi link không rõ nguồn gốc: {domain}"
-            
+                # 3c. Token trần trông như filename (`image.png`, `file.zip`) không
+                # phải link. Chỉ áp dụng cho bare token; URL có scheme vẫn bị xét
+                # hostname như bình thường.
+                if source == "bare" and _looks_like_filename(domain_lower):
+                    continue
+
+                # 3d. Block unknown links
+                violation_reason = f"Gửi link không rõ nguồn gốc: {domain}"
                 break  # Found a violating link, stop checking others
 
             if violation_reason:
@@ -597,7 +679,12 @@ class Automod(commands.Cog):
             if not isinstance(entry, dict):
                 failed += 1
                 continue
-            channel = guild.get_channel(int(entry.get("channel_id", 0)))
+            try:
+                channel_id = int(entry.get("channel_id", 0))
+            except (TypeError, ValueError):
+                failed += 1
+                continue
+            channel = guild.get_channel(channel_id)
             if channel is None:
                 continue
             try:
