@@ -1108,8 +1108,8 @@ ZerynBot V2 uses a unified multi-provider routing layer (`call_ai_api` in `bot/c
     (`image.png`, `file.zip`) are skipped unless server blacklist/global scam keyword
     matches first. Poll questions/answers are scanned; webhook/User authors are guarded;
     malformed raid-unlock snapshots no longer crash `/automods raidunlock`.
-  - Tests: `test_phase7_automod_links.py` (15 cases), malformed snapshot test; 9 tests
-    red against pre-fix code, 16 pass after; full suite 516 collected / 515 passed / 1 skipped.
+  - Tests: `test_phase7_automod_links.py` (18 cases), malformed snapshot test; 11 tests
+    red against pre-fix code, 19 pass after; full suite 519 collected / 518 passed / 1 skipped.
 - **v3.4 (2026-10-25) — full-repo audit: 5 critical + 20 high, all fixed**:
   - **P0**: ticket/reaction panels are tenant-scoped at DB + API (no cross-guild button
     replacement); `/verify disable` never falls back to `@everyone` (which used to delete

@@ -63,7 +63,7 @@ URL_FULL_PATTERN = re.compile(r'https?://[^\s<>"\']+', re.IGNORECASE)
 # Domain trần có thể kèm path (`example.com/image.png`): chỉ lấy group 1 làm host,
 # nuốt luôn path để filename trong path không bị quét thành domain riêng.
 BARE_URL_PATTERN = re.compile(
-    r'(?<![\w@])((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})(?:/[^\s<>"\']*)?',
+    r'(?<![\w@])((?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})(?![a-zA-Z0-9-])(?:/[^\s<>"\']*)?',
     re.IGNORECASE,
 )
 # Đuôi file phổ biến cũng là TLD hợp lệ (.png, .zip, .mov, .md...). Chỉ dùng để
@@ -71,15 +71,18 @@ BARE_URL_PATTERN = re.compile(
 # vẫn được xét trước.
 FILE_EXTENSIONS = frozenset({
     "png", "jpg", "jpeg", "jfif", "gif", "webp", "apng", "avif", "jxl", "bmp",
-    "svg", "ico", "tif", "tiff", "heic", "mp4", "mov", "webm", "mkv", "avi",
-    "m4v", "wmv", "flv", "mpeg", "mpg", "3gp", "3g2", "mp3", "m4a", "m4b",
-    "m4p", "wav", "flac", "ogg", "opus", "aac", "wma", "pdf", "doc", "docx",
-    "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv", "md", "json", "xml",
-    "html", "css", "js", "ts", "zip", "rar", "7z", "tar", "gz", "bz2", "xz",
-    "iso", "img", "bin", "apk", "exe", "msi", "dmg", "pkg", "deb", "rpm",
-    "py", "java", "c", "cpp", "h", "cs", "go", "rs", "php", "rb", "sh", "bat",
-    "ps1", "vtt", "srt", "ass", "sub", "epub", "mobi", "azw3", "ttf", "otf",
-    "woff", "woff2",
+    "svg", "ico", "tif", "tiff", "heic", "heif", "jp2", "j2k", "psd", "psb",
+    "raw", "cr2", "cr3", "nef", "nrw", "arw", "srf", "sr2", "dng", "orf", "rw2",
+    "pef", "raf", "3fr", "tga", "exr", "hdr", "wbmp", "pbm", "pgm", "ppm",
+    "pnm", "xbm", "xpm", "pcx", "dds", "fits", "ai", "eps", "indd", "sketch",
+    "fig", "mp4", "mov", "webm", "mkv", "avi", "m4v", "wmv", "flv", "mpeg",
+    "mpg", "3gp", "3g2", "mp3", "m4a", "m4b", "m4p", "wav", "flac", "ogg",
+    "opus", "aac", "wma", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+    "txt", "rtf", "csv", "md", "json", "xml", "html", "css", "js", "ts", "zip",
+    "rar", "7z", "tar", "gz", "bz2", "xz", "iso", "img", "bin", "apk", "exe",
+    "msi", "dmg", "pkg", "deb", "rpm", "py", "java", "c", "cpp", "h", "cs",
+    "go", "rs", "php", "rb", "sh", "bat", "ps1", "vtt", "srt", "ass", "sub",
+    "epub", "mobi", "azw3", "ttf", "otf", "woff", "woff2",
 })
 DISCORD_INVITE_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]+)', re.IGNORECASE)
 

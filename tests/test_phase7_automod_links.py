@@ -203,3 +203,42 @@ def test_explicit_url_with_file_extension_is_still_checked():
     message = _msg("image.png https://image.png/gift")
     assert _run(_cog(recorded), message) is True
     assert "image.png" in recorded[0], recorded
+
+
+# ─── Mọi đuôi ảnh ─────────────────────────────────────────────────────────────
+
+IMAGE_EXTENSIONS = [
+    "png", "jpg", "jpeg", "jfif", "gif", "webp", "apng", "avif", "jxl", "bmp",
+    "svg", "ico", "tif", "tiff", "heic", "heif", "jp2", "j2k", "psd", "raw",
+    "cr2", "cr3", "nef", "arw", "dng", "orf", "rw2", "tga", "exr", "hdr",
+    "wbmp",
+]
+
+
+def test_all_image_attachment_urls_are_safe():
+    """Attachment URL không bao giờ xét filename → mọi đuôi ảnh đều an toàn."""
+    for ext in IMAGE_EXTENSIONS:
+        recorded = []
+        message = _msg(attachments=[_attachment(
+            f"https://cdn.discordapp.com/attachments/1/2/image.{ext}?ex=abc&hm=def"
+        )])
+        assert _run(_cog(recorded), message) is False, ext
+        assert recorded == [], (ext, recorded)
+
+
+def test_all_image_bare_filenames_are_safe():
+    """Khi user gõ tên file trần, các đuôi ảnh phổ biến/ít gặp đều không phải link."""
+    for ext in IMAGE_EXTENSIONS:
+        recorded = []
+        message = _msg(f"file image.{ext} nhé")
+        assert _run(_cog(recorded), message) is False, ext
+        assert recorded == [], (ext, recorded)
+
+
+def test_bare_token_prefix_matches_are_not_domains():
+    """`image.jp2` không được khớp tiền tố `image.jp`; `example.com2` cũng vậy."""
+    for token in ("image.jp2", "example.com2"):
+        recorded = []
+        message = _msg(f"file {token} nhé")
+        assert _run(_cog(recorded), message) is False, token
+        assert recorded == [], (token, recorded)
