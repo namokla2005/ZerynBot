@@ -76,7 +76,8 @@ class _Runner:
             return "", 0
         if self.local:
             res = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True,
+                cmd, shell=True, capture_output=True,
+                encoding="utf-8", errors="replace",
                 cwd=self.bot_dir, timeout=timeout,
             )
             return ((res.stdout or "") + (res.stderr or "")).strip(), res.returncode

@@ -123,3 +123,41 @@ def test_support_messages_rejects_non_numeric_after_id(client, temp_db):
 
     assert r.status_code == 400, f"phải là 400 rõ ràng, không 500 kèm traceback: {r.status_code}"
     assert r.get_json()["error"] == "bad_after_id"
+
+
+def test_admin_thread_messages_rejects_non_numeric_after_id(client, temp_db, monkeypatch):
+    import config
+    from conftest import MOCK_USER_ID
+    import database as db
+
+    monkeypatch.setattr(config, "BOT_OWNER_ID", int(MOCK_USER_ID))
+    token = authed_client(client)
+    thread = db.get_or_create_support_thread("u_audit", "User Audit")
+    r = client.get(
+        f"/api/admin/support/thread/{thread['thread_id']}/messages?after_id=abc",
+        headers={"X-CSRF-Token": token},
+    )
+
+    assert r.status_code == 400, f"phải là 400 rõ ràng, không 500 kèm traceback: {r.status_code}"
+    assert r.get_json()["error"] == "bad_after_id"
+
+
+def test_admin_system_restart_targets_root_main_py(client, temp_db, monkeypatch):
+    import config
+    import os
+    import unittest.mock as mock
+    from conftest import MOCK_USER_ID
+
+    monkeypatch.setattr(config, "BOT_OWNER_ID", int(MOCK_USER_ID))
+    monkeypatch.setattr(config, "ADMIN_PASSWORD", "test-pass-phase4")
+    token = authed_client(client)
+    client.post("/admin/system/stepup", json={"password": "test-pass-phase4"}, headers={"X-CSRF-Token": token})
+
+    with mock.patch("subprocess.Popen") as popen_mock:
+        r = client.post("/admin/system/restart", headers={"X-CSRF-Token": token})
+        assert r.status_code == 200
+        args, kwargs = popen_mock.call_args
+        target_script = args[0][1]
+        assert os.path.isfile(target_script), f"main.py không tồn tại: {target_script}"
+        assert os.path.abspath(target_script) == str(ROOT / "main.py")
+        assert kwargs.get("cwd") == str(ROOT)

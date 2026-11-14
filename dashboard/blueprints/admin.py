@@ -343,7 +343,10 @@ def admin_support_center():
 @owner_required
 def api_admin_thread_messages(thread_id: str):
     """API lấy tin nhắn của một thread cụ thể cho Admin."""
-    after_id = int(request.args.get("after_id", 0) or 0)
+    try:
+        after_id = int(request.args.get("after_id", 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "bad_after_id"}), 400
     thread = db.get_support_thread(thread_id)
     if not thread:
         return jsonify({"ok": False, "error": "thread_not_found"}), 404
@@ -743,7 +746,7 @@ def admin_system_terminal():
     # Audit trail: ghi lại mọi lệnh được đẩy vào shell của điện thoại/máy chủ.
     _audit_admin_action(f"$ {command}", "admin_terminal")
 
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    base_dir = _V2_DIR
     current_cwd = session.get("term_cwd")
     if not current_cwd or not os.path.isdir(current_cwd):
         current_cwd = base_dir
@@ -906,7 +909,7 @@ def admin_system_git_pull():
     không xoá trắng chỉnh sửa trên điện thoại. Khôi phục bằng `git stash pop`.
     """
     try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_dir = _V2_DIR
         exec_shell = None if os.name == "nt" else (shutil.which("bash") or shutil.which("sh"))
         stash_label = f"pre-pull-{int(_time.time())}"
         pull_cmd = (
@@ -950,7 +953,7 @@ def admin_system_git_pull():
 def admin_system_restart():
     """Khởi động lại toàn bộ hệ thống Bot & Dashboard."""
     try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_dir = _V2_DIR
         main_py = os.path.join(base_dir, "main.py")
 
         if os.name == "nt":
