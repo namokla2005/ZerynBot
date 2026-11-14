@@ -111,3 +111,9 @@ COLOR_ERROR    = 0xED4245
 COLOR_SUCCESS  = 0x57F287
 COLOR_WARNING  = 0xFEE75C
 
+# ─── Contact & Support Links ──────────────────────────────────────────────────
+SUPPORT_SERVER_URL: str = os.getenv("SUPPORT_SERVER_URL", "https://discord.gg/VPybhdNbXC")
+FACEBOOK_URL: str       = os.getenv("FACEBOOK_URL", "https://www.facebook.com/profile.php?id=61592623300909")
+DEV_DISCORD_ID: str     = str(BOT_OWNER_ID or "")
+DEV_DISCORD_URL: str    = f"https://discord.com/users/{DEV_DISCORD_ID}" if DEV_DISCORD_ID else "https://discord.gg/VPybhdNbXC"
+

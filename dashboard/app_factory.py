@@ -47,6 +47,9 @@ def inject_i18n():
         "tr":                  tr,
         "available_languages": i18n_manager.get_supported_languages(),
         "current_ui_lang":     page_lang,
+        "SUPPORT_SERVER_URL":  config.SUPPORT_SERVER_URL,
+        "FACEBOOK_URL":        config.FACEBOOK_URL,
+        "DEV_DISCORD_URL":     config.DEV_DISCORD_URL,
     }
 
 

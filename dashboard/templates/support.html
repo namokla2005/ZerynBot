@@ -100,18 +100,6 @@
     }
     .lang-opt:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 
-    /* Main Container */
-    .support-wrapper {
-      max-width: 1000px;
-      margin: 28px auto 40px;
-      padding: 0 20px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
     /* Chat Card */
     .chat-box {
       background: var(--bg-card);
@@ -526,6 +514,7 @@
         <div class="quick-chip" onclick="fillPrompt('Cách thiết lập tin nhắn chào mừng thành viên mới?')">👋 {{ t('support.quick_welcome') | default('Thiết lập chào mừng?') }}</div>
         <div class="quick-chip" onclick="fillPrompt('Làm sao để tạo phòng voice chat tạm thời?')">🔊 {{ t('support.quick_tempvoice') | default('Tạo phòng Voice tạm?') }}</div>
         <div class="quick-chip" onclick="fillPrompt('Tôi cần gặp trực tiếp nhân viên hỗ trợ!')">🚨 {{ t('support.quick_escalate') | default('Cần gặp nhân viên!') }}</div>
+        <div class="quick-chip" id="btn-quick-direct" style="border-color:rgba(236,72,153,0.4);color:#f472b6;">🤝 {{ t('support.quick_direct') | default('Liên hệ trực tiếp') }}</div>
       </div>
 
       <!-- Input Footer -->
@@ -536,6 +525,72 @@
         </button>
       </form>
     </div>
+
+    <!-- Direct Contact Sidebar Card -->
+    <aside class="direct-contact-sidebar">
+      <div class="contact-card" id="direct-contact-card">
+        <div class="contact-card-header">
+          <div class="contact-card-icon"><i class="bi bi-person-lines-fill"></i></div>
+          <div>
+            <div class="contact-card-title">Liên Hệ Trực Tiếp</div>
+            <div class="contact-card-badge"><span class="pulse-dot"></span> Sẵn sàng làm việc</div>
+          </div>
+        </div>
+
+        <p class="contact-card-desc">
+          Bạn cần hỗ trợ kỹ thuật chuyên sâu, xử lý sự cố khẩn cấp, cài đặt bot cho server lớn hoặc trao đổi làm việc trực tiếp? Kết nối ngay với Developer qua các kênh bên dưới:
+        </p>
+
+        <div class="contact-channels">
+          <!-- Discord cá nhân -->
+          <a href="{{ DEV_DISCORD_URL }}" target="_blank" rel="noopener noreferrer" class="contact-channel-item discord-user">
+            <div class="channel-icon-wrap"><i class="bi bi-discord"></i></div>
+            <div class="channel-info">
+              <span class="channel-name">Discord Cá Nhân</span>
+              <span class="channel-detail">namokla2005 <span class="tag-badge">Developer</span></span>
+            </div>
+            <span class="channel-action"><i class="bi bi-box-arrow-up-right"></i></span>
+          </a>
+
+          <!-- Server Discord -->
+          <a href="{{ SUPPORT_SERVER_URL }}" target="_blank" rel="noopener noreferrer" class="contact-channel-item discord-server">
+            <div class="channel-icon-wrap"><i class="bi bi-people-fill"></i></div>
+            <div class="channel-info">
+              <span class="channel-name">Server Discord Hỗ Trợ</span>
+              <span class="channel-detail">discord.gg/VPybhdNbXC <span class="tag-badge pink">Ticket 24/7</span></span>
+            </div>
+            <span class="channel-action"><i class="bi bi-box-arrow-up-right"></i></span>
+          </a>
+
+          <!-- Facebook -->
+          <a href="{{ FACEBOOK_URL }}" target="_blank" rel="noopener noreferrer" class="contact-channel-item facebook">
+            <div class="channel-icon-wrap"><i class="bi bi-facebook"></i></div>
+            <div class="channel-info">
+              <span class="channel-name">Facebook Cá Nhân</span>
+              <span class="channel-detail">AI For Development</span>
+            </div>
+            <span class="channel-action"><i class="bi bi-box-arrow-up-right"></i></span>
+          </a>
+        </div>
+
+        <div class="contact-meta-box">
+          <div class="meta-item">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <div>
+              <strong>Phản hồi nhanh</strong>
+              <span>Thường trả lời trong vòng 1-2 giờ</span>
+            </div>
+          </div>
+          <div class="meta-item">
+            <i class="bi bi-shield-check"></i>
+            <div>
+              <strong>Hỗ trợ kỹ thuật 1-1</strong>
+              <span>Cấu hình, phân quyền, sửa lỗi & custom bot</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <script>
@@ -804,6 +859,17 @@
         isPolling = false;
       }
     }
+
+    function focusDirectContact() {
+      const card = document.getElementById('direct-contact-card');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('highlight-contact');
+        setTimeout(() => card.classList.remove('highlight-contact'), 2500);
+      }
+    }
+
+    document.getElementById('btn-quick-direct')?.addEventListener('click', focusDirectContact);
 
     setInterval(pollMessages, 3000);
   </script>

@@ -615,8 +615,8 @@
     .footer-inner {
       max-width: 1140px; margin: 0 auto;
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr;
-      gap: 40px;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr;
+      gap: 32px;
     }
     .footer-brand-title {
       font-weight: 800; font-size: 1.3rem; color: #fff;
@@ -660,13 +660,13 @@
       .showcase-row.reverse .showcase-visual { order: 2; }
       .aio-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .guides-grid { grid-template-columns: 1fr; }
-      .footer-inner { grid-template-columns: 1fr 1fr; }
+      .footer-inner { grid-template-columns: repeat(2, 1fr); gap: 28px; }
     }
     @media (max-width: 580px) {
       .landing-nav-links { display: none; }
       .hero-heading { font-size: 2.6rem; }
       .aio-grid { grid-template-columns: 1fr !important; }
-      .footer-inner { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr; gap: 24px; }
     }
   </style>
 </head>
@@ -1246,6 +1246,15 @@
       <ul>
         <li><a href="{{ url_for('guild.home') }}">{{ t('nav.dashboard') }}</a></li>
         <li><a href="{{ url_for('public.login') }}">{{ t('nav.login') }}</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-column">
+      <h4>Liên hệ</h4>
+      <ul>
+        <li><a href="{{ DEV_DISCORD_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-discord" style="margin-right:6px; color:#5865F2;"></i>Discord: namokla2005</a></li>
+        <li><a href="{{ SUPPORT_SERVER_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-people-fill" style="margin-right:6px; color:#ec4899;"></i>Server Discord</a></li>
+        <li><a href="{{ FACEBOOK_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-facebook" style="margin-right:6px; color:#1877F2;"></i>Facebook</a></li>
       </ul>
     </div>
   </div>
