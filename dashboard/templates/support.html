@@ -632,12 +632,12 @@
           <i class="bi bi-chevron-down" style="font-size: 0.75rem;"></i>
         </button>
         <div class="lang-menu" id="lang-menu">
-          <a href="/set_lang/vi" class="lang-opt">🇻🇳 Tiếng Việt</a>
-          <a href="/set_lang/en" class="lang-opt">🇺🇸 English</a>
-          <a href="/set_lang/zh" class="lang-opt">🇨🇳 中文</a>
-          <a href="/set_lang/es" class="lang-opt">🇪🇸 Español</a>
-          <a href="/set_lang/pt" class="lang-opt">🇧🇷 Português</a>
-          <a href="/set_lang/fr" class="lang-opt">🇫🇷 Français</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='vi') }}" class="lang-opt">🇻🇳 Tiếng Việt</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='en') }}" class="lang-opt">🇺🇸 English</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='zh') }}" class="lang-opt">🇨🇳 中文</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='es') }}" class="lang-opt">🇪🇸 Español</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='pt') }}" class="lang-opt">🇧🇷 Português</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='fr') }}" class="lang-opt">🇫🇷 Français</a>
         </div>
       </div>
 
@@ -753,7 +753,7 @@
           <div class="contact-card-icon"><i class="bi bi-person-lines-fill"></i></div>
           <div>
             <div class="contact-card-title">{{ t('support.direct_title') }}</div>
-            <div class="contact-card-badge"><span class="pulse-dot"></span> Sẵn sàng làm việc</div>
+            <div class="contact-card-badge"><span class="pulse-dot"></span> Thông tin liên hệ</div>
           </div>
         </div>
 
@@ -777,7 +777,7 @@
             <div class="channel-icon-wrap"><i class="bi bi-people-fill"></i></div>
             <div class="channel-info">
               <span class="channel-name">Server Discord Hỗ Trợ</span>
-              <span class="channel-detail">discord.gg/VPybhdNbXC <span class="tag-badge pink">Ticket 24/7</span></span>
+              <span class="channel-detail">discord.gg/VPybhdNbXC <span class="tag-badge pink">Ticket hỗ trợ</span></span>
             </div>
             <span class="channel-action"><i class="bi bi-box-arrow-up-right"></i></span>
           </a>
@@ -798,7 +798,7 @@
             <i class="bi bi-lightning-charge-fill"></i>
             <div>
               <strong>Phản hồi nhanh</strong>
-              <span>Thường trả lời trong vòng 1-2 giờ</span>
+              <span>Gửi yêu cầu qua các kênh liên hệ bên trên</span>
             </div>
           </div>
           <div class="meta-item">

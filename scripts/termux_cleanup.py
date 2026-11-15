@@ -19,6 +19,7 @@ Sử dụng:
     python scripts/termux_deploy.py cleanup --local     # dọn trên máy hiện tại
 """
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -105,11 +106,43 @@ def _sqlite_cleanup_cmd(bot_dir: str) -> str:
 
 def run_termux_cleanup(dry_run: bool = False, local: bool = False) -> bool:
     runner = _Runner(dry_run=dry_run, local=local)
+    try:
+        return _run_cleanup(runner, dry_run, local)
+    except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+        print(f"❌ Cleanup thất bại: {exc}")
+        return False
+    finally:
+        runner.close()
+
+
+def _run_cleanup(runner, dry_run: bool, local: bool) -> bool:
+    raw_exec = runner.exec
+
+    errors = []
+
+    def checked_exec(cmd, optional=False, **kwargs):
+        output, code = raw_exec(cmd, **kwargs)
+        if code != 0:
+            error = f"exit={code}: {output}"
+            if not optional:
+                raise RuntimeError(error)
+            errors.append(error)
+            print(f"⚠️ {error}")
+        return output, code
+
+    runner.exec = checked_exec
     ok, info = runner.connect()
     if not ok:
         print(f"❌ Không thể kết nối tới Termux: {info}")
         print("💡 Gợi ý: kiểm tra sshd trên Termux, hoặc chạy với --local nếu đang ở trên máy đó.")
         return False
+
+    home, _ = runner.exec("printf %s \"$HOME\"", readonly=True)
+    if runner.bot_dir.startswith("~/"):
+        if not home.startswith("/"):
+            raise RuntimeError("Remote HOME is not absolute")
+        runner.bot_dir = home.rstrip("/") + runner.bot_dir[1:]
+    bot_path = shlex.quote(runner.bot_dir)
 
     print("=" * 68)
     print("🧹 DỌN DẸP & TỐI ƯU DUNG LƯỢNG TERMUX (TECNO POVA 2)")
@@ -126,12 +159,12 @@ def run_termux_cleanup(dry_run: bool = False, local: bool = False) -> bool:
     # ── 1. Đo trước khi dọn ─────────────────────────────────────────────────
     pre_cargo, _ = runner.exec("du -sh ~/.cargo 2>/dev/null || echo 0", readonly=True)
     pre_backups, _ = runner.exec(
-        f"ls -1 {runner.bot_dir}/data/backups/*.zip 2>/dev/null | wc -l", readonly=True
+        f"ls -1 {bot_path}/data/backups/*.zip 2>/dev/null | wc -l", readonly=True
     )
-    pre_data, _ = runner.exec(f"du -sh {runner.bot_dir}/data 2>/dev/null || echo 0", readonly=True)
+    pre_data, _ = runner.exec(f"du -sh {bot_path}/data 2>/dev/null || echo 0", readonly=True)
     pre_disk, _ = runner.exec("df -h /data 2>/dev/null | tail -1 || df -h . | tail -1", readonly=True)
     pre_status, _ = runner.exec(
-        f"cd {runner.bot_dir} && python main.py --status", readonly=True, timeout=40.0
+        f"cd {bot_path} && python main.py --status", readonly=True, timeout=40.0
     )
 
     print("📊 TRƯỚC KHI DỌN:")
@@ -149,22 +182,22 @@ def run_termux_cleanup(dry_run: bool = False, local: bool = False) -> bool:
         'du -sh "$HOME/.cargo/registry"; rm -rf "$HOME/.cargo/registry" && echo "Đã xoá cargo registry"; '
         'else echo "Không có ~/.cargo/registry"; fi'
     )
-    runner.exec("pip cache purge 2>/dev/null || true")
-    runner.exec("rm -rf /data/data/com.termux/cache/apt/* 2>/dev/null || true")
+    runner.exec("pip cache dir >/dev/null && pip cache remove '*'", optional=True)
+    runner.exec("rm -rf /data/data/com.termux/cache/apt/*", optional=True)
 
     # ── 3. Giữ lại N bản backup mới nhất ────────────────────────────────────
     print(f"\n📦 [2/5] Backup: giữ {BACKUP_RETENTION} bản mới nhất, xoá phần cũ hơn...")
     runner.exec(
-        f"cd {runner.bot_dir}/data/backups 2>/dev/null && "
+        f"cd {bot_path}/data/backups 2>/dev/null && "
         f"ls -1t backup_*.zip 2>/dev/null | tail -n +{BACKUP_RETENTION + 1} | "
-        'while read -r f; do echo "Xoá backup cũ: $f"; rm -f "$f"; done'
+        'while read -r f; do echo "Xoá backup cũ: $f"; rm -f "$f" || exit 1; done'
     )
 
     # ── 4. Xoay log stdout phình to (khớp cơ chế ở scripts/watchdog.sh) ─────
     print(f"\n📜 [3/5] Log stdout: xoay file > {MAX_STDOUT_LOG_BYTES // (1024 * 1024)}MB...")
     for name in STDOUT_LOGS:
         runner.exec(
-            f'f="{runner.bot_dir}/data/{name}"; '
+            f'f={shlex.quote(runner.bot_dir + "/data/" + name)}; '
             'if [ -f "$f" ]; then '
             '  sz=$(wc -c < "$f" 2>/dev/null || echo 0); '
             f'  if [ "$sz" -gt {MAX_STDOUT_LOG_BYTES} ]; then cp -f "$f" "$f.1" && : > "$f" && echo "Đã xoay $f"; '
@@ -185,9 +218,9 @@ def run_termux_cleanup(dry_run: bool = False, local: bool = False) -> bool:
     # ── 7. Đo sau khi dọn ───────────────────────────────────────────────────
     post_cargo, _ = runner.exec("du -sh ~/.cargo 2>/dev/null || echo 0", readonly=True)
     post_backups, _ = runner.exec(
-        f"ls -1 {runner.bot_dir}/data/backups/*.zip 2>/dev/null | wc -l", readonly=True
+        f"ls -1 {bot_path}/data/backups/*.zip 2>/dev/null | wc -l", readonly=True
     )
-    post_data, _ = runner.exec(f"du -sh {runner.bot_dir}/data 2>/dev/null || echo 0", readonly=True)
+    post_data, _ = runner.exec(f"du -sh {bot_path}/data 2>/dev/null || echo 0", readonly=True)
     post_disk, _ = runner.exec("df -h /data 2>/dev/null | tail -1 || df -h . | tail -1", readonly=True)
     post_mem, _ = runner.exec("free -h 2>/dev/null || echo '(không có free)'", readonly=True)
     health, _ = runner.exec("curl -s -m 5 http://localhost:5000/health || echo OFFLINE", readonly=True)
@@ -202,7 +235,9 @@ def run_termux_cleanup(dry_run: bool = False, local: bool = False) -> bool:
     print(f"  • Health endpoint: {health or '(không có phản hồi)'}")
     print(f"  • RAM:\n{post_mem}")
 
-    runner.close()
+    if errors:
+        print(f"❌ Cleanup có {len(errors)} bước thất bại.")
+        return False
     if dry_run:
         print("\n🟡 Dry-run kết thúc: chưa có gì bị xoá. Chạy lại không có --dry-run để dọn thật.")
     else:

@@ -567,12 +567,12 @@
           <i class="bi bi-chevron-down" style="font-size: 0.75rem;"></i>
         </button>
         <div class="lang-menu" id="lang-menu">
-          <a href="/set_lang/vi" class="lang-opt">🇻🇳 Tiếng Việt</a>
-          <a href="/set_lang/en" class="lang-opt">🇺🇸 English</a>
-          <a href="/set_lang/zh" class="lang-opt">🇨🇳 中文</a>
-          <a href="/set_lang/es" class="lang-opt">🇪🇸 Español</a>
-          <a href="/set_lang/pt" class="lang-opt">🇧🇷 Português</a>
-          <a href="/set_lang/fr" class="lang-opt">🇫🇷 Français</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='vi') }}" class="lang-opt">🇻🇳 Tiếng Việt</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='en') }}" class="lang-opt">🇺🇸 English</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='zh') }}" class="lang-opt">🇨🇳 中文</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='es') }}" class="lang-opt">🇪🇸 Español</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='pt') }}" class="lang-opt">🇧🇷 Português</a>
+          <a href="{{ url_for('public.set_ui_language', lang_code='fr') }}" class="lang-opt">🇫🇷 Français</a>
         </div>
       </div>
 

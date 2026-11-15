@@ -19,15 +19,19 @@ termux-wake-lock
 # Chuyển đến thư mục bot (tự động nhận diện đường dẫn động hoặc dùng biến môi trường)
 # Fallback: đặt ZERYN_HOME trong ~/.bashrc / ~/.profile, vd:
 #   export ZERYN_HOME="/storage/emulated/0/Project/Discord Bots/v2"
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-if [ ! -f "$DIR/main.py" ] && [ -n "$ZERYN_HOME" ]; then
+if [ -n "$ZERYN_HOME" ] && [ -f "$ZERYN_HOME/main.py" ]; then
     DIR="$ZERYN_HOME"
+elif [ -f "$HOME/ZerynBot/main.py" ]; then
+    DIR="$HOME/ZerynBot"
+else
+    DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 fi
 
-if [ -d "$DIR" ]; then
-    cd "$DIR"
+if [ -f "$DIR/main.py" ]; then
+    mkdir -p "$DIR/data"
+    cd "$DIR" || exit 1
     # Khởi chạy toàn bộ hệ thống qua main.py
-    python main.py > data/boot.log 2>&1
+    python main.py > "$DIR/data/boot.log" 2>&1
 else
-    echo "Không tìm thấy thư mục bot ở $DIR" > ~/bot_boot_error.log
+    printf 'Không tìm thấy main.py của bot ở %s\n' "$DIR" > "$HOME/bot_boot_error.log"
 fi

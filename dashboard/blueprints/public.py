@@ -36,7 +36,7 @@ bp = Blueprint("public", __name__)
 
 @bp.route("/")
 def index():
-    return render_template("landing.html")
+    return render_template("landing.html", invite_url=url_for("public.invite"))
 
 @bp.route("/invite")
 def invite():

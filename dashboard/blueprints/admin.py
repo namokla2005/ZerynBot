@@ -910,38 +910,37 @@ def admin_system_git_pull():
     """
     try:
         base_dir = _V2_DIR
-        exec_shell = None if os.name == "nt" else (shutil.which("bash") or shutil.which("sh"))
         stash_label = f"pre-pull-{int(_time.time())}"
-        pull_cmd = (
-            "git fetch origin main && "
-            f"git stash push -m {shlex.quote(stash_label)} ; "
-            "git reset --hard origin/main && "
-            "git stash list --pretty=%gd\\ %s | head -n 5"
-        )
         _audit_admin_action("git pull", "admin_git_pull", stash_label)
-        res = subprocess.run(
-            pull_cmd,
-            shell=True,
-            executable=exec_shell,
-            capture_output=True,
-            text=True,
-            cwd=base_dir,
-            timeout=30,
-            encoding="utf-8",
-            errors="replace"
-        )
-        output = (res.stdout or "").replace("\r\n", "\n")
-        if res.stderr:
-            output += ("\n" if output else "") + res.stderr.replace("\r\n", "\n")
+        steps = [
+            ["git", "fetch", "origin", "main"],
+            ["git", "stash", "push", "--include-untracked", "-m", stash_label],
+            ["git", "reset", "--hard", "origin/main"],
+            ["git", "stash", "list", "--pretty=%gd %s"],
+        ]
+        outputs = []
+        returncode = 0
+        for argv in steps:
+            res = subprocess.run(
+                argv, capture_output=True, text=True, cwd=base_dir, timeout=30,
+                encoding="utf-8", errors="replace"
+            )
+            chunk = (res.stdout or "") + (res.stderr or "")
+            if chunk.strip():
+                outputs.append(chunk.rstrip())
+            if res.returncode != 0:
+                returncode = res.returncode
+                break
+        output = "\n".join(outputs)
 
         note = (
             f"\n\nℹ️ Thay đổi cục bộ (nếu có) đã được cất vào stash: {stash_label}\n"
             "   Khôi phục bằng lệnh: git stash pop"
         )
         return jsonify({
-            "ok": True,
-            "output": (output or "Git pull thành công!") + note,
-            "returncode": res.returncode
+            "ok": returncode == 0,
+            "output": (output or ("Git pull thành công!" if returncode == 0 else "Git pull thất bại.")) + (note if returncode == 0 else ""),
+            "returncode": returncode
         }), 200
     except Exception as e:
         return jsonify({"ok": False, "output": f"❌ Lỗi thực thi git pull: {e}", "returncode": -1}), 200
