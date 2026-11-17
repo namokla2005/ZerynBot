@@ -169,13 +169,16 @@ def _cookie_file_ready() -> bool:
     return bool(_COOKIE_FILE and os.path.exists(_COOKIE_FILE))
 
 
-def _cookie_file_mtime() -> int:
-    if not _cookie_file_ready():
-        return 0
+def _cookie_fingerprint() -> tuple:
     try:
-        return int(os.path.getmtime(_COOKIE_FILE))
+        stat = os.stat(_COOKIE_FILE) if _COOKIE_FILE else None
+        return (_COOKIE_FILE, stat.st_mtime_ns, stat.st_size) if stat else (None, 0, 0)
     except OSError:
-        return 0
+        return (None, 0, 0)
+
+
+def _cookie_file_mtime() -> int:
+    return _cookie_fingerprint()[1]
 
 
 def primary_ready() -> bool:
@@ -189,8 +192,10 @@ def primary_ready() -> bool:
 
 def source_cache_tag() -> str:
     """Khóa cache phải đổi khi mode/cookie đổi, tránh dùng lại URL format 18 đã cache."""
-    cookie = "c" if _cookie_file_ready() else "n"
-    return f"{get_source_mode()}-{cookie}-{_cookie_file_mtime()}"
+    path, mtime_ns, size = _cookie_fingerprint()
+    if path is None:
+        return f"{get_source_mode()}-n-0"
+    return f"{get_source_mode()}-c-{mtime_ns}-{size}"
 
 
 YDL_OPTS = {
@@ -246,9 +251,52 @@ YDL_OPTS_FLAT = {
 }
 # Flat extraction dùng android: không gắn cookie (android + cookie fail extract).
 
-_extract_semaphore = asyncio.Semaphore(4)
+class _ExtractionCapacity:
+    """Loop-independent admission; release belongs to the real worker, not its waiter."""
 
-_thread_local = threading.local()
+    def __init__(self):
+        self._slots = threading.BoundedSemaphore(4)
+
+    async def acquire(self):
+        while not self._slots.acquire(blocking=False):
+            await asyncio.sleep(0.01)
+        return True
+
+    def release(self):
+        self._slots.release()
+
+    async def __aenter__(self):
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, *args):
+        self.release()
+
+
+# importlib.reload(config) must not split the permits held by live native workers.
+if "_extract_semaphore" not in globals():
+    _extract_semaphore = _ExtractionCapacity()
+
+# Keep ownership here so reloading extractor/cog cannot orphan its pool/tasks/session.
+class _ExtractionRuntime:
+    def __init__(self):
+        self.executor = None
+        self.workers = set()
+        self.lock = threading.Lock()
+        self.inflight = {}
+        self.jobs = set()
+        self.generation = 0
+        self.closing = False
+        self.close_task = None
+        self.close_generation = None
+        self.retiring = None
+        self.spotify_session = None
+
+
+if "_extraction_runtime" not in globals():
+    _extraction_runtime = _ExtractionRuntime()
+if "_thread_local" not in globals():
+    _thread_local = threading.local()
 
 def _get_ydl() -> yt_dlp.YoutubeDL:
     """Thread-local YoutubeDL instance (tái sử dụng connection pool theo từng luồng, 100% thread-safe)."""
@@ -261,15 +309,28 @@ def _get_ydl() -> yt_dlp.YoutubeDL:
 
 def _get_ydl_primary() -> yt_dlp.YoutubeDL:
     """Thread-local YoutubeDL cho primary (`default` client + cookie nếu có)."""
+    fingerprint = _cookie_fingerprint()
     ydl = getattr(_thread_local, "ydl_primary", None)
+    if ydl is not None and getattr(_thread_local, "primary_cookie", None) != fingerprint:
+        # Same worker thread, after its preceding extraction: never close an in-use jar.
+        _thread_local.ydl_primary = None
+        try:
+            # YoutubeDL.close() saves its jar first. Never overwrite a refreshed file
+            # with this retired instance's stale cookies; still close HTTP transports.
+            params = getattr(ydl, "params", None)
+            if params is not None:
+                params["cookiefile"] = None
+            ydl.close()
+        except Exception:
+            log.debug("[Music] Primary instance close failed")
+        ydl = None
     if ydl is None:
-        opts = YDL_OPTS_PRIMARY
-        # Cookie có thể được thêm sau khi bot đã khởi động; instance thread-local
-        # được tạo ở lần primary đầu tiên nên vẫn nhận được file mới.
-        if _COOKIE_FILE and os.path.exists(_COOKIE_FILE) and not opts.get("cookiefile"):
-            opts = {**opts, "cookiefile": _COOKIE_FILE}
+        opts = {k: v for k, v in YDL_OPTS_PRIMARY.items() if k != "cookiefile"}
+        if fingerprint[0] is not None:
+            opts["cookiefile"] = fingerprint[0]
         ydl = yt_dlp.YoutubeDL(opts)
         _thread_local.ydl_primary = ydl
+        _thread_local.primary_cookie = fingerprint
     return ydl
 
 

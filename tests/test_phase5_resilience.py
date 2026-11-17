@@ -6,6 +6,7 @@ Nguyên tắc: kiểm TRA HIỆU ỨNG quan sát được (bot rời kênh, quer
 import asyncio
 import sqlite3
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -199,10 +200,12 @@ async def test_concurrent_ensure_creates_a_single_player(temp_db, monkeypatch):
     class FakeVoiceChannel:
         id = 555
 
-        async def connect(self, self_deaf=False):
-            await asyncio.sleep(0.05)          # mở cửa sổ race như connect thật
+        async def connect(self, self_deaf=False, cls=None):
             vc = _player(None)[0].vc.__class__()
-            vc.client = type("C", (), {"loop": asyncio.get_running_loop()})()
+            vc.channel = self
+            vc.client = cog.bot
+            self.guild.voice_client = vc
+            await asyncio.sleep(0.05)          # mở cửa sổ race như connect thật
             return vc
 
     class FakeMember:
@@ -223,6 +226,7 @@ async def test_concurrent_ensure_creates_a_single_player(temp_db, monkeypatch):
         def __init__(self):
             self.guild = FakeGuild()
             self.author = FakeMember()
+            self.author.voice.channel.guild = self.guild
             self.channel = FakeTextChannel()
             self.sent = []
 
@@ -233,6 +237,9 @@ async def test_concurrent_ensure_creates_a_single_player(temp_db, monkeypatch):
     import cogs.music as m
 
     cog = m.Music.__new__(m.Music)
+    cog.bot = SimpleNamespace(loop=asyncio.get_running_loop(), get_cog=lambda name: cog)
+    cog._unloading = False
+    cog._join_tasks = set()
     cog._players = {}
     cog._player_locks = {}
     cog._registry_lock = asyncio.Lock()
@@ -246,6 +253,7 @@ async def test_concurrent_ensure_creates_a_single_player(temp_db, monkeypatch):
     ctx = FakeCtx()
     players = await asyncio.gather(cog._ensure(ctx), cog._ensure(ctx), cog._ensure(ctx))
     created = [p for p in players if p is not None]
+    assert len(created) == 3, "cả ba request hợp lệ phải nhận player"
     assert len(cog._players) == 1, f"tạo {len(cog._players)} player cho MỘT guild"
     assert all(p is list(cog._players.values())[0] for p in created), "các request đồng thời nhận player khác nhau"
 
@@ -259,9 +267,13 @@ async def test_ensure_respects_max_players_under_concurrency(temp_db, monkeypatc
     class FakeVoiceChannel:
         id = 555
 
-        async def connect(self, self_deaf=False):
+        async def connect(self, self_deaf=False, cls=None):
+            vc = _player(None)[0].vc.__class__()
+            vc.channel = self
+            vc.client = cog.bot
+            self.guild.voice_client = vc
             await asyncio.sleep(0.01)
-            return _player(None)[0].vc.__class__()
+            return vc
 
     class FakeMember:
         def __init__(self):
@@ -272,6 +284,7 @@ async def test_ensure_respects_max_players_under_concurrency(temp_db, monkeypatc
             self.guild = type("G", (), {"id": gid, "me": type("M", (), {"voice": None})(),
                                         "voice_client": None})()
             self.author = FakeMember()
+            self.author.voice.channel.guild = self.guild
             self.channel = type("C", (), {"id": 1})()
             self.sent = []
 
@@ -279,15 +292,23 @@ async def test_ensure_respects_max_players_under_concurrency(temp_db, monkeypatc
             self.sent.append(a)
 
     cog = m.Music.__new__(m.Music)
+    cog.bot = SimpleNamespace(loop=asyncio.get_running_loop(), get_cog=lambda name: cog)
+    cog._unloading = False
+    cog._join_tasks = set()
     cog._players = {}
     cog._player_locks = {}
     cog._registry_lock = asyncio.Lock()
     cog._connecting = set()
+    cog._bg_tasks = set()
+    cog._empty_voice_tasks = {}
+    cog._reconnect_tasks = {}
+    cog._grace_tasks = {}
     monkeypatch.setattr(CV, "MAX_PLAYERS", 2)
 
     results = await asyncio.gather(*[cog._ensure(FakeCtx(1000 + i)) for i in range(6)])
     accepted = sum(1 for r in results if r is not None)
     assert accepted <= 2, f"vượt trần MAX_PLAYERS=2: {accepted} player được tạo"
+    assert accepted == 2, "hai slot khả dụng phải nhận hai request hợp lệ"
 
 
 # ─── H6: index đường nóng ─────────────────────────────────────────────────────

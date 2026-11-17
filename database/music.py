@@ -181,6 +181,28 @@ async def async_set_song_cache(cache_key: str, info: Any, expire_ts: Optional[fl
         # Ghi cache thất bại không được làm hỏng việc phát nhạc — chỉ ghi log.
         logger.debug(f"[MusicCache] set_song_cache error (key={cache_key[:32]}): {exc}")
 
+async def async_set_song_cache_batch(cache_keys, info: Any, expire_ts: Optional[float] = None) -> None:
+    """Persist distinct aliases with one connection/transaction; playback is best-effort."""
+    keys = list(dict.fromkeys(cache_keys))
+    if not keys:
+        return
+    try:
+        payload = dict(info) if isinstance(info, dict) else info
+        if isinstance(payload, dict) and expire_ts:
+            payload["stream_expire"] = float(expire_ts)
+        encoded = json.dumps(payload, ensure_ascii=False, default=str)
+        created = time.time()
+        async with _connect_async() as db:
+            await db.executemany(
+                "INSERT INTO music_song_cache (cache_key, payload, created_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, created_at = excluded.created_at",
+                [(key, encoded, created) for key in keys],
+            )
+            await db.commit()
+    except Exception:
+        logger.debug("[MusicCache] batch cache write failed")
+
+
 async def async_delete_song_cache(cache_key: str) -> None:
     """Xóa entry trong music_song_cache khi force_refresh (giải phóng disk space)."""
     try:

@@ -38,7 +38,6 @@ from .config import (
     STALL_CHECK_SECONDS,
     STALL_CLEANUP_TIMEOUT_SECONDS,
     STALL_TIMEOUT_SECONDS,
-    _extract_semaphore,
     _lower_process_priority,
     get_ffmpeg_before,
     load_opus_library,
@@ -89,6 +88,26 @@ class Track:
         )
 
 
+    def _apply_resolved_info(self, info: dict):
+        """Hydrate deferred metadata without replacing this listening/request object."""
+        if self.is_direct_stream:
+            return  # Direct radio owns its label/live state and stream URL.
+        self.stream_url = info.get("stream_url") or _get_stream_url(info)
+        self.stream_expire = _extract_stream_expire(self.stream_url, info)
+        self.is_opus = bool(info["is_opus"]) if "is_opus" in info else (_get_stream_acodec(info, self.stream_url) == "opus")
+        self.title = info.get("title") or self.title
+        self.url = info.get("webpage_url") or self.url
+        if info.get("duration") is not None:
+            self.duration = info["duration"]
+        self.uploader = info.get("uploader") or info.get("channel") or self.uploader
+        self.thumbnail = info.get("thumbnail") or _get_best_thumbnail(info) or self.thumbnail
+        if info.get("is_live") is not None:
+            self.is_live = bool(info["is_live"])
+        elif info.get("live_status") is not None:
+            self.is_live = info["live_status"] == "is_live"
+        elif info.get("duration") is not None:
+            self.is_live = info["duration"] <= 0
+
     @property
     def is_stream_expired(self) -> bool:
         return self.stream_url is None or time.time() > self.stream_expire
@@ -129,17 +148,26 @@ class MusicPlayer:
         self._skipped      : bool = False
         self._skip_drain   = None   # Future của _drain_pending_skip (giu strong reference)
         self._end_drain    = None   # Future của _drain_pending_end
-        self._pending_end  = None   # (error, elapsed, track) bị chặn trong recovery
+        self._pending_end  = None   # (error, elapsed, track, source, play_seq) blocked by recovery
+        self._next_occurrence = None  # new admission/queue entry/loop, consumed before _play awaits
+        self._counted_occurrence = None  # (track, occurrence_token) accepted by vc.play
         self._play_seq     : int = 0  # tăng mỗi lần có bài mới; recovery cũ phải bỏ
         self._recovering   : bool = False
         self._last_recovery_time : float = 0.0
         self._preload_task : asyncio.Task | None = None
+        self._preload_target : Track | None = None
+        self._preload_workers : set[asyncio.Task] = set()
+        self._stop_task : asyncio.Task | None = None
+        self._is_stopping = False
+        self._using_opus_copy = False
+        self._audio_clock_bound = False
         self._inactivity_task : asyncio.Task | None = None
         self._watchdog_task : asyncio.Task | None = None
         self._play_lock    = asyncio.Lock()
         self._stop_lock    = asyncio.Lock()
         self._cleanup_done : bool = False
         self._is_reconnecting : bool = False
+        self._resume_owner : asyncio.Task | None = None
         # ── Đồng hồ audio THỰC (đếm frame discord.py đọc được) + chống zombie callback ──
         # `get_elapsed()` suy ra từ time.time() nên nó vẫn tăng đều khi FFmpeg kẹt — vô
         # dụng để phát hiện treo stream. `self._audio_frames` chỉ tăng khi source.read()
@@ -196,7 +224,7 @@ class MusicPlayer:
 
     def get_audio_position(self) -> int:
         """Vị trí tai-nghe-thấy, tính từ số frame audio đã đọc thật (không phải đồng hồ tường)."""
-        if self._audio_frames <= 0 and self._audio_base <= 0:
+        if not self._audio_clock_bound:
             return self.get_elapsed()
         return int(self._audio_base + self._audio_frames * AUDIO_FRAME_SECONDS)
 
@@ -211,15 +239,20 @@ class MusicPlayer:
         self._audio_base = float(max(0, start_offset))
         self._last_data_mono = time.monotonic()
         self._active_source = source
+        self._audio_clock_bound = True
         inner_read = source.read
+        started_mono = time.monotonic()
 
         def read_with_clock(*args):
             data = inner_read(*args)
-            if data:
+            if data and self._active_source is source:
+                first_frame = self._audio_frames == 0
                 # Cộng dồn từ audio thread, đọc từ event loop: mất 1 đếm cũng vô hại,
                 # miễn là đồng hồ còn chạy khi stream còn sống.
                 self._audio_frames += 1
                 self._last_data_mono = time.monotonic()
+                if first_frame:
+                    log.info("[Music][timing] first_frame_seconds=%.3f", time.monotonic() - started_mono)
             return data
 
         try:
@@ -227,6 +260,8 @@ class MusicPlayer:
         except (AttributeError, TypeError):
             log.debug("[Music] Source không cho phép gắn audio clock (có __slots__) — watchdog tắt cho track này")
             self._active_source = None
+            # No readable clock: never seek forward using wall time after a failed startup.
+            self._audio_clock_bound = True
 
     def _start_stall_watchdog(self):
         cur = asyncio.current_task()
@@ -279,7 +314,8 @@ class MusicPlayer:
     async def _handle_stream_stall(self):
         track = self.current
         stalled_for = int(time.monotonic() - self._last_data_mono)
-        position = self.get_audio_position()
+        position = 0 if getattr(track, "is_live", False) else self.get_audio_position()
+        seq = self._play_seq
         stale_source = self._active_source
         self._active_source = None
         log.warning(
@@ -309,7 +345,7 @@ class MusicPlayer:
             # Trong lúc chờ dọn, `/play` hoặc `/skip` của người dùng có thể đã giao source mới
             # (`_play` set `_active_source` trước `vc.play`). Ta đã tự đặt `_active_source=None`
             # nên chỉ cần còn giá trị khác None là có người khác vừa phát — nhường, không cắt đè.
-            if self._active_source is not None:
+            if self._manual_stopped or self._play_seq != seq or self._active_source is not None:
                 log.info("[Music] Có stream mới được khởi động trong lúc dọn stream treo — hủy khôi phục.")
                 return
             if getattr(track, "recovery_attempts", 0) >= 2:
@@ -326,6 +362,7 @@ class MusicPlayer:
             await self._report_play_failure(track, "music.cannot_decode")
         finally:
             self._recovering = False
+            self._drain_pending_end_soon()
 
     # ── Inactivity Auto-Disconnect ─────────────────────────────────────────
     def _reset_inactivity_timer(self):
@@ -377,31 +414,42 @@ class MusicPlayer:
             log.error(f"[Music] Lỗi trong _inactivity_countdown: {e}", exc_info=e)
 
     # ── Internal ───────────────────────────────────────────────────────────
-    async def _preload_next(self):
-        if not self.queue:
-            return
-        nxt = self.queue[0]
+    async def _preload_next(self, nxt: Track | None = None):
+        if nxt is None:
+            if not self.queue:
+                return
+            nxt = self.queue[0]
         if nxt.stream_url and not nxt.is_stream_expired:
             return
         try:
             info = await extract_info(nxt.url or nxt.title)
             if info:
-                nxt.stream_url    = _get_stream_url(info)
-                nxt.stream_expire = _extract_stream_expire(nxt.stream_url, info)
-                nxt.is_opus       = _get_stream_acodec(info, nxt.stream_url) == "opus"
+                nxt._apply_resolved_info(info)
         except Exception as e:
             log.debug(f"[Music] Preload error: {e}")
 
     def _schedule_preload(self):
         """Preload bài tiếp theo (queue[0]) ngay khi có hàng chờ, tránh chờ tới lúc hết bài."""
-        if not self.queue:
-            return
+        nxt = self.queue[0] if self.queue and not self._manual_stopped else None
         if self._preload_task and not self._preload_task.done():
+            if self._preload_target is nxt:
+                return
             self._preload_task.cancel()
-        self._preload_task = asyncio.create_task(self._preload_next())
+        self._preload_target = nxt
+        if nxt is None or (nxt.stream_url and not nxt.is_stream_expired):
+            return
+        task = asyncio.create_task(self._preload_next(nxt))
+        self._preload_task = task
+        self._preload_workers.add(task)
+        task.add_done_callback(self._preload_workers.discard)
 
     def _after_play(self, bound_source=None, error=None):
         """Callback từ audio thread của discord.py khi stream dừng (chuyển sang event loop an toàn)."""
+        seq = self._play_seq
+        # Validate BEFORE buffering END/skip during recovery; None also means invalidated.
+        if bound_source is not None and bound_source is not self._active_source:
+            log.debug("[Music] Bỏ qua after-closure zombie (source đã bị thay thế)")
+            return
         if self._manual_stopped or self._recovering or self._is_reconnecting:
             log.debug(f"[Music] _after_play ignored (stopped={self._manual_stopped}, recovering={self._recovering}, reconnecting={self._is_reconnecting})")
             if self._manual_stopped:
@@ -415,15 +463,10 @@ class MusicPlayer:
                 # END event bị chặn trong lúc recovery/reconnect. Không được nuốt:
                 # ghi lại để drain sau khi cờ hạ; nếu recovery đã phát lại bài này thì
                 # `_play()` sẽ xoá pending.
-                self._pending_end = (error, self.get_elapsed(), self.current)
-            return
-
-        # `bound_source` do functools.partial gắn tại lúc vc.play(). Callback mang source
-        # KHÁC với source hiện hành là callback ZOMBIE của stream đã bị cắt (watchdog dọn
-        # FFmpeg → audio thread tỉnh khỏi read() → after() chạy TRỄ, trong khi bài mới đã
-        # bắt đầu). Trước đây nó bị tính là "bài mới kết thúc" → nhảy 2 bài / nhân đôi recovery.
-        if bound_source is not None and self._active_source is not None and bound_source is not self._active_source:
-            log.debug("[Music] Bỏ qua after-closure zombie (source đã bị thay thế)")
+                self._pending_end = (
+                    error, self.get_audio_position(), self.current,
+                    bound_source if bound_source is not None else self._active_source, seq
+                )
             return
 
         try:
@@ -431,17 +474,26 @@ class MusicPlayer:
             if not loop or loop.is_closed():
                 log.error("[Music] _after_play failed: event loop is None or closed!")
                 return
-            elapsed = self.get_elapsed()
+            elapsed = self.get_audio_position()
             curr = self.current
-            if not curr:
-                fut = asyncio.run_coroutine_threadsafe(self._dispatch_next_async(), loop)
-                fut.add_done_callback(lambda f: self._log_future_exception(f, "dispatch_next_async"))
-                return
-
-            fut = asyncio.run_coroutine_threadsafe(self._handle_after_play_async(error, elapsed, curr), loop)
+            fut = asyncio.run_coroutine_threadsafe(
+                self._handle_bound_end_async(bound_source, seq, error, elapsed, curr), loop
+            )
             fut.add_done_callback(lambda f: self._log_future_exception(f, "handle_after_play_async"))
         except Exception as e:
             log.error(f"[Music] _after_play dispatch error: {e}", exc_info=True)
+
+    async def _handle_bound_end_async(self, source, seq, error, elapsed, track):
+        # The callback may have been valid on the audio thread but superseded before
+        # this coroutine runs (including a seek/force replay of the same Track).
+        if self._manual_stopped or seq != self._play_seq:
+            return
+        if source is not None and source is not self._active_source:
+            return
+        if track is None:
+            await self._dispatch_next_async()
+        else:
+            await self._handle_after_play_async(error, elapsed, track)
 
     def _log_future_exception(self, future, action_name: str):
         try:
@@ -561,7 +613,7 @@ class MusicPlayer:
                     return
                 if await self._honour_pending_skip():
                     return
-                if track.is_stream_expired or (error and not getattr(track, "is_direct_stream", False)):
+                if not getattr(track, "is_direct_stream", False):
                     track.stream_url = None
                 await self._play(track, seek_offset=elapsed)
             except Exception as rec_err:
@@ -603,9 +655,12 @@ class MusicPlayer:
             return
 
         self._record_played(track.title)
+        # Natural completion ends this occurrence; loop-one starts a new listen.
+        self._active_source = None
 
         if self.loop_mode == 1:
             track.recovery_attempts = 0
+            self._next_occurrence = object()
             await self._play(track)
         elif self.loop_mode == 2:
             track.recovery_attempts = 0
@@ -630,6 +685,7 @@ class MusicPlayer:
                 log.debug(f"[Music] Chưa kết nối voice tại guild {self.guild.id}, giữ nguyên {len(self.queue)} bài trong hàng đợi.")
                 return
             track = self.queue.pop(0)
+            self._next_occurrence = object()
             accepted = await self._play(track)
             if accepted is False and not self._manual_stopped and not self._skipped:
                 # Voice vừa rớt đúng lúc pop: trả bài lại đầu hàng đợi.
@@ -691,21 +747,24 @@ class MusicPlayer:
         if self._end_drain and not self._end_drain.done():
             return
         try:
-            taskbag.spawn(self._drain_pending_end())
+            self._end_drain = taskbag.spawn(self._drain_pending_end())
         except Exception as exc:
             log.debug(f"[Music] Không schedule được pending-end drain: {exc}")
 
     async def _drain_pending_end(self):
-        pending = self._pending_end
-        self._pending_end = None
-        if not pending or self._manual_stopped:
-            return
-        error, elapsed, track = pending
-        if self.current is not track:
-            return
-        if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
-            return
-        await self._handle_after_play_async(error, elapsed, track)
+        # Recovery below may buffer another replacement EOF while this task is still
+        # running. Consume it here instead of losing the nested schedule request.
+        while self._pending_end and not self._manual_stopped:
+            if self._recovering or self._is_reconnecting:
+                return  # Keep the event; the owning recovery's finally schedules us.
+            pending = self._pending_end
+            self._pending_end = None
+            error, elapsed, track, source, seq = pending
+            if self.current is not track or source is not self._active_source or seq != self._play_seq:
+                continue
+            if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
+                continue
+            await self._handle_after_play_async(error, elapsed, track)
 
     async def _handle_autoplay(self):
         """Tự động tìm kiếm và phát bài hát cùng thể loại khi bật Autoplay."""
@@ -720,19 +779,19 @@ class MusicPlayer:
                 curr_id = m.group(1)
 
         try:
-            # Autoplay không được chiếm default executor (yt-dlp/ảnh cũng dùng);
-            # share semaphore với extract_info để giới hạn số luồng trên Helio G85.
-            async with _extract_semaphore:
-                related_info = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        _find_related_track_sync,
-                        last_track.title,
-                        last_track.uploader,
-                        self._played_history_set,
-                        curr_id,
-                    ),
-                    timeout=20.0,
-                )
+            # Shared extractor capacity stays occupied until the real worker exits,
+            # even when this caller times out or is cancelled. No nested semaphore.
+            from .extractor import run_extraction_job
+            related_info = await asyncio.wait_for(
+                run_extraction_job(
+                    _find_related_track_sync,
+                    last_track.title,
+                    last_track.uploader,
+                    set(self._played_history_set),
+                    curr_id,
+                ),
+                timeout=20.0,
+            )
             if related_info:
                 # Đảm bảo stream_url luôn None để _play() giải mã stream audio đầy đủ
                 related_info.pop("stream_url", None)
@@ -805,7 +864,32 @@ class MusicPlayer:
                 log.debug(f"[Music] report_play_failure send error: {e}")
         self._dispatch_next()
 
+    def _play_still_valid(self, seq: int) -> bool:
+        return bool(
+            seq == self._play_seq and not self._manual_stopped and not self._skipped
+            and self.vc and self.vc.is_connected()
+        )
+
+    async def _cleanup_source(self, source) -> bool:
+        if source is None or not hasattr(source, "cleanup"):
+            return True
+        try:
+            await asyncio.wait_for(asyncio.to_thread(source.cleanup), STALL_CLEANUP_TIMEOUT_SECONDS)
+            return True
+        except asyncio.TimeoutError:
+            log.warning("[Music] source_cleanup_timeout guild=%s", self.guild.id)
+        except Exception as exc:
+            log.debug("[Music] source_cleanup_failed guild=%s type=%s", self.guild.id, type(exc).__name__)
+        return False
+
     async def _play(self, track: Track, seek_offset: int = 0) -> bool:
+        # Capture new-listen intent before waiting for the lock: concurrent force
+        # requests must not merge. Seek/recovery reuse only this track's occurrence.
+        token = self._next_occurrence
+        self._next_occurrence = None
+        if token is None and self._counted_occurrence is not None and self._counted_occurrence[0] is track:
+            token = self._counted_occurrence[1]
+        occurrence = (track, token if token is not None else object())
         async with self._play_lock:
             if not self.vc or not self.vc.is_connected():
                 return False
@@ -814,7 +898,12 @@ class MusicPlayer:
 
             # Bất kỳ lượt phát mới nào cũng vô hiệu hoá recovery cũ đang ngủ.
             self._play_seq += 1
+            seq = self._play_seq
+            continuation = self._counted_occurrence == occurrence
+            metadata_only = not track.stream_url and not continuation and not track.recovery_attempts
             self._pending_end = None
+            self._active_source = None
+            self._using_opus_copy = False
 
             if self.vc.is_playing() or self.vc.is_paused():
                 self.vc.stop()
@@ -824,33 +913,26 @@ class MusicPlayer:
 
             # Lấy stream URL tươi mới nếu chưa có hoặc URL đã hết hạn (sau 5.5h)
             if not track.stream_url or track.is_stream_expired:
-                must_force = (track.stream_url is None) or getattr(track, "is_live", False)
+                must_force = bool(track.stream_url or track.recovery_attempts or continuation or (track.is_live and not metadata_only))
                 info = await extract_info(track.url or track.title, force_refresh=must_force)
+                if not self._play_still_valid(seq):
+                    # Superseded/skip is handled, not a voice rejection to requeue.
+                    return self._manual_stopped or self._skipped or seq != self._play_seq
+                # Saved playlists carry metadata only: retain their historical title fallback.
+                if metadata_only and (not info or not (info.get("stream_url") or _get_stream_url(info))) and track.url and track.url != track.title:
+                    info = await extract_info(track.title, force_refresh=False)
+                    if not self._play_still_valid(seq):
+                        return self._manual_stopped or self._skipped or seq != self._play_seq
                 if not info:
                     log.warning(f"[Music] Cannot get stream URL for '{track.title}'")
                     await self._report_play_failure(track)
                     return True
-                track.stream_url    = info.get("stream_url") or _get_stream_url(info)
-                track.stream_expire = _extract_stream_expire(track.stream_url, info)
-                track.is_opus       = bool(info.get("is_opus")) if "is_opus" in info else (_get_stream_acodec(info, track.stream_url) == "opus")
-                if info.get("is_live"):
-                    track.is_live = True
+                track._apply_resolved_info(info)
 
             if not track.stream_url:
                 log.warning(f"[Music] Cannot resolve stream URL for '{track.title}'")
                 await self._report_play_failure(track)
                 return True
-
-            # Ghi nhận thống kê bài hát được phát vào DB.
-            # Đây là NGUỒN DUY NHẤT cho `/topmusic` + dashboard (event_type="music_play",
-            # label = tên bài). Trước đây còn một dòng ghi `event_type="music"` với
-            # `track.video_id` (Track không có field này → AttributeError bị bắt im lặng)
-            # khiến số liệu bị chia làm 2 loại và `/topmusic` luôn trắng.
-            try:
-                from database import async_increment_stat
-                taskbag.spawn(async_increment_stat(str(self.guild.id), "music_play", track.title[:80]))
-            except Exception as stat_err:
-                log.debug(f"[Music] Increment stat error: {stat_err}")
 
             # Tự động chọn Opus copy mode nếu stream gốc là Opus WebM (giảm 90% CPU)
             # Dùng track.is_opus (đã xác định theo acodec), fallback heuristic URL.
@@ -866,8 +948,12 @@ class MusicPlayer:
                         break
                     await asyncio.sleep(0.05)
 
+            if not self._play_still_valid(seq):
+                return self._manual_stopped or self._skipped or seq != self._play_seq
             source = None
             using_copy = False
+            startup_state = None
+            play_accepted = False
             _t_ffmpeg = time.time()
             _before = get_ffmpeg_before()
             before_opts = _before
@@ -902,29 +988,57 @@ class MusicPlayer:
                 if not discord.opus.is_loaded():
                     load_opus_library()
 
-                self._bind_audio_clock(source, seek_offset)
-                self.vc.play(source, after=functools.partial(self._after_play, source))
+                # vc.play starts an audio thread which can EOF before returning.
+                # Publish its exact track and clocks before exposing the new source.
+                startup_state = (
+                    self.current, self.start_time, self.pause_start, self.total_paused_time,
+                    self._audio_frames, self._audio_base, self._last_data_mono, self._audio_clock_bound,
+                )
                 self.current = track
                 self.start_time = time.time() - seek_offset
                 self.pause_start = 0.0
                 self.total_paused_time = 0.0
+                self._using_opus_copy = using_copy
+                self._bind_audio_clock(source, seek_offset)
+                self.vc.play(source, after=functools.partial(self._after_play, source))
+                play_accepted = True
+                self._counted_occurrence = occurrence
                 self._consecutive_errors = 0
                 self._start_stall_watchdog()
                 log.info(f"[Music][timing] ffmpeg source ready in {time.time() - _t_ffmpeg:.2f}s (opus_copy={using_copy}, is_opus={is_opus}, seek={seek_offset}s)")
             except Exception as e:
                 log.error(f"[Music] FFmpeg playback error for '{track.title}': {type(e).__name__} - {e}", exc_info=True)
-                # `FFmpegPCMAudio(...)`/`FFmpegOpusAudio(...)` spawn tiến trình con NGAY
-                # khi khởi tạo. Nếu `vc.play()` chưa kịp nhận source thì không có audio
-                # thread nào gọi `cleanup()` hộ ta -> ffmpeg mồ côi tích tụ dần trên
-                # thiết bị 6GB. Chỉ dọn khi source thực sự chưa được giao cho voice client.
+                if not play_accepted and startup_state is not None and seq == self._play_seq:
+                    # Invalidate queued/buffered startup EOF before the cleanup await.
+                    # The previous source was already stopped: restore metadata/clocks,
+                    # never resurrect that source or count this rejected occurrence.
+                    self._active_source = None
+                    self._pending_end = None
+                    self._using_opus_copy = False
+                    (
+                        self.current, self.start_time, self.pause_start, self.total_paused_time,
+                        self._audio_frames, self._audio_base, self._last_data_mono, self._audio_clock_bound,
+                    ) = startup_state
+                    if getattr(self.vc, "source", None) is source and (self.vc.is_playing() or self.vc.is_paused()):
+                        self.vc.stop()
+                # FFmpeg constructors spawn immediately; unaccepted sources have no
+                # guaranteed audio-thread cleanup, even if vc.play partially started.
                 playing = bool(self.vc and (self.vc.is_playing() or self.vc.is_paused()))
-                if source is not None and not playing:
-                    try:
-                        await asyncio.to_thread(source.cleanup)
-                    except Exception as cleanup_err:
-                        log.debug(f"[Music] cleanup source thất bại: {cleanup_err}")
-                await self._report_play_failure(track)
+                if source is not None and (not play_accepted or not playing):
+                    if self._active_source is source:
+                        self._active_source = None
+                    await self._cleanup_source(source)
+                if self._play_still_valid(seq):
+                    await self._report_play_failure(track)
                 return True
+
+            # Count listening occurrences only after voice accepted playback, not restarts.
+            if not continuation:
+                try:
+                    from database import async_increment_stat
+                    taskbag.spawn(async_increment_stat(str(self.guild.id), "music_play", track.title[:80]))
+                except Exception as stat_err:
+                    log.debug(f"[Music] Increment stat error: {stat_err}")
 
             # Gửi embed Now Playing
             await self._send_now_playing()
@@ -941,7 +1055,7 @@ class MusicPlayer:
         s = await async_get_guild_settings(str(self.guild.id))
         view  = MusicControlView(self, s)
         elapsed = self.get_elapsed()
-        is_opus_copy = bool(self.vc and self.vc.source and not isinstance(self.vc.source, discord.PCMVolumeTransformer))
+        is_opus_copy = bool(self._using_opus_copy and self._active_source is not None and self.vc and self.vc.source is self._active_source)
         embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s, is_opus_copy=is_opus_copy)
 
         # Nếu đã có now_playing_msg đang tồn tại (ví dụ khi auto-reconnect live stream), ưu tiên edit
@@ -963,15 +1077,23 @@ class MusicPlayer:
 
     # ── Public API ─────────────────────────────────────────────────────────
     async def add_and_play(self, track: Track, force_play: bool = False):
+        if self._manual_stopped:
+            return False
         self._reset_inactivity_timer()
-        is_actually_playing = self.vc and (self.vc.is_playing() or self.vc.is_paused())
-        if force_play or not is_actually_playing:
-            await self._play(track)
-        else:
-            self.queue.append(track)
-            # Preload sớm bài kế tiếp để skip tới là có sẵn ngay
-            if self.queue:
-                self._schedule_preload()
+        # No await between admission and _play acquiring its lock: this is atomic on
+        # the event loop. A locked _play includes extraction/NP work not yet audible.
+        busy = self._play_lock.locked() or self._recovering or self._is_reconnecting or (
+            self.vc and (self.vc.is_playing() or self.vc.is_paused())
+        )
+        if force_play or not busy:
+            self._next_occurrence = object()
+            if force_play:
+                # Intentional replacement is a new occurrence, even for the same Track.
+                self._active_source = None
+            return await self._play(track)
+        self.queue.append(track)
+        self._schedule_preload()
+        return True
 
     def skip(self):
         self._is_reconnecting = False
@@ -1044,7 +1166,7 @@ class MusicPlayer:
         try:
             s = await async_get_guild_settings(str(self.guild.id))
             elapsed = self.get_elapsed()
-            is_opus_copy = bool(self.vc and self.vc.source and not isinstance(self.vc.source, discord.PCMVolumeTransformer))
+            is_opus_copy = bool(self._using_opus_copy and self._active_source is not None and self.vc and self.vc.source is self._active_source)
             embed = _make_np_embed(self.current, self.queue, self.loop_mode, self.volume, elapsed, s, is_opus_copy=is_opus_copy)
             view = MusicControlView(self, s)
             await self.now_playing_msg.edit(embed=embed, view=view)
@@ -1056,14 +1178,29 @@ class MusicPlayer:
         # `_skipped` KHÔNG được nằm trong guard chặn ở đây: trả về sớm khi còn cờ sẽ bỏ
         # `_is_reconnecting=True` lại (finally nằm phía sau) và mọi `_play()` bị chặn
         # vĩnh viễn tới khi restart.
+        task = asyncio.current_task()
+        owner = getattr(task, "_music_voice_owner", task)
+        registry = getattr(self.cog, "_reconnect_tasks", None)
+        if registry is not None and registry.get(self.guild.id) is not owner:
+            return
+        previous = self._resume_owner
+        # A replacement can enter before the cancelled generation runs its finally.
+        # Release only that generation's recovery lease, not an unrelated recovery.
+        if previous is not None and previous is not owner and (
+            previous.done() or getattr(previous, "cancelling", lambda: 0)()
+        ):
+            self._recovering = False
         if self._recovering or self._manual_stopped or not self._is_reconnecting:
             return
 
+        self._resume_owner = owner
         self._recovering = True
         seq = self._play_seq
         try:
             # Đệm 1.5s để Discord Voice UDP socket ổn định
             await asyncio.sleep(1.5)
+            if registry is not None and registry.get(self.guild.id) is not owner:
+                return
             if self._manual_stopped or not self._is_reconnecting:
                 return
             if self._play_seq != seq:
@@ -1089,7 +1226,7 @@ class MusicPlayer:
                 log.info(f"[Music] Stream vẫn đang chạy tại guild {self.guild.id}, không cần resume.")
                 return
 
-            target_elapsed = self.get_elapsed()
+            target_elapsed = self.get_audio_position()
             track_title = getattr(target_track, "title", "Không rõ")
             is_live = getattr(target_track, "is_live", False)
             log.info(f"[Music] Phục hồi bài hát '{track_title}' (live={is_live}) tại {target_elapsed}s sau khi voice reconnect...")
@@ -1115,76 +1252,131 @@ class MusicPlayer:
             if track:
                 await self._report_play_failure(track, "music.cannot_decode")
         finally:
-            self._recovering = False
-            self._is_reconnecting = False
-            self._drain_pending_end_soon()
+            if self._resume_owner is owner:
+                self._resume_owner = None
+                self._recovering = False
+                if registry is None or registry.get(self.guild.id) is owner:
+                    self._is_reconnecting = False
+                    self._drain_pending_end_soon()
 
     async def stop(self):
+        if self._cleanup_done:
+            return
+        # Invalidate extraction immediately, without waiting for _play_lock.
+        self._manual_stopped = True
+        self._play_seq += 1
+        if self._stop_task is None or self._stop_task.done():
+            self._is_stopping = True
+            caller = asyncio.current_task()
+            self._stop_task = asyncio.create_task(self._stop_impl(caller))
+            self._stop_task._music_voice_owner = getattr(caller, "_music_voice_owner", caller)
+            self._stop_task.add_done_callback(lambda _: setattr(self, "_is_stopping", False))
+        task = self._stop_task
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # Caller cancellation cannot strand a half-stopped player. Keep a strong
+            # reference and finish bounded teardown before propagating cancellation.
+            await asyncio.shield(task)
+            raise
+
+    def _voice_belongs_to_replacement(self, vc) -> bool:
+        if not self.cog or not hasattr(self.cog, "_get"):
+            return False
+        replacement = self.cog._get(self.guild.id)
+        return bool(
+            replacement is not None and replacement is not self
+            and (vc is self.guild.voice_client or vc is getattr(replacement, "vc", None))
+        )
+
+    async def _stop_impl(self, caller):
         async with self._stop_lock:
-            if self._cleanup_done:
-                return
-            self._cleanup_done = True
-            self._manual_stopped = True
             self._is_reconnecting = False
+            self._recovering = False
             self._pending_end = None
-            self._reset_inactivity_timer()
-            self._cancel_stall_watchdog()
             self._active_source = None
-            cog = getattr(self, "cog", None)
-            if cog and hasattr(cog, "_cancel_reconnect_task"):
+            self._using_opus_copy = False
+            # stop runs in its own shielded task; do not cancel the originating task.
+            if self._inactivity_task is caller:
+                self._inactivity_task = None
+            self._reset_inactivity_timer()
+            if self._watchdog_task is caller:
+                self._watchdog_task = None
+            self._cancel_stall_watchdog()
+            cog = self.cog
+            owns_slot = not cog or not hasattr(cog, "_get") or cog._get(self.guild.id) is self
+            registry = getattr(cog, "_reconnect_tasks", {})
+            owner = getattr(caller, "_music_voice_owner", caller)
+            if owns_slot and registry.get(self.guild.id) in (caller, owner):
+                registry.pop(self.guild.id, None)
+            if owns_slot and cog and hasattr(cog, "_cancel_reconnect_task"):
                 try:
                     cog._cancel_reconnect_task(self.guild.id)
                 except Exception:
                     pass
             self.queue.clear()
-            self.current   = None
+            self.current = None
             self.loop_mode = 0
-            self.autoplay  = False
+            self.autoplay = False
             self._played_history.clear()
             self._played_history_set.clear()
-            if self._preload_task:
-                self._preload_task.cancel()
-
-            # 0. Giải phóng AudioSource & đóng pipes trong worker thread (chống block event loop 100-300ms trên Termux)
+            workers = set(self._preload_workers)
+            if self._preload_task and not self._preload_task.done():
+                workers.add(self._preload_task)
+            for worker in workers:
+                if worker is not caller:
+                    worker.cancel()
+            for drain in (self._skip_drain, self._end_drain):
+                if drain and drain is not caller and not drain.done():
+                    drain.cancel()
             source = getattr(self.vc, "source", None)
-            if source and hasattr(source, "cleanup"):
-                try:
-                    await asyncio.to_thread(source.cleanup)
-                except Exception as src_err:
-                    log.debug(f"[Music] source cleanup error: {src_err}")
-
-            # 1. Dọn dẹp self.vc
-            if self.vc:
-                try:
-                    if self.vc.is_playing() or self.vc.is_paused():
+            complete = True
+            try:
+                if workers:
+                    _, pending = await asyncio.wait(workers, timeout=STALL_CLEANUP_TIMEOUT_SECONDS)
+                    complete = not pending
+                if not self._voice_belongs_to_replacement(self.vc):
+                    if self.vc and (self.vc.is_playing() or self.vc.is_paused()):
                         self.vc.stop()
-                    if self.vc.is_connected():
-                        await self.vc.disconnect(force=True)
-                except Exception as e:
-                    log.debug(f"[Music] voice disconnect error: {e}")
-
-            # 2. Dọn dẹp guild.voice_client trực tiếp (chống ghost voice desync)
-            try:
+                    cleaned = await self._cleanup_source(source)
+                    complete = complete and cleaned
+            finally:
+                # Even a failing/cancelled cleanup must not prevent disconnect/drop.
                 g_vc = self.guild.voice_client
-                if g_vc and g_vc.is_connected():
-                    if g_vc.is_playing() or g_vc.is_paused():
-                        g_vc.stop()
-                    await g_vc.disconnect(force=True)
-            except Exception as e:
-                log.debug(f"[Music] guild voice_client disconnect error: {e}")
-
-            # 3. Dọn dẹp voice state nếu bot vẫn còn kẹt trong channel
-            try:
-                if self.guild.me and self.guild.me.voice and self.guild.me.voice.channel:
-                    await self.guild.change_voice_state(channel=None)
-            except Exception as e:
-                log.debug(f"[Music] guild change_voice_state error: {e}")
-
-            if self.now_playing_msg:
+                vcs = [self.vc]
+                # Never disconnect a new player's replacement voice client.
+                owns_slot = not cog or not hasattr(cog, "_get") or cog._get(self.guild.id) is self
+                if owns_slot and g_vc is not self.vc:
+                    vcs.append(g_vc)
+                for vc in vcs:
+                    if vc is None or self._voice_belongs_to_replacement(vc):
+                        continue
+                    try:
+                        if vc.is_playing() or vc.is_paused():
+                            vc.stop()
+                        if vc.is_connected():
+                            await asyncio.wait_for(vc.disconnect(force=True), STALL_CLEANUP_TIMEOUT_SECONDS)
+                        complete = complete and not vc.is_connected()
+                    except Exception as exc:
+                        complete = False
+                        log.debug("[Music] stop_disconnect_failed guild=%s type=%s", self.guild.id, type(exc).__name__)
                 try:
-                    await self.now_playing_msg.delete()
-                except Exception as e:
-                    log.debug(f"[Music] delete NP message (stop) error: {e}")
-            self.now_playing_msg = None
-            if self.cog:
-                self.cog._drop(self.guild.id)
+                    owns_slot = not cog or not hasattr(cog, "_get") or cog._get(self.guild.id) is self
+                    if owns_slot and self.guild.me and self.guild.me.voice and self.guild.me.voice.channel:
+                        await asyncio.wait_for(self.guild.change_voice_state(channel=None), STALL_CLEANUP_TIMEOUT_SECONDS)
+                except Exception as exc:
+                    complete = False
+                    log.debug("[Music] stop_voice_state_failed guild=%s type=%s", self.guild.id, type(exc).__name__)
+                if self.now_playing_msg:
+                    try:
+                        await asyncio.wait_for(self.now_playing_msg.delete(), STALL_CLEANUP_TIMEOUT_SECONDS)
+                        self.now_playing_msg = None
+                    except discord.NotFound:
+                        self.now_playing_msg = None
+                    except Exception as exc:
+                        complete = False
+                        log.debug("[Music] stop_message_failed guild=%s type=%s", self.guild.id, type(exc).__name__)
+                if cog and (not hasattr(cog, "_get") or cog._get(self.guild.id) is self):
+                    cog._drop(self.guild.id)
+                # Partial failures remain retryable; never set this before teardown.
+                self._cleanup_done = complete

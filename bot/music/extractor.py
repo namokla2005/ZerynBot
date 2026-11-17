@@ -10,6 +10,8 @@ import logging
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlsplit
 
 import aiohttp
 
@@ -21,7 +23,10 @@ from database import (
     async_set_song_cache,
 )
 
+from database.music import async_set_song_cache_batch
+
 from .config import (
+    _extraction_runtime,
     _extract_semaphore,
     _get_ydl,
     _get_ydl_flat,
@@ -125,22 +130,255 @@ def _extract_with_fallback(query: str, mode: str) -> tuple[dict | None, str]:
         return info, "primary"
 
     if mode == "opus":
-        log.warning("[Music] Primary không có Opus audio-only cho '%s'", query[:80])
+        log.warning("[Music] Primary không có Opus audio-only")
         return None, "primary"
 
     return _extract_sync(query, "compat"), "compat"
 
 
+def _normalized_query(query: str) -> str:
+    query = clean_youtube_query(query or "")
+    if _is_url(query):
+        try:
+            parts = urlsplit(query)
+        except ValueError:
+            return query  # The worker's SSRF guard still rejects malformed URLs.
+        # Host/scheme are insensitive; userinfo, port, path, query and IDs are not.
+        userinfo, separator, hostport = parts.netloc.rpartition("@")
+        authority = userinfo + separator + hostport.lower()
+        return parts._replace(scheme=parts.scheme.lower(), netloc=authority).geturl()
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", query):
+        return query
+    return query.lower()
+
+
+def _is_url(query: str) -> bool:
+    return query.lower().startswith(("http://", "https://"))
+
+
 def _song_info_cache_key(query: str, tag: str | None = None) -> str:
-    return f"song_info:{tag or source_cache_tag()}:{(query or '').lower()}"
+    return f"song_info:{tag or source_cache_tag()}:{_normalized_query(query)}"
+
+
+_EXTRACT_REQUEST_TIMEOUT = 30.0
+_EXTRACT_CLOSE_TIMEOUT = 5.0
+_MAX_INFLIGHT = 128
+_inflight = _extraction_runtime.inflight
+
+
+def _activate_extraction_generation() -> bool:
+    """The first replacement request invalidates any old drain's cleanup authority."""
+    runtime = _extraction_runtime
+    with runtime.lock:
+        if runtime.closing:
+            return False
+        if runtime.close_generation == runtime.generation:
+            runtime.generation += 1
+        return True
+
+
+async def _run_worker(func, *args, recheck=None):
+    """One reload-stable pool/permit set, including all lingering generations."""
+    runtime = _extraction_runtime
+    if runtime.closing:
+        return None
+    generation = runtime.generation
+    capacity = _extract_semaphore
+    start = time.monotonic()
+    await capacity.acquire()
+    submitted = False
+    try:
+        log.debug("[Music][extract] worker_wait_ms=%.1f", (time.monotonic() - start) * 1000)
+        if runtime.closing or runtime.generation != generation:
+            return None
+        if recheck is not None:
+            hit = await recheck()
+            if hit is not None:
+                return hit
+        while True:
+            with runtime.lock:
+                if runtime.closing or runtime.generation != generation:
+                    return None
+                retiring = runtime.retiring
+                if retiring is not None and retiring[1].is_set():
+                    runtime.retiring = retiring = None
+                if retiring is None:
+                    if runtime.executor is None:
+                        runtime.executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="music-extract")
+                    future = runtime.executor.submit(func, *args)
+                    runtime.workers.add(future)
+                    break
+            # A completely idle retired pool is joining outside both executors.
+            # Do not create a second pool until its actual worker threads have exited.
+            await asyncio.sleep(0.01)
+        def finished(done):
+            with runtime.lock:
+                runtime.workers.discard(done)
+            capacity.release()
+        future.add_done_callback(finished)
+        submitted = True
+        # Shield the actual future: cancellation/deadline cannot release true capacity.
+        wrapped = asyncio.wrap_future(future)
+        wrapped.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+        return await asyncio.shield(wrapped)
+    finally:
+        if not submitted:
+            capacity.release()
+
+
+async def _singleflight(key, operation):
+    runtime = _extraction_runtime
+    if not _activate_extraction_generation():
+        return None
+    # Different event loops must not await one another's tasks (offline tests/reloads).
+    flight_key = (asyncio.get_running_loop(), key)
+    task = _inflight.get(flight_key)
+    if task is None:
+        if len(_inflight) >= _MAX_INFLIGHT:
+            log.debug("[Music][extract] admission=busy")
+            return None
+        async def bounded():
+            start = time.monotonic()
+            try:
+                return await asyncio.wait_for(operation(), timeout=_EXTRACT_REQUEST_TIMEOUT)
+            except asyncio.TimeoutError:
+                log.warning("[Music][extract] deadline exceeded")
+                return None
+            except Exception as exc:
+                # Never log provider exceptions: they may contain signed URLs/cookies.
+                log.debug("[Music][extract] failed type=%s", type(exc).__name__)
+                return None
+            finally:
+                log.debug("[Music][extract] latency_ms=%.1f", (time.monotonic() - start) * 1000)
+        task = asyncio.create_task(bounded(), name="music-extraction")
+        _inflight[flight_key] = task
+        def forget(done):
+            if _inflight.get(flight_key) is done:
+                _inflight.pop(flight_key, None)
+            if not done.cancelled():
+                done.exception()
+        task.add_done_callback(forget)
+    else:
+        log.debug("[Music][extract] singleflight=joined")
+    return await asyncio.shield(task)
+
+
+async def _retire_idle_executor(runtime, executor, generation):
+    """Only the still-current unload may retire an idle pool, never a replacement."""
+    with runtime.lock:
+        if (executor is None or runtime.executor is not executor
+                or runtime.generation != generation or runtime.workers):
+            return
+        done = threading.Event()
+        retiring = (executor, done)
+        runtime.retiring = retiring
+        runtime.executor = None
+    def join_pool():
+        try:
+            executor.shutdown(wait=True, cancel_futures=True)
+        finally:
+            done.set()
+    # No join on the event loop or the extraction/default executor; all real work
+    # is already finished. New submissions wait for this pool's threads to exit.
+    threading.Thread(target=join_pool, name="music-pool-close", daemon=True).start()
+    while not done.is_set():
+        await asyncio.sleep(0.01)
+    with runtime.lock:
+        if runtime.retiring is retiring:
+            runtime.retiring = None
+
+
+async def _close_extractor_generation():
+    runtime = _extraction_runtime
+    global _spotify_session
+    # Detach everything before the first await. Later cleanup only owns these
+    # snapshots; replacement requests may create their own tasks/session immediately.
+    with runtime.lock:
+        runtime.generation += 1
+        generation = runtime.close_generation = runtime.generation
+        executor = runtime.executor
+        workers = list(runtime.workers)
+        tasks = list(_inflight.values()) + list(runtime.jobs)
+        _inflight.clear()
+        runtime.jobs.clear()
+        sessions = [s for s in (_spotify_session, runtime.spotify_session) if s is not None]
+        _spotify_session = runtime.spotify_session = None
+        for task in tasks:
+            task.cancel()
+        runtime.closing = False
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    for session in {id(s): s for s in sessions}.values():
+        try:
+            if not session.closed:
+                await asyncio.wait_for(session.close(), timeout=_EXTRACT_CLOSE_TIMEOUT)
+        except Exception as exc:
+            log.debug("[Music][extract] session close failed type=%s", type(exc).__name__)
+    if workers:
+        wrapped = [asyncio.wrap_future(worker) for worker in workers]
+        for future in wrapped:
+            future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+        # Finite snapshot wait, not a background drain retained forever by a hung job.
+        await asyncio.wait(wrapped, timeout=_EXTRACT_CLOSE_TIMEOUT)
+    await _retire_idle_executor(runtime, executor, generation)
+
+
+async def close_extractor_resources() -> None:
+    """Detach one generation; lingering work keeps its permits, not an admission veto.
+
+    Replacement generations reuse the same four-worker pool while old native work
+    runs. An idle pool is joined off-loop before any replacement pool can be created.
+    """
+    runtime = _extraction_runtime
+    task = runtime.close_task
+    if (task is None or task.done()
+            or (not runtime.closing and runtime.close_generation != runtime.generation)):
+        runtime.closing = True
+        task = runtime.close_task = asyncio.create_task(_close_extractor_generation())
+    try:
+        await asyncio.wait_for(asyncio.shield(task), timeout=_EXTRACT_CLOSE_TIMEOUT)
+    except asyncio.TimeoutError:
+        log.warning("[Music][extract] shutdown pending; replacement admission remains available")
+
+
+async def run_extraction_job(func, *args):
+    """Run a synchronous callable on the shared pool; do NOT wrap in the semaphore.
+
+    Cancellation propagates to the caller, but real capacity is held until thread exit.
+    Queue/worker time counts toward the deadline; timeout/provider errors return None.
+    """
+    runtime = _extraction_runtime
+    if not _activate_extraction_generation():
+        return None
+    job = asyncio.create_task(_run_worker(func, *args), name="music-worker-job")
+    runtime.jobs.add(job)
+    start = time.monotonic()
+    try:
+        return await asyncio.wait_for(job, timeout=_EXTRACT_REQUEST_TIMEOUT)
+    except asyncio.TimeoutError:
+        log.debug("[Music][extract] job deadline exceeded")
+        return None
+    except Exception as exc:
+        log.debug("[Music][extract] job failed type=%s", type(exc).__name__)
+        return None
+    finally:
+        runtime.jobs.discard(job)
+        log.debug("[Music][extract] job_latency_ms=%.1f", (time.monotonic() - start) * 1000)
+
+
+async def find_related_track(current_title: str, current_uploader: str, history=None, current_id: str = "") -> dict | None:
+    """Autoplay convenience wrapper around the generic bounded worker entry point."""
+    return await run_extraction_job(
+        _find_related_track_sync, current_title, current_uploader, history, current_id,
+    )
 
 
 def _log_source(query: str, info: dict | None, used_mode: str) -> None:
     fmt = _selected_format(info) or {}
     log.info(
-        "[Music] source=%s format=%s acodec=%s vcodec=%s abr=%s protocol=%s audio_only=%s query=%s",
+        "[Music] source=%s format=%s acodec=%s vcodec=%s abr=%s protocol=%s audio_only=%s",
         used_mode, fmt.get("format_id"), fmt.get("acodec"), fmt.get("vcodec"),
-        fmt.get("abr"), fmt.get("protocol"), _selected_is_audio_only(info), query[:80],
+        fmt.get("abr"), fmt.get("protocol"), _selected_is_audio_only(info),
     )
 
 
@@ -159,9 +397,14 @@ _spotify_session: aiohttp.ClientSession | None = None
 async def _get_spotify_session() -> aiohttp.ClientSession:
     """Tái sử dụng ClientSession cho Spotify resolve để giảm TCP handshake overhead."""
     global _spotify_session
+    if not _activate_extraction_generation():
+        raise RuntimeError("Extractor resources are closing")
+    if _spotify_session is None:
+        _spotify_session = _extraction_runtime.spotify_session
     if _spotify_session is None or _spotify_session.closed:
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         _spotify_session = aiohttp.ClientSession(headers=headers)
+    _extraction_runtime.spotify_session = _spotify_session
     return _spotify_session
 
 async def _resolve_external_url(query: str) -> str:
@@ -176,17 +419,21 @@ async def _resolve_external_url(query: str) -> str:
                     data = await resp.json()
                     title = data.get("title")
                     if title:
-                        log.info(f"[Music] Resolved Spotify URL '{q_strip}' -> '{title}'")
+                        log.info("[Music] Resolved Spotify track metadata")
                         return title
         except Exception as e:
-            log.debug(f"[Music] Spotify resolve error: {e}")
+            log.debug("[Music] Spotify resolve error type=%s", type(e).__name__)
     return query
 
 def clean_youtube_query(query: str) -> str:
     """Chuẩn hóa URL YouTube, loại bỏ các tham số rác (&list=, ?si=, &ab_channel=) để tránh bị nhận diện nhầm thành playlist tab."""
     q = query.strip()
     match = re.search(r"(?:v=|\/|vi=)([0-9A-Za-z_-]{11})(?:[&?]|$|\/)", q)
-    if match and any(domain in q.lower() for domain in ["youtube.com", "youtu.be"]):
+    try:
+        host = (urlsplit(q).hostname or "").lower()
+    except ValueError:
+        host = ""
+    if match and (host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com")):
         video_id = match.group(1)
         return f"https://www.youtube.com/watch?v={video_id}"
     return q
@@ -208,10 +455,10 @@ def _extract_sync(query: str, mode: str = "compat") -> dict | None:
     """
     try:
         clean_q = clean_youtube_query(query)
-        if clean_q.startswith("http") and not _is_safe_remote_url(clean_q):
-            log.warning(f"[Music] Chặn URL không an toàn: {clean_q[:120]}")
+        if _is_url(clean_q) and not _is_safe_remote_url(clean_q):
+            log.warning("[Music] Chặn URL không an toàn")
             return None
-        if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
+        if not _is_url(clean_q) and not clean_q.startswith("ytsearch:"):
             clean_q = f"ytsearch1:{clean_q}"
         elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
             clean_q = clean_q.replace("ytsearch:", "ytsearch1:", 1)
@@ -228,17 +475,17 @@ def _extract_sync(query: str, mode: str = "compat") -> dict | None:
                 return None
         return info
     except Exception as e:
-        log.warning(f"[Music] yt-dlp error for query '{query}': {e}")
+        log.warning("[Music] yt-dlp error type=%s", type(e).__name__)
         return None
 
 def _extract_metadata_sync(query: str) -> dict | None:
     """Trích xuất nhanh metadata bài hát qua Flat Extraction (< 1s)."""
     try:
         clean_q = clean_youtube_query(query)
-        if clean_q.startswith("http") and not _is_safe_remote_url(clean_q):
-            log.warning(f"[Music] Chặn URL không an toàn (metadata): {clean_q[:120]}")
+        if _is_url(clean_q) and not _is_safe_remote_url(clean_q):
+            log.warning("[Music] Chặn URL không an toàn (metadata)")
             return None
-        if not clean_q.startswith("http") and not clean_q.startswith("ytsearch:"):
+        if not _is_url(clean_q) and not clean_q.startswith("ytsearch:"):
             clean_q = f"ytsearch1:{clean_q}"
         elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch1:"):
             clean_q = clean_q.replace("ytsearch:", "ytsearch1:", 1)
@@ -263,7 +510,7 @@ def _extract_metadata_sync(query: str) -> dict | None:
                 info = fallback_info
         return info
     except Exception as e:
-        log.warning(f"[Music] yt-dlp flat metadata error for query '{query}': {e}")
+        log.warning("[Music] yt-dlp flat metadata error type=%s", type(e).__name__)
         return None
 
 def _clean_song_title(t: str, lowercase: bool = True) -> str:
@@ -349,7 +596,7 @@ def _find_related_track_sync(current_title: str, current_uploader: str, history:
             except Exception:
                 continue
     except Exception as e:
-        log.warning(f"[Music] Autoplay search failed: {e}")
+        log.warning("[Music] Autoplay search failed type=%s", type(e).__name__)
     return None
 
 def _get_stream_url(info: dict) -> str | None:
@@ -551,87 +798,95 @@ def _compact_song_info(info: dict) -> dict:
         "is_live":       is_live,
     }
 
-async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
-    """Lấy thông tin bài hát đầy đủ bao gồm stream audio (cho lệnh phát nhạc)."""
-    query = (query or "").strip()
-    if query.startswith("http") and not _is_safe_remote_url(query):
-        log.warning(f"[Music] Chặn URL không an toàn trước cache/yt-dlp: {query[:120]}")
-        return None
-    tag = source_cache_tag()
-    key = query.lower()
-    cache_key = _song_info_cache_key(key, tag)
+def _stream_cache_ttl(info) -> float:
+    if not isinstance(info, dict) or info.get("is_live"):
+        return 0.0
+    try:
+        expire = info.get("stream_expire")
+        return max(0.0, min(600.0, float(expire) - time.time() - 30)) if expire else 600.0
+    except (ValueError, TypeError, OverflowError):
+        return 0.0
 
-    if not force_refresh:
-        # 1. Kiểm tra RAM Cache wrapper
-        cached = await cache.aget(cache_key)
-        if cached is not None:
+
+async def _cached_song(cache_key):
+    cached = await cache.aget(cache_key)
+    if cached is not None:
+        if _stream_cache_ttl(cached) > 0:
+            log.debug("[Music][extract] cache_hit=ram")
             return cached
+        await cache.adelete(cache_key)
+    disk = await async_get_song_cache(cache_key, ttl=21600)
+    ttl = _stream_cache_ttl(disk)
+    if ttl > 0:
+        await cache.aset(cache_key, disk, ttl=ttl)
+        log.debug("[Music][extract] cache_hit=disk")
+        return disk
+    return None
 
-        # 1b. Disk cache (giúp nhanh sau khi bot restart, TTL 6h — URL stream tự hết hạn 5.5h)
-        disk = await async_get_song_cache(cache_key, ttl=21600)
-        if disk is not None:
-            exp = disk.get("stream_expire")
-            if exp and float(exp) <= (time.time() + 30):
-                disk = None
-            else:
-                await cache.aset(cache_key, disk, ttl=600)
-                return disk
 
+def _extract_policy_sync(query, mode):
+    if not _should_try_primary(mode):
+        return _extract_sync(query, "compat"), "compat"
+    if not _primary_available():
+        if mode == "opus":
+            return None, "primary"
+        return _extract_sync(query, "compat"), "compat"
+    info, used_mode = _extract_with_fallback(query, mode)
+    _note_primary_result(used_mode == "primary")
+    return info, used_mode
+
+
+async def extract_info(query: str, force_refresh: bool = False) -> dict | None:
+    """Stream extraction with bounded DNS/workers, deadline and cancellation-safe sharing."""
+    query = (query or "").strip()
+    tag = source_cache_tag()
+    cache_key = _song_info_cache_key(query, tag)
     mode = get_source_mode()
-    # 2. Chạy yt-dlp trong thread pool (giới hạn đồng thời bằng semaphore)
-    async with _extract_semaphore:
+
+    async def extract():
+        # DNS is deliberately before even a RAM hit and uses the same bounded pool.
+        if _is_url(query) and not await _run_worker(_is_safe_remote_url, query):
+            log.warning("[Music][extract] blocked unsafe URL")
+            return None
         if force_refresh:
             await cache.adelete(cache_key)
             await async_delete_song_cache(cache_key)
-
-        loop = asyncio.get_running_loop()
-        if not _should_try_primary(mode):
-            info = await loop.run_in_executor(None, _extract_sync, query, "compat")
-            used_mode = "compat"
-        elif not _primary_available():
-            if mode == "opus":
-                log.warning(
-                    "[Music] Primary source đang cooldown; mode=opus nên không fallback cho '%s'",
-                    query[:80],
-                )
-                info = None
-                used_mode = "primary"
-            else:
-                info = await loop.run_in_executor(None, _extract_sync, query, "compat")
-                used_mode = "compat"
         else:
-            info, used_mode = await loop.run_in_executor(
-                None, _extract_with_fallback, query, mode
-            )
-            _note_primary_result(used_mode == "primary")
-            if used_mode == "compat" and mode == "auto":
-                log.info(
-                    "[Music] Primary source không dùng được; fallback compat/android cho '%s'",
-                    query[:80],
-                )
-
-    if info:
+            hit = await _cached_song(cache_key)
+            if hit is not None:
+                return hit
+        # Another alias may have populated cache while this request waited for capacity.
+        async def recheck():
+            hit = await _cached_song(cache_key)
+            return (hit, "cache") if hit is not None else None
+        result = await _run_worker(
+            _extract_policy_sync, query, mode, recheck=None if force_refresh else recheck,
+        )
+        if result is None:
+            return None
+        info, used_mode = result
+        if used_mode == "cache":
+            return info
+        if not info:
+            return None
         _log_source(query, info, used_mode)
         compact = _compact_song_info(info)
-        exp_ts = compact.get("stream_expire")
-        is_live = compact.get("is_live", False)
-        # Với live stream: Tuyệt đối không cache để token luôn tươi mới và chống OOM trên Termux
-        if not is_live:
-            await cache.aset(cache_key, compact, ttl=600)
-            await async_set_song_cache(cache_key, compact, exp_ts)
-            vid = compact.get("id")
-            if vid:
-                vid_key = _song_info_cache_key(vid, tag)
-                await cache.aset(vid_key, compact, ttl=600)
-                await async_set_song_cache(vid_key, compact, exp_ts)
-            web_url = compact.get("webpage_url") or compact.get("url")
-            if web_url and isinstance(web_url, str) and web_url.startswith("http"):
-                web_key = _song_info_cache_key(web_url.lower().strip(), tag)
-                await cache.aset(web_key, compact, ttl=600)
-                await async_set_song_cache(web_key, compact, exp_ts)
+        ttl = _stream_cache_ttl(compact)
+        if ttl > 0:
+            keys = [cache_key]
+            if compact.get("id"):
+                keys.append(_song_info_cache_key(compact["id"], tag))
+            web = compact.get("webpage_url") or compact.get("url")
+            if isinstance(web, str) and _is_url(web):
+                keys.append(_song_info_cache_key(web, tag))
+            keys = list(dict.fromkeys(keys))
+            for key in keys:
+                await cache.aset(key, compact, ttl=ttl)
+            await async_set_song_cache_batch(keys, compact, compact.get("stream_expire"))
         return compact
 
-    return None
+    # Force requests coalesce with one another, but must not join an ordinary cache hit.
+    return await _singleflight(("stream", cache_key, bool(force_refresh)), extract)
 
 def _compact_metadata(info: dict) -> dict:
     """Bản gọn cho RAM cache 24h của `extract_metadata` (flat extraction).
@@ -660,25 +915,28 @@ def _compact_metadata(info: dict) -> dict:
 
 
 async def extract_metadata(query: str) -> dict | None:
-    """Lấy nhanh thông tin cơ bản bài hát cho Playlist / Search (Flat Extraction + RAM Cache 24h)."""
-    key = query.strip().lower()
-    cache_key = f"song_meta:{key}"
+    """Flat metadata with bounded workers and source-tagged single-flight."""
+    query = (query or "").strip()
+    # Flat extraction is always cookie-free compat; preserve its public RAM namespace.
+    tag = source_cache_tag()
+    cache_key = f"song_meta:{_normalized_query(query)}"
 
-    # 1. Kiểm tra RAM Cache (trả về tức thì 0ms)
-    cached = await cache.aget(cache_key)
-    if cached is not None:
-        return cached
-
-    # 2. Chạy Flat Extraction siêu tốc trong thread pool có semaphore bảo vệ chống quá tải
-    async with _extract_semaphore:
-        loop = asyncio.get_running_loop()
-        info = await loop.run_in_executor(None, _extract_metadata_sync, query)
-
-    if info:
-        # Chuẩn hóa webpage_url nếu bị thiếu + cắt còn bản gọn trước khi vào cache,
-        # rồi TRẢ CHÍNH bản gọn đó cho caller (dict thô được giải phóng ngay).
+    async def extract():
+        if _is_url(query) and not await _run_worker(_is_safe_remote_url, query):
+            return None
+        async def recheck():
+            hit = await cache.aget(cache_key)
+            if hit is not None:
+                log.debug("[Music][extract] cache_hit=metadata")
+            return hit
+        cached = await recheck()
+        if cached is not None:
+            return cached
+        info = await _run_worker(_extract_metadata_sync, query, recheck=recheck)
+        if not info:
+            return None
         compact = _compact_metadata(info)
         await cache.aset(cache_key, compact, ttl=86400)
         return compact
 
-    return None
+    return await _singleflight(("metadata", tag, cache_key), extract)

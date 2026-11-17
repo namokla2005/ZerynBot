@@ -2,9 +2,9 @@
 views.py — View/Select UI của trình phát nhạc (nút điều khiển, hàng đợi, tìm
 kiếm, phân trang lời bài hát).
 
-Tách từ `bot/cogs/music.py` (Giai đoạn 3.1). `player` chỉ được import lúc
-type-check (`from __future__ import annotations`) nên `player.py` có thể import
-`MusicControlView` mà không sinh vòng import.
+Tách từ `bot/cogs/music.py` (Giai đoạn 3.1). Import runtime của `Track` nằm
+trong callback tìm kiếm, nên `player.py` có thể import `MusicControlView`
+mà không sinh vòng import.
 """
 
 from __future__ import annotations
@@ -40,6 +40,27 @@ if TYPE_CHECKING:  # tránh vòng import với player.py
     from .player import MusicPlayer, Track
 
 log = logging.getLogger("BotV2.Music")
+
+
+def _player_voice_error(player, interaction, cog=None) -> str | None:
+    """Validate a live player without storing interaction state on a shared view."""
+    guild = interaction.guild
+    if guild is None or player is None:
+        return "music.not_in_voice"
+    if getattr(getattr(player, "guild", None), "id", guild.id) != guild.id:
+        return "music.not_in_voice"
+    cog = cog or getattr(player, "cog", None)
+    if cog is not None and cog._get(guild.id) is not player:
+        return "music.not_in_voice"
+    if any(getattr(player, flag, False) for flag in ("_cleanup_done", "_manual_stopped", "_is_stopping")):
+        return "music.not_in_voice"
+    vc = player.vc
+    if not vc or not vc.channel or (hasattr(vc, "is_connected") and not vc.is_connected()):
+        return "music.not_in_voice"
+    voice = getattr(interaction.user, "voice", None)
+    if not voice or voice.channel != vc.channel:
+        return "music.same_voice_err"
+    return None
 
 
 class MusicControlView(discord.ui.View):
@@ -101,110 +122,112 @@ class MusicControlView(discord.ui.View):
             self.btn_loop.emoji = partial("zb_loop", "🔁")
             self.btn_loop.style = discord.ButtonStyle.primary
 
-    async def _check(self, interaction: discord.Interaction) -> bool:
-        # View persistent được add_view() một lần cho MỌI guild; player phải được
-        # resolve lại theo guild của interaction, không chỉ lần bấm đầu tiên.
-        if self.cog is not None and interaction.guild is not None:
-            self.player = self.cog._get(interaction.guild.id)
+    async def _resolve(self, interaction: discord.Interaction):
+        # The registered shell is shared by every guild. Never hydrate it with
+        # guild state: even response.defer() lets another callback run.
+        guild = interaction.guild
+        player = self.player
+        settings = self.settings if player is not None and guild is not None and player.guild.id == guild.id else {}
+        if self.cog is not None and guild is not None:
+            player = self.cog._get(guild.id)
             try:
-                self.settings = await async_get_guild_settings(str(interaction.guild.id))
+                settings = await async_get_guild_settings(str(guild.id))
             except Exception as exc:
-                # Một lần đọc DB lỗi không được biến cú bấm thành "This interaction
-                # failed" vĩnh viễn: giữ nguyên settings cũ (mặc định tiếng Việt của
-                # server) rồi cho luồng trả lời bình thường.
                 log.debug(f"[Music] _check không đọc được guild settings, dùng bản cu: {exc}")
-        if not self.player or not self.player.vc or not self.player.vc.channel:
-            await interaction.response.send_message(
-                tr(self.settings, "music.not_in_voice"), ephemeral=True
-            )
-            return False
-        if not interaction.user.voice or interaction.user.voice.channel != self.player.vc.channel:
-            await interaction.response.send_message(
-                tr(self.settings, "music.same_voice_err"), ephemeral=True
-            )
-            return False
-        return True
+        error = _player_voice_error(player, interaction, self.cog)
+        if error:
+            await interaction.response.send_message(tr(settings, error), ephemeral=True)
+            return None
+        return player, settings
+
+    async def _check(self, interaction: discord.Interaction) -> bool:
+        # Keep the historical boolean check API, not its unsafe shell mutation.
+        return await self._resolve(interaction) is not None
+
+    async def _defer_control(self, interaction: discord.Interaction):
+        state = await self._resolve(interaction)
+        if state is None:
+            return None
+        player, settings = state
+        await interaction.response.defer()
+        error = _player_voice_error(player, interaction, self.cog)
+        if error:
+            await interaction.followup.send(tr(settings, error), ephemeral=True)
+            return None
+        return state
+
+    async def _edit_control(self, interaction, player, settings):
+        track = player.current
+        if track is None:
+            await interaction.followup.send(tr(settings, "music.no_song_playing"), ephemeral=True)
+            return
+        # A fresh view snapshots button labels/styles for this message only.
+        view = MusicControlView(player, settings, cog=self.cog)
+        source = getattr(player, "_active_source", None)
+        is_opus_copy = bool(
+            getattr(player, "_using_opus_copy", False) and source is not None
+            and player.vc and getattr(player.vc, "source", None) is source
+        )
+        embed = _make_np_embed(track, player.queue, player.loop_mode, player.volume, player.get_elapsed(), settings, is_opus_copy=is_opus_copy)
+        await interaction.message.edit(embed=embed, view=view)
 
     @discord.ui.button(label=t("music.btn_autoplay"), custom_id="music_autoplay", style=discord.ButtonStyle.secondary, emoji="♾️", row=0)
     async def btn_autoplay(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check(interaction):
+        state = await self._defer_control(interaction)
+        if state is None:
             return
-        await interaction.response.defer()
-        self.player.autoplay = not self.player.autoplay
-        if self.player.autoplay:
-            button.style = discord.ButtonStyle.primary
-        else:
-            button.style = discord.ButtonStyle.secondary
-
-        elapsed = self.player.get_elapsed()
-        embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
-        await interaction.message.edit(embed=embed, view=self)
+        player, settings = state
+        player.autoplay = not player.autoplay
+        await self._edit_control(interaction, player, settings)
 
     @discord.ui.button(label=t("music.btn_stop"), custom_id="music_stop", style=discord.ButtonStyle.secondary, emoji="⏹️", row=0)
     async def btn_stop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check(interaction):
+        state = await self._defer_control(interaction)
+        if state is None:
             return
-        await interaction.response.defer()
-        s = self.settings or await async_get_guild_settings(str(interaction.guild_id))
-        channel = self.player.text_channel or interaction.channel
-        await self.player.stop()
+        player, settings = state
+        channel = player.text_channel or interaction.channel
+        await player.stop()
         if channel:
             try:
-                await channel.send(tr(s, "music.stopped_left"), delete_after=60)
+                await channel.send(tr(settings, "music.stopped_left"), delete_after=60)
             except Exception:
                 pass
 
     @discord.ui.button(label=t("music.btn_pause"), custom_id="music_pause", style=discord.ButtonStyle.secondary, emoji=partial("zb_pause", "⏸️"), row=0)
     async def btn_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check(interaction):
+        state = await self._defer_control(interaction)
+        if state is None:
             return
-        await interaction.response.defer()
-        if self.player.vc and self.player.vc.is_paused():
-            self.player.vc.resume()
-            if self.player.pause_start > 0:
-                self.player.total_paused_time += time.time() - self.player.pause_start
-                self.player.pause_start = 0.0
-            button.label = tr(self.settings, "music.btn_pause")
-            button.emoji = partial("zb_pause", "⏸️")
-        elif self.player.vc:
-            self.player.vc.pause()
-            self.player.pause_start = time.time()
-            button.label = tr(self.settings, "music.btn_resume")
-            button.emoji = partial("zb_play", "▶️")
-        button.style = discord.ButtonStyle.secondary
-        elapsed = self.player.get_elapsed()
-        embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
-        await interaction.message.edit(embed=embed, view=self)
+        player, settings = state
+        if player.current is None:
+            return await self._edit_control(interaction, player, settings)
+        if player.vc.is_paused():
+            player.vc.resume()
+            if player.pause_start > 0:
+                player.total_paused_time += time.time() - player.pause_start
+                player.pause_start = 0.0
+        else:
+            player.vc.pause()
+            player.pause_start = time.time()
+        await self._edit_control(interaction, player, settings)
 
     @discord.ui.button(label=t("music.btn_skip"), custom_id="music_skip", style=discord.ButtonStyle.secondary, emoji=partial("zb_skip", "⏭️"), row=0)
     async def btn_skip(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check(interaction):
+        state = await self._defer_control(interaction)
+        if state is None:
             return
-        await interaction.response.defer()
-        self.player.skip()
+        player, _ = state
+        player.skip()
 
     @discord.ui.button(label=t("music.btn_loop"), custom_id="music_loop", style=discord.ButtonStyle.secondary, emoji=partial("zb_loop", "🔁"), row=0)
     async def btn_loop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self._check(interaction):
+        state = await self._defer_control(interaction)
+        if state is None:
             return
-        await interaction.response.defer()
-        self.player.loop_mode = (self.player.loop_mode + 1) % 3
-        if self.player.loop_mode == 0:
-            button.label = tr(self.settings, "music.btn_loop_off")
-            button.emoji = partial("zb_loop", "🔁")
-            button.style = discord.ButtonStyle.secondary
-        elif self.player.loop_mode == 1:
-            button.label = tr(self.settings, "music.btn_loop_one")
-            button.emoji = "🔂"
-            button.style = discord.ButtonStyle.primary
-        else:
-            button.label = tr(self.settings, "music.btn_loop_all")
-            button.emoji = partial("zb_loop", "🔁")
-            button.style = discord.ButtonStyle.primary
-
-        elapsed = self.player.get_elapsed()
-        embed = _make_np_embed(self.player.current, self.player.queue, self.player.loop_mode, self.player.volume, elapsed, self.settings)
-        await interaction.message.edit(embed=embed, view=self)
+        player, settings = state
+        player.loop_mode = (player.loop_mode + 1) % 3
+        await self._edit_control(interaction, player, settings)
 
 class RemoveSongSelect(discord.ui.Select):
     def __init__(self, tracks: list, settings: dict | None = None):
@@ -224,7 +247,16 @@ class RemoveSongSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        self.view.selected_index = int(self.values[0])
+        if not await self.view.interaction_check(interaction):
+            return
+        if not self.view._busy and not self.view.is_finished():
+            try:
+                index = int(self.values[0])
+            except (ValueError, IndexError):
+                index = -1
+            if not 0 <= index < min(25, len(self.view.tracks)):
+                return await interaction.response.send_message(tr(self.view.settings, "music.select_song_first"), ephemeral=True)
+            self.view.selected_index = index
         await interaction.response.defer()
 
 class RemoveSongView(discord.ui.View):
@@ -236,38 +268,60 @@ class RemoveSongView(discord.ui.View):
         self.tracks         = tracks
         self.selected_index : int | None = None
         self.message        : discord.Message | None = None
+        self._busy = False
         self.add_item(RemoveSongSelect(tracks, self.settings))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
+            return False
+        return True
 
     @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger, row=1)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         import database as db
-        s = await db.async_get_guild_settings(str(interaction.guild.id))
-        if interaction.user != self.ctx.author:
-            return await interaction.response.send_message(tr(s, "common.no_permission"), ephemeral=True)
-        if self.selected_index is None:
-            return await interaction.response.send_message(tr(s, "music.select_song_first"), ephemeral=True)
-        await interaction.response.defer()
-        track = self.tracks[self.selected_index]
-        await db.async_delete_track_from_playlist(track["id"])
-        for item in self.children:
-            item.disabled = True
-        await interaction.message.edit(
-            content=tr(s, "music.song_removed_from_pl", track=track.get('title', 'Unknown'), pl=self.pl['name']),
-            embed=None, view=self,
-        )
-        self.stop()
+        # Snapshot before any DB/defer await; another selection cannot change
+        # the identity being confirmed while Discord or SQLite is responding.
+        index = self.selected_index
+        track = self.tracks[index].copy() if index is not None and 0 <= index < len(self.tracks) else None
+        if not await self.interaction_check(interaction):
+            return
+        if self._busy or self.is_finished():
+            return await interaction.response.defer()
+        if track is None:
+            return await interaction.response.send_message(tr(self.settings, "music.select_song_first"), ephemeral=True)
+        self._busy = True
+        try:
+            s = await db.async_get_guild_settings(str(interaction.guild.id))
+            await interaction.response.defer()
+            await db.async_delete_track_from_playlist(track["id"])
+            for item in self.children:
+                item.disabled = True
+            self.stop()
+            await interaction.message.edit(
+                content=tr(s, "music.song_removed_from_pl", track=track.get('title', 'Unknown'), pl=self.pl['name']),
+                embed=None, view=self,
+            )
+        finally:
+            self._busy = False
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, row=1)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         import database as db
-        s = await db.async_get_guild_settings(str(interaction.guild.id))
-        if interaction.user != self.ctx.author:
-            return await interaction.response.send_message(tr(s, "common.no_permission"), ephemeral=True)
-        await interaction.response.defer()
-        for item in self.children:
-            item.disabled = True
-        await interaction.message.edit(content=tr(s, "music.op_cancelled"), embed=None, view=self)
-        self.stop()
+        if not await self.interaction_check(interaction):
+            return
+        if self._busy or self.is_finished():
+            return await interaction.response.defer()
+        self._busy = True
+        try:
+            s = await db.async_get_guild_settings(str(interaction.guild.id))
+            await interaction.response.defer()
+            for item in self.children:
+                item.disabled = True
+            self.stop()
+            await interaction.message.edit(content=tr(s, "music.op_cancelled"), embed=None, view=self)
+        finally:
+            self._busy = False
 
     async def on_timeout(self):
         for item in self.children:
@@ -298,10 +352,12 @@ def _parse_time_str(time_str: str) -> int | None:
 
 class SearchSelect(discord.ui.Select):
     def __init__(self, results: list[dict], requester: discord.Member, player: MusicPlayer, settings: dict):
-        self.results = results
+        self.results = [dict(item) for item in results[:5]]
         self.requester = requester
         self.player = player
         self.settings = settings
+        self._voice_channel = player.vc.channel if player.vc else None
+        self._claimed = False
 
         options = []
         for i, item in enumerate(results[:5], 1):
@@ -322,47 +378,85 @@ class SearchSelect(discord.ui.Select):
             options=options
         )
 
+    def _selection_error(self, interaction) -> str | None:
+        if self.view.is_finished():
+            return "music.search_timeout"
+        error = _player_voice_error(self.player, interaction)
+        if error:
+            return error
+        if self.player.vc.channel != self._voice_channel:
+            return "music.same_voice_err"
+        return None
+
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.requester.id:
             return await interaction.response.send_message(tr(self.settings, "common.no_permission"), ephemeral=True)
+        if self._claimed or self.view.is_finished():
+            return await interaction.response.defer()
+        try:
+            idx = int(self.values[0])
+        except (ValueError, IndexError):
+            idx = -1
+        if not 0 <= idx < len(self.results):
+            return await interaction.response.send_message(tr(self.settings, "music.search_timeout"), ephemeral=True)
+        error = self._selection_error(interaction)
+        if error:
+            return await interaction.response.send_message(tr(self.settings, error), ephemeral=True)
 
-        await interaction.response.defer()
-        idx = int(self.values[0])
+        # Claim and snapshot before defer: discord.py can dispatch a second click
+        # (and replace Select.values) while the first callback is still awaiting.
+        self._claimed = True
         chosen = self.results[idx]
         query = chosen.get("webpage_url") or chosen.get("url") or chosen.get("title")
-        info = await extract_info(query)
-        if not info:
-            return await interaction.followup.send(tr(self.settings, "music.not_found", query=query), ephemeral=True)
-
-        track = Track(info, requester=self.requester)
-        is_active = self.player.vc and (self.player.vc.is_playing() or self.player.vc.is_paused())
-        if is_active or self.player.current:
+        try:
+            await interaction.response.defer()
+            error = self._selection_error(interaction)
+            if error:
+                return await interaction.followup.send(tr(self.settings, error), ephemeral=True)
+            info = await extract_info(query)
+            if not info:
+                return await interaction.followup.send(tr(self.settings, "music.not_found", query=query), ephemeral=True)
+            error = self._selection_error(interaction)
+            if error:
+                return await interaction.followup.send(tr(self.settings, error), ephemeral=True)
             if len(self.player.queue) >= MAX_QUEUE_SIZE:
                 return await interaction.followup.send(tr(self.settings, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
-            self.player.queue.append(track)
-            embed = discord.Embed(
-                title=embed_title("zb_play", tr(self.settings, "music.added_to_queue")),
-                description=f"**[{track.title}]({track.url})**",
-                color=0x3B82F6,
-            )
-            embed.add_field(name=tr(self.settings, "music.duration_field"),  value=f"`{track.duration_str}`", inline=True)
-            embed.add_field(name=tr(self.settings, "music.position_field"),  value=f"`#{len(self.player.queue)}`", inline=True)
-            embed.add_field(name=tr(self.settings, "music.requester_field"), value=self.requester.mention, inline=True)
-            if track.thumbnail:
-                embed.set_thumbnail(url=track.thumbnail)
-            await interaction.followup.send(embed=embed)
-        else:
-            await self.player.add_and_play(track)
-            await interaction.followup.send(f"▶️ **{track.title}** (`{track.duration_str}`)", ephemeral=True)
 
-        # Disable selection sau khi đã chọn
-        for child in self.view.children:
-            child.disabled = True
-        try:
-            await interaction.message.edit(view=self.view)
-        except Exception:
-            pass
-        self.view.stop()
+            # Runtime-only import avoids the player -> views import cycle.
+            from .player import Track
+            track = Track(info, requester=self.requester)
+            is_active = self.player.vc.is_playing() or self.player.vc.is_paused() or self.player.current
+            admitted = await self.player.add_and_play(track)
+            if admitted is False:
+                error = self._selection_error(interaction)
+                if not error:
+                    error = "music.queue_full" if len(self.player.queue) >= MAX_QUEUE_SIZE else "music.cannot_decode"
+                return await interaction.followup.send(tr(self.settings, error, max=MAX_QUEUE_SIZE, title=track.title), ephemeral=True)
+
+            for child in self.view.children:
+                child.disabled = True
+            self.view.stop()
+            if is_active:
+                embed = discord.Embed(
+                    title=embed_title("zb_play", tr(self.settings, "music.added_to_queue")),
+                    description=f"**[{track.title}]({track.url})**",
+                    color=0x3B82F6,
+                )
+                embed.add_field(name=tr(self.settings, "music.duration_field"),  value=f"`{track.duration_str}`", inline=True)
+                embed.add_field(name=tr(self.settings, "music.position_field"),  value=f"`#{len(self.player.queue)}`", inline=True)
+                embed.add_field(name=tr(self.settings, "music.requester_field"), value=self.requester.mention, inline=True)
+                if track.thumbnail:
+                    embed.set_thumbnail(url=track.thumbnail)
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send(f"▶️ **{track.title}** (`{track.duration_str}`)", ephemeral=True)
+            try:
+                await interaction.message.edit(view=self.view)
+            except Exception:
+                pass
+        finally:
+            if not self.view.is_finished():
+                self._claimed = False
 
 class SearchSelectView(discord.ui.View):
     def __init__(self, results: list[dict], requester: discord.Member, player: MusicPlayer, settings: dict):
@@ -372,6 +466,7 @@ class SearchSelectView(discord.ui.View):
         self.add_item(SearchSelect(results, requester, player, settings))
 
     async def on_timeout(self):
+        self.stop()
         for child in self.children:
             child.disabled = True
         if self.message:

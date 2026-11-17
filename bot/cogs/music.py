@@ -14,7 +14,6 @@ LƯU Ý QUAN TRỌNG:
 
 import asyncio
 import logging
-import taskbag
 import time
 from datetime import datetime, timezone
 
@@ -35,6 +34,7 @@ from database import (
 from i18n import tr
 
 from music.cog_voice import VoiceLifecycleMixin
+from music.extractor import close_extractor_resources, run_extraction_job
 
 try:
     from emojis import e, embed_title, partial
@@ -124,6 +124,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         # dưới `_registry_lock` để phép cộng này nguyên tử.
         self._registry_lock: asyncio.Lock = asyncio.Lock()
         self._connecting: set[int] = set()
+        self._join_tasks: set[asyncio.Task] = set()
         # THỨ TỰ KHÓA BẮT BUỘC: `_player_locks[guild]` TRƯỚC rồi mới `_registry_lock`
         # (duy nhất trong `cog_voice._ensure()`). Đường ngược lại chưa tồn tại; nếu sau
         # này có chỗ nào lấy `_registry_lock` rồi mới chờ lock theo guild thì sẽ deadlock.
@@ -135,7 +136,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
     _VOICE_REQUIRED_COMMANDS = {
         "stop", "skip", "leave", "volume", "loop", "autoplay", "shuffle",
-        "clearqueue", "remove", "jump", "replay", "pause", "resume",
+        "clearqueue", "remove", "jump", "replay", "pause", "resume", "seek",
     }
 
     async def cog_before_invoke(self, ctx: commands.Context):
@@ -150,6 +151,9 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         player = self._get(ctx.guild.id)
         if not player or not player.vc or not player.vc.channel:
             return
+        await self._require_same_voice(ctx, player)
+
+    async def _require_same_voice(self, ctx, player):
         member = getattr(ctx, "author", None) or getattr(ctx, "user", None)
         voice = getattr(member, "voice", None)
         if not voice or voice.channel != player.vc.channel:
@@ -157,33 +161,69 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             await ctx.send(tr(s, "music.same_voice_err"), ephemeral=True)
             raise commands.CheckFailure("music_same_voice_channel")
 
-    def cog_unload(self):
-        """Cancel tất cả background tasks khi cog bị unload."""
+    def _player_is_active(self, player):
+        """Reject stale command/loader continuations after stop or replacement."""
+        return (
+            not getattr(self, "_unloading", False)
+            and self._players.get(player.guild.id) is player
+            and not player._manual_stopped
+            and player.vc and player.vc.is_connected()
+        )
+
+    async def cog_unload(self):
+        """discord.py awaits this hook; do not detach old-player teardown."""
+        self._unloading = True
+        players = list(self._players.items())
+        for _, player in players:
+            player._manual_stopped = True
         self.task_cleanup_loop.cancel()
-        for task in self._bg_tasks:
+        joins = set(getattr(self, "_join_tasks", ()))
+        joins.discard(asyncio.current_task())
+        for task in joins:
+            task.cancel()
+        pending = set(self._bg_tasks)
+        for registry in (self._empty_voice_tasks, self._reconnect_tasks, self._grace_tasks):
+            pending.update(registry.values())
+            registry.clear()
+        cleanup_task = self.task_cleanup_loop.get_task()
+        if cleanup_task:
+            pending.add(cleanup_task)
+        pending.discard(asyncio.current_task())
+        for task in pending:
             task.cancel()
         self._bg_tasks.clear()
-        for task in self._empty_voice_tasks.values():
-            task.cancel()
-        self._empty_voice_tasks.clear()
-        for task in self._reconnect_tasks.values():
-            task.cancel()
-        self._reconnect_tasks.clear()
-        for task in self._grace_tasks.values():
-            task.cancel()
-        self._grace_tasks.clear()
-        # Session Spotify sống trong package bot/music/extractor.py → phải đọc
-        # qua package (không re-export) để luôn lấy giá trị hiện thời, tránh giữ
-        # bản sao cũ (None) và rò rỉ ClientSession.
-        if _music_pkg._spotify_session and not _music_pkg._spotify_session.closed:
-            taskbag.spawn(_music_pkg._spotify_session.close())
-        for player in list(self._players.values()):
+        try:
+            if joins:
+                # wait_for would wait indefinitely for a handshake that suppresses
+                # cancellation. Late completions remain tracked and cannot register.
+                done, unfinished = await asyncio.wait(joins, timeout=self._JOIN_DRAIN_TIMEOUT)
+                if done:
+                    await asyncio.gather(*done, return_exceptions=True)
+                if unfinished:
+                    log.warning("[Music] Join shutdown pending: %s", len(unfinished))
+            if pending:
+                await asyncio.wait_for(asyncio.gather(*pending, return_exceptions=True), timeout=10)
+        except asyncio.TimeoutError:
+            log.warning("[Music] Background shutdown timed out")
+        finally:
+            # Each cleanup is independent: extractor failure must not skip players.
             try:
-                taskbag.spawn(player.stop())
-            except Exception:
-                pass
-        self._players.clear()
-        self._player_locks.clear()
+                results = await asyncio.wait_for(asyncio.gather(
+                    close_extractor_resources(),
+                    *(player.stop() for _, player in players),
+                    return_exceptions=True,
+                ), timeout=30)
+                for result in results:
+                    if isinstance(result, BaseException):
+                        log.warning("[Music] Unload cleanup failed: %s", type(result).__name__)
+            except asyncio.TimeoutError:
+                log.warning("[Music] Player/resource shutdown timed out")
+            finally:
+                for guild_id, player in players:
+                    if self._players.get(guild_id) is player:
+                        self._players.pop(guild_id, None)
+                self._player_locks.clear()
+                self._connecting.clear()
 
     @tasks.loop(seconds=60)
     async def task_cleanup_loop(self):
@@ -251,7 +291,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                         )
                     except asyncio.TimeoutError:
                         log.warning(f"[Music] Grace task bị timeout 15s tại guild {guild_id}")
-                        self._drop(guild_id)
+                        self._drop(guild_id, expected_player=player)
                     except asyncio.CancelledError:
                         pass
                     except Exception as ge:
@@ -259,14 +299,16 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
                 grace_task = asyncio.create_task(_safe_grace_wrapper())
                 self._grace_tasks[guild_id] = grace_task
-                grace_task.add_done_callback(lambda t, gid=guild_id: self._grace_tasks.pop(gid, None))
+                grace_task.add_done_callback(
+                    lambda t, gid=guild_id: self._discard_voice_task(self._grace_tasks, gid, t)
+                )
                 return
 
             elif after.channel:
                 # Bot vừa join kênh voice, reconnect xong, hoặc thay đổi deafen
                 self._cancel_grace_task(guild_id)
                 player = self._players.get(guild_id)
-                if player and player._is_reconnecting:
+                if channel_changed and player and player._is_reconnecting:
                     log.info(f"[Music] Bot đã kết nối lại voice tại guild {guild_id}. Lên lịch phục hồi phát nhạc...")
                     self._schedule_reconnect_task(guild_id, player)
                 elif channel_changed:
@@ -286,7 +328,8 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
     @commands.hybrid_command(name="join", description="Gọi bot vào kênh voice")
     async def join(self, ctx: commands.Context):
         s = await async_get_guild_settings(str(ctx.guild.id))
-        if await self._ensure(ctx):
+        player = await self._ensure(ctx)
+        if player and self._player_is_active(player):
             ch_name = ctx.author.voice.channel.name if (ctx.author.voice and ctx.author.voice.channel) else ""
             await ctx.send(tr(s, "music.joined_voice", channel=ch_name), ephemeral=True)
 
@@ -352,14 +395,20 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
 
         log.info(f"[Music][timing] play ready in {time.time() - _t0:.2f}s (query='{query[:40]}')")
 
+        if not self._player_is_active(player):
+            return
         track = Track(info, requester=ctx.author)
-
-        is_actually_playing = player.vc and (player.vc.is_playing() or player.vc.is_paused())
-        if is_actually_playing:
+        if len(player.queue) >= MAX_QUEUE_SIZE:
+            await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+            return
+        admitted = await player.add_and_play(track)
+        if not self._player_is_active(player):
+            return
+        if admitted is False:
             if len(player.queue) >= MAX_QUEUE_SIZE:
                 await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
-                return
-            player.queue.append(track)
+            return
+        if track in player.queue:
             embed = discord.Embed(
                 title=embed_title("zb_play", tr(s, "music.added_to_queue")),
                 description=f"**[{track.title}]({track.url})**",
@@ -372,7 +421,6 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
                 embed.set_thumbnail(url=track.thumbnail)
             await ctx.send(embed=embed)
         else:
-            await player.add_and_play(track)
             if ctx.interaction:
                 try:
                     await ctx.interaction.delete_original_response()
@@ -610,7 +658,7 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         stream = LOFI_STREAMS.get(src_key, LOFI_STREAMS["youtube"])
 
         player = await self._ensure(ctx)
-        if not player:
+        if not player or not self._player_is_active(player):
             return
 
         if src_key == "soma":
@@ -622,17 +670,21 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             track.is_direct_stream = True
             track.stream_url = stream["url"]
             track.stream_expire = float("inf")  # stream sống mãi, không expire
-            await player.add_and_play(track, force_play=True)
-            await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_soma_success", name=stream['name']))
+            admitted = await player.add_and_play(track, force_play=True)
+            if admitted is not False and self._player_is_active(player):
+                await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_soma_success", name=stream['name']))
         else:
             info = await extract_info(stream["url"], force_refresh=True)
+            if not self._player_is_active(player):
+                return
             if not info:
                 await ctx.send(tr(s, "music.lofi_yt_err"))
                 return
             track = Track(info, requester=ctx.author)
             track.is_live = True
-            await player.add_and_play(track, force_play=True)
-            await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_yt_success", name=stream['name']))
+            admitted = await player.add_and_play(track, force_play=True)
+            if admitted is not False and self._player_is_active(player):
+                await ctx.send(f"{e('zb_lofi')} " + tr(s, "music.lofi_yt_success", name=stream['name']))
 
     # ── Queue & Navigation Management ──────────────────────────────────────
     @commands.hybrid_command(name="seek", description="Tua đến vị trí chỉ định trong bài hát (VD: 1:30 hoặc 90)")
@@ -662,8 +714,12 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             return
 
         await ctx.defer()
-        await player._play(curr, seek_offset=target_sec)
-        await ctx.send(tr(s, "music.seek_success", time=_fmt_duration(target_sec)))
+        if not self._player_is_active(player) or player.current is not curr:
+            return
+        await self._require_same_voice(ctx, player)
+        played = await player._play(curr, seek_offset=target_sec)
+        if played is not False and self._player_is_active(player) and player.current is curr:
+            await ctx.send(tr(s, "music.seek_success", time=_fmt_duration(target_sec)))
 
     @commands.hybrid_command(name="search", description="Tìm kiếm bài hát và chọn từ top 5 kết quả")
     @app_commands.describe(query="Tên bài hát cần tìm kiếm")
@@ -680,9 +736,9 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         elif clean_q.startswith("ytsearch:") and not clean_q.startswith("ytsearch5:"):
             clean_q = clean_q.replace("ytsearch:", "ytsearch5:", 1)
 
-        async with _extract_semaphore:
-            loop = asyncio.get_running_loop()
-            info = await loop.run_in_executor(None, lambda: _get_ydl_flat().extract_info(clean_q, download=False))
+        info = await run_extraction_job(lambda: _get_ydl_flat().extract_info(clean_q, download=False))
+        if not self._player_is_active(player):
+            return
 
         if not info or "entries" not in info or not info.get("entries"):
             await ctx.send(tr(s, "music.not_found", query=query))
@@ -814,47 +870,32 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
         }, str(ctx.guild.id))
         await ctx.send(tr(s, "music.pl_added_song", title=song_title, name=name))
 
+    @staticmethod
+    def _saved_playlist_track(data, requester):
+        # Persisted stream URLs may already be expired. Resolve at playback only.
+        return Track({
+            "title": data.get("title") or "Unknown",
+            "webpage_url": data.get("webpage_url") or data.get("url") or "",
+            "duration": data.get("duration"),
+            "thumbnail": data.get("thumbnail") or "",
+            "uploader": data.get("uploader") or "—",
+        }, requester=requester)
+
     async def _load_playlist_background(self, player: MusicPlayer, tracks: list, requester: discord.Member):
-        """Nạp ngầm các bài còn lại từ playlist vào hàng chờ theo batch 2 bài (bảo vệ RAM/CPU & tránh rate-limit)."""
-        batch_size = 2
-        slice_tracks = tracks[:MAX_BG_LOAD]
+        """Admit ordered metadata only; the player resolves tracks near playback."""
         added_any = False
-        for i in range(0, len(slice_tracks), batch_size):
-            if player._manual_stopped or not player.vc or not player.vc.is_connected():
+        for index, data in enumerate(tracks[:MAX_BG_LOAD]):
+            if not self._player_is_active(player) or len(player.queue) >= MAX_QUEUE_SIZE:
                 break
-            chunk = slice_tracks[i:i + batch_size]
+            track = self._saved_playlist_track(data, requester)
+            admitted = await player.add_and_play(track)
+            if not self._player_is_active(player) or admitted is False:
+                break
+            added_any = True
+            if (index + 1) % 2 == 0 and len(player.queue) < MAX_QUEUE_SIZE:
+                await asyncio.sleep(0.4)
 
-            async def _load_one(t_data):
-                url_q = t_data.get("webpage_url") or ""
-                title_q = t_data.get("title") or ""
-                primary = url_q or title_q
-                info = None
-                try:
-                    if primary:
-                        info = await extract_info(primary)
-                    # Nếu URL thất bại hoặc đổi ID, fallback tìm theo title
-                    if not info and title_q and primary != title_q:
-                        info = await extract_info(title_q)
-                    if info:
-                        return Track(info, requester=requester)
-                except Exception as e:
-                    log.warning(f"[Music] Background load track error ({primary}): {e}")
-                return None
-
-            batch_results = await asyncio.gather(*[_load_one(t) for t in chunk])
-            for trk in batch_results:
-                if trk:
-                    if player.vc and not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
-                        await player.add_and_play(trk)
-                    else:
-                        if len(player.queue) >= MAX_QUEUE_SIZE:
-                            log.info(f"[Music] Playlist background load: dừng nạp vì hàng chờ đạt trần {MAX_QUEUE_SIZE} bài")
-                            break
-                        player.queue.append(trk)
-                    added_any = True
-            await asyncio.sleep(0.4)
-
-        if added_any:
+        if added_any and self._player_is_active(player):
             try:
                 await player.update_now_playing()
             except Exception:
@@ -878,45 +919,69 @@ class Music(VoiceLifecycleMixin, commands.Cog, name="Music"):
             return
         
         tracks = pl["tracks"]
+        if not self._player_is_active(player):
+            return
+        if len(player.queue) >= MAX_QUEUE_SIZE:
+            await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+            return
         msg = await ctx.send(tr(s, "music.pl_loading_first", name=name))
-        
-        # 1. Tìm và phát bài hát đầu tiên tải thành công ngay lập tức
+
         first_track = None
         start_index = 0
-        for idx, t_data in enumerate(tracks):
-            url_q = t_data.get("webpage_url") or ""
-            title_q = t_data.get("title") or ""
-            primary = url_q or title_q
-            info = None
-            if primary:
-                info = await extract_info(primary)
-            if not info and title_q and primary != title_q:
-                info = await extract_info(title_q)
+        for idx, data in enumerate(tracks):
+            if not self._player_is_active(player):
+                return
+            if len(player.queue) >= MAX_QUEUE_SIZE:
+                await msg.delete()
+                await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+                return
+            first_track = self._saved_playlist_track(data, ctx.author)
+            # A busy player needs metadata only, including the first playlist item.
+            if player.current or player.vc.is_playing() or player.vc.is_paused():
+                start_index = idx
+                break
+            primary = first_track.url or data.get("title") or ""
+            info = await extract_info(primary) if primary else None
+            if not self._player_is_active(player):
+                return
+            if len(player.queue) >= MAX_QUEUE_SIZE:
+                try:
+                    await msg.delete()
+                except Exception:
+                    pass
+                await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+                return
+            title = data.get("title") or ""
+            if not info and title and primary != title:
+                info = await extract_info(title)
+                if not self._player_is_active(player):
+                    return
             if info:
                 first_track = Track(info, requester=ctx.author)
                 start_index = idx
                 break
+            first_track = None
 
         if first_track:
-            if player.vc and not player.vc.is_playing() and not player.vc.is_paused() and not player.current:
-                await player.add_and_play(first_track)
-            else:
+            if not self._player_is_active(player):
+                return
+            if len(player.queue) >= MAX_QUEUE_SIZE:
+                await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+                return
+            admitted = await player.add_and_play(first_track)
+            if not self._player_is_active(player):
+                return
+            if admitted is False:
                 if len(player.queue) >= MAX_QUEUE_SIZE:
-                    try:
-                        await msg.delete()
-                    except Exception:
-                        pass
-                    return await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
-                player.queue.append(first_track)
-            
-            # Xóa tin nhắn tạm "Đang tải playlist..." ngay khi phát bài đầu tiên
+                    await ctx.send(tr(s, "music.queue_full", max=MAX_QUEUE_SIZE), ephemeral=True)
+                return
             try:
                 await msg.delete()
             except Exception:
                 pass
 
             remaining = tracks[start_index + 1:]
-            if remaining:
+            if remaining and self._player_is_active(player) and len(player.queue) < MAX_QUEUE_SIZE:
                 task = asyncio.create_task(self._load_playlist_background(player, remaining, ctx.author))
                 self._bg_tasks.add(task)
                 task.add_done_callback(self._bg_tasks.discard)

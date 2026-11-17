@@ -66,10 +66,17 @@ def test_persistent_view_resolves_player_per_guild(monkeypatch):
     monkeypatch.setattr(views, "async_get_guild_settings", fake_settings)
     view = views.MusicControlView(player=None, settings={}, cog=Cog())
 
-    assert asyncio.run(view._check(Interaction(1, 10))) is True
-    assert view.player.guild.id == 1
-    assert asyncio.run(view._check(Interaction(2, 20))) is True
-    assert view.player.guild.id == 2, "view vẫn giữ player của guild bấm đầu tiên"
+    async def check_guild_isolation():
+        first = await view._resolve(Interaction(1, 10))
+        second = await view._resolve(Interaction(2, 20))
+        assert first[0] is players[1]
+        assert second[0] is players[2]
+        assert view.player is None, "shared shell must not retain guild state"
+        assert await view._check(Interaction(1, 10)) is True
+        assert await view._check(Interaction(2, 10)) is False
+        assert view.player is None
+
+    asyncio.run(check_guild_isolation())
 
 
 def test_cache_deepcopy_blocks_nested_poison():
@@ -146,5 +153,5 @@ def test_source_guards_for_music_and_tester():
 
     assert "_VOICE_REQUIRED_COMMANDS" in music and "same_voice_err" in music
     assert "_start_inactivity_timer()" in voice
-    assert "range(150)" in player and "_extract_semaphore" in player
+    assert "range(150)" in player and "run_extraction_job" in player
     assert "get_db_connection()" in tester

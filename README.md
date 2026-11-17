@@ -80,8 +80,8 @@
   - `🔁 Lặp lại`: 3 chế độ thông minh (`Lặp lại: Tắt` ➔ `🔂 Lặp 1 bài` ➔ `🔁 Lặp toàn bộ`).
 - **Lệnh `/nowplaying` (`/np`)**: Tra cứu thông tin bài hát và vị trí phát theo thời gian thực.
 - **Tối ưu hóa âm thanh ARM & yt-dlp**: Khi nguồn là audio-only Opus, bot dùng `FFmpegOpusAudio` copy (ffmpeg `-c:a copy`) — đo trên Termux giảm khoảng 5 lần CPU so với PCM + libopus. Nguồn `auto` ưu tiên client `default` + cookie (`YTDLP_COOKIEFILE`) để lấy Opus 251; thiếu cookie hoặc lỗi thì tự fallback `android`/format 18 để không gián đoạn phát. Cờ tối ưu `-threads 1 -fflags +genpts -probesize 512K -analyzeduration 500000` triệt tiêu giật lag âm thanh và hiện tượng co dãn tốc độ/cao độ.
-- **Bộ nhớ đệm 2 tầng (Dual-tier Cache)**: Kết hợp In-Memory RAM Cache (`cache.py`) và SQLite Disk Cache (`music_song_cache` với TTL 6 giờ). Khởi động phát lại tức thì (< 0.5s) ngay cả sau khi bot khởi động lại.
-- **Trích xuất song song (Concurrent Extraction)**: Khởi chạy đồng thời kết nối Voice Channel và trích xuất luồng audio (`extract_info`), giảm 50% độ trễ khởi động bài hát ban đầu.
+- **Bộ nhớ đệm 2 tầng (Dual-tier Cache)**: Kết hợp RAM Cache và SQLite Disk Cache (TTL tối đa 6 giờ); RAM cũng kiểm tra hạn stream và chừa khoảng an toàn trước khi URL hết hạn. Cache key giữ nguyên phần phân biệt hoa/thường của URL; các alias được loại trùng và ghi trong một transaction.
+- **Trích xuất có giới hạn & single-flight**: Kết nối voice song song với lấy nguồn; các yêu cầu trùng dùng chung một tác vụ. Worker trích xuất có giới hạn thực, không nhả tài nguyên sớm chỉ vì người gọi hủy/chờ quá hạn; phân giải DNS không chặn event loop.
 - **Tự động phân giải link Spotify**: Hỗ trợ dán trực tiếp URL `spotify.com/track/...` ➔ phân giải thành từ khóa YouTube trong < 0.2s.
 - **Khóa đồng bộ chống xung đột (Atomic Play Lock)**: Loại bỏ triệt để lỗi `Already playing audio` khi người dùng spam lệnh.
 - **Tự động ngắt kết nối (Inactivity Watchdog)**: Tự động rời kênh voice sau 3 phút nếu không có bài hát nào được phát để giải phóng tài nguyên.
@@ -368,7 +368,7 @@ ZerynBot/
 │                        #   i18n_migrate.py — fetch/plan/apply de-hardcode + ghi 6 locale,
 │                        #   command_registry_audit.py — đối chiếu lệnh thật trong cog với _COMMANDS_DATA,
 │                        #   termux_deploy.py = CLI deploy/cleanup/diag/status, termux_cleanup.py)
-├── tests/               # 🧪 521 tests (cache, i18n + ngân sách chống hardcode, độ đầy đủ registry lệnh, database, permissions,
+├── tests/               # 🧪 Unit/security/regression tests (cache, i18n + ngân sách chống hardcode, registry lệnh, database, permissions,
 │                        #   Termux optimizations, dashboard security/routes/tenant isolation, music
 │                        #   behavior + stream watchdog + source policy Opus/compat, AI guardrails + chat dài, races, automod)
 ├── .github/             # CI pipeline (pytest trên mọi push/PR) & Dependabot
@@ -410,7 +410,7 @@ Gợi ý nhịp: chạy `cleanup` mỗi 2–4 tuần, hoặc khi `du -sh data` v
 # Cài đặt thư viện dev/test (chỉ cần trên máy dev):
 pip install -r requirements-dev.txt
 
-# Chạy toàn bộ test suite (521 test; vài test dashboard tự skip nếu chưa cài flask)
+# Chạy toàn bộ test suite (một số ca phụ thuộc môi trường có thể được skip)
 pytest -q
 ```
 

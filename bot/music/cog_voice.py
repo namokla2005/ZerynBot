@@ -38,7 +38,9 @@ class VoiceLifecycleMixin:
         return self._players.get(guild_id)
 
 
-    def _drop(self, guild_id: int):
+    def _drop(self, guild_id: int, expected_player: MusicPlayer | None = None):
+        if expected_player is not None and self._players.get(guild_id) is not expected_player:
+            return
         self._cancel_reconnect_task(guild_id)
         self._cancel_grace_task(guild_id)
         self._cancel_empty_voice_task(guild_id)
@@ -70,196 +72,267 @@ class VoiceLifecycleMixin:
                 self._empty_voice_tasks.pop(gid, None)
 
 
+    @staticmethod
+    def _discard_voice_task(tasks: dict, guild_id: int, task: asyncio.Task):
+        """A completed generation may only remove its own registry entry."""
+        if tasks.get(guild_id) is task:
+            tasks.pop(guild_id, None)
+
+
+    def _cancel_voice_task(self, task: asyncio.Task | None):
+        if not task or task.done():
+            return
+        try:
+            current = asyncio.current_task()
+        except RuntimeError:
+            current = None
+        # Grace handlers can run inside wait_for's child task. Cancelling their
+        # wrapper also cancels that child, interrupting stop() at its next await.
+        if task is current or task is getattr(current, "_music_voice_owner", None):
+            return
+        try:
+            loop = task.get_loop()
+            try:
+                on_loop = asyncio.get_running_loop() is loop
+            except RuntimeError:
+                on_loop = False
+            if loop.is_running() and not on_loop:
+                loop.call_soon_threadsafe(task.cancel)
+            else:
+                task.cancel()
+        except Exception:
+            pass
+
+
     def _cancel_grace_task(self, guild_id: int):
-        task = self._grace_tasks.pop(guild_id, None)
-        if task and not task.done():
-            try:
-                loop = getattr(self.bot, "loop", None)
-                if loop and loop.is_running():
-                    try:
-                        cur_loop = asyncio.get_running_loop()
-                        if cur_loop == loop:
-                            task.cancel()
-                        else:
-                            loop.call_soon_threadsafe(task.cancel)
-                    except RuntimeError:
-                        loop.call_soon_threadsafe(task.cancel)
-                else:
-                    task.cancel()
-            except Exception:
-                pass
+        self._cancel_voice_task(self._grace_tasks.pop(guild_id, None))
 
 
-    def _cancel_reconnect_task(self, guild_id: int, clear_flag: bool = True):
-        task = self._reconnect_tasks.pop(guild_id, None)
-        if task and not task.done():
-            try:
-                loop = getattr(self.bot, "loop", None)
-                if loop and loop.is_running():
-                    try:
-                        cur_loop = asyncio.get_running_loop()
-                        if cur_loop == loop:
-                            task.cancel()
-                        else:
-                            loop.call_soon_threadsafe(task.cancel)
-                    except RuntimeError:
-                        loop.call_soon_threadsafe(task.cancel)
-                else:
-                    task.cancel()
-            except Exception:
-                pass
+    def _cancel_reconnect_task(
+        self, guild_id: int, clear_flag: bool = True,
+        expected_player: MusicPlayer | None = None,
+    ):
         player = self._players.get(guild_id)
+        if expected_player is not None and player is not expected_player:
+            return
+        self._cancel_voice_task(self._reconnect_tasks.pop(guild_id, None))
         if player and clear_flag:
             player.set_reconnecting(False)
 
 
     def _schedule_reconnect_task(self, guild_id: int, player: MusicPlayer):
-        """Khởi tạo và quản lý vòng đời của reconnect task an toàn với timeout 30s chống rò rỉ bộ nhớ."""
-        # KHÔNG xoá cờ ở đây: task chỉ được tạo khi player ĐANG reconnect, và
-        # `resume_after_reconnect` mở đầu bằng guard `not self._is_reconnecting`.
-        # Bản cũ gọi cancel mặc định (clear_flag=True) rồi mới tạo task, nên task
-        # luôn return ngay và nhạc im lặng vĩnh viễn sau khi voice WS reconnect.
+        """Coalesce duplicate voice events; only the owning task clears state."""
+        if self._players.get(guild_id) is not player:
+            return
+        existing = self._reconnect_tasks.get(guild_id)
+        if (existing and not existing.done()
+                and not getattr(existing, "cancelling", lambda: 0)()
+                and getattr(existing, "_music_player", None) is player):
+            return
         self._cancel_reconnect_task(guild_id, clear_flag=False)
         player.set_reconnecting(True)
-        try:
-            async def _safe_resume_wrapper():
-                try:
-                    await asyncio.wait_for(player.resume_after_reconnect(), timeout=30.0)
-                except asyncio.TimeoutError:
-                    log.warning(f"[Music] Reconnect task bị timeout sau 30s tại guild {guild_id}")
-                except asyncio.CancelledError:
-                    pass
-                except Exception as e:
-                    log.error(f"[Music] Lỗi trong reconnect task tại guild {guild_id}: {e}")
-                finally:
-                    player.set_reconnecting(False)
 
-            rec_task = asyncio.create_task(_safe_resume_wrapper())
+        async def _safe_resume_wrapper():
+            task = asyncio.current_task()
+            # Await directly so stop() executes in the registered task, not a
+            # wait_for child whose parent cancellation would interrupt cleanup.
+            def expire():
+                log.warning(f"[Music] Reconnect task bị timeout sau 30s tại guild {guild_id}")
+                task.cancel()
+
+            timeout = asyncio.get_running_loop().call_later(30.0, expire)
+            try:
+                await player.resume_after_reconnect()
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                log.error(f"[Music] Lỗi trong reconnect task tại guild {guild_id}: {e}")
+            finally:
+                timeout.cancel()
+                if self._reconnect_tasks.get(guild_id) is task:
+                    if self._players.get(guild_id) is player:
+                        player.set_reconnecting(False)
+                    self._discard_voice_task(self._reconnect_tasks, guild_id, task)
+
+        wrapper = _safe_resume_wrapper()
+        try:
+            rec_task = asyncio.create_task(wrapper)
+            rec_task._music_player = player
             self._reconnect_tasks[guild_id] = rec_task
-            rec_task.add_done_callback(lambda t, gid=guild_id: self._reconnect_tasks.pop(gid, None))
+            rec_task.add_done_callback(
+                lambda t: self._discard_voice_task(self._reconnect_tasks, guild_id, t)
+            )
         except Exception as e:
+            wrapper.close()
             log.error(f"[Music] Không thể tạo reconnect task tại guild {guild_id}: {e}")
             player.set_reconnecting(False)
 
 
     def _cancel_empty_voice_task(self, guild_id: int):
-        task = self._empty_voice_tasks.pop(guild_id, None)
-        if task and not task.done():
-            try:
-                loop = getattr(self.bot, "loop", None)
-                if loop and loop.is_running():
-                    try:
-                        cur_loop = asyncio.get_running_loop()
-                        if cur_loop == loop:
-                            task.cancel()
-                        else:
-                            loop.call_soon_threadsafe(task.cancel)
-                    except RuntimeError:
-                        loop.call_soon_threadsafe(task.cancel)
-                else:
-                    task.cancel()
-            except Exception:
-                pass
+        self._cancel_voice_task(self._empty_voice_tasks.pop(guild_id, None))
 
+
+    _JOIN_DRAIN_TIMEOUT = 5.0
+    _JOIN_DISCONNECT_TIMEOUT = 3.0
+
+    def _join_is_current(self):
+        if getattr(self, "_unloading", False):
+            return False
+        get_cog = getattr(self.bot, "get_cog", None)
+        active_cog = get_cog("Music") if get_cog else None
+        return active_cog is None or active_cog is self
+
+    async def _disconnect_abandoned_join(self, guild, vc):
+        # disconnect() sends a guild-wide voice-state update and removes the
+        # registered voice client. Never call it after another owner adopts VC.
+        if vc is None or guild.voice_client is not vc:
+            return
+        owner = self._players.get(guild.id)
+        if owner is not None and owner.vc is vc:
+            return
+        get_cog = getattr(self.bot, "get_cog", None)
+        active_cog = get_cog("Music") if get_cog else None
+        if active_cog is not None and active_cog is not self:
+            owner = active_cog._get(guild.id)
+            if owner is not None and owner.vc is vc:
+                return
+        try:
+            await asyncio.wait_for(vc.disconnect(force=True), self._JOIN_DISCONNECT_TIMEOUT)
+        except Exception as exc:
+            log.warning("[Music] Abandoned join cleanup failed: %s", type(exc).__name__)
 
     async def _ensure(self, ctx: commands.Context) -> MusicPlayer | None:
-        _t0 = time.time()
-        s = await async_get_guild_settings(str(ctx.guild.id))
-        if not ctx.author.voice or not ctx.author.voice.channel:
-            await ctx.send(tr(s, "music.join_voice_first"))
+        if not self._join_is_current():
             return None
+        if not hasattr(self, "_join_tasks"):
+            self._join_tasks = set()
+        task = asyncio.current_task()
+        self._join_tasks.add(task)
+        try:
+            return await self._ensure_voice(ctx)
+        finally:
+            self._join_tasks.discard(task)
 
+    async def _ensure_voice(self, ctx: commands.Context) -> MusicPlayer | None:
+        _t0 = time.time()
         guild_id = ctx.guild.id
-        player   = self._players.get(guild_id)
-        g_vc     = ctx.guild.voice_client
+        s = await async_get_guild_settings(str(guild_id))
+        if not self._join_is_current():
+            return None
+        lock = self._player_locks.setdefault(guild_id, asyncio.Lock())
 
-        # Trường hợp 1: Player đang sống và vc đang kết nối
-        if player and player.vc and player.vc.is_connected():
-            if player.vc.channel != ctx.author.voice.channel:
+        # Channel checks and desync adoption belong under the same lock as join.
+        # A waiting requester must not inherit another room's freshly made player.
+        async with lock:
+            if not self._join_is_current():
+                return None
+            voice = ctx.author.voice
+            if not voice or not voice.channel:
+                await ctx.send(tr(s, "music.join_voice_first"))
+                return None
+            player = self._players.get(guild_id)
+            vc = player.vc if player and player.vc and player.vc.is_connected() else ctx.guild.voice_client
+            if vc and vc.is_connected() and getattr(vc, "channel", None) != voice.channel:
                 await ctx.send(tr(s, "music.bot_in_other_voice"))
                 return None
-            player.text_channel = ctx.channel
-            # Đảm bảo bot luôn tự động tắt nghe (self_deaf)
-            if ctx.guild.me.voice and not ctx.guild.me.voice.self_deaf:
-                try:
-                    await ctx.guild.change_voice_state(channel=player.vc.channel, self_deaf=True)
-                except Exception:
-                    pass
-            return player
 
-        # Trường hợp 2: Desync recovery — discord.py voice_client đã kết nối nhưng player bị mất
-        if g_vc and g_vc.is_connected():
-            log.info(f"[Music] Phát hiện voice_client đã kết nối tại guild {guild_id}, tự động đồng bộ lại player.")
-            if g_vc.channel != ctx.author.voice.channel:
-                try:
-                    await g_vc.move_to(ctx.author.voice.channel)
-                except Exception:
-                    await ctx.send(tr(s, "music.bot_in_other_voice"))
-                    return None
-            if player:
-                player.vc = g_vc
-                player.text_channel = ctx.channel
-            else:
-                player = MusicPlayer(ctx.guild, ctx.channel, g_vc, cog=self)
-                self._players[guild_id] = player
-            if ctx.guild.me.voice and not ctx.guild.me.voice.self_deaf:
-                try:
-                    await ctx.guild.change_voice_state(channel=g_vc.channel, self_deaf=True)
-                except Exception:
-                    pass
-            return player
-
-        # Toàn bộ phần "kiểm tra trần -> kết nối -> đăng ký player" phải nằm trong MỘT
-        # lock theo guild. Trước đây kiểm tra ở trên và `self._players[guild_id] = player`
-        # ở dưới nằm hai bên `await connect()`, nên hai người cùng /play:
-        #   • tạo hai MusicPlayer cho một guild (player cũ bị ghi đè vẫn giữ ffmpeg
-        #     con + task, không ai stop nó), và
-        #   • cùng vượt qua trần MAX_PLAYERS vì cả hai thấy số player chưa tăng.
-        lock = self._player_locks.get(guild_id)
-        if lock is None:
-            lock = self._player_locks.setdefault(guild_id, asyncio.Lock())
-
-        async with lock:
-            # Đọc lại sau khi giành lock: trong lúc chờ ở đây, một coroutine khác đã có
-            # thể kết nối và tạo player cho đúng guild này.
-            player = self._players.get(guild_id)
-            if player and player.vc and player.vc.is_connected():
-                player.text_channel = ctx.channel
-                return player
-
-            # Giữ chỗ dưới khóa toàn cục. Chỉ đếm `_players` thì thua: N guild khác nhau
-            # cùng /play đồng thời sẽ cùng thấy còn chỗ và cùng vượt trần MAX_PLAYERS.
-            async with self._registry_lock:
-                over_limit = (len(self._players) + len(self._connecting)) >= MAX_PLAYERS
-                if not over_limit:
-                    self._connecting.add(guild_id)
-            if over_limit:
-                await ctx.send(
-                    tr(s, "music.max_players_err", max=MAX_PLAYERS),
-                    ephemeral=True,
-                )
-                return None
-
-            try:
-                try:
-                    vc = await ctx.author.voice.channel.connect(self_deaf=True)
-                except Exception as e:
-                    if "already connected" in str(e).lower() and ctx.guild.voice_client:
-                        vc = ctx.guild.voice_client
-                    else:
-                        await ctx.send(tr(s, "music.cannot_connect", err=e))
+            reserved = False
+            if player is None:
+                # Connected-but-unregistered clients consume a slot too. Reserve
+                # globally before any await so concurrent guilds cannot exceed 6.
+                async with self._registry_lock:
+                    if not self._join_is_current():
                         return None
+                    over_limit = (len(self._players) + len(self._connecting)) >= MAX_PLAYERS
+                    if not over_limit:
+                        self._connecting.add(guild_id)
+                        reserved = True
+                if over_limit:
+                    await ctx.send(tr(s, "music.max_players_err", max=MAX_PLAYERS), ephemeral=True)
+                    return None
 
-                log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
-                player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
-                self._players[guild_id] = player
-                # Nếu lệnh phát thất bại ngay sau khi join (link hỏng, search rỗng),
-                # timer này dọn player thay vì giữ slot MAX_PLAYERS vô thời hạn.
+            joining_vc = None
+            try:
+                # Registry lock acquisition can yield; never connect using a
+                # VoiceState or voice client captured before that await.
+                if not self._join_is_current() or self._players.get(guild_id) is not player:
+                    return None
+                voice = ctx.author.voice
+                if not voice or not voice.channel:
+                    await ctx.send(tr(s, "music.join_voice_first"))
+                    return None
+                vc = player.vc if player and player.vc and player.vc.is_connected() else ctx.guild.voice_client
+                if vc and vc.is_connected():
+                    if getattr(vc, "channel", None) != voice.channel:
+                        await ctx.send(tr(s, "music.bot_in_other_voice"))
+                        return None
+                else:
+                    def make_voice_client(client, channel):
+                        nonlocal joining_vc
+                        # discord.py registers this object BEFORE awaiting the
+                        # handshake. Retain exact ownership even if it raises.
+                        joining_vc = discord.VoiceClient(client, channel)
+                        return joining_vc
+
+                    try:
+                        vc = await voice.channel.connect(self_deaf=True, cls=make_voice_client)
+                        joining_vc = vc
+                    except Exception as e:
+                        if not self._join_is_current():
+                            return None
+                        vc = ctx.guild.voice_client
+                        if not ("already connected" in str(e).lower() and vc and vc.is_connected()):
+                            await ctx.send(tr(s, "music.cannot_connect", err=e))
+                            return None
+                    # Joining can race a requester leaving or moving. Keep the
+                    # new idle connection tracked for cleanup, but reject play.
+                    log.info(f"[Music][timing] voice connected in {time.time() - _t0:.2f}s")
+
+                if not self._join_is_current() or self._players.get(guild_id) is not player:
+                    return None
+                if player is None:
+                    player = MusicPlayer(ctx.guild, ctx.channel, vc, cog=self)
+                    self._players[guild_id] = player
+                else:
+                    player.vc = vc
+                joining_vc = None  # Ownership transferred synchronously to player.
+                # Commit the reservation synchronously with registration. The
+                # self-deaf API below can yield and must not count this guild twice.
+                if reserved:
+                    self._connecting.discard(guild_id)
+                    reserved = False
                 if not player.current and not player.queue:
                     player._start_inactivity_timer()
+
+                voice = ctx.author.voice
+                if not voice or not voice.channel:
+                    await ctx.send(tr(s, "music.join_voice_first"))
+                    return None
+                if getattr(vc, "channel", None) != voice.channel:
+                    await ctx.send(tr(s, "music.bot_in_other_voice"))
+                    return None
+                me_voice = getattr(ctx.guild.me, "voice", None)
+                if me_voice and not me_voice.self_deaf:
+                    try:
+                        await ctx.guild.change_voice_state(channel=vc.channel, self_deaf=True)
+                    except Exception:
+                        pass
+                    if not self._join_is_current() or self._players.get(guild_id) is not player:
+                        return None
+                    voice = ctx.author.voice
+                    if not voice or not voice.channel:
+                        await ctx.send(tr(s, "music.join_voice_first"))
+                        return None
+                    if getattr(vc, "channel", None) != voice.channel:
+                        await ctx.send(tr(s, "music.bot_in_other_voice"))
+                        return None
+                player.text_channel = ctx.channel
                 return player
             finally:
-                self._connecting.discard(guild_id)
+                if reserved:
+                    self._connecting.discard(guild_id)
+                if joining_vc is not None:
+                    await self._disconnect_abandoned_join(ctx.guild, joining_vc)
 
 
     def _check_and_schedule_empty_voice(self, guild: discord.Guild):
@@ -273,9 +346,7 @@ class VoiceLifecycleMixin:
 
         if not bot_channel:
             # Bot không ở trong kênh voice nào, hủy task đếm ngược nếu có
-            task = self._empty_voice_tasks.pop(guild_id, None)
-            if task and not task.done():
-                task.cancel()
+            self._cancel_empty_voice_task(guild_id)
             return
 
         # Kiểm tra xem có người đang nghe nhạc không (người thật và KHÔNG tắt tai nghe / deafen)
@@ -286,10 +357,7 @@ class VoiceLifecycleMixin:
 
         if has_listener:
             # Có người đang nghe nhạc trong phòng -> Hủy bộ đếm nếu đang chạy
-            task = self._empty_voice_tasks.pop(guild_id, None)
-            if task and not task.done():
-                task.cancel()
-                log.debug(f"[Music] Người dùng đang nghe trong phòng '{bot_channel.name}' tại guild {guild_id}. Đã hủy empty voice timer.")
+            self._cancel_empty_voice_task(guild_id)
             return
 
         # Phòng không có ai nghe nhạc -> Khởi động bộ đếm INACTIVITY_TIMEOUT (180s) tự động rời phòng
@@ -302,7 +370,9 @@ class VoiceLifecycleMixin:
         log.info(f"[Music] Kênh voice '{bot_channel.name}' không còn ai nghe nhạc (guild {guild_id}). Bắt đầu đếm ngược {INACTIVITY_TIMEOUT}s tự động out.")
         task = asyncio.create_task(self._handle_empty_voice(guild_id, bot_channel.id))
         self._empty_voice_tasks[guild_id] = task
-        task.add_done_callback(lambda t, gid=guild_id: self._empty_voice_tasks.pop(gid, None))
+        task.add_done_callback(
+            lambda t: self._discard_voice_task(self._empty_voice_tasks, guild_id, t)
+        )
 
 
     async def _handle_empty_voice(self, guild_id: int, channel_id: int):
@@ -382,7 +452,7 @@ class VoiceLifecycleMixin:
                     await player.stop()
                 except Exception as stop_err:
                     log.error(f"[Music] player.stop in empty_voice error: {stop_err}")
-                self._drop(guild_id)
+                self._drop(guild_id, expected_player=player)
             elif vc and vc.is_connected():
                 try:
                     if vc.is_playing() or vc.is_paused():
@@ -400,14 +470,20 @@ class VoiceLifecycleMixin:
         except Exception as e:
             log.error(f"[Music] empty voice handler error: {e}", exc_info=e)
         finally:
-            self._empty_voice_tasks.pop(guild_id, None)
+            self._discard_voice_task(self._empty_voice_tasks, guild_id, asyncio.current_task())
 
 
     async def _handle_voice_disconnect_grace(self, guild_id: int):
         """Grace Period 6s: chờ discord.py reconnect voice websocket trước khi quyết định dọn dẹp player."""
         player = self._players.get(guild_id)
+        task = asyncio.current_task()
+        owner = self._grace_tasks.get(guild_id)
+        task._music_voice_owner = owner
         try:
             await asyncio.sleep(6)
+            if ((owner is not None and self._grace_tasks.get(guild_id) is not owner)
+                    or self._players.get(guild_id) is not player):
+                return
             guild = self.bot.get_guild(guild_id)
             if not guild:
                 if player:
@@ -424,7 +500,7 @@ class VoiceLifecycleMixin:
                 log.info(f"[Music] Hết 6s Grace Period, bot không còn ở trong kênh voice nào tại guild {guild_id}. Dọn dẹp player.")
                 if player:
                     player.set_reconnecting(False)
-                self._drop(guild_id)
+                self._drop(guild_id, expected_player=player)
             else:
                 log.info(f"[Music] Bot vẫn duy trì/tái kết nối tại guild {guild_id} ({bot_channel.name}).")
                 active_player = self._players.get(guild_id)
@@ -434,7 +510,7 @@ class VoiceLifecycleMixin:
             pass
         except Exception as e:
             log.error(f"[Music] Lỗi trong _handle_voice_disconnect_grace: {e}")
-            if player:
-                player.set_reconnecting(False)
-            self._cancel_reconnect_task(guild_id)
-            self._cancel_grace_task(guild_id)
+            if ((owner is None or self._grace_tasks.get(guild_id) is owner)
+                    and self._players.get(guild_id) is player):
+                self._cancel_reconnect_task(guild_id, expected_player=player)
+                self._cancel_grace_task(guild_id)
