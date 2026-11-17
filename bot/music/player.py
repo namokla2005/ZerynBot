@@ -1354,7 +1354,13 @@ class MusicPlayer:
                     try:
                         if vc.is_playing() or vc.is_paused():
                             vc.stop()
-                        if vc.is_connected():
+                        # disconnect() also calls VoiceProtocol.cleanup(), which removes
+                        # the client from discord.py's internal voice registry. A kick
+                        # makes is_connected() false before cleanup, so disconnect while
+                        # this exact VC still owns the guild registry. Never retry a stale
+                        # disconnected VC after a replacement has claimed that registry:
+                        # cleanup removes by guild key and would unregister the new VC.
+                        if vc.is_connected() or self.guild.voice_client is vc:
                             await asyncio.wait_for(vc.disconnect(force=True), STALL_CLEANUP_TIMEOUT_SECONDS)
                         complete = complete and not vc.is_connected()
                     except Exception as exc:

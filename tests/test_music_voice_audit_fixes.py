@@ -575,3 +575,79 @@ def test_completion_helper_cannot_discard_replacement(registry):
         assert not tasks
 
     asyncio.run(run())
+
+
+def test_disconnected_voice_client_is_unregistered_before_next_join():
+    from music.player import MusicPlayer
+
+    async def run():
+        guild = NS(id=7, voice_client=None, me=NS(voice=None))
+        room = room_for(guild, 10)
+
+        class RegisteredVoiceClient(VoiceClient):
+            def __init__(self):
+                super().__init__(room)
+                self.connected = False
+                self.source = None
+                self.disconnect_calls = 0
+
+            def stop(self):
+                pass
+
+            async def disconnect(self, **kwargs):
+                self.disconnect_calls += 1
+                self.connected = False
+                if guild.voice_client is self:
+                    guild.voice_client = None
+
+        vc = RegisteredVoiceClient()
+        guild.voice_client = vc
+        cog = cog_for(guild)
+        player = MusicPlayer(guild, None, vc, cog=cog)
+        cog._players[guild.id] = player
+
+        await player.stop()
+
+        assert vc.disconnect_calls == 1
+        assert guild.voice_client is None
+
+    asyncio.run(run())
+
+
+def test_stale_stop_retry_cannot_unregister_replacement_voice_client():
+    from music.player import MusicPlayer
+
+    async def run():
+        guild = NS(id=7, voice_client=None, me=NS(voice=None))
+        room = room_for(guild, 10)
+
+        class StaleVoiceClient(VoiceClient):
+            def __init__(self):
+                super().__init__(room)
+                self.connected = False
+                self.source = None
+                self.disconnect_calls = 0
+
+            def stop(self):
+                pass
+
+            async def disconnect(self, **kwargs):
+                self.disconnect_calls += 1
+                # discord.py cleanup removes by guild key, not VC identity.
+                guild.voice_client = None
+
+        stale_vc = StaleVoiceClient()
+        replacement_vc = VoiceClient(room)
+        guild.voice_client = replacement_vc
+        cog = cog_for(guild)
+        stale_player = MusicPlayer(guild, None, stale_vc, cog=cog)
+        replacement_player = Player(guild, None, replacement_vc, cog=cog)
+        cog._players[guild.id] = replacement_player
+
+        await stale_player.stop()
+
+        assert stale_vc.disconnect_calls == 0
+        assert guild.voice_client is replacement_vc
+        assert cog._players[guild.id] is replacement_player
+
+    asyncio.run(run())
