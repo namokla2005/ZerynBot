@@ -84,7 +84,14 @@ FILE_EXTENSIONS = frozenset({
     "go", "rs", "php", "rb", "sh", "bat", "ps1", "vtt", "srt", "ass", "sub",
     "epub", "mobi", "azw3", "ttf", "otf", "woff", "woff2",
 })
-DISCORD_INVITE_PATTERN = re.compile(r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]+)', re.IGNORECASE)
+# dsc.gg/dis.gd/invite.gg/discord.link là vanity/shortener mời Discord — chặn có
+# chủ đích (nghiên cứu bypass xác nhận hay dùng để che invite); server muốn ngoại
+# lệ thì thêm domain vào whitelist_links. `\.?` sau gg/io/me/li bắt `discord.gg./x`.
+EXTRA_INVITE_SHORTENERS = ("dsc.gg", "dis.gd", "invite.gg", "discord.link")
+DISCORD_INVITE_PATTERN = re.compile(
+    r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li)\.?|discord(?:app)?\.com/invite'
+    r'|' + "|".join(re.escape(d) for d in EXTRA_INVITE_SHORTENERS) + r')/([a-zA-Z0-9-]+)',
+    re.IGNORECASE)
 
 GLOBAL_SAFE_DOMAINS = {
     "discord.com", "discord.gg", "discordapp.com", "discordapp.net", "discord.media",
@@ -104,6 +111,95 @@ GLOBAL_BLACKLIST_KEYWORDS = [
     "steam-nitro", "free-robux", "roblox-free", "steamcommunity-free",
     "discord-gift", "gift-discord", "nitro-gift", "boost-nitro"
 ]
+
+# ─── Giải obfuscation cho pattern lừa đảo (invite / telegram / scam) ─────────
+# Biến thể chỉ được so với pattern denylist — KHÔNG dùng cho luật unknown-host,
+# để `hello,world` -> `hello.world` không bị chặn oan.
+_PUNCT_TO_DOT = str.maketrans({",": ".", ";": ".", "·": ".", "•": ".", "․": ".", "﹒": "."})
+_DOT_WORD_FORMS = (("[.]", "."), ("(.)", "."), ("{.}", "."), ("[dot]", "."),
+                   ("(dot)", "."), ("{dot}", "."), (" dot ", "."))
+_SPACED_DOT_RE = re.compile(r"\s*\.\s*")
+_SPACED_SLASH_RE = re.compile(r"\s*/\s*")
+# `{1,80}` chặn trên để không có lặp vô hạn; các lớp ký tự rời nhau (\s vs \w)
+# nên không có dạng lồng nguy hiểm kiểu (a+)+ — không catastrophic backtracking.
+_SPACED_SINGLE_RE = re.compile(r"(?<!\w)(\w)(?:\s+(\w)(?!\w)){1,80}(?!\w)")
+# Cổng rẻ tiền: chỉ sinh biến thể khi nội dung CÓ dấu hiệu obfuscation
+# (khoảng trắng quanh ./, [.]/(.), chữ "dot", dấu phẩy/chấm-phẩy/chấm-giữa,
+# tg://, ký tự lạ cạnh dấu chấm). Tin thường đi thẳng qua, không tốn xử lý.
+_DEOBF_TRIGGER_RE = re.compile(
+    r"(?:\s[./]|[./]\s|\[\s*[.]|\(\s*[.]|\bdot\b|[,;·•․﹒]|tg://|[^\x00-\x7f][./]|[./][^\x00-\x7f])",
+    re.IGNORECASE)
+# Giới hạn cứng cho CPU Termux: chỉ giải obfuscation trên 2000 ký tự đầu
+# (= giới hạn content của Discord). Phần vượt giới hạn vẫn được các luật cơ bản
+# (domain extraction, blacklist, keyword) quét như thường.
+_DEOBF_MAX_LEN = 2000
+_TELEGRAM_LINK_RE = re.compile(r"(?:(?<![\w.])t\.me(?![\w.])|tg://\S+)", re.IGNORECASE)
+# Emoji: base pictograph + modifier/VS/ZWJ để chuỗi ZWJ (👨‍👩‍👧‍👦) tính 1 đơn vị.
+_EMOJI_BASE_RE = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF]")
+_EMOJI_MODIFIERS = frozenset("\ufe0f\U0001F3FB\U0001F3FC\U0001F3FD\U0001F3FE\U0001F3FF")
+
+
+def _join_spaced_run(match) -> str:
+    """`d i s c o r d` -> `discord` — callback của _SPACED_SINGLE_RE."""
+    return re.sub(r"\s+", "", match.group(0))
+
+
+def deobfuscated_variants(text: str) -> list[str]:
+    """Sinh biến thể đã giải obfuscation của `text` (đã normalize) để so denylist.
+
+    Bao phủ: `discord. gg`, `d i s c o r d . g g`, `t[.]me`/`t[dot]me`,
+    `discord(.)gg`, `discord,gg`/`discord;gg`/`discord·gg`, `discord.🔥gg`.
+    Chỉ dùng cho invite/telegram/scam. Giới hạn cứng 2000 ký tự đầu; kết quả
+    tối đa ~12 biến thể sau dedupe. Cấu trúc: BUILD các danh sách trước, DEDUPE
+    một lần ở cuối — không sửa danh sách trong lúc duyệt.
+    """
+    text = (text or "")[:_DEOBF_MAX_LEN]
+
+    # Bước 1: ba "hạt giống" — đã gộp dấu chấm/ký tự đơn/khoảng trắng.
+    x = text
+    for old, new in _DOT_WORD_FORMS:
+        x = x.replace(old, new)
+    x = _SPACED_DOT_RE.sub(".", x)
+    x = _SPACED_SLASH_RE.sub("/", x)
+    y = _SPACED_SINGLE_RE.sub(_join_spaced_run, x)
+    z = re.sub(r"\s+", "", y)
+
+    # Bước 2: các danh sách phái sinh — build xong hết mới dùng.
+    seeds = [x, y, z]
+    punct_stage = [s.translate(_PUNCT_TO_DOT) for s in seeds]
+    ascii_sources = seeds + punct_stage
+    ascii_stage = ["".join(ch for ch in s if ord(ch) < 128)
+                   for s in ascii_sources if any(ord(ch) >= 128 for ch in s)]
+
+    # Bước 3: dedupe một lần — vòng duyệt chỉ ĐỌC list ứng viên đã build.
+    out: list[str] = []
+    for candidate in seeds + punct_stage + ascii_stage:
+        if candidate and candidate != text and candidate not in out:
+            out.append(candidate)
+    return out
+
+
+def count_emoji_units(text: str) -> int:
+    """Đếm emoji theo 'đơn vị' — chuỗi ZWJ (👨‍👩‍👧‍👦) tính 1, modifier không tính."""
+    i, n, count = 0, len(text), 0
+    while i < n:
+        if not _EMOJI_BASE_RE.match(text[i]):
+            i += 1
+            continue
+        count += 1
+        i += 1
+        while i < n and text[i] in _EMOJI_MODIFIERS:
+            i += 1
+        while i < n and text[i] == "\u200d":
+            nxt = i + 1
+            if nxt < n and _EMOJI_BASE_RE.match(text[nxt]):
+                i = nxt + 1
+                while i < n and text[i] in _EMOJI_MODIFIERS:
+                    i += 1
+            else:
+                break
+    return count
+
 
 # ─── Chuẩn hóa văn bản trước khi so khớp (chống bypass bằng Unicode) ──────────
 _ZERO_WIDTH_RE = re.compile(r"[​‌‍⁠﻿­]")
@@ -140,25 +236,38 @@ HOSTILE_LOOKALIKES = {ord(c): ord(t) for c, t in [
 ]}
 
 
+def _embed_scan_parts(emb) -> list[str]:
+    """Văn bản trong một embed mà automod phải xét (kể cả url)."""
+    parts = [getattr(emb, "title", None) or "", getattr(emb, "description", None) or "",
+             getattr(emb, "url", None) or ""]
+    for field in getattr(emb, "fields", None) or []:
+        parts += [getattr(field, "name", None) or "", getattr(field, "value", None) or ""]
+    footer = getattr(emb, "footer", None)
+    if footer is not None:
+        parts.append(getattr(footer, "text", None) or "")
+    author = getattr(emb, "author", None)
+    if author is not None:
+        parts.append(getattr(author, "name", None) or "")
+    return parts
+
+
 def message_scan_text(message) -> str:
     """Mọi phần văn bản của message mà automod PHẢI xét tới.
 
     Trước đây chỉ `message.content.lower()` được dùng, nên nhét link lừa đảo vào embed
     (title/description/field/footer/author/url) hoặc gửi sticker có tên chứa từ khóa là
-    qua mặt hoàn toàn mà không cần lách Unicode.
+    qua mặt hoàn toàn mà không cần lách Unicode. Tin FORWARD chứa nội dung gốc trong
+    `message_snapshots` — không quét snapshot là bypass.
     """
     parts = [message.content or ""]
     for emb in getattr(message, "embeds", None) or []:
-        parts += [getattr(emb, "title", None) or "", getattr(emb, "description", None) or "",
-                  getattr(emb, "url", None) or ""]
-        for field in getattr(emb, "fields", None) or []:
-            parts += [getattr(field, "name", None) or "", getattr(field, "value", None) or ""]
-        footer = getattr(emb, "footer", None)
-        if footer is not None:
-            parts.append(getattr(footer, "text", None) or "")
-        author = getattr(emb, "author", None)
-        if author is not None:
-            parts.append(getattr(author, "name", None) or "")
+        parts += _embed_scan_parts(emb)
+    for snap in getattr(message, "message_snapshots", None) or []:
+        parts.append(getattr(snap, "content", None) or "")
+        for emb in getattr(snap, "embeds", None) or []:
+            parts += _embed_scan_parts(emb)
+        for att in getattr(snap, "attachments", None) or []:
+            parts.append(getattr(att, "url", None) or "")
     for st in getattr(message, "stickers", None) or []:
         parts += [getattr(st, "name", None) or "", getattr(st, "description", None) or ""]
     poll = getattr(message, "poll", None)
@@ -412,6 +521,16 @@ class Automod(commands.Cog):
                 self.spam_cache[guild_id][user_id] = [] # Reset to prevent loop
                 return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.spam_gui_tin_nhan_qua"), settings)
 
+            # 1b. Emoji flood — mặc định 8 emoji (chuỗi ZWJ tính 1 đơn vị); chỉnh
+            # bằng key `max_emoji`; tắt chung với công tắc chống spam.
+            try:
+                max_emoji = int(settings.get("max_emoji", 8) or 8)
+            except (TypeError, ValueError):
+                max_emoji = 8
+            emoji_count = count_emoji_units(message.content or "")
+            if emoji_count >= max_emoji:
+                return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.spam_emoji_qua_nhieu", count=emoji_count), settings)
+
         if await self._check_text_rules(message, settings, content):
             return
 
@@ -428,6 +547,20 @@ class Automod(commands.Cog):
         # 6. Anti-Mention spam check
         if settings.get("anti_mentions_enabled"):
             max_mentions = int(settings.get("max_mentions", 5) or 5)
+            # @everyone/@here: chặn nếu người gửi KHÔNG thuộc nhóm được miễn.
+            # Miễn tường minh tại chỗ: quyền mention_everyone, Administrator,
+            # hoặc Manage Messages (chủ server/admin/mod cũng đã bị
+            # _automod_gate lọc TRƯỚC đó — đây là lớp thứ hai, không chỉ dựa
+            # vào một permission bit duy nhất). Thiếu attribute -> fail-closed.
+            if getattr(message, "mention_everyone", False):
+                gp = getattr(message.author, "guild_permissions", None)
+                can_ping_everyone = bool(gp) and any((
+                    getattr(gp, "mention_everyone", False),
+                    getattr(gp, "administrator", False),
+                    getattr(gp, "manage_messages", False),
+                ))
+                if not can_ping_everyone:
+                    return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.tag_everyone_here"), settings)
             total_mentions = len(message.mentions) + len(message.role_mentions)
             if total_mentions > max_mentions:
                 return await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.tag_qua_nhieu_nguoi_role", total_mentions=total_mentions, max_mentions=max_mentions), settings)
@@ -491,6 +624,20 @@ class Automod(commands.Cog):
                     return
         if settings.get("anti_mentions_enabled"):
             max_mentions = int(settings.get("max_mentions", 5) or 5)
+            if getattr(after, "mention_everyone", False):
+                gp = getattr(after.author, "guild_permissions", None)
+                can_ping_everyone = bool(gp) and any((
+                    getattr(gp, "mention_everyone", False),
+                    getattr(gp, "administrator", False),
+                    getattr(gp, "manage_messages", False),
+                ))
+                if not can_ping_everyone:
+                    await self._handle_violation(
+                        after,
+                        tr(await self._reason_lang(after.guild), "automod.tag_everyone_here"),
+                        settings,
+                    )
+                    return
             total_mentions = len(after.mentions) + len(after.role_mentions)
             if total_mentions > max_mentions:
                 await self._handle_violation(
@@ -508,6 +655,16 @@ class Automod(commands.Cog):
         automod hoàn toàn. `content` là văn bản đã chuẩn hóa (xem message_scan_text) gồm cả
         embed và sticker — những thứ không nằm trong message.content.
         """
+        # Biến thể đã giải obfuscation (`discord. gg`, `t[.]me`, `discord,gg`...)
+        # dùng cho pattern invite/telegram/scam; KHÔNG dùng cho luật unknown-host.
+        # Chỉ sinh khi công tắc liên quan bật VÀ nội dung có dấu hiệu obfuscation
+        # (_DEOBF_TRIGGER_RE). Chi phí: cổng rẻ ~5µs; khi có dấu hiệu ~1.5ms/tin
+        # 2400 ký tự (đo trên PC) — không đáng kể với Termux.
+        variants = []
+        if (settings.get("links_enabled") or settings.get("anti_invite_enabled")) \
+                and _DEOBF_TRIGGER_RE.search(content):
+            variants = deobfuscated_variants(content)
+
         # 2. Bad words check
         if settings.get("bad_words_enabled"):
             bad_words = settings.get("bad_words", [])
@@ -582,10 +739,26 @@ class Automod(commands.Cog):
                 await self._handle_violation(message, violation_reason, settings)
                 return True
 
-        # 4. Anti-Invite links check
+            # 3e. Telegram deep-link (`t.me`, `tg://`), kể cả dạng obfuscated
+            # (`t[.]me`, `t . m e`) — không phụ thuộc domain extraction.
+            if _TELEGRAM_LINK_RE.search(content) or any(
+                    _TELEGRAM_LINK_RE.search(v) for v in variants):
+                await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.link_telegram"), settings)
+                return True
+
+            # 3f. Từ khóa scam trên biến thể đã giải (`discord-nitro[.]com`).
+            for variant in variants:
+                if any(kw in variant for kw in GLOBAL_BLACKLIST_KEYWORDS):
+                    await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.link_gia_mao_bien_the"), settings)
+                    return True
+
+        # 4. Anti-Invite links check — cả trên biến thể đã giải obfuscation
+        # (`discord. gg/abc`, `d i s c o r d . g g`, `discord(.)gg`, `discord,gg`...).
         if settings.get("anti_invite_enabled"):
-            invite_matches = DISCORD_INVITE_PATTERN.findall(content)
-            if invite_matches:
+            invite_hit = bool(DISCORD_INVITE_PATTERN.search(content))
+            if not invite_hit:
+                invite_hit = any(DISCORD_INVITE_PATTERN.search(v) for v in variants)
+            if invite_hit:
                 await self._handle_violation(message, tr(await self._reason_lang(message.guild), "automod.gui_link_moi_discord_server"), settings)
                 return True
         return False
