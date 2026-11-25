@@ -90,3 +90,24 @@ python .agents/skills/dashboard_dev_guide/assets/check_missing_css.py HEAD~1   #
 ```
 
 Script trích các selector class bị xoá trong diff của `style.css`, đối chiếu với nơi còn dùng trong `dashboard/templates/*.html` + `dashboard/static/js/*.js` (đã lọc Jinja/JS template) — lớp nào vừa bị xoá vừa còn dùng thì báo đỏ (exit 1). Class tự định nghĩa inline trong template và bootstrap-icons `bi-*` không bị tính.
+
+---
+
+## 🌐 6. i18n trong ngữ cảnh JavaScript (`<script>`) — luôn dùng `|tojson`
+
+Chuỗi i18n chèn vào block `<script>` **BẮT BUỘC** qua `|tojson`, không bọc nháy tay:
+
+```js
+ok:  const I18N = { key: {{ t('x.key')|tojson }} };   // ✅ xuất chuỗi JS hợp lệ
+bad: const I18N = { key: "{{ t('x.key') }}" };        // ❌ autoescape ra entity
+```
+
+Vì autoescape (đúng cho HTML) biến `< > & ' "` thành entity **ngay trong JS string**: chuỗi chứa `<:name:id>` sẽ hiển thị nguyên chữ `&lt;:name:id&gt;` khi gán bằng `textContent`, dấu nháy trong bản dịch có thể phá cú pháp JS. `|tojson` escape về dạng `\u003c...` — hiển thị đúng trên cả 6 locale. (Trong HTML text/attribute bình thường thì `{{ t(...) }}` giữ nguyên là đúng.)
+
+---
+
+## 🚦 7. Kinh nghiệm chạy pre-commit gate (`dual_model_mcp.py --pre-commit-check`)
+
+- **Diff staged quá lớn → 413**: tier Groq trả `413 Request too large` khi diff dài (nhất là dòng siêu dài như dataset emoji) → tách commit theo chủ đề, mỗi commit ≲ ~300 dòng diff.
+- **Reviewer không hội tụ với code hạ tầng mới**: các roll có thể đưa lý do trôi dạt/mâu thuẫn nhau (roll sau phản đối cả pattern có sẵn trong repo, thậm chí đòi ngược roll trước). Quy trình đúng: sửa hết điểm actionable (lock/subprocess/cache chuẩn, validate input, escape, debounce...), chạy lại vài roll; nếu vẫn đỏ vì lý do không đúng thực tế → chốt bằng bằng chứng độc lập (full pytest + render/browser thật) và ghi chú minh bạch khi báo cáo.
+- Chuỗi i18n đổi → nhớ chạy `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` (đủ 6 locale) trước khi commit.
