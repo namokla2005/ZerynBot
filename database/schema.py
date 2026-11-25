@@ -586,6 +586,43 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_support_threads_status ON support_threads (status, updated_at);
             CREATE INDEX IF NOT EXISTS idx_ticket_panels_guild ON ticket_panels (guild_id);
             CREATE INDEX IF NOT EXISTS idx_rr_panels_guild ON reaction_roles_panels (guild_id);
+
+            CREATE TABLE IF NOT EXISTS server_builder_jobs (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_code             TEXT NOT NULL UNIQUE,
+                guild_id             TEXT NOT NULL,
+                actor_user_id        TEXT NOT NULL,
+                status               TEXT NOT NULL DEFAULT 'queued',
+                plan_json            TEXT NOT NULL,
+                options_json         TEXT NOT NULL DEFAULT '{}',
+                snapshot_before_json TEXT,
+                total_steps          INTEGER NOT NULL DEFAULT 0,
+                completed_steps      INTEGER NOT NULL DEFAULT 0,
+                failed_steps         INTEGER NOT NULL DEFAULT 0,
+                current_step_label   TEXT DEFAULT '',
+                eta_seconds          REAL DEFAULT 0,
+                rate_limit_until     REAL DEFAULT 0,
+                cancel_requested     INTEGER DEFAULT 0,
+                step_logs_json       TEXT DEFAULT '[]',
+                error_message        TEXT,
+                created_at           REAL NOT NULL,
+                started_at           REAL,
+                finished_at          REAL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_sb_jobs_guild_status ON server_builder_jobs(guild_id, status);
+
+            CREATE TABLE IF NOT EXISTS server_builder_templates (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id    TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                tree_json   TEXT NOT NULL,
+                created_by  TEXT,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_sb_templates_guild ON server_builder_templates(guild_id);
         """)
         # Schema migration checks
         cursor = conn.cursor()

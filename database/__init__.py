@@ -19,6 +19,7 @@ Nội bộ:
     ai.py           cấu hình AI + log hoạt động AI
     activity.py     activity log, sự kiện, support threads
     maintenance.py  prune, WAL checkpoint, VACUUM
+    server_builder.py job queue & custom templates for Server Builder Studio
 """
 import sys
 
@@ -299,6 +300,24 @@ from .maintenance import (
     async_vacuum_db,
 )
 
+from .server_builder import (
+    ActiveJobExistsError,
+    TemplateLimitError,
+    create_server_builder_job,
+    get_server_builder_job,
+    get_active_server_builder_job,
+    list_server_builder_jobs,
+    request_cancel_server_builder_job,
+    get_server_builder_templates,
+    save_server_builder_template,
+    delete_server_builder_template,
+    async_claim_next_server_builder_job,
+    async_update_server_builder_job,
+    async_get_server_builder_job,
+    async_is_server_builder_cancel_requested,
+    async_fail_stale_server_builder_jobs,
+)
+
 
 __all__ = [
     "BASE_DIR", "DB_PATH", "get_db_path", "set_db_path", "init_db",
@@ -532,6 +551,21 @@ __all__ = [
     "_models_stats_lock",
     "set_module_enabled",
     "async_get_user_xp",
+    "ActiveJobExistsError",
+    "TemplateLimitError",
+    "create_server_builder_job",
+    "get_server_builder_job",
+    "get_active_server_builder_job",
+    "list_server_builder_jobs",
+    "request_cancel_server_builder_job",
+    "get_server_builder_templates",
+    "save_server_builder_template",
+    "delete_server_builder_template",
+    "async_claim_next_server_builder_job",
+    "async_update_server_builder_job",
+    "async_get_server_builder_job",
+    "async_is_server_builder_cancel_requested",
+    "async_fail_stale_server_builder_jobs",
 ]
 
 

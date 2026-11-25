@@ -32,6 +32,7 @@ from dashboard.blueprints import admin as admin_blueprint
 from dashboard.blueprints import guild as guild_blueprint
 from dashboard.blueprints import music as music_blueprint
 from dashboard.blueprints import public as public_blueprint
+from dashboard.blueprints import server_builder as server_builder_blueprint
 from dashboard.blueprints import support as support_blueprint
 from dashboard.extensions import _csrf_protect, csrf_token, logger, limiter
 from dashboard import web_helpers
@@ -134,6 +135,7 @@ def create_app() -> Flask:
     app.register_blueprint(api)
     app.register_blueprint(public_blueprint.bp)
     app.register_blueprint(guild_blueprint.bp)
+    app.register_blueprint(server_builder_blueprint.bp)
     app.register_blueprint(music_blueprint.bp)
     app.register_blueprint(support_blueprint.bp)
     app.register_blueprint(admin_blueprint.bp)

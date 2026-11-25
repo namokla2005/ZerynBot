@@ -27,6 +27,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE_ROUTES = [
     "DELETE /api/guild/<guild_id>/embeds/<int:embed_id>",
     "DELETE /api/guild/<guild_id>/reactionroles/<int:panel_id>",
+    "DELETE /api/guild/<guild_id>/server-builder/templates/<int:template_id>",
     "DELETE /api/guild/<guild_id>/tickets/<int:panel_id>",
     "GET /",
     "GET /admin",
@@ -40,6 +41,9 @@ BASELINE_ROUTES = [
     "GET /api/guild/<guild_id>/embeds",
     "GET /api/guild/<guild_id>/modules",
     "GET /api/guild/<guild_id>/recent_events",
+    "GET /api/guild/<guild_id>/server-builder/jobs/<int:job_id>",
+    "GET /api/guild/<guild_id>/server-builder/templates",
+    "GET /api/guild/<guild_id>/server-builder/tree",
     "GET /api/support/messages",
     "GET /callback",
     "GET /commands",
@@ -50,6 +54,7 @@ BASELINE_ROUTES = [
     "GET /dashboard/<guild_id>/embeds",
     "GET /dashboard/<guild_id>/music",
     "GET /dashboard/<guild_id>/reactionroles",
+    "GET /dashboard/<guild_id>/server-builder",
     "GET /dashboard/<guild_id>/tickets",
     "GET /docs",
     "GET /health",
@@ -91,6 +96,10 @@ BASELINE_ROUTES = [
     "POST /api/guild/<guild_id>/reactionroles/<int:panel_id>/send",
     "POST /api/guild/<guild_id>/send-embed",
     "POST /api/guild/<guild_id>/send-test-card",
+    "POST /api/guild/<guild_id>/server-builder/apply",
+    "POST /api/guild/<guild_id>/server-builder/jobs/<int:job_id>/cancel",
+    "POST /api/guild/<guild_id>/server-builder/preview-diff",
+    "POST /api/guild/<guild_id>/server-builder/templates",
     "POST /api/guild/<guild_id>/tickets",
     "POST /api/guild/<guild_id>/tickets/<int:panel_id>/send",
     "POST /api/guild/<guild_id>/welcome",
@@ -107,7 +116,7 @@ BASELINE_ROUTES = [
     "POST /dashboard/<guild_id>/tempvoice/delete_channel/<channel_id>",
 ]
 
-MIN_ENDPOINTS = 79          # số endpoint trước khi tách (gồm 'static')
+MIN_ENDPOINTS = 88          # 79 ban đầu + 9 route Server Builder Studio (gồm 'static')
 MIN_URL_FOR_REFS = 100      # số lượt url_for('...') quét được (bắt regex hỏng)
 
 # Route được phép trả 503 khi bot chưa chạy (health check chủ động báo down)
@@ -164,6 +173,8 @@ DUMMY_ARGS = {
     "item_id": "1",
     "cmd_id": "1",
     "embed_id": "1",
+    "job_id": "1",
+    "template_id": "1",
     "module_name": "music",
     "lang_code": "vi",
 }

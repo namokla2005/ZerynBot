@@ -4,6 +4,7 @@ auth.py — Discord OAuth2 helpers for the Flask dashboard.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import copy
 import ipaddress
 import logging
 import socket
@@ -19,8 +20,11 @@ import config
 # logger tu extensions (vong tron dependency khong can thiet chi vi mot line log).
 logger = logging.getLogger("BotV2.Dashboard")
 
-# Permissions bit: Manage Guild (0x20 = 32)
+# Permissions bits
 MANAGE_GUILD = 0x20
+ADMINISTRATOR = 0x8
+MANAGE_CHANNELS = 0x10
+MANAGE_ROLES = 0x10000000
 
 # TTL làm mới danh sách guild trong session (giây) — chống session cũ sau khi
 # user bị thu hồi quyền MANAGE_GUILD trên Discord.
@@ -468,6 +472,205 @@ def get_guild_roles(guild_id: str, include_everyone: bool = False) -> list:
 def invalidate_guild_roles_cache(guild_id: str) -> None:
     """Xóa cache role của guild (gọi sau khi bot đồng bộ lại danh sách role)."""
     _guild_roles_cache.pop(str(guild_id), None)
+
+
+# ─── Live Server Builder structure (Discord REST, short TTL) ──────────────────
+
+_SERVER_BUILDER_TREE_TTL = 30.0
+_SERVER_BUILDER_TREE_CACHE_MAX = 100
+_server_builder_tree_cache: dict[str, tuple[float, dict]] = {}
+_server_builder_tree_lock = threading.Lock()
+_server_builder_guild_locks: dict[str, threading.Lock] = {}
+_bot_identity_cache: dict[str, object] = {"ts": 0.0, "id": ""}
+
+
+def _discord_int(value, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _get_bot_user_id(headers: dict) -> str:
+    configured = str(getattr(config, "CLIENT_ID", "") or "").strip()
+    if configured.isdigit() and int(configured) > 0:
+        return configured
+
+    now = time.time()
+    cached_id = str(_bot_identity_cache.get("id") or "")
+    cached_ts = _bot_identity_cache.get("ts", 0.0)
+    if not isinstance(cached_ts, (int, float)):
+        cached_ts = 0.0
+    if cached_id and now - cached_ts < 300:
+        return cached_id
+    try:
+        resp = requests.get(
+            f"{config.DISCORD_API_BASE}/users/@me", headers=headers, timeout=5
+        )
+        if resp.ok:
+            user_id = str((resp.json() or {}).get("id") or "")
+            if user_id.isdigit() and int(user_id) > 0:
+                _bot_identity_cache.update(ts=now, id=user_id)
+                return user_id
+    except Exception as exc:
+        logger.warning("Lỗi fetch bot identity từ Discord API: %s", exc)
+    return cached_id if cached_id.isdigit() else ""
+
+
+def get_guild_live_structure(guild_id: str) -> dict | None:
+    """Return an authoritative, short-lived Discord channel/role snapshot."""
+    gid = str(guild_id).strip()
+    token = str(getattr(config, "TOKEN", "") or "").strip()
+    if not gid.isdigit() or not token:
+        return None
+
+    with _server_builder_tree_lock:
+        now = time.time()
+        cached = _server_builder_tree_cache.get(gid)
+        if cached and now - cached[0] < _SERVER_BUILDER_TREE_TTL:
+            return copy.deepcopy(cached[1])
+        guild_lock = _server_builder_guild_locks.get(gid)
+        if guild_lock is None:
+            if len(_server_builder_guild_locks) >= _SERVER_BUILDER_TREE_CACHE_MAX:
+                _server_builder_guild_locks.clear()
+            guild_lock = threading.Lock()
+            _server_builder_guild_locks[gid] = guild_lock
+
+    with guild_lock:
+        with _server_builder_tree_lock:
+            now = time.time()
+            cached = _server_builder_tree_cache.get(gid)
+            if cached and now - cached[0] < _SERVER_BUILDER_TREE_TTL:
+                return copy.deepcopy(cached[1])
+
+        headers = {"Authorization": f"Bot {token}"}
+        try:
+            channels_resp = requests.get(
+                f"{config.DISCORD_API_BASE}/guilds/{gid}/channels",
+                headers=headers,
+                timeout=10,
+            )
+            roles_resp = requests.get(
+                f"{config.DISCORD_API_BASE}/guilds/{gid}/roles",
+                headers=headers,
+                timeout=10,
+            )
+            if not channels_resp.ok or not roles_resp.ok:
+                return None
+            channels = channels_resp.json()
+            raw_roles = roles_resp.json()
+            if not isinstance(channels, list) or not isinstance(raw_roles, list):
+                return None
+        except Exception as exc:
+            logger.warning("Lỗi fetch live structure guild %s: %s", gid, exc)
+            return None
+
+        guild_features: list[str] = []
+        premium_tier = 0
+        guild_owner_id = ""
+        try:
+            guild_resp = requests.get(
+                f"{config.DISCORD_API_BASE}/guilds/{gid}",
+                headers=headers,
+                timeout=5,
+            )
+            if guild_resp.ok:
+                guild_data = guild_resp.json() or {}
+                features = guild_data.get("features") or []
+                if isinstance(features, list):
+                    guild_features = [str(item) for item in features]
+                premium_tier = _discord_int(guild_data.get("premium_tier"), 0)
+                guild_owner_id = str(guild_data.get("owner_id") or "")
+        except Exception:
+            pass
+
+        bot_user_id = _get_bot_user_id(headers)
+        bot_member = None
+        if bot_user_id:
+            try:
+                member_resp = requests.get(
+                    f"{config.DISCORD_API_BASE}/guilds/{gid}/members/{bot_user_id}",
+                    headers=headers,
+                    timeout=5,
+                )
+                if member_resp.ok:
+                    candidate = member_resp.json()
+                    if isinstance(candidate, dict):
+                        bot_member = candidate
+            except Exception:
+                bot_member = None
+
+        roles = []
+        for raw in raw_roles:
+            if not isinstance(raw, dict):
+                continue
+            role_id = str(raw.get("id") or "")
+            is_everyone = role_id == gid or raw.get("name") == "@everyone"
+            roles.append({
+                "id": role_id,
+                "name": str(raw.get("name") or ""),
+                "color": _discord_int(raw.get("color"), 0),
+                "position": _discord_int(raw.get("position"), 0),
+                "permissions": str(raw.get("permissions") or "0"),
+                "hoist": bool(raw.get("hoist", False)),
+                "managed": bool(raw.get("managed", False)),
+                "mentionable": bool(raw.get("mentionable", False)),
+                "is_everyone": is_everyone,
+            })
+        roles.sort(key=lambda role: role["position"], reverse=True)
+
+        everyone_bits = 0
+        role_bits: dict[str, int] = {}
+        role_positions: dict[str, int] = {}
+        for role in roles:
+            bits = _discord_int(role.get("permissions"), 0)
+            role_bits[role["id"]] = bits
+            role_positions[role["id"]] = _discord_int(role.get("position"), 0)
+            if role.get("is_everyone"):
+                everyone_bits |= bits
+
+        member_role_ids = [str(role_id) for role_id in ((bot_member or {}).get("roles") or [])]
+        permission_bits = everyone_bits if bot_member is not None else 0
+        for role_id in member_role_ids:
+            permission_bits |= role_bits.get(role_id, 0)
+        if bot_user_id and guild_owner_id and bot_user_id == guild_owner_id:
+            permission_bits |= ADMINISTRATOR
+        administrator = bool(permission_bits & ADMINISTRATOR)
+        bot_top_role_pos = max((role_positions.get(role_id, 0) for role_id in member_role_ids), default=0)
+        bot_permissions = {
+            "bitfield": str(permission_bits),
+            "administrator": administrator,
+            "manage_channels": administrator or bool(permission_bits & MANAGE_CHANNELS),
+            "manage_roles": administrator or bool(permission_bits & MANAGE_ROLES),
+        }
+
+        bitrate_by_tier = {0: 96000, 1: 128000, 2: 256000, 3: 384000}
+        result = {
+            "channels": copy.deepcopy(channels),
+            "roles": roles,
+            "bot_in_guild": bot_member is not None,
+            "bot_top_role_pos": bot_top_role_pos,
+            "bot_permissions": bot_permissions,
+            "guild_features": guild_features,
+            "bitrate_limit": bitrate_by_tier.get(premium_tier, 96000),
+        }
+
+        with _server_builder_tree_lock:
+            now = time.time()
+            cutoff = now - _SERVER_BUILDER_TREE_TTL
+            for stale_gid in [key for key, value in _server_builder_tree_cache.items() if value[0] < cutoff]:
+                _server_builder_tree_cache.pop(stale_gid, None)
+            if len(_server_builder_tree_cache) >= _SERVER_BUILDER_TREE_CACHE_MAX:
+                oldest = min(_server_builder_tree_cache, key=lambda key: _server_builder_tree_cache[key][0])
+                _server_builder_tree_cache.pop(oldest, None)
+            _server_builder_tree_cache[gid] = (now, copy.deepcopy(result))
+        return copy.deepcopy(result)
+
+
+def invalidate_server_builder_tree_cache(guild_id: str) -> None:
+    """Invalidate the short-lived Server Builder Discord snapshot."""
+    with _server_builder_tree_lock:
+        _server_builder_tree_cache.pop(str(guild_id), None)
 
 
 # ─── SSRF guard cho URL người dùng nhập (P1.8) ─────────────────────────────────

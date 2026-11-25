@@ -46,7 +46,7 @@
 - **Music concurrency & lifecycle:** Normal queue admission is atomic with playback startup; stop/cleanup is bounded and cannot revive a stopped player. EOF events buffered during recovery are drained afterwards, source callbacks are identity-bound, and non-live recovery resumes from audio frames rather than wall time (live streams restart at the live edge). Listening stats count successful new listening occurrences rather than seeks/reconnects. Persistent control interactions keep guild-specific player/settings local; seek requires the same voice channel and playlist deletion selections are requester-restricted. Reconnect registries are task-identity-safe. Extraction uses bounded workers and shared in-flight requests, off-loop URL safety checks, expiry-aware RAM promotion, case-preserving URL keys, cookie-fingerprint refresh and deduplicated transactional cache aliases. Saved playlists enqueue metadata and resolve streams near playback rather than eagerly resolving every queued track.
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 1890 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 2061 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
 
 ---
 
@@ -57,10 +57,10 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 ├── ARCHITECTURE.md             # This document (AI Context Map & System Reference)
 ├── main.py                     # Primary process orchestrator & CLI control (start/stop/restart/status)
 ├── config.py                   # Centralized environment variables, credentials, and constants
-├── database/                   # Modular SQLite database package (14 modules, WAL mode, async & sync)
+├── database/                   # Modular SQLite database package (15 modules, WAL mode, async & sync)
 │   ├── __init__.py             # Public API facade (100% backward-compatible re-exports)
 │   ├── conn.py                 # Central DB_PATH, set_db_path(), _connect_sync(), _connect_async(), PRAGMA tuning
-│   ├── schema.py               # init_db(), CREATE TABLE IF NOT EXISTS (46 tables), safe ALTER TABLE migrations
+│   ├── schema.py               # init_db(), CREATE TABLE IF NOT EXISTS (50 tables), safe ALTER TABLE migrations
 │   ├── guilds.py               # Guild settings, module toggles, channels/roles cache, blacklist
 │   ├── economy.py              # Wallet, bank, shop, inventory, transfer, atomic cooldowns & transactions
 │   ├── leveling.py             # Chat/voice XP formulas, rank calculations, level roles
@@ -71,7 +71,8 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── tickets.py              # Ticket panels, buttons, reaction roles panels & items
 │   ├── ai.py                   # AI settings, global settings, AI activity logs
 │   ├── maintenance.py          # Auto-prune jobs, threshold VACUUM, WAL checkpoints
-│   └── embeds.py               # Saved rich embeds registry
+│   ├── embeds.py               # Saved rich embeds registry
+│   └── server_builder.py       # Server Builder Studio jobs & guild-scoped custom templates
 ├── cache.py                    # Thread-safe & async-safe In-Memory RAM Cache manager
 ├── i18n.py                     # Singleton O(1) multi-language translation engine
 ├── requirements.txt            # Python package dependencies
@@ -81,6 +82,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── card_generator.py       # PIL dynamic image rendering (Rank Card, Welcome/Goodbye banners)
 │   ├── checks.py               # Permissions & Bot Admin checks
 │   ├── giveaway_banner.png     # Pre-rendered dark giveaway header banner
+│   ├── server_builder_engine.py# Pure Python Server Builder planner, 4 presets, diff/ETA engine
 │   ├── tester.py               # Standalone test/debug helper script
 │   ├── fonts/                  # Custom TrueType fonts (.ttf) for card rendering
 │   ├── emojis.py               # Custom Discord Application Emojis registry & helpers (e, partial)
@@ -92,7 +94,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   │   ├── views.py            # MusicControlView (5 buttons), SearchSelectView, lyrics paginator
 │   │   ├── embeds.py           # Now Playing & Queue Rich Embed generators
 │   │   └── cog_voice.py        # VoiceLifecycleMixin (voice client lifecycle, queue actions, inactivity)
-│   └── cogs/                   # Modular Bot Feature Cogs (24 total)
+│   └── cogs/                   # Modular Bot Feature Cogs (25 total)
 │       ├── admin.py            # Bot owner global administration, slash command sync, /backup & 24h auto-backup
 │       ├── ai.py               # Multi-provider AI assistant (Groq Qwen 3.8 27B / Gemini / OpenRouter), /ask, /summarize
 │       ├── automod.py          # Real-time message filter (spam, bad words, fake links, caps, pings, anti-raid/nuke)
@@ -112,6 +114,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       ├── music.py            # Music Cog controller inheriting VoiceLifecycleMixin (11 slash commands)
 │       ├── reactionroles.py    # Reaction role listener & interactive button handler
 │       ├── remind.py           # Smart Reminders & Scheduling (/remindme, /reminders, /delreminder)
+│       ├── server_builder.py   # Background Server Builder Studio worker (Verify Gate, 429 pause, bulk reorder, bindings)
 │       ├── stats.py            # Hourly event metrics collector for dashboard analytics
 │       ├── tempvoice.py        # Temporary Voice channels (Join-to-Create hub, in-chat button controls)
 │       ├── ticket.py           # Support ticket panel creation, persistent views, channel setup
@@ -124,23 +127,24 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── extensions.py           # Flask-Limiter and shared extensions initialization
 │   ├── web_helpers.py          # Server context builder, channel sanitizers, auth decorators
 │   ├── api.py                  # AJAX JSON endpoints for live previews, roles, channels
-│   ├── auth.py                 # Discord OAuth2 session token exchange & helper functions
-│   ├── blueprints/             # Modular route blueprints
+│   ├── auth.py                 # Discord OAuth2 session token exchange, live structure snapshot & SSRF helpers
+│   ├── blueprints/             # Modular route blueprints (6 total)
 │   │   ├── public.py           # Landing, login/logout, OAuth2 callback, /docs, /stats, status
 │   │   ├── guild.py            # Guild modules toggle, settings, welcome/autorole/automod/embed builder
 │   │   ├── music.py            # Web music player & playlist manager
 │   │   ├── admin.py            # Bot Owner Admin panel, terminal, AI settings, activity console
-│   │   └── support.py          # 24/7 Web Messenger Support ticket thread system
+│   │   ├── support.py          # 24/7 Web Messenger Support ticket thread system
+│   │   └── server_builder.py   # Server Builder Studio UI & JSON APIs (tree, presets/templates, diff, apply, jobs)
 │   ├── static/                 # CSS styles, JS assets, branding images
 │   └── templates/              # Jinja2 HTML templates
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 1890 keys
-│   ├── en.json                 # English — 1890 keys
-│   ├── zh.json                 # Chinese — 1890 keys
-│   ├── es.json                 # Spanish — 1890 keys
-│   ├── pt.json                 # Portuguese — 1890 keys
-│   └── fr.json                 # French — 1890 keys
+│   ├── vi.json                 # Vietnamese (Default) — 2061 keys
+│   ├── en.json                 # English — 2061 keys
+│   ├── zh.json                 # Chinese — 2061 keys
+│   ├── es.json                 # Spanish — 2061 keys
+│   ├── pt.json                 # Portuguese — 2061 keys
+│   └── fr.json                 # French — 2061 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -202,6 +206,8 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | `bot_global_settings` | `key` | Global bot configurations (`gemini_api_key`, `maintenance_mode`, etc.). |
 | `verify_settings` | `guild_id` | Verify Gate config: `enabled`, `channel_id` (`#xac-thuc`), `verified_role_id`, `pending_role_id`, `verify_text`, `button_label`, `log_channel_id`, `hide_channels`, `saved_overrides` JSON list. |
 | `maintenance_jobs` | `job_key` | Track last run of maintenance tasks (e.g. `auto_prune`) to avoid duplicate daily pruning. |
+| `server_builder_jobs` | `id` | Queued/running Server Builder Studio jobs (`job_code`, `guild_id`, `status`, `plan_json`, `options_json`, `snapshot_before_json`, `eta_seconds`, `rate_limit_until`, `cancel_requested`, `step_logs_json`). |
+| `server_builder_templates` | `id` | Guild-scoped custom Server Builder templates (`guild_id`, `name`, `description`, `tree_json`, max 10/guild). |
 
 ---
 
@@ -282,6 +288,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | **Music** | `bot/cogs/music.py` (facade) + `bot/music/*` | yt-dlp + `FFmpegOpusAudio` playback manager with low-latency buffer tuning (<0.8s start). Spotify track auto-resolver, `/volume` (1-150%), `/shuffle`, 3-minute inactivity auto-leave, atomic play lock, `MusicControlView` (Pause, Skip, Stop, Loop buttons), Lofi 24/7 streams (SomaFM & YouTube), custom playlists. |
 | **ReactionRoles** | `bot/cogs/reactionroles.py` | Listens for raw reaction add/remove and button interactions to toggle configured roles. |
 | **Remind** | `bot/cogs/remind.py` | Smart reminders & timer scheduling (`/remindme`, `/reminders`, `/delreminder`), 15-second background loop, in-channel or DM alert fallback, full 6-language i18n support. |
+| **ServerBuilder** | `bot/cogs/server_builder.py` | Background Server Builder Studio worker claiming `server_builder_jobs`, creating roles/categories/channels, enforcing Verify Gate `pending_role_id`, 2-in-10m rename deferral, 429 `paused_rl` pause/resume, `bulk_channel_update`, and Phase 6 module bindings (0 slash commands added). |
 | **Stats** | `bot/cogs/stats.py` | Listens to `on_message`, `on_member_join`, `on_automod_action`, `on_ticket_action` and writes aggregated hourly counters to `guild_stats`. |
 | **TempVoice** | `bot/cogs/tempvoice.py` | Join-to-Create voice channels (`on_voice_state_update`), in-chat interactive UI button control panel (Lock/Unlock, Member Limit, Rename, Kick), auto-deletes when 0 members remain. |
 | **Ticket** | `bot/cogs/ticket.py` | Dynamic ticket panel setup with persistent views (`DynamicTicketView`), ticket channel creation with strict member permission overrides, close/delete countdown. Dispatches `ticket_action`. |
@@ -452,7 +459,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **1890 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **2061 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
    - Two frozen guards in `tests/test_i18n_no_hardcoded.py`: (a) every `tr()`/`t()` literal referenced in `bot/`+`dashboard/` must exist in **all 6** dictionaries — a missing key prints the raw key name on Discord, which actually happened with `common.not_your_interaction`; (b) the per-file count of Discord-facing Vietnamese literals may only **decrease** (`tests/i18n_budget.json`, currently 0), refreshed with `python scripts/i18n_audit.py --budget`.
    - Locale files are hand-grouped by module: **never** rewrite them with `json.dumps(..., sort_keys=True)` (that produces a ~1800-line diff that hides the real change); append at the end and keep CRLF.
 2. **Async vs. Sync Separation:**

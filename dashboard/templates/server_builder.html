@@ -1,0 +1,230 @@
+{% extends "base_server.html" %}
+{% block title %}{{ t('server_builder.title') }}{% endblock %}
+
+{% block content %}
+<div class="sb-studio" id="sb-studio">
+  <div class="page-header sb-page-header">
+    <div>
+      <h1 class="page-title">{{ t('server_builder.title') }}</h1>
+      <p class="page-subtitle">{{ t('server_builder.subtitle') }}</p>
+    </div>
+    <span class="sb-source-badge" id="sb-source-badge">{{ t('server_builder.loading') }}</span>
+  </div>
+
+  <section class="sb-toolbar" aria-label="{{ t('server_builder.toolbar_label') }}">
+    <label class="sb-field sb-preset-field">
+      <span>{{ t('server_builder.preset') }}</span>
+      <select id="sb-preset" class="form-control">
+        <optgroup label="{{ t('server_builder.system_presets') }}" id="sb-system-presets">
+          <option value="community_4cat" selected>{{ t('server_builder.preset_community_4cat_name') }}</option>
+        </optgroup>
+        <optgroup label="{{ t('server_builder.custom_templates') }}" id="sb-custom-presets"></optgroup>
+      </select>
+    </label>
+    <button type="button" class="btn btn-danger btn-sm sb-delete-template" id="sb-delete-template" disabled title="{{ t('server_builder.delete_template') }}">
+      <i class="bi bi-trash3"></i><span>{{ t('server_builder.delete_template') }}</span>
+    </button>
+    <button type="button" class="btn btn-secondary" id="sb-import-live"><i class="bi bi-cloud-download"></i> {{ t('server_builder.import_live') }}</button>
+    <button type="button" class="btn btn-secondary" id="sb-save-template"><i class="bi bi-floppy"></i> {{ t('server_builder.save_template') }}</button>
+    <label class="sb-switch-wrap" title="{{ t('server_builder.safe_mode_hint') }}">
+      <input type="checkbox" id="sb-safe-mode" checked>
+      <span class="sb-switch" aria-hidden="true"></span>
+      <span>{{ t('server_builder.safe_mode') }}</span>
+    </label>
+    <button type="button" class="btn btn-secondary" id="sb-undo" disabled><i class="bi bi-arrow-counterclockwise"></i> {{ t('server_builder.undo') }}</button>
+    <button type="button" class="btn btn-secondary" id="sb-reset"><i class="bi bi-bootstrap-reboot"></i> {{ t('server_builder.reset_draft') }}</button>
+  </section>
+
+  <div class="sb-banners" id="sb-banners" aria-live="polite"></div>
+
+  <div class="sb-workspace">
+    <section class="sb-panel sb-tree-panel">
+      <header class="sb-panel-header">
+        <div>
+          <h2>{{ t('server_builder.structure') }}</h2>
+          <span class="sb-count" id="sb-channel-count">0 / 500</span>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="sb-add-category"><i class="bi bi-plus-lg"></i> {{ t('server_builder.add_category') }}</button>
+      </header>
+      <div class="sb-tree" id="sb-tree" aria-live="polite">
+        <div class="sb-empty">{{ t('server_builder.loading') }}</div>
+      </div>
+    </section>
+
+    <aside class="sb-panel sb-inspector-panel">
+      <header class="sb-panel-header"><h2>{{ t('server_builder.inspector') }}</h2></header>
+      <div class="sb-inspector-empty" id="sb-inspector-empty">{{ t('server_builder.inspector_empty') }}</div>
+      <div class="sb-inspector" id="sb-inspector" hidden>
+        <span class="sb-kind" id="sb-kind"></span>
+        <label class="sb-field">
+          <span>{{ t('server_builder.name') }}</span>
+          <input class="form-control" id="sb-name" type="text" maxlength="100">
+        </label>
+        <div class="sb-sanitize" id="sb-sanitize-wrap" hidden>
+          <span>{{ t('server_builder.sanitized_preview') }}</span>
+          <code id="sb-sanitized-preview"></code>
+        </div>
+        <label class="sb-field" id="sb-type-wrap">
+          <span>{{ t('server_builder.channel_type') }}</span>
+          <select class="form-control" id="sb-channel-type">
+            <option value="0">{{ t('server_builder.type_text') }}</option>
+            <option value="2">{{ t('server_builder.type_voice') }}</option>
+            <option value="5">{{ t('server_builder.type_news') }}</option>
+          </select>
+        </label>
+        <div class="sb-field-hint" id="sb-news-hint" hidden>{{ t('server_builder.type_news_hint') }}</div>
+        <label class="sb-field" id="sb-parent-wrap">
+          <span>{{ t('server_builder.category_move') }}</span>
+          <select class="form-control" id="sb-parent"></select>
+        </label>
+        <label class="sb-field" id="sb-topic-wrap">
+          <span>{{ t('server_builder.topic') }}</span>
+          <textarea class="form-control" id="sb-topic" maxlength="1024" rows="3"></textarea>
+        </label>
+        <label class="sb-field" id="sb-slowmode-wrap">
+          <span>{{ t('server_builder.slowmode') }}</span>
+          <select class="form-control" id="sb-slowmode">
+            <option value="0">{{ t('server_builder.slowmode_0') }}</option>
+            <option value="5">{{ t('server_builder.slowmode_5') }}</option>
+            <option value="10">{{ t('server_builder.slowmode_10') }}</option>
+            <option value="15">{{ t('server_builder.slowmode_15') }}</option>
+            <option value="30">{{ t('server_builder.slowmode_30') }}</option>
+            <option value="60">{{ t('server_builder.slowmode_60') }}</option>
+            <option value="120">{{ t('server_builder.slowmode_120') }}</option>
+            <option value="300">{{ t('server_builder.slowmode_300') }}</option>
+            <option value="600">{{ t('server_builder.slowmode_600') }}</option>
+            <option value="900">{{ t('server_builder.slowmode_900') }}</option>
+            <option value="1800">{{ t('server_builder.slowmode_1800') }}</option>
+            <option value="3600">{{ t('server_builder.slowmode_3600') }}</option>
+            <option value="7200">{{ t('server_builder.slowmode_7200') }}</option>
+            <option value="21600">{{ t('server_builder.slowmode_21600') }}</option>
+          </select>
+        </label>
+        <label class="sb-check" id="sb-nsfw-wrap"><input type="checkbox" id="sb-nsfw"> <span>{{ t('server_builder.nsfw') }}</span></label>
+        <div class="sb-field-grid" id="sb-voice-wrap">
+          <label class="sb-field"><span>{{ t('server_builder.bitrate') }}</span><input class="form-control" id="sb-bitrate" type="number" min="8000" step="1000"></label>
+          <label class="sb-field"><span>{{ t('server_builder.user_limit') }}</span><input class="form-control" id="sb-user-limit" type="number" min="0" max="99"></label>
+        </div>
+        <label class="sb-field" id="sb-module-wrap">
+          <span>{{ t('server_builder.module_link') }}</span>
+          <select class="form-control" id="sb-module">
+            <option value="none">{{ t('server_builder.module_none') }}</option>
+            <option value="welcome">{{ t('server_builder.module_welcome') }}</option>
+            <option value="verify">{{ t('server_builder.module_verify') }}</option>
+            <option value="bot_logs">{{ t('server_builder.module_bot_logs') }}</option>
+            <option value="music">{{ t('server_builder.module_music') }}</option>
+            <option value="tickets">{{ t('server_builder.module_tickets') }}</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-secondary btn-full" id="sb-sync-selected"></button>
+
+        <div class="sb-bot-view-warning" id="sb-bot-view-warning" hidden><i class="bi bi-exclamation-triangle-fill"></i> {{ t('server_builder.bot_view_warning') }}</div>
+        <section class="sb-permissions">
+          <h3>{{ t('server_builder.permission_matrix') }}</h3>
+          <div class="sb-table-wrap">
+            <table class="sb-permission-table">
+              <thead><tr>
+                <th>{{ t('server_builder.role') }}</th>
+                <th>{{ t('server_builder.view_channel') }}</th>
+                <th>{{ t('server_builder.send_speak') }}</th>
+                <th>{{ t('server_builder.connect_voice') }}</th>
+                <th>{{ t('server_builder.embed_file') }}</th>
+              </tr></thead>
+              <tbody id="sb-permissions-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section class="sb-diff-card">
+        <div class="sb-diff-card-head"><h3>{{ t('server_builder.live_diff') }}</h3><button type="button" class="sb-icon-btn" id="sb-refresh-diff" title="{{ t('server_builder.refresh_diff') }}"><i class="bi bi-arrow-repeat"></i></button></div>
+        <div id="sb-diff-summary" class="sb-diff-summary">{{ t('server_builder.diff_empty') }}</div>
+      </section>
+    </aside>
+  </div>
+
+  <footer class="sb-bottom-bar">
+    <div><strong id="sb-pending-count">0</strong> <span>{{ t('server_builder.pending_changes') }}</span><span class="sb-eta" id="sb-eta">~0s</span></div>
+    <div class="sb-bottom-actions">
+      <button type="button" class="btn btn-secondary" id="sb-discard">{{ t('server_builder.discard') }}</button>
+      <button type="button" class="btn btn-success" id="sb-review-apply"><i class="bi bi-check2-circle"></i> {{ t('server_builder.confirm_apply') }}</button>
+    </div>
+  </footer>
+</div>
+
+<div class="sb-modal" id="sb-template-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sb-template-title">
+  <div class="sb-modal-card">
+    <header><h2 id="sb-template-title">{{ t('server_builder.save_template_title') }}</h2><button type="button" class="sb-modal-close" data-close="sb-template-modal" aria-label="{{ t('server_builder.close') }}">×</button></header>
+    <label class="sb-field"><span>{{ t('server_builder.template_name') }}</span><input class="form-control" id="sb-template-name" type="text" maxlength="80"></label>
+    <label class="sb-field"><span>{{ t('server_builder.template_description') }}</span><textarea class="form-control" id="sb-template-description" rows="3" maxlength="300"></textarea></label>
+    <footer><button type="button" class="btn btn-secondary" data-close="sb-template-modal">{{ t('server_builder.cancel') }}</button><button type="button" class="btn btn-primary" id="sb-template-confirm">{{ t('server_builder.save') }}</button></footer>
+  </div>
+</div>
+
+<div class="sb-modal" id="sb-diff-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sb-diff-title">
+  <div class="sb-modal-card sb-modal-wide">
+    <header><h2 id="sb-diff-title">{{ t('server_builder.diff_confirmation') }}</h2><button type="button" class="sb-modal-close" data-close="sb-diff-modal" aria-label="{{ t('server_builder.close') }}">×</button></header>
+    <div class="sb-diff-modal-summary" id="sb-diff-modal-summary"></div>
+    <div class="sb-banner sb-banner-warning" id="sb-modal-rename-warn" hidden><i class="bi bi-exclamation-triangle-fill"></i> <span>{{ t('server_builder.rename_warning_banner') }}</span></div>
+    <div class="sb-operation-groups" id="sb-operation-groups"></div>
+    <label class="sb-check"><input type="checkbox" id="sb-auto-bind" checked> <span>{{ t('server_builder.auto_bind_modules') }}</span></label>
+    <label class="sb-check"><input type="checkbox" id="sb-send-guides" checked> <span>{{ t('server_builder.send_guides') }}</span></label>
+    <div class="sb-deletion-warning" id="sb-deletion-warning" hidden>
+      <strong>{{ t('server_builder.deletion_warning') }}</strong>
+      <ul id="sb-deletion-targets"></ul>
+      <label class="sb-check sb-confirm-delete"><input type="checkbox" id="sb-confirm-deletions"> <span>{{ t('server_builder.confirm_deletions') }}</span></label>
+    </div>
+    <footer><button type="button" class="btn btn-secondary" data-close="sb-diff-modal">{{ t('server_builder.cancel') }}</button><button type="button" class="btn btn-success" id="sb-apply-confirm">{{ t('server_builder.apply_now') }}</button></footer>
+  </div>
+</div>
+
+<div class="sb-modal sb-progress-modal" id="sb-progress-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sb-progress-title">
+  <div class="sb-modal-card sb-modal-wide">
+    <header><div><h2 id="sb-progress-title">{{ t('server_builder.progress_title') }}</h2><code id="sb-job-code">#SB-...</code></div><span class="sb-job-status" id="sb-job-status"></span></header>
+    <div class="sb-progress-track"><span id="sb-progress-bar"></span></div>
+    <div class="sb-progress-stats"><strong id="sb-progress-text">0 / 0 (0%)</strong><span>{{ t('server_builder.eta') }} <strong id="sb-countdown">00:00</strong></span><span>{{ t('server_builder.elapsed') }} <strong id="sb-elapsed">00:00</strong></span></div>
+    <div class="sb-current-step"><span>{{ t('server_builder.current_step') }}</span><strong id="sb-current-step">—</strong></div>
+    <div class="sb-rate-limit" id="sb-rate-limit" hidden><i class="bi bi-hourglass-split"></i> <span>{{ t('server_builder.rate_limit_wait') }}</span> <strong id="sb-rate-limit-countdown">00:00</strong></div>
+    <h3>{{ t('server_builder.audit_feed') }}</h3>
+    <div class="sb-audit-feed" id="sb-audit-feed"></div>
+    <footer><button type="button" class="btn btn-danger" id="sb-cancel-job">{{ t('server_builder.cancel_remaining') }}</button><button type="button" class="btn btn-secondary" id="sb-reload">{{ t('server_builder.reload') }}</button><button type="button" class="btn btn-primary" id="sb-close-progress">{{ t('server_builder.close') }}</button></footer>
+  </div>
+</div>
+
+<script type="application/json" id="sb-bootstrap">{{ { "guild_id": guild_id, "guild_name": guild.get("name", "Server"), "bot_client_id": (bot_client_id if bot_client_id is defined else ""), "active_job": active_job } | tojson }}</script>
+<script type="application/json" id="sb-i18n">{{ {
+  "loading": t('server_builder.loading'), "load_error": t('server_builder.load_error'), "network_error": t('server_builder.network_error'),
+  "system_presets": t('server_builder.system_presets'), "custom_templates": t('server_builder.custom_templates'), "delete_template_confirm": t('server_builder.delete_template_confirm'),
+  "template_saved": t('server_builder.template_saved'), "template_deleted": t('server_builder.template_deleted'), "template_name_required": t('server_builder.template_name_required'),
+  "source_discord": t('server_builder.source_discord'), "source_cache": t('server_builder.source_cache'), "permission_missing": t('server_builder.permission_missing'),
+  "manage_channels": t('server_builder.manage_channels'), "manage_roles": t('server_builder.manage_roles'),
+  "community_fallback": t('server_builder.community_fallback'), "bot_view_warning": t('server_builder.bot_view_warning'), "channel_limit_warning": t('server_builder.channel_limit_warning'),
+  "category_limit_warning": t('server_builder.category_limit_warning'), "uncategorized": t('server_builder.uncategorized'), "new_category": t('server_builder.new_category'),
+  "new_channel": t('server_builder.new_channel'), "category": t('server_builder.category'), "channel": t('server_builder.channel'), "read_only": t('server_builder.read_only'),
+  "private": t('server_builder.private'), "sync": t('server_builder.sync'), "add_channel": t('server_builder.add_channel'), "move_up": t('server_builder.move_up'),
+  "move_down": t('server_builder.move_down'), "delete": t('server_builder.delete'), "restore": t('server_builder.restore'), "status_new": t('server_builder.status_new'),
+  "status_modified": t('server_builder.status_modified'), "status_deleted": t('server_builder.status_deleted'), "synced": t('server_builder.synced'),
+  "custom_permissions": t('server_builder.custom_permissions'), "selected_category": t('server_builder.selected_category'), "selected_channel": t('server_builder.selected_channel'),
+  "sync_channel": t('server_builder.sync_channel'), "sync_children": t('server_builder.sync_children'), "no_category": t('server_builder.no_category'),
+  "role_locked": t('server_builder.role_locked'), "allow": t('server_builder.allow'), "inherit": t('server_builder.inherit'), "deny": t('server_builder.deny'),
+  "diff_empty": t('server_builder.diff_empty'), "diff_create": t('server_builder.diff_create'), "diff_rename": t('server_builder.diff_rename'),
+  "diff_sync": t('server_builder.diff_sync'), "diff_update": t('server_builder.diff_update'), "diff_delete": t('server_builder.diff_delete'),
+  "diff_reorder": t('server_builder.diff_reorder'), "diff_bind": t('server_builder.diff_bind'), "eta": t('server_builder.eta'),
+  "warnings": t('server_builder.warnings'), "errors": t('server_builder.errors'), "payload_too_large": t('server_builder.payload_too_large'),
+  "discard_confirm": t('server_builder.discard_confirm'), "reset_confirm": t('server_builder.reset_confirm'), "import_confirm": t('server_builder.import_confirm'),
+  "apply_error": t('server_builder.apply_error'), "job_running": t('server_builder.job_running'), "missing_permissions": t('server_builder.missing_permissions'),
+  "status_queued": t('server_builder.status_queued'), "status_running": t('server_builder.status_running'), "status_paused_rl": t('server_builder.status_paused_rl'),
+  "status_completed": t('server_builder.status_completed'), "status_cancelled": t('server_builder.status_cancelled'), "status_failed": t('server_builder.status_failed'),
+  "audit_empty": t('server_builder.audit_empty'), "cancel_job_confirm": t('server_builder.cancel_job_confirm'), "cancel_requested": t('server_builder.cancel_requested'),
+  "unknown_error": t('server_builder.unknown_error'), "safe_mode_protected": t('server_builder.safe_mode_protected'),
+  "synced_toast": t('server_builder.synced_toast'), "preset_imported": t('server_builder.preset_imported'),
+  "preset_community_4cat_name": t('server_builder.preset_community_4cat_name'), "preset_community_4cat_desc": t('server_builder.preset_community_4cat_desc'),
+  "preset_gaming_squad_name": t('server_builder.preset_gaming_squad_name'), "preset_gaming_squad_desc": t('server_builder.preset_gaming_squad_desc'),
+  "preset_study_class_name": t('server_builder.preset_study_class_name'), "preset_study_class_desc": t('server_builder.preset_study_class_desc'),
+  "preset_creator_community_name": t('server_builder.preset_creator_community_name'), "preset_creator_community_desc": t('server_builder.preset_creator_community_desc')
+} | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/server_builder.js') }}?v=14.0"></script>
+{% endblock %}
