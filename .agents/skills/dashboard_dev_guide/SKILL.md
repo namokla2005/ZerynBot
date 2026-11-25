@@ -7,41 +7,50 @@ description: >
 
 # Skill: Web Dashboard Development Guide
 
-## 🎯 1. Design System Tokens (Midnight Obsidian Glassmorphism)
+## 🎯 1. Design System Tokens (Aurora Glass 2.0 — V11)
 
-Tất cả các trang trên Web Dashboard (`dashboard/templates/`) phải tuân thủ chuẩn thiết kế đồng bộ:
+Tất cả các trang trên Web Dashboard (`dashboard/templates/`) phải tuân thủ chuẩn thiết kế đồng bộ. Theme hiện hành: **Aurora Glass 2.0** — nền aurora (hồng/tím/cyan) qua `body::before`, card kính mờ, accent gradient hồng→tím. Lớp override component nằm ở **cuối `style.css`** (mục "AURORA GLASS 2.0 — component layer"): đó là nơi sửa `.btn-primary`, `.tab-btn.active`, `.switch`, `.modal-box`… thay vì sửa từng section cũ phía trên.
 
 ### 1.1 CSS Variables & Bảng Màu
 ```css
 :root {
-  --bg-primary: #120e24;             /* Midnight Violet Slate */
-  --bg-card: rgba(25, 24, 34, 0.85); /* Glassmorphism Card Surface */
-  --bg-input: rgba(18, 14, 36, 0.9); /* Form Controls Background */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(244, 167, 187, 0.5);
-  
-  --accent: #f4a7bb;                 /* Sakura Pink (Brand Primary) */
-  --accent-purple: #9d8df1;          /* Royal Violet */
-  --blurple: #5865f2;                /* Discord Blurple */
-  --success: #57f287;                /* Emerald */
-  --warning: #fee75c;                /* Amber Gold */
-  --danger: #ed4245;                 /* Crimson */
-  
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-muted: rgba(255, 255, 255, 0.45);
-  
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --bg-body:        #0a0918;                          /* Obsidian Aurora */
+  --bg-sidebar:     rgba(17, 15, 34, 0.72);           /* Glass sidebar (blur 20px sẵn có) */
+  --bg-card:        rgba(148, 130, 255, 0.065);       /* Glass card tint */
+  --bg-card2:       rgba(148, 130, 255, 0.10);
+  --bg-card-hover:  rgba(148, 130, 255, 0.13);
+  --bg-input:       rgba(13, 11, 28, 0.60);
+  --border:         rgba(255, 255, 255, 0.09);
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-hover:   rgba(255, 122, 194, 0.35);
+  --border-focus:   #ff7ac2;
+  --surface:        rgba(19, 16, 38, 0.92);           /* Modal / login card */
+
+  --accent:         #ff7ac2;                          /* Aurora Pink (brand) */
+  --accent-hover:   #ffa1d4;
+  --accent-light:   rgba(255, 122, 194, 0.16);
+  --accent-glow:    rgba(255, 122, 194, 0.35);
+  --accent-purple:  #8b5cf6;                          /* Aurora Violet (gradient đôi) */
+  --accent-cyan:    #38bdf8;                          /* Aurora Cyan (hairline phụ) */
+  --accent-blue:    #5865f2;
+
+  --text-primary:   #ffffff;
+  --text-secondary: #a7a3c4;
+  --text-muted:     #6d6a8c;
+  --text-disabled:  #504d6c;
+
+  --font-sans:      'Inter', 'Plus Jakarta Sans', sans-serif;   /* body */
+  --font-display:   'Space Grotesk', 'Inter', sans-serif;       /* .page-title/.card-title/.stat-value/logo */
 }
 ```
+Quy ước: button/tab/switch active = gradient `linear-gradient(100deg, #ff7ac2, #8b5cf6)` + chữ trắng; hairline trên card = hồng→tím (stat) / hồng→cyan (bento).
 
 ### 1.2 Asset Versioning
-Mọi liên kết CSS/JS trong thẻ `<head>` **BẮT BUỘC** gắn phiên bản:
+Mọi liên kết CSS/JS trong thẻ `<head>` **BẮT BUỘC** gắn phiên bản (hiện hành: `?v=17.0` — bump khi đổi `style.css`/JS):
 ```html
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=9.2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17.0">
 ```
+Khi bump: đổi đồng bộ trong TẤT CẢ template có link (`grep -rl "style.css" templates/`) — không chỉ `base_server.html`.
 
 ---
 
