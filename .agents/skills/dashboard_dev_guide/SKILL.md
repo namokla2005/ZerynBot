@@ -75,3 +75,18 @@ Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboa
 2. **Bindings**: op `bind_modules` chỉ sinh khi bindings target khác bindings hiện tại (`compute_diff` đọc `current_tree["bindings"]`; caller phải gắn `current_tree["bindings"] = _bindings(guild_id)` trước khi gọi).
 3. **Type lạ (15 forum / 13 stage / 20 hub...)**: client coerce về 0 trước khi gửi; không để validation chặn oan cây import.
 4. Regression tests chuẩn: `test_engine_import_live_tree_is_idempotent_for_decorated_names` + `test_engine_unchanged_current_bindings_emit_no_bind_op` trong `tests/test_server_builder.py`.
+
+---
+
+## 🎨 5. Không để mất class CSS khi đổi theme
+
+Commit đồng bộ theme từng **xoá nhầm** các selector class dùng chung (`.send-section`, `.empty-state`, `.section-header`, `.section-title`, `.divider`, `.color-text-input`) khỏi `style.css` → khối "Gửi đến Discord" và "Embeds đã lưu" của trang Embeds bị mất style mà không test nào bắt được.
+
+Trước khi commit thay đổi lớn về `style.css` (đổi theme/refactor CSS), chạy checker diff-aware:
+
+```bash
+python .agents/skills/dashboard_dev_guide/assets/check_missing_css.py          # so với HEAD
+python .agents/skills/dashboard_dev_guide/assets/check_missing_css.py HEAD~1   # so với commit cụ thể
+```
+
+Script trích các selector class bị xoá trong diff của `style.css`, đối chiếu với nơi còn dùng trong `dashboard/templates/*.html` + `dashboard/static/js/*.js` (đã lọc Jinja/JS template) — lớp nào vừa bị xoá vừa còn dùng thì báo đỏ (exit 1). Class tự định nghĩa inline trong template và bootstrap-icons `bi-*` không bị tính.

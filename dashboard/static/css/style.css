@@ -978,6 +978,40 @@ select.form-control option { background: #191822; color: #fff; }
 .embed-item-date { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 .embed-item-actions { display: flex; gap: 6px; }
 
+/* ─── Section chrome dùng chung (khôi phục sau khi theme sync xoá nhầm 9206a56) ── */
+.divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-title  { font-size: 1.05rem; font-weight: 800; }
+
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+.empty-icon  { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+.empty-state h3 { font-size: 1rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600; }
+.empty-state p  { font-size: 0.82rem; }
+
+.send-section {
+  background: rgba(35,165,90,0.06); border: 1px dashed rgba(35,165,90,0.3);
+  border-radius: var(--radius-md); padding: 18px 20px; margin-top: 20px;
+}
+.send-section-title {
+  font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--success); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.color-text-input { font-family: 'Consolas', 'SF Mono', monospace; letter-spacing: 0.02em; }
+
+/* ─── Custom fields (trang Embeds — khôi phục cùng đợt, JS vẫn dùng class) ──── */
+.field-row {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px 14px;
+  margin-bottom: 8px; display: grid; gap: 8px; position: relative;
+}
+.field-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.field-row-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.remove-field-btn { background: none; border: none; color: var(--text-muted); font-size: 1rem; cursor: pointer; transition: var(--transition); }
+.remove-field-btn:hover { color: var(--danger); }
+
 /* ─── Modals ─────────────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
