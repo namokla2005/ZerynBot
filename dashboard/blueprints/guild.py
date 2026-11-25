@@ -19,7 +19,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 import config
 import database as db
 from i18n import tr
-from dashboard.auth import channel_belongs_to_guild, get_guild_roles
+from dashboard.auth import channel_belongs_to_guild, get_guild_emojis, get_guild_roles
 from dashboard.extensions import limiter, logger
 from dashboard.web_helpers import (
     _get_guild_from_session,
@@ -505,6 +505,7 @@ def server_reactionroles(guild_id: str):
         panels=panels,
         text_channels=text_channels,
         roles=roles,
+        emojis=get_guild_emojis(guild_id),
     ))
 
 @bp.route("/dashboard/<guild_id>/economy", methods=["GET", "POST"])

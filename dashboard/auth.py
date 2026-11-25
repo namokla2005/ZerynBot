@@ -15,6 +15,7 @@ import re
 
 import requests
 import config
+from cache import cache  # RAM Cache dùng chung toàn hệ thống (RLock + TTL + LRU, cache.py)
 
 # Cung ten với dashboard/extensions.py de log van tung ra cung kenh. Khong import
 # logger tu extensions (vong tron dependency khong can thiet chi vi mot line log).
@@ -472,6 +473,89 @@ def get_guild_roles(guild_id: str, include_everyone: bool = False) -> list:
 def invalidate_guild_roles_cache(guild_id: str) -> None:
     """Xóa cache role của guild (gọi sau khi bot đồng bộ lại danh sách role)."""
     _guild_roles_cache.pop(str(guild_id), None)
+
+
+# ─── Cache emoji tùy chỉnh của guild (bộ chọn emoji ở trang Reaction Roles) ────
+
+_GUILD_EMOJIS_TTL = 300  # giây — RAM Cache dùng chung (cache.py) tự dọn theo TTL + LRU
+_guild_emojis_fetch_lock = threading.Lock()  # single-flight toàn cục (xem docstring)
+# Chỉ nhận emoji đúng định dạng Discord (ID số + tên [A-Za-z0-9_]) — dữ liệu này
+# được render thẳng vào DOM/CDN URL phía client nên không nhận định dạng lạ.
+_EMOJI_ID_DIGITS_RE = re.compile(r"[0-9]{1,32}")
+_EMOJI_NAME_RE = re.compile(r"[A-Za-z0-9_]{1,64}")
+
+
+def get_guild_emojis(guild_id: str) -> list:
+    """
+    Lấy danh sách emoji tùy chỉnh của guild qua Discord REST (bot token).
+
+    Lưu cache trong RAM Cache dùng chung toàn hệ thống (``cache.py`` — RLock +
+    TTL + LRU + dọn định kỳ) thay vì tự quản dict: không lock thủ công lúc
+    đọc/ghi, không rò rỉ bộ nhớ, hết hạn tự thu hồi sau ``_GUILD_EMOJIS_TTL``.
+
+    Bảo mật: hàm read-only, KHÔNG tự xác thực quyền người dùng — mọi call-site
+    bắt buộc đứng sau ``@guild_access_required``/``_require_guild_access`` (hiện
+    chỉ có route ``server_reactionroles``, đã guard). Token bot chỉ nằm trong
+    header Authorization gửi thẳng Discord — không ghi log; mọi exception được
+    nuốt gọn và trả [] nên không có đường rò rỉ token qua thông báo lỗi.
+
+    Single-flight: MỘT lock module-level duy nhất — tại mỗi thời điểm chỉ một
+    thread được gọi Discord khi cache miss; các request đồng thời khác chờ lock
+    rồi double-check cache và dùng lại kết quả (không bắn trùng request —
+    thundering herd). Không dict lock per-guild (không clear/leak/race khi tạo
+    lock), không lồng nhiều lock của module khác (không deadlock, giữ được
+    nguyên tắc "một lock một tác vụ" — không phụ thuộc state của Server Builder).
+
+    Không chặn trang lâu: timeout REST ngắn (3s) + cache 5 phút + bọc lỗi an toàn
+    (REST lỗi/timeout/chưa có token → trả [] để trang vẫn render bình thường).
+    """
+    gid = str(guild_id)
+    cache_key = f"guild_emojis:{gid}"
+
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    with _guild_emojis_fetch_lock:
+        cached = cache.get(cache_key)  # double-check sau khi chờ lock
+        if cached is not None:
+            return cached
+
+        emojis: list = []
+        try:
+            if config.TOKEN:
+                resp = requests.get(
+                    f"{config.DISCORD_API_BASE}/guilds/{gid}/emojis",
+                    headers={"Authorization": f"Bot {config.TOKEN}"},
+                    timeout=3,
+                )
+                if resp.ok:
+                    emojis = [
+                        {
+                            "id": str(item.get("id") or ""),
+                            "name": str(item.get("name") or ""),
+                            "animated": bool(item.get("animated")),
+                        }
+                        for item in resp.json()
+                        if _EMOJI_ID_DIGITS_RE.fullmatch(str(item.get("id") or ""))
+                        and _EMOJI_NAME_RE.fullmatch(str(item.get("name") or ""))
+                    ]
+        except Exception:
+            emojis = []
+
+        if emojis:
+            cache.set(cache_key, emojis, ttl=_GUILD_EMOJIS_TTL)
+        else:
+            # Negative-cache kết quả rỗng NGẮN (60s): guild không có emoji hoặc
+            # guild_id lạ bị gọi lặp cũng chỉ tốn tối đa 1 request Discord/phút
+            # thay vì mỗi lần mở trang một request (chống lạm dụng/làm nghẽn).
+            cache.set(cache_key, emojis, ttl=60)
+        return emojis
+
+
+def invalidate_guild_emojis_cache(guild_id: str) -> None:
+    """Xóa cache emoji của guild (RAM Cache dùng chung)."""
+    cache.delete(f"guild_emojis:{guild_id}")
 
 
 # ─── Live Server Builder structure (Discord REST, short TTL) ──────────────────
