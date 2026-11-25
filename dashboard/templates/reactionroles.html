@@ -629,7 +629,7 @@
     editor_title_new: "{{ t('reactionroles.editor_title_new') }}",
     editor_title_edit: "{{ t('reactionroles.editor_title_edit') }}",
     select_role_placeholder: "{{ t('reactionroles.select_role_placeholder') }}",
-    emoji_placeholder: "{{ t('reactionroles.emoji_placeholder') }}",
+    emoji_placeholder: {{ t('reactionroles.emoji_placeholder')|tojson }},
     alert_name_required: "{{ t('reactionroles.alert_name_required') }}",
     alert_channel_required: "{{ t('reactionroles.alert_channel_required') }}",
     alert_emoji_required: "{{ t('reactionroles.alert_emoji_required') }}",
