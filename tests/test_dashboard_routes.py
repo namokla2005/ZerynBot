@@ -341,3 +341,25 @@ def test_commands_url_lands_on_command_center(client, temp_db):
     assert landed.status_code == 200
     assert b"cmd-search" in landed.data, "Ve /docs nhung thieu o tim lenh — khong phai trang lenh"
 
+
+# ─── 6. Trang Reaction Roles & Embeds: markup cốt lõi phải render được ─────────
+
+def test_reactionroles_picker_and_embeds_sections_render(client, temp_db, monkeypatch):
+    """Bộ chọn emoji (emoji-pop) phải có trên trang Reaction Roles; trang Embeds phải
+    giữ 2 khối send-section/empty-state (style đã khôi phục trong style.css)."""
+    _block_network(monkeypatch)
+    login(client, user_id=MOCK_USER_ID)
+
+    rr = client.get(f"/dashboard/{MOCK_GUILD_ID}/reactionroles")
+    assert rr.status_code == 200, f"reactionroles → {rr.status_code}"
+    html = rr.data.decode("utf-8")
+    assert 'id="emoji-pop"' in html, "Thiếu popover bộ chọn emoji"
+    assert "emoji-pick-btn" in html, "Thiếu nút chọn emoji trong dòng Emoji-Role"
+    assert "GUILD_EMOJIS" in html, "Thiếu dữ liệu emoji server cho picker"
+
+    eb = client.get(f"/dashboard/{MOCK_GUILD_ID}/embeds")
+    assert eb.status_code == 200, f"embeds → {eb.status_code}"
+    body = eb.data.decode("utf-8")
+    assert "send-section" in body, "Thiếu khối Gửi đến Discord (send-section)"
+    assert "empty-state" in body, "Thiếu khối Embeds đã lưu (empty-state)"
+
