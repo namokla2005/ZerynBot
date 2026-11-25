@@ -569,6 +569,7 @@ def preview_diff(guild_id: str):
         return jsonify({"ok": False, "error": "invalid_payload"}), 400
     snapshot, live_source = _snapshot(guild_id)
     current_tree = _build_tree(guild_id, snapshot.get("channels"), snapshot.get("roles"))
+    current_tree["bindings"] = _bindings(guild_id)
     target_tree = _normalize_target_tree(data["tree"], guild_id)
     validation = _engine().validate_tree_limits(target_tree, snapshot.get("bot_top_role_pos"))
     if not validation.get("ok"):
@@ -608,6 +609,7 @@ def apply(guild_id: str):
     if not validation.get("ok"):
         return _validation_error(validation)
     current_tree = _build_tree(guild_id, snapshot.get("channels"), snapshot.get("roles"))
+    current_tree["bindings"] = _bindings(guild_id)
     options = {
         "safe_mode": bool(data.get("safe_mode", True)),
         "confirm_deletions": bool(data.get("confirm_deletions", False)),

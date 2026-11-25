@@ -1688,9 +1688,7 @@ select.form-control option { background: #191822; color: #fff; }
   flex-direction: column;
   gap: 10px;
   min-height: 420px;
-  max-height: calc(100vh - 280px);
   padding: 12px;
-  overflow: auto;
 }
 
 .sb-category {
@@ -2338,10 +2336,6 @@ select.form-control option { background: #191822; color: #fff; }
   .sb-inspector-panel {
     position: static;
     max-height: none;
-  }
-
-  .sb-tree {
-    max-height: 650px;
   }
 
   .sb-bottom-bar {

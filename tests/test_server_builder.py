@@ -435,6 +435,90 @@ def test_engine_bind_module_sentinels_and_channel_overrides():
     assert any(op["temp_id"] == "role_mod" and op["name"] == "Moderator" for op in role_ops)
 
 
+def test_engine_import_live_tree_is_idempotent_for_decorated_names():
+    sbe = _import_engine()
+
+    live = {
+        "roles": [],
+        "categories": [
+            {
+                "id": "cat1",
+                "name": "📌・THÔNG TIN & ĐỒNG BỘ",
+                "position": 0,
+                "overwrites": [],
+                "channels": [
+                    {"id": "ch1", "name": "🚪・gate", "type": 0, "position": 0, "topic": "", "slowmode": 0, "nsfw": False, "overwrites": [], "sync_permissions": True},
+                    {"id": "ch2", "name": "📢・thông-báo", "type": 0, "position": 1, "topic": "tin tức", "slowmode": 0, "nsfw": False, "overwrites": [], "sync_permissions": True},
+                ],
+            }
+        ],
+        "uncategorized": [],
+    }
+
+    # "Tải lên từ Server thật" gửi lại cây live không đổi: tên có emoji/・ sanitize ra slug khác
+    # nhưng người dùng chưa sửa gì -> phải là 0 thao tác (không còn rename ảo).
+    imported = json.loads(json.dumps(live))
+    diff_import = sbe.compute_diff(live, imported, safe_mode=True)
+    assert diff_import["summary"]["total_operations"] == 0
+    assert diff_import["summary"]["renames"] == 0
+    assert diff_import["summary"]["rename_warning"] is False
+
+    # Sửa tên thật thì vẫn phát hiện đúng 1 op rename với tên đã sanitize.
+    edited = json.loads(json.dumps(live))
+    edited["categories"][0]["channels"][0]["name"] = "Cổng Vào"
+    diff_edit = sbe.compute_diff(live, edited, safe_mode=True)
+    updates = [op for op in diff_edit["operations"] if op["op"] == "update_channel"]
+    assert len(updates) == 1
+    assert updates[0]["changes"]["name"] == "cổng-vào"
+    assert updates[0]["old_name"] == "🚪・gate"
+
+
+def test_engine_unchanged_current_bindings_emit_no_bind_op():
+    sbe = _import_engine()
+
+    def _channel(cid, name, position, bind_module=None):
+        return {
+            "id": cid, "name": name, "type": 0, "position": position, "topic": "",
+            "slowmode": 0, "nsfw": False, "overwrites": [], "sync_permissions": True,
+            "bind_module": bind_module,
+        }
+
+    live = {
+        "roles": [],
+        "categories": [
+            {
+                "id": "cat1",
+                "name": "INFO",
+                "position": 0,
+                "overwrites": [],
+                "channels": [
+                    _channel("ch1", "welcome", 0, "welcome"),
+                    _channel("ch2", "welcome-2", 1),
+                ],
+            }
+        ],
+        "uncategorized": [],
+        "bindings": {"welcome": "ch1", "verify": None},
+    }
+
+    # 1. Cây import không đổi (bindings hiện tại trùng target) -> không còn bind op ảo
+    same = json.loads(json.dumps(live))
+    diff_same = sbe.compute_diff(live, same, safe_mode=True)
+    assert diff_same["summary"]["bind_modules"] is False
+    assert diff_same["summary"]["total_operations"] == 0
+
+    # 2. Chuyển bind sang kênh khác vẫn sinh đúng 1 bind op
+    moved = json.loads(json.dumps(live))
+    moved["categories"][0]["channels"][0]["bind_module"] = "none"
+    moved["categories"][0]["channels"][1]["bind_module"] = "welcome"
+    moved["bindings"] = {"welcome": "ch2"}
+    diff_moved = sbe.compute_diff(live, moved, safe_mode=True)
+    bind_ops = [op for op in diff_moved["operations"] if op["op"] == "bind_modules"]
+    assert len(bind_ops) == 1
+    assert bind_ops[0]["bindings"] == {"welcome": "ch2"}
+    assert diff_moved["summary"]["total_operations"] == 1
+
+
 # ---------------------------------------------------------------------------
 # 3. Offline Cog Worker (Fake Discord Guild/Channel/Role harness)
 # ---------------------------------------------------------------------------

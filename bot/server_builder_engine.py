@@ -1744,8 +1744,11 @@ def compute_diff(
             # Channel attribute diffs
             changes: Dict[str, Any] = {}
             curr_name = str(curr_ch.get("name") or "")
+            target_raw_name = str(ch.get("name") or "").strip()
             rename_warning = False
-            if sanitized_name != curr_name:
+            # Only a user edit counts as a rename: identical names that merely sanitize
+            # differently (emoji / ・ separators) must not produce phantom renames.
+            if sanitized_name != curr_name and target_raw_name != curr_name:
                 changes["name"] = sanitized_name
                 rename_warning = True
                 renames_count += 1
@@ -1847,7 +1850,8 @@ def compute_diff(
                 })
 
             curr_cat_name = str(curr_cat.get("name") or "")
-            if sanitized_cat_name != curr_cat_name:
+            target_cat_raw = str(cat.get("name") or "").strip()
+            if sanitized_cat_name != curr_cat_name and target_cat_raw != curr_cat_name:
                 renames_count += 1
                 update_ops.append({
                     "op": "update_channel",
@@ -1969,7 +1973,17 @@ def compute_diff(
             })
 
     resolved_bindings = _normalize_bindings(tgt, channel_ref_by_temp)
-    if resolved_bindings:
+    raw_current_bindings = curr.get("bindings")
+    current_bindings = {
+        str(key).strip(): str(value).strip()
+        for key, value in (raw_current_bindings if isinstance(raw_current_bindings, dict) else {}).items()
+        if _is_valid_binding_token(key) and _is_valid_binding_token(value)
+    }
+    changed_bindings = {
+        key: value for key, value in resolved_bindings.items()
+        if current_bindings.get(key) != value
+    }
+    if resolved_bindings and changed_bindings:
         bind_ops.append({
             "op": "bind_modules",
             "phase": "bindings",
