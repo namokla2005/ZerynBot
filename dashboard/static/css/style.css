@@ -1674,7 +1674,7 @@ select.form-control option { background: var(--select-option-bg); color: var(--t
 
 .sb-toolbar {
   position: sticky;
-  top: 14px;
+  top: 82px;
   z-index: 20;
   display: flex;
   align-items: flex-end;
@@ -2254,7 +2254,7 @@ select.form-control option { background: var(--select-option-bg); color: var(--t
   position: fixed;
   right: 24px;
   bottom: 16px;
-  left: calc(var(--sidebar-width, 250px) + 24px);
+  left: calc(var(--rail-width, 76px) + 36px);
   z-index: 50;
   display: flex;
   align-items: center;
@@ -2498,11 +2498,6 @@ select.form-control option { background: var(--select-option-bg); color: var(--t
   .sb-inspector-panel {
     position: static;
     max-height: none;
-  }
-
-  .sb-bottom-bar {
-    left: 18px;
-    right: 18px;
   }
 }
 
@@ -3484,6 +3479,8 @@ body.cr-menu-open .cr-backdrop { display: block; }
     color: var(--ink); cursor: pointer;
   }
   .cr-crumb-guild { display: none; }
+  .sb-bottom-bar { left: 14px; right: 14px; }
+  .sb-toolbar { top: 76px; }
 }
 /* Màn thấp: thu gọn nhãn phụ trong rail để đỡ phải cuộn */
 @media (max-height: 820px) and (min-width: 981px) {

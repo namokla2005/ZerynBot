@@ -82,9 +82,9 @@ Quy ước:
 - **Trang pháp lý đóng băng (`tos.html`, `privacy.html`)**: dùng riêng `dashboard/static/css/theme_legal.css?v=1.0` (bản V17 đóng băng), **tuyệt đối không** nhúng `style.css`, `theme.js`, FOUC script, hay `[data-theme="dark"]`.
 
 ### 1.2 Asset Versioning
-Mọi liên kết CSS/JS trong thẻ `<head>` / cuối `<body>` **BẮT BUỘC** gắn phiên bản (hiện hành: `style.css?v=19.0`, `theme.js?v=18.0`; riêng trang pháp lý giữ `theme_legal.css?v=1.0`, trang Server Builder dùng thêm `server_builder.js?v=16.0`):
+Mọi liên kết CSS/JS trong thẻ `<head>` / cuối `<body>` **BẮT BUỘC** gắn phiên bản (hiện hành: `style.css?v=20.0`, `theme.js?v=18.0`; riêng trang pháp lý giữ `theme_legal.css?v=1.0`, trang Server Builder dùng thêm `server_builder.js?v=16.0`):
 ```html
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=19.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20.0">
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
 ```
 Khi bump: đổi đồng bộ trong TẤT CẢ template không phải legal (`base_server.html`, `home.html`, `login.html`, `admin.html`, `admin_support.html`, `docs.html`, `support.html`, và `landing.html` cho `theme.js`).
