@@ -23,7 +23,10 @@ from database import (
     async_get_guild_settings,
     async_get_verify_settings,
     async_upsert_verify_settings,
+    get_automod_settings,
+    get_guild_settings,
     get_logger_settings,
+    get_ticket_panels,
     set_logger_settings,
     upsert_automod_settings,
     upsert_guild,
@@ -43,11 +46,69 @@ except ImportError:
     async_update_server_builder_job = None
 
 try:
-    from server_builder_engine import recalibrate_eta
+    from server_builder_engine import (
+        normalize_role_bind_module,
+        normalize_role_color,
+        permissions_to_bitfield,
+        recalibrate_eta,
+    )
 except (ImportError, ModuleNotFoundError):
     try:
-        from bot.server_builder_engine import recalibrate_eta
+        from bot.server_builder_engine import (
+            normalize_role_bind_module,
+            normalize_role_color,
+            permissions_to_bitfield,
+            recalibrate_eta,
+        )
     except (ImportError, ModuleNotFoundError):
+
+        def normalize_role_color(value: Any) -> str:
+            """Fallback canonical role color helper."""
+            if value is None or isinstance(value, bool):
+                return "#99aab5"
+            if isinstance(value, int):
+                return "#99aab5" if value <= 0 or (value & 0xFFFFFF) == 0 else f"#{value & 0xFFFFFF:06x}"
+            text = str(value).strip()
+            if not text:
+                return "#99aab5"
+            if text.isdigit():
+                num = int(text)
+                return "#99aab5" if num <= 0 or (num & 0xFFFFFF) == 0 else f"#{num & 0xFFFFFF:06x}"
+            raw = text[1:] if text.startswith("#") else text
+            if len(raw) == 3 and all(c in "0123456789abcdefABCDEF" for c in raw):
+                expanded = "".join(c * 2 for c in raw).lower()
+                return "#99aab5" if expanded == "000000" else f"#{expanded}"
+            if len(raw) == 6 and all(c in "0123456789abcdefABCDEF" for c in raw):
+                lowered = raw.lower()
+                return "#99aab5" if lowered == "000000" else f"#{lowered}"
+            return "#99aab5"
+
+        def normalize_role_bind_module(value: Any) -> str | None:
+            """Fallback canonical role module binding helper."""
+            if value is None or isinstance(value, bool):
+                return None
+            token = str(value).strip().lower()
+            aliases = {
+                "autoroles_user": "autoroles_user",
+                "autorole_user": "autoroles_user",
+                "verify_verified": "verify_verified",
+                "verify_verified_role": "verify_verified",
+                "verify_pending": "verify_pending",
+                "verify_pending_role": "verify_pending",
+                "automod_immune": "automod_immune",
+                "automod_immune_role": "automod_immune",
+            }
+            return aliases.get(token)
+
+        def permissions_to_bitfield(value: Any) -> int:
+            """Fallback bitfield converter."""
+            if value is None or isinstance(value, bool) or value == 0 or value == "":
+                return 0
+            if isinstance(value, int):
+                return max(0, value)
+            if isinstance(value, str) and value.strip().isdigit():
+                return max(0, int(value.strip()))
+            return 0
 
         def recalibrate_eta(
             completed_steps: int,
@@ -85,6 +146,21 @@ logger = logging.getLogger("BotV2.ServerBuilder")
 RENAME_WINDOW_SECONDS = 600.0
 RENAME_WINDOW_LIMIT = 2
 MAX_STEP_LOGS = 100
+PROGRESS_FLUSH_INTERVAL = 0.4
+EXPECTED_DELETE_TTL = 30.0
+_ROLE_MUTATION_OPS = frozenset(
+    {"create_role", "update_role", "bulk_reorder_roles", "delete_role"}
+)
+_DISCORD_PY_PERM_ATTR_MAP = {
+    "use_vad": "use_voice_activation",
+    "manage_guild_expressions": "manage_expressions",
+    "create_guild_expressions": "create_expressions",
+    "read_messages": "view_channel",
+    "manage_permissions": "manage_roles",
+    "external_emojis": "use_external_emojis",
+    "external_stickers": "use_external_stickers",
+    "create_polls": "send_polls",
+}
 
 
 class _JobCancelled(Exception):
@@ -159,13 +235,47 @@ def _serialize_channels(guild: Any) -> list[dict[str, Any]]:
     ]
 
 
+def _role_color_hex(role: Any) -> str:
+    color = getattr(role, "color", None)
+    if color is None:
+        return "#000000"
+    if hasattr(color, "value"):
+        return f"#{int(getattr(color, 'value', 0) or 0):06x}"
+    if isinstance(color, int) and not isinstance(color, bool):
+        return f"#{max(0, color) & 0xFFFFFF:06x}"
+    if isinstance(color, str):
+        cleaned = color.strip().lstrip("#")
+        if len(cleaned) == 6:
+            try:
+                return f"#{int(cleaned, 16):06x}"
+            except ValueError:
+                pass
+    return "#000000"
+
+
+def _role_permissions_str(role: Any) -> str:
+    perms = getattr(role, "permissions", None)
+    if perms is None:
+        return "0"
+    if hasattr(perms, "value"):
+        return str(int(getattr(perms, "value", 0) or 0))
+    if isinstance(perms, int) and not isinstance(perms, bool):
+        return str(max(0, perms))
+    return str(permissions_to_bitfield(perms))
+
+
 def _serialize_roles(guild: Any) -> list[dict[str, Any]]:
     return [
         {
             "id": str(role.id),
             "name": role.name,
-            "color_hex": str(getattr(role, "color", "#000000")),
+            "color_hex": _role_color_hex(role),
             "position": int(getattr(role, "position", 0) or 0),
+            "permissions": _role_permissions_str(role),
+            "hoist": bool(getattr(role, "hoist", False)),
+            "mentionable": bool(getattr(role, "mentionable", False)),
+            "managed": bool(getattr(role, "managed", False)),
+            "is_everyone": _is_default_role(guild, role),
         }
         for role in getattr(guild, "roles", [])
     ]
@@ -267,46 +377,48 @@ def _as_id(value: Any) -> Any:
 def _color(value: Any) -> discord.Color:
     if isinstance(value, discord.Color):
         return value
-    if isinstance(value, str):
-        cleaned = value.strip().lstrip("#")
-        if not cleaned:
-            return discord.Color.default()
-        try:
-            return discord.Color(int(cleaned, 16))
-        except ValueError:
-            return discord.Color.default()
-    try:
-        return discord.Color(int(value or 0))
-    except (TypeError, ValueError):
+    norm = normalize_role_color(value)
+    if norm == "#99aab5":
         return discord.Color.default()
+    return discord.Color(int(norm.lstrip("#"), 16))
 
 
 def _permissions(value: Any) -> discord.Permissions:
     if isinstance(value, discord.Permissions):
         return value
-    if isinstance(value, int) and not isinstance(value, bool):
-        return discord.Permissions(value)
-    if isinstance(value, str) and value.isdigit():
-        return discord.Permissions(int(value))
-    permissions = discord.Permissions.none()
-    if isinstance(value, dict):
-        names = [name for name, enabled in value.items() if enabled]
-    elif isinstance(value, (list, tuple, set)):
-        names = list(value)
-    else:
-        names = []
-    for name in names:
-        try:
-            setattr(permissions, str(name), True)
-        except (AttributeError, TypeError, ValueError):
-            logger.warning("[ServerBuilder] Ignoring unknown permission %s", name)
-    return permissions
+    return discord.Permissions(permissions_to_bitfield(value))
 
 
 def _unwrap_change_value(value: Any) -> Any:
     if isinstance(value, dict) and "new" in value:
         return value["new"]
     return value
+
+
+def _extract_role_permissions(changes: dict[str, Any]) -> discord.Permissions | None:
+    if "permissions" not in changes and "permissions_bitfield" not in changes:
+        return None
+    raw_bf = _unwrap_change_value(changes.get("permissions_bitfield"))
+    raw_perm = raw_bf if ("permissions_bitfield" in changes and raw_bf is not None) else _unwrap_change_value(changes.get("permissions"))
+    return _permissions(raw_perm)
+
+
+def _parse_role_id_list(raw_value: Any) -> list[str]:
+    items = _json_value(raw_value, []) if isinstance(raw_value, str) else (raw_value if isinstance(raw_value, list) else [])
+    return [str(x).strip() for x in items if str(x).strip()]
+
+
+def _update_primary_role_list(
+    raw_value: Any, *, new_role_id: str | None = None
+) -> list[str]:
+    existing = _parse_role_id_list(raw_value)
+    if new_role_id is None:
+        return existing[1:] if existing else []
+    if existing and existing[0] == new_role_id:
+        return existing
+    if existing:
+        return [new_role_id] + [x for x in existing[1:] if x != new_role_id]
+    return [new_role_id]
 
 
 def _is_default_role(guild: Any, role: Any) -> bool:
@@ -465,12 +577,44 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
         pos = getattr(top_role, "position", None) if top_role is not None else None
         return int(pos) if pos is not None else None
 
+    def _get_expected_deletes(self) -> dict[tuple[str, str, str], float] | None:
+        sb_expected = getattr(self.bot, "_sb_expected_deletes", None)
+        if not isinstance(sb_expected, dict):
+            sb_expected = {}
+            try:
+                setattr(self.bot, "_sb_expected_deletes", sb_expected)
+            except Exception:
+                return None
+        return sb_expected
+
+    def _register_expected_delete(self, guild_id: Any, kind: str, target_id: Any) -> None:
+        sb_expected = self._get_expected_deletes()
+        if sb_expected is None:
+            return
+        mono_now = time.monotonic()
+        if len(sb_expected) > 1000:
+            for key in [k for k, exp in list(sb_expected.items()) if exp <= mono_now]:
+                sb_expected.pop(key, None)
+        sb_expected[(str(guild_id), str(kind), str(target_id))] = mono_now + EXPECTED_DELETE_TTL
+
+    def _clear_expected_delete(self, guild_id: Any, kind: str, target_id: Any) -> None:
+        sb_expected = getattr(self.bot, "_sb_expected_deletes", None)
+        if isinstance(sb_expected, dict):
+            sb_expected.pop((str(guild_id), str(kind), str(target_id)), None)
+
     def _get_role(self, guild: Any, value: Any, id_map: dict[str, str]) -> Any:
         resolved = self._resolve_id(value, id_map)
         if resolved is None:
             return None
         if str(resolved) == "@everyone" or str(resolved) == str(getattr(guild, "id", "")):
-            return getattr(guild, "default_role", None)
+            default_role = getattr(guild, "default_role", None)
+            if default_role is not None:
+                return default_role
+            for role in getattr(guild, "roles", []):
+                if _is_default_role(guild, role):
+                    return role
+            if str(resolved) == "@everyone":
+                return None
         try:
             role_id = int(resolved)
         except (TypeError, ValueError):
@@ -484,6 +628,154 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
             (role for role in getattr(guild, "roles", []) if int(role.id) == role_id),
             None,
         )
+
+    def _owned_role(
+        self,
+        guild: Any,
+        value: Any,
+        id_map: dict[str, str],
+        *,
+        actor_top_pos: int | None = None,
+    ) -> Any:
+        role = self._get_role(guild, value, id_map)
+        if role is None:
+            return None
+        if _is_default_role(guild, role) or getattr(role, "managed", False):
+            return None
+        roles_in_guild = getattr(guild, "roles", ()) or ()
+        if roles_in_guild and not any(
+            r is role or str(getattr(r, "id", "")) == str(getattr(role, "id", ""))
+            for r in roles_in_guild
+        ):
+            return None
+        owner = getattr(role, "guild", None)
+        if owner is not None and str(owner.id) != str(guild.id):
+            return None
+        top_position = self._bot_top_position(guild)
+        role_pos = int(getattr(role, "position", 0) or 0)
+        if top_position is not None and role_pos >= top_position:
+            return None
+        if actor_top_pos is not None and role_pos >= actor_top_pos:
+            return None
+        return role
+
+    async def _protected_role_ids(self, guild_id: str) -> set[str]:
+        """Collect live DB role IDs actively bound to admin, verify, or ticket modules."""
+        protected: set[str] = set()
+        try:
+            gs = await asyncio.to_thread(get_guild_settings, guild_id)
+            raw_admin = (gs or {}).get("bot_admin_roles")
+            admin_list = (
+                _json_value(raw_admin, [])
+                if isinstance(raw_admin, str)
+                else (raw_admin if isinstance(raw_admin, list) else [])
+            )
+            for rid in admin_list:
+                token = str(rid or "").strip()
+                if token:
+                    protected.add(token)
+        except Exception:
+            logger.warning(
+                "[ServerBuilder] Failed reading bot_admin_roles for %s",
+                guild_id,
+                exc_info=True,
+            )
+
+        try:
+            vs = await async_get_verify_settings(guild_id)
+            if int((vs or {}).get("enabled", 0) or 0) == 1:
+                for key in ("verified_role_id", "pending_role_id"):
+                    token = str((vs or {}).get(key) or "").strip()
+                    if token:
+                        protected.add(token)
+        except Exception:
+            logger.warning(
+                "[ServerBuilder] Failed reading verify_settings for %s",
+                guild_id,
+                exc_info=True,
+            )
+
+        try:
+            panels = await asyncio.to_thread(get_ticket_panels, guild_id)
+            for panel in panels or []:
+                if not isinstance(panel, dict):
+                    continue
+                raw_sup = str(panel.get("support_role_id") or "").strip()
+                if not raw_sup:
+                    continue
+                if raw_sup.startswith("["):
+                    for item in _json_value(raw_sup, []):
+                        token = str(item or "").strip()
+                        if token:
+                            protected.add(token)
+                else:
+                    for part in raw_sup.split(","):
+                        token = part.strip()
+                        if token:
+                            protected.add(token)
+        except Exception:
+            logger.warning(
+                "[ServerBuilder] Failed reading ticket_panels for %s",
+                guild_id,
+                exc_info=True,
+            )
+
+        return protected
+
+    def _actor_role_gate(
+        self,
+        guild: Any,
+        actor_user_id: str,
+        options: dict[str, Any],
+    ) -> tuple[bool, int | None]:
+        """Gate 4 TOCTOU check: verify live Gateway actor permissions and top_role ceiling."""
+        raw_opt_top = options.get("actor_top_role_pos")
+        opt_top: int | None = None
+        if raw_opt_top is not None and not isinstance(raw_opt_top, bool):
+            try:
+                opt_top = int(raw_opt_top)
+            except (TypeError, ValueError):
+                opt_top = None
+
+        guild_owner_id = getattr(guild, "owner_id", None)
+        if (
+            actor_user_id.isdigit()
+            and guild_owner_id is not None
+            and str(guild_owner_id) == actor_user_id
+        ):
+            return False, None
+
+        actor_revoked_roles = False
+        live_actor_top_pos: int | None = None
+        if (
+            actor_user_id.isdigit()
+            and (guild_owner_id is None or str(guild_owner_id) != actor_user_id)
+            and hasattr(guild, "get_member")
+        ):
+            try:
+                actor_member = guild.get_member(int(actor_user_id))
+            except (TypeError, ValueError):
+                actor_member = None
+            if actor_member is not None:
+                perms = getattr(actor_member, "guild_permissions", None)
+                if perms is not None and not (
+                    bool(getattr(perms, "administrator", False))
+                    or bool(getattr(perms, "manage_roles", False))
+                ):
+                    actor_revoked_roles = True
+                top_role = getattr(actor_member, "top_role", None)
+                raw_live_pos = getattr(top_role, "position", None) if top_role is not None else None
+                if raw_live_pos is not None and not isinstance(raw_live_pos, bool):
+                    try:
+                        live_actor_top_pos = int(raw_live_pos)
+                    except (TypeError, ValueError):
+                        live_actor_top_pos = None
+
+        if opt_top is not None and live_actor_top_pos is not None:
+            effective_top = min(opt_top, live_actor_top_pos)
+        else:
+            effective_top = live_actor_top_pos if live_actor_top_pos is not None else opt_top
+        return actor_revoked_roles, effective_top
 
     def _get_channel(self, guild: Any, value: Any, id_map: dict[str, str]) -> Any:
         resolved = self._resolve_id(value, id_map)
@@ -580,17 +872,19 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
 
             ow_kwargs: dict[str, bool] = {}
             for name in entry.get("allow", []) or []:
-                perm_name = str(name).strip()
+                raw_perm = str(name).strip()
+                perm_name = _DISCORD_PY_PERM_ATTR_MAP.get(raw_perm, raw_perm)
                 if valid_names is None or perm_name in valid_names:
                     ow_kwargs[perm_name] = True
                 else:
-                    logs.append({"level": "warning", "message": f"Unknown permission {perm_name}"})
+                    logs.append({"level": "warning", "message": f"Unknown permission {raw_perm}"})
             for name in entry.get("deny", []) or []:
-                perm_name = str(name).strip()
+                raw_perm = str(name).strip()
+                perm_name = _DISCORD_PY_PERM_ATTR_MAP.get(raw_perm, raw_perm)
                 if valid_names is None or perm_name in valid_names:
                     ow_kwargs[perm_name] = False
                 else:
-                    logs.append({"level": "warning", "message": f"Unknown permission {perm_name}"})
+                    logs.append({"level": "warning", "message": f"Unknown permission {raw_perm}"})
 
             if ow_kwargs:
                 overwrites[_hashable_target(target)] = discord.PermissionOverwrite(**ow_kwargs)
@@ -761,12 +1055,20 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
         verify_refs: set[str],
         step_label: str,
         remaining_cost: float,
+        *,
+        has_bulk_role_reorder: bool = False,
+        actor_top_pos: int | None = None,
     ) -> None:
         op = operation.get("op")
 
         if op == "create_role":
             position = operation.get("target_position", operation.get("position"))
             top_position = self._bot_top_position(guild)
+            perm_src = (
+                operation.get("permissions_bitfield")
+                if operation.get("permissions_bitfield") is not None
+                else operation.get("permissions")
+            )
 
             role = await self._rest_call(
                 job_id,
@@ -776,60 +1078,305 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                 remaining_cost=remaining_cost,
                 name=str(operation.get("name") or "new-role")[:100],
                 colour=_color(operation.get("color")),
-                permissions=_permissions(operation.get("permissions")),
+                permissions=_permissions(perm_src),
                 hoist=bool(operation.get("hoist", False)),
                 mentionable=bool(operation.get("mentionable", False)),
                 reason=reason,
             )
             if operation.get("temp_id") is not None:
                 id_map[str(operation["temp_id"])] = str(role.id)
+            raw_bind_mod = operation.get("bind_role_module")
+            if raw_bind_mod:
+                norm_bind_mod = normalize_role_bind_module(raw_bind_mod)
+                bind_key = norm_bind_mod or str(raw_bind_mod).strip()
+                if bind_key and bind_key.lower() not in {"none", "null", "undefined"}:
+                    discovered_bindings[bind_key] = str(role.id)
 
-            if position is not None and int(position) > 0:
-                desired_pos = int(position)
-                if top_position is not None and top_position <= 1:
-                    if desired_pos >= top_position:
-                        logs.append(
-                            {
-                                "level": "warning",
-                                "message": (
-                                    f"Created role '{role.name}' at default position; "
-                                    f"cannot reposition above bot top role ({top_position})"
-                                ),
-                            }
-                        )
-                else:
-                    target_pos = (
-                        min(desired_pos, top_position - 1)
-                        if top_position is not None
-                        else desired_pos
-                    )
-                    if target_pos != desired_pos:
-                        logs.append(
-                            {
-                                "level": "warning",
-                                "message": (
-                                    f"Clamped role '{role.name}' position from {desired_pos} "
-                                    f"to {target_pos} (below bot top role {top_position})"
-                                ),
-                            }
-                        )
-                    if target_pos > 0:
-                        try:
-                            await self._rest_call(
-                                job_id,
-                                role.edit,
-                                step_label=step_label,
-                                logs=logs,
-                                remaining_cost=remaining_cost,
-                                position=target_pos,
-                                reason=reason,
-                            )
-                        except (discord.Forbidden, discord.HTTPException) as exc:
+            if not operation.get("defer_position") and not has_bulk_role_reorder:
+                if position is not None and int(position) > 0:
+                    desired_pos = int(position)
+                    ceilings = [c for c in (top_position, actor_top_pos) if c is not None]
+                    ceiling = min(ceilings) if ceilings else None
+                    if ceiling is not None and ceiling <= 1:
+                        if desired_pos >= ceiling:
                             logs.append(
                                 {
                                     "level": "warning",
-                                    "message": f"Created role '{role.name}' but could not set position {target_pos}: {exc}",
+                                    "message": (
+                                        f"Created role '{role.name}' at default position; "
+                                        f"cannot reposition above hierarchy ceiling ({ceiling})"
+                                    ),
                                 }
+                            )
+                    else:
+                        target_pos = (
+                            min(desired_pos, ceiling - 1)
+                            if ceiling is not None
+                            else desired_pos
+                        )
+                        if target_pos != desired_pos:
+                            logs.append(
+                                {
+                                    "level": "warning",
+                                    "message": (
+                                        f"Clamped role '{role.name}' position from {desired_pos} "
+                                        f"to {target_pos} (below hierarchy ceiling {ceiling})"
+                                    ),
+                                }
+                            )
+                        if target_pos > 0:
+                            try:
+                                await self._rest_call(
+                                    job_id,
+                                    role.edit,
+                                    step_label=step_label,
+                                    logs=logs,
+                                    remaining_cost=remaining_cost,
+                                    position=target_pos,
+                                    reason=reason,
+                                )
+                            except (discord.Forbidden, discord.HTTPException) as exc:
+                                logs.append(
+                                    {
+                                        "level": "warning",
+                                        "message": f"Created role '{role.name}' but could not set position {target_pos}: {exc}",
+                                    }
+                                )
+            return
+
+        if op == "update_role":
+            role = self._get_role(guild, operation.get("role_id"), id_map)
+            if role is None:
+                raise LookupError(f"Role {operation.get('role_id')} for update was not found")
+            if getattr(role, "managed", False):
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": f"Skipped managed role '{getattr(role, 'name', role.id)}'",
+                    }
+                )
+                return
+
+            changes = dict(operation.get("changes") or {})
+            parsed_perms = _extract_role_permissions(changes)
+            if _is_default_role(guild, role):
+                if parsed_perms is not None:
+                    await self._rest_call(
+                        job_id,
+                        role.edit,
+                        step_label=step_label,
+                        logs=logs,
+                        remaining_cost=remaining_cost,
+                        permissions=parsed_perms,
+                        reason=reason,
+                    )
+                return
+
+            role_pos = int(getattr(role, "position", 0) or 0)
+            if actor_top_pos is not None and role_pos >= actor_top_pos:
+                raise PermissionError(
+                    f"Role '{getattr(role, 'name', role.id)}' position ({role_pos}) >= actor top role ({actor_top_pos})"
+                )
+
+            top_position = self._bot_top_position(guild)
+            if top_position is not None and role_pos >= top_position:
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": (
+                            f"Skipped update for role '{getattr(role, 'name', role.id)}' "
+                            f"(position {role_pos} >= bot top role {top_position})"
+                        ),
+                    }
+                )
+                return
+
+            edit_kwargs: dict[str, Any] = {}
+            if "name" in changes:
+                new_name = str(_unwrap_change_value(changes["name"]) or "").strip()[:100]
+                if new_name:
+                    edit_kwargs["name"] = new_name
+            if "color" in changes or "colour" in changes or "color_hex" in changes:
+                color_key = (
+                    "color"
+                    if "color" in changes
+                    else ("colour" if "colour" in changes else "color_hex")
+                )
+                edit_kwargs["colour"] = _color(_unwrap_change_value(changes[color_key]))
+            if "hoist" in changes:
+                edit_kwargs["hoist"] = bool(_unwrap_change_value(changes["hoist"]))
+            if "mentionable" in changes:
+                edit_kwargs["mentionable"] = bool(_unwrap_change_value(changes["mentionable"]))
+            if parsed_perms is not None:
+                edit_kwargs["permissions"] = parsed_perms
+
+            if edit_kwargs:
+                await self._rest_call(
+                    job_id,
+                    role.edit,
+                    step_label=step_label,
+                    logs=logs,
+                    remaining_cost=remaining_cost,
+                    reason=reason,
+                    **edit_kwargs,
+                )
+            return
+
+        if op == "bulk_reorder_roles":
+            top_position = self._bot_top_position(guild)
+            if top_position is not None and top_position <= 1:
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": (
+                            f"Skipped bulk role reorder: bot top role position ({top_position}) "
+                            f"allows no movable slots"
+                        ),
+                    }
+                )
+                return
+            if actor_top_pos is not None and actor_top_pos <= 1:
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": (
+                            f"Skipped bulk role reorder: actor top role position ({actor_top_pos}) "
+                            f"allows no movable slots"
+                        ),
+                    }
+                )
+                return
+
+            ceilings: list[int] = []
+            if top_position is not None:
+                ceilings.append(top_position - 1)
+            if actor_top_pos is not None and actor_top_pos >= 1:
+                ceilings.append(actor_top_pos - 1)
+            max_pos = min(ceilings) if ceilings else None
+            if max_pos is not None and max_pos < 1:
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": "Skipped bulk role reorder: no valid position below hierarchy ceiling",
+                    }
+                )
+                return
+
+            resolved_entries: list[tuple[int, int, Any]] = []
+            seen_role_ids: set[str] = set()
+            for idx, item in enumerate(operation.get("items", []) or []):
+                if not isinstance(item, dict):
+                    continue
+                ref = item.get("temp_id") if item.get("temp_id") is not None else item.get("id")
+                role = self._get_role(guild, ref, id_map)
+                if role is None:
+                    logs.append(
+                        {
+                            "level": "warning",
+                            "message": f"Skipped missing role {ref} in bulk_reorder_roles",
+                        }
+                    )
+                    continue
+                rid = str(getattr(role, "id", ""))
+                if rid in seen_role_ids:
+                    continue
+                if _is_default_role(guild, role) or getattr(role, "managed", False):
+                    continue
+                role_pos = int(getattr(role, "position", 0) or 0)
+                if top_position is not None and role_pos >= top_position:
+                    logs.append(
+                        {
+                            "level": "warning",
+                            "message": (
+                                f"Skipped role '{getattr(role, 'name', rid)}' "
+                                f"(>= bot top role {top_position}) in reorder"
+                            ),
+                        }
+                    )
+                    continue
+                if actor_top_pos is not None and role_pos >= actor_top_pos:
+                    logs.append(
+                        {
+                            "level": "warning",
+                            "message": (
+                                f"Skipped role '{getattr(role, 'name', rid)}' "
+                                f"(>= actor top role {actor_top_pos}) in reorder"
+                            ),
+                        }
+                    )
+                    continue
+                try:
+                    raw_pos = int(item.get("position", 1))
+                except (TypeError, ValueError):
+                    raw_pos = 1
+                clamped_pos = max(1, min(raw_pos, max_pos)) if max_pos is not None else max(1, raw_pos)
+                seen_role_ids.add(rid)
+                resolved_entries.append((clamped_pos, idx, role))
+
+            if not resolved_entries:
+                return
+
+            resolved_entries.sort(key=lambda entry: (entry[0], entry[1]))
+            assigned_positions: list[int] = [entry[0] for entry in resolved_entries]
+            if len(set(assigned_positions)) < len(assigned_positions):
+                next_cap = assigned_positions[-1]
+                for i in range(len(assigned_positions) - 1, -1, -1):
+                    pos = max(1, min(assigned_positions[i], next_cap))
+                    assigned_positions[i] = pos
+                    next_cap = max(1, pos - 1)
+
+            positions_dict: dict[Any, int] = {
+                _hashable_target(role): pos
+                for (_, _, role), pos in zip(resolved_entries, assigned_positions)
+            }
+
+            if hasattr(guild, "edit_role_positions"):
+                await self._rest_call(
+                    job_id,
+                    guild.edit_role_positions,
+                    step_label=step_label,
+                    logs=logs,
+                    remaining_cost=remaining_cost,
+                    positions=positions_dict,
+                    reason=reason,
+                )
+            else:
+                http = getattr(getattr(guild, "_state", None), "http", None)
+                if http is not None and hasattr(http, "move_role_position"):
+                    payload = [
+                        {"id": _as_id(r.id), "position": pos}
+                        for r, pos in positions_dict.items()
+                    ]
+                    await self._rest_call(
+                        job_id,
+                        http.move_role_position,
+                        guild.id,
+                        payload,
+                        step_label=step_label,
+                        logs=logs,
+                        remaining_cost=remaining_cost,
+                        reason=reason,
+                    )
+                else:
+                    logs.append(
+                        {
+                            "level": "warning",
+                            "message": (
+                                "Guild object exposes neither edit_role_positions nor "
+                                "http.move_role_position; falling back to sequential role.edit"
+                            ),
+                        }
+                    )
+                    for role_proxy, pos in positions_dict.items():
+                        if hasattr(role_proxy, "edit"):
+                            await self._rest_call(
+                                job_id,
+                                role_proxy.edit,
+                                step_label=step_label,
+                                logs=logs,
+                                remaining_cost=remaining_cost,
+                                position=pos,
+                                reason=reason,
                             )
             return
 
@@ -1123,6 +1670,70 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                     raise RuntimeError("Guild HTTP client does not expose bulk_channel_update")
             return
 
+        if op == "delete_role":
+            if options.get("safe_mode", True) is not False:
+                logs.append({"level": "warning", "message": "Role deletion skipped by safe mode"})
+                return
+            if options.get("confirm_deletions", False) is not True:
+                logs.append({"level": "warning", "message": "Role deletion skipped without confirmation"})
+                return
+            role = self._get_role(guild, operation.get("role_id"), id_map)
+            if role is None:
+                return
+            role_name = getattr(role, "name", role.id)
+            if _is_default_role(guild, role):
+                logs.append({"level": "warning", "message": "Refused to delete @everyone role"})
+                return
+            if bool(getattr(role, "managed", False)):
+                logs.append({"level": "warning", "message": f"Refused to delete managed role '{role_name}'"})
+                return
+            role_pos = int(getattr(role, "position", 0) or 0)
+            if actor_top_pos is not None and role_pos >= actor_top_pos:
+                raise PermissionError(
+                    f"Role '{role_name}' position ({role_pos}) >= actor top role ({actor_top_pos})"
+                )
+            top_position = self._bot_top_position(guild)
+            if top_position is not None and role_pos >= top_position:
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": (
+                            f"Refused to delete role '{role_name}' "
+                            f"(position {role_pos} >= bot top role {top_position})"
+                        ),
+                    }
+                )
+                return
+            protected_ids = await self._protected_role_ids(str(guild.id))
+            if str(role.id) in protected_ids:
+                logs.append(
+                    {
+                        "level": "warning",
+                        "message": (
+                            f"Refused to delete protected role '{role_name}' "
+                            f"(bound to active ZerynBot module)"
+                        ),
+                    }
+                )
+                return
+
+            deleted_ok = False
+            self._register_expected_delete(guild.id, "role_delete", role.id)
+            try:
+                await self._rest_call(
+                    job_id,
+                    role.delete,
+                    step_label=step_label,
+                    logs=logs,
+                    remaining_cost=remaining_cost,
+                    reason=reason,
+                )
+                deleted_ok = True
+            finally:
+                if not deleted_ok:
+                    self._clear_expected_delete(guild.id, "role_delete", role.id)
+            return
+
         if op in {"delete_channel", "delete_category"}:
             if options.get("safe_mode", True) is not False:
                 logs.append({"level": "warning", "message": "Deletion skipped by safe mode"})
@@ -1132,14 +1743,21 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                 return
             channel = self._get_channel(guild, operation.get("channel_id"), id_map)
             if channel is not None:
-                await self._rest_call(
-                    job_id,
-                    channel.delete,
-                    step_label=step_label,
-                    logs=logs,
-                    remaining_cost=remaining_cost,
-                    reason=reason,
-                )
+                deleted_ok = False
+                self._register_expected_delete(guild.id, "channel_delete", channel.id)
+                try:
+                    await self._rest_call(
+                        job_id,
+                        channel.delete,
+                        step_label=step_label,
+                        logs=logs,
+                        remaining_cost=remaining_cost,
+                        reason=reason,
+                    )
+                    deleted_ok = True
+                finally:
+                    if not deleted_ok:
+                        self._clear_expected_delete(guild.id, "channel_delete", channel.id)
             return
 
         if op != "bind_modules":
@@ -1155,6 +1773,8 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
         logs: list[dict[str, Any]],
         step_label: str,
         remaining_cost: float,
+        *,
+        actor_top_pos: int | None = None,
     ) -> None:
         auto_bind = bool(options.get("auto_bind_modules", True))
         send_guides = bool(options.get("send_guides", True))
@@ -1163,8 +1783,26 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
 
         guild_id = str(guild.id)
         resolved: dict[str, Any] = {}
+        resolved_roles: dict[str, Any] = {}
+        role_unbinds: set[str] = set()
         for key, value in bindings.items():
-            if not value:
+            norm_role_key = normalize_role_bind_module(key)
+            if norm_role_key is not None:
+                if value is None or str(value).strip().lower() in {"", "none", "null", "undefined"}:
+                    role_unbinds.add(norm_role_key)
+                    resolved_roles.pop(norm_role_key, None)
+                    continue
+                role = self._owned_role(guild, value, id_map, actor_top_pos=actor_top_pos)
+                if role is None:
+                    logs.append(
+                        {"level": "warning", "message": f"Binding role target invalid or not found for {norm_role_key}"}
+                    )
+                    continue
+                resolved_roles[norm_role_key] = role
+                role_unbinds.discard(norm_role_key)
+                continue
+
+            if not value or str(value).strip().lower() in {"none", "null", "undefined"}:
                 continue
             channel = self._owned_channel(guild, value, id_map)
             if channel is None:
@@ -1175,23 +1813,61 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
             resolved[key] = channel
 
         if auto_bind:
+            guild_fields: dict[str, Any] = {}
             if "welcome" in resolved:
-                await asyncio.to_thread(
-                    upsert_guild, guild_id, welcome_channel_id=str(resolved["welcome"].id)
+                guild_fields["welcome_channel_id"] = str(resolved["welcome"].id)
+            if "autoroles_user" in resolved_roles or "autoroles_user" in role_unbinds:
+                curr_gs = await asyncio.to_thread(get_guild_settings, guild_id)
+                new_ar_id = (
+                    str(resolved_roles["autoroles_user"].id)
+                    if "autoroles_user" in resolved_roles
+                    else None
                 )
+                updated_ar = _update_primary_role_list(
+                    (curr_gs or {}).get("autoroles_user"), new_role_id=new_ar_id
+                )
+                guild_fields["autoroles_user"] = json.dumps(updated_ar)
+                if new_ar_id is not None:
+                    guild_fields["autoroles_enabled"] = 1
+                elif not updated_ar and not _parse_role_id_list((curr_gs or {}).get("autoroles_bot")):
+                    guild_fields["autoroles_enabled"] = 0
+            if guild_fields:
+                await asyncio.to_thread(upsert_guild, guild_id, **guild_fields)
+
+            verify_fields: dict[str, Any] = {}
             if "verify" in resolved:
-                await async_upsert_verify_settings(
-                    guild_id, channel_id=str(resolved["verify"].id)
-                )
+                verify_fields["channel_id"] = str(resolved["verify"].id)
+            if "verify_verified" in resolved_roles:
+                verify_fields["verified_role_id"] = str(resolved_roles["verify_verified"].id)
+            elif "verify_verified" in role_unbinds:
+                verify_fields["verified_role_id"] = None
+            if "verify_pending" in resolved_roles:
+                verify_fields["pending_role_id"] = str(resolved_roles["verify_pending"].id)
+            elif "verify_pending" in role_unbinds:
+                verify_fields["pending_role_id"] = None
+            if verify_fields:
+                await async_upsert_verify_settings(guild_id, **verify_fields)
+
+            automod_fields: dict[str, Any] = {}
             if "bot_logs" in resolved:
                 channel_id = str(resolved["bot_logs"].id)
-                await asyncio.to_thread(
-                    upsert_automod_settings, guild_id, log_channel_id=channel_id
-                )
+                automod_fields["log_channel_id"] = channel_id
                 logger_settings = await asyncio.to_thread(get_logger_settings, guild_id)
                 logger_settings = dict(logger_settings or {})
                 logger_settings["log_channel_id"] = channel_id
                 await asyncio.to_thread(set_logger_settings, guild_id, logger_settings)
+            if "automod_immune" in resolved_roles or "automod_immune" in role_unbinds:
+                curr_am = await asyncio.to_thread(get_automod_settings, guild_id)
+                new_imm_id = (
+                    str(resolved_roles["automod_immune"].id)
+                    if "automod_immune" in resolved_roles
+                    else None
+                )
+                automod_fields["immune_roles"] = _update_primary_role_list(
+                    (curr_am or {}).get("immune_roles"), new_role_id=new_imm_id
+                )
+            if automod_fields:
+                await asyncio.to_thread(upsert_automod_settings, guild_id, **automod_fields)
 
         if send_guides and "music" in resolved:
             gs = await async_get_guild_settings(guild_id)
@@ -1222,10 +1898,34 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                     }
                 )
 
+    @staticmethod
+    def _find_plan_role_binding(
+        plan_bindings: Any, operations: list[dict[str, Any]], module_key: str
+    ) -> str | None:
+        if isinstance(plan_bindings, dict):
+            for k, v in plan_bindings.items():
+                if normalize_role_bind_module(k) == module_key and v is not None:
+                    token = str(v).strip()
+                    if token and token.lower() not in {"none", "null", "undefined"}:
+                        return token
+        for op_item in operations:
+            if op_item.get("op") != "bind_modules":
+                continue
+            op_bindings = op_item.get("bindings")
+            if not isinstance(op_bindings, dict):
+                continue
+            for k, v in op_bindings.items():
+                if normalize_role_bind_module(k) == module_key and v is not None:
+                    token = str(v).strip()
+                    if token and token.lower() not in {"none", "null", "undefined"}:
+                        return token
+        return None
+
     async def _execute_job(self, job: dict[str, Any]) -> None:
         job_id = job.get("id")
         job_code = job.get("job_code", job_id)
         guild_id = str(job.get("guild_id") or "")
+        actor_user_id = str(job.get("actor_user_id") or "").strip()
         guild = None
         logs = list(_json_value(job.get("step_logs", job.get("step_logs_json")), []))
         plan = _json_value(job.get("plan", job.get("plan_json")), {})
@@ -1235,6 +1935,7 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
         operations = [item for item in raw_ops if item.get("op") != "bind_modules"] + [
             item for item in raw_ops if item.get("op") == "bind_modules"
         ]
+        has_bulk_role_reorder = any(item.get("op") == "bulk_reorder_roles" for item in operations)
 
         completed = int(job.get("completed_steps") or 0)
         failed = int(job.get("failed_steps") or 0)
@@ -1246,11 +1947,23 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
         terminal_status = "failed"
         error_message: str | None = None
 
+        sb_active = getattr(self.bot, "_sb_active_guilds", None)
+        if not isinstance(sb_active, set):
+            sb_active = set()
+            try:
+                setattr(self.bot, "_sb_active_guilds", sb_active)
+            except Exception:
+                sb_active = None
+        self._get_expected_deletes()
+
         try:
             getter = getattr(self.bot, "get_guild", None)
             guild = getter(int(guild_id)) if getter and guild_id.isdigit() else None
             if guild is None:
                 raise LookupError(f"Guild {guild_id} is unavailable")
+
+            if sb_active is not None:
+                sb_active.add(guild_id)
 
             await self._db_update(
                 job_id,
@@ -1259,13 +1972,16 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                 current_step_label="Capturing snapshot",
                 error_message=None,
             )
+            last_progress_flush = time.monotonic()
 
             verify_settings = await async_get_verify_settings(guild_id)
             pending_role = None
             verify_channel_id = None
-            if int((verify_settings or {}).get("enabled", 0) or 0) == 1:
+            verify_enabled = int((verify_settings or {}).get("enabled", 0) or 0) == 1
+            verify_hide_channels = int((verify_settings or {}).get("hide_channels", 0) or 0) == 1
+            if verify_enabled:
                 verify_channel_id = str((verify_settings or {}).get("channel_id") or "").strip() or None
-                if int((verify_settings or {}).get("hide_channels", 0) or 0) == 1:
+                if verify_hide_channels:
                     pending_role = self._get_role(
                         guild, (verify_settings or {}).get("pending_role_id"), id_map
                     )
@@ -1280,17 +1996,50 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                     if isinstance(bindings, dict) and bindings.get("verify") is not None:
                         verify_refs.add(str(bindings["verify"]))
 
+            actor_revoked_roles, effective_actor_top = self._actor_role_gate(
+                guild, actor_user_id, options
+            )
+            total_ops = len(operations)
+            total_expected = max(total_ops, int(job.get("total_steps") or total_ops))
+
             for index, operation in enumerate(operations):
                 if await self._cancel_requested(job_id):
                     raise _JobCancelled
 
-                label = str(operation.get("label") or operation.get("op") or "Step")
+                op_name = operation.get("op")
+                if (
+                    pending_role is None
+                    and verify_enabled
+                    and verify_hide_channels
+                    and op_name not in _ROLE_MUTATION_OPS
+                ):
+                    pending_ref = discovered_bindings.get("verify_pending") or self._find_plan_role_binding(
+                        plan_bindings, operations, "verify_pending"
+                    )
+                    if pending_ref:
+                        candidate = self._owned_role(
+                            guild, pending_ref, id_map, actor_top_pos=effective_actor_top
+                        )
+                        if candidate is not None:
+                            pending_role = candidate
+
+                label = str(operation.get("label") or op_name or "Step")
                 remaining_cost = sum(
                     float(item.get("cost_seconds") or 0.0)
                     for item in operations[index + 1 :]
                 )
+                prev_failed = failed
                 try:
-                    if operation.get("op") == "bind_modules":
+                    if op_name in _ROLE_MUTATION_OPS:
+                        actor_revoked_roles, effective_actor_top = self._actor_role_gate(
+                            guild, actor_user_id, options
+                        )
+                        if actor_revoked_roles:
+                            raise PermissionError(
+                                "Actor no longer holds manage_roles or administrator permission"
+                            )
+
+                    if op_name == "bind_modules":
                         merged_bindings: dict[str, Any] = {}
                         if isinstance(plan_bindings, dict):
                             merged_bindings.update(plan_bindings)
@@ -1306,6 +2055,7 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                             logs,
                             label,
                             remaining_cost,
+                            actor_top_pos=effective_actor_top,
                         )
                     else:
                         await self._run_operation(
@@ -1322,6 +2072,8 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                             verify_refs,
                             label,
                             remaining_cost,
+                            has_bulk_role_reorder=has_bulk_role_reorder,
+                            actor_top_pos=effective_actor_top,
                         )
                     logs.append({"level": "info", "message": label})
                 except _JobCancelled:
@@ -1346,14 +2098,22 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                     now=time.time(),
                 )
                 cancelled = await self._cancel_requested(job_id)
-                await self._db_update(
-                    job_id,
-                    completed_steps=completed,
-                    failed_steps=failed,
-                    current_step_label=label,
-                    eta_seconds=max(0.0, float(eta)),
-                    step_logs_json=json.dumps(logs[-MAX_STEP_LOGS:], ensure_ascii=False),
-                )
+                now_mono = time.monotonic()
+                if (
+                    index == total_ops - 1
+                    or completed >= total_expected
+                    or failed > prev_failed
+                    or (now_mono - last_progress_flush) >= PROGRESS_FLUSH_INTERVAL
+                ):
+                    await self._db_update(
+                        job_id,
+                        completed_steps=completed,
+                        failed_steps=failed,
+                        current_step_label=label,
+                        eta_seconds=max(0.0, float(eta)),
+                        step_logs_json=json.dumps(logs[-MAX_STEP_LOGS:], ensure_ascii=False),
+                    )
+                    last_progress_flush = now_mono
                 if cancelled:
                     raise _JobCancelled
 
@@ -1372,6 +2132,7 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
                         logs,
                         "Bind ZerynBot modules",
                         0.0,
+                        actor_top_pos=effective_actor_top,
                     )
 
             if failed:
@@ -1388,6 +2149,8 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
             logs.append({"level": "error", "message": error_message})
             logger.exception("[ServerBuilder] Job %s failed", job_code)
         finally:
+            if sb_active is not None:
+                sb_active.discard(guild_id)
             if guild is not None:
                 try:
                     await async_cache_channels(guild_id, _serialize_channels(guild))
