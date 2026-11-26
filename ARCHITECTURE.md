@@ -46,7 +46,7 @@
 - **Music concurrency & lifecycle:** Normal queue admission is atomic with playback startup; stop/cleanup is bounded and cannot revive a stopped player. EOF events buffered during recovery are drained afterwards, source callbacks are identity-bound, and non-live recovery resumes from audio frames rather than wall time (live streams restart at the live edge). Listening stats count successful new listening occurrences rather than seeks/reconnects. Persistent control interactions keep guild-specific player/settings local; seek requires the same voice channel and playlist deletion selections are requester-restricted. Reconnect registries are task-identity-safe. Extraction uses bounded workers and shared in-flight requests, off-loop URL safety checks, expiry-aware RAM promotion, case-preserving URL keys, cookie-fingerprint refresh and deduplicated transactional cache aliases. Saved playlists enqueue metadata and resolve streams near playback rather than eagerly resolving every queued track.
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 2072 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 2177 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
 
 ---
 
@@ -82,7 +82,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   ├── card_generator.py       # PIL dynamic image rendering (Rank Card, Welcome/Goodbye banners)
 │   ├── checks.py               # Permissions & Bot Admin checks
 │   ├── giveaway_banner.png     # Pre-rendered dark giveaway header banner
-│   ├── server_builder_engine.py# Pure Python Server Builder planner, 4 presets, diff/ETA engine
+│   ├── server_builder_engine.py# Pure Python Server Builder planner, 4 enriched presets, 52-bit perm registry, #99aab5<->0 color norm, 7-phase diff/ETA engine
 │   ├── tester.py               # Standalone test/debug helper script
 │   ├── fonts/                  # Custom TrueType fonts (.ttf) for card rendering
 │   ├── emojis.py               # Custom Discord Application Emojis registry & helpers (e, partial)
@@ -114,7 +114,7 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │       ├── music.py            # Music Cog controller inheriting VoiceLifecycleMixin (11 slash commands)
 │       ├── reactionroles.py    # Reaction role listener & interactive button handler
 │       ├── remind.py           # Smart Reminders & Scheduling (/remindme, /reminders, /delreminder)
-│       ├── server_builder.py   # Background Server Builder Studio worker (Verify Gate, 429 pause, bulk reorder, bindings)
+│       ├── server_builder.py   # Background Server Builder worker (7-phase roles/channels, Gate 4 TOCTOU, Anti-Nuke suppression, 429 pause, bindings)
 │       ├── stats.py            # Hourly event metrics collector for dashboard analytics
 │       ├── tempvoice.py        # Temporary Voice channels (Join-to-Create hub, in-chat button controls)
 │       ├── ticket.py           # Support ticket panel creation, persistent views, channel setup
@@ -134,17 +134,17 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   │   ├── music.py            # Web music player & playlist manager
 │   │   ├── admin.py            # Bot Owner Admin panel, terminal, AI settings, activity console
 │   │   ├── support.py          # 24/7 Web Messenger Support ticket thread system
-│   │   └── server_builder.py   # Server Builder Studio UI & JSON APIs (tree, presets/templates, diff, apply, jobs)
-│   ├── static/                 # CSS styles (style.css V12, theme_legal.css frozen), JS (theme.js, main.js, ...), branding
+│   │   └── server_builder.py   # Server Builder & Role Studio UI & JSON APIs (tree + actor authority, presets, diff, 4-gate apply, jobs)
+│   ├── static/                 # CSS styles (style.css V12/v19.0, theme_legal.css frozen), JS (theme.js v18.0, server_builder.js v16.0, ...), branding
 │   └── templates/              # Jinja2 HTML templates
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 2072 keys
-│   ├── en.json                 # English — 2072 keys
-│   ├── zh.json                 # Chinese — 2072 keys
-│   ├── es.json                 # Spanish — 2072 keys
-│   ├── pt.json                 # Portuguese — 2072 keys
-│   └── fr.json                 # French — 2072 keys
+│   ├── vi.json                 # Vietnamese (Default) — 2177 keys
+│   ├── en.json                 # English — 2177 keys
+│   ├── zh.json                 # Chinese — 2177 keys
+│   ├── es.json                 # Spanish — 2177 keys
+│   ├── pt.json                 # Portuguese — 2177 keys
+│   └── fr.json                 # French — 2177 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -176,7 +176,7 @@ The database uses SQLite in **WAL (Write-Ahead Logging)** mode. All tables are c
 | `guilds` | `guild_id` | Core server settings, `welcome_*` config, `goodbye_*` config, `language` (default `'vi'`), `autoroles_user`, `autoroles_bot`, `bot_admin_roles`. |
 | `guild_modules` | `(guild_id, module_name)` | Feature toggles per server (`enabled` = 1 or 0). **20 Modules**: `welcome_goodbye`, `autoroles`, `leveling`, `utility`, `info`, `music`, `tickets`, `reactionroles`, `automods`, `logger`, `giveaways`, `economy`, `tempvoice`, `customcommands`, `ai`, `remind`, `moderation`, `fun`, `birthday`, `verify`. |
 | `guild_channels` | `(guild_id, channel_id)` | Cached text/voice channels for dashboard dropdown selectors. |
-| `guild_roles` | `(guild_id, role_id)` | Cached server roles with color hex & hierarchy position. |
+| `guild_roles` | `(guild_id, role_id)` | 10-column cached server roles (`guild_id`, `role_id`, `role_name`, `color_hex`, `position`, `permissions`, `hoist`, `mentionable`, `managed`, `is_everyone`). |
 | `guild_meta` | `guild_id` | Cached server metadata (name, icon URL, member count). |
 | `saved_embeds` | `id` | Custom embeds created via Dashboard Embed Builder. |
 | `ticket_panels` | `id` | Support ticket panels (channel, message ID, title, support role). |
@@ -269,7 +269,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | Cog Name | File Path | Primary Responsibilities & Key Event Listeners |
 |----------|-----------|------------------------------------------------|
 | **Admin** | `bot/cogs/admin.py` | Slash command sync (`/sync`), global broadcast, reload extensions, `/backup` instant database export & 24h automated WAL cleanup & backup task. |
-| **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL hostname extraction (`urlsplit`; attachment path/filename never becomes a domain, Discord CDN hosts safe, bare filename tokens skipped unless blacklisted/global-scam), embeds/stickers/polls scan, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown). Triggers warn/timeout and dispatches `automod_action`. |
+| **Automod** | `bot/cogs/automod.py` | `on_message` scan: sliding window spam check, keyword filter, URL hostname extraction (`urlsplit`; attachment path/filename never becomes a domain, Discord CDN hosts safe, bare filename tokens skipped unless blacklisted/global-scam), embeds/stickers/polls scan, invite filter, CAPS check, mass ping. Also Anti-Raid (`on_member_join` join flood → lockdown) & Anti-Nuke (`on_guild_channel_delete` / `on_guild_role_delete` → ban actor + lockdown, with exact `(guild_id, kind, target_id)` suppression via `bot._sb_expected_deletes` for Server Builder deletions). Triggers warn/timeout and dispatches `automod_action`. |
 | **Autorole** | `bot/cogs/autorole.py` | Listens to `on_member_join`: automatically assigns designated default member roles and bot roles upon entry. |
 | **Birthday** | `bot/cogs/birthday.py` | Member birthday registry (`/birthday set/check/list/remove`), midnight 00:00 celebration scheduler, 24h temporary Birthday VIP role, and bank coins/XP bonus. |
 | **Verify** | `bot/cogs/verify.py` | Verify Gate (`/verify`): button-based verification (`zb_verify_button`), hard gate (member only sees `#xac-thuc` via pending role + saved overrides snapshot), `on_member_join` pending role assignment. |
@@ -277,7 +277,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | **AI** | `bot/cogs/ai.py` | Multi-provider AI assistant: Groq Cloud (`qwen/qwen3.8-27b`, `gpt-oss-20b`, `compound`), Google Gemini 2.0 Flash / 1.5 Pro, and OpenRouter (`/ask`, `/summarize`, `#ai-chat`, Bot Owner persona). Supports vision analysis, dual-prefix matching, Admin model selection (`global_ai_model`), SSRF guard, and fallback routing. |
 | **CustomCommands** | `bot/cogs/customcommands.py` | Trigger-Response engine (`/customcmd add/delete/list`) with dynamic variable replacements (`{user}`, `{mention}`, `{server}`, `{members}`, `{random:X-Y}`) and Rich Embeds. |
 | **Economy** | `bot/cogs/economy.py` | `/daily` streak rewards, `/balance`, `/pay`, `/deposit`, `/withdraw` (Bank safe custody), `/rich` leaderboard, mini-games (`/coinflip`, `/slots`, `/blackjack` 21 with interactive buttons), `/work`, `/fish`, `/hunt`, `/inventory`, `/sell`, and server role shop (`/shop`, `/buy` paid with Bank balance). |
-| **Events** | `bot/cogs/events.py` | `on_member_join` & `on_member_remove`: generates dynamic Pillow welcome/goodbye banner card (or fallback embed), caches guild structure (`_cache_guild`), enforces guild blacklist. |
+| **Events** | `bot/cogs/events.py` | `on_member_join` & `on_member_remove`: generates dynamic Pillow welcome/goodbye banner card (or fallback embed), caches guild structure (`_cache_guild`, skipping intermediate flushes during active Server Builder jobs via `bot._sb_active_guilds`), enforces guild blacklist. |
 | **Fun** | `bot/cogs/fun.py` | Anime GIF social interactions (10 actions via nekos.best API: hug, pat, kiss, slap, feed, cuddle, poke, highfive, cry, dance), love match `/ship`, interactive proposal `/marry`, `/divorce`, and affection `/profile`. |
 | **Giveaway** | `bot/cogs/giveaway.py` | `/giveaway start/end/reroll`. Runs `giveaway_loop` (every 15s) with `ended == 1` double-check to prevent double-ending race conditions. Uses field index 2 for live participant count edits. |
 | **Info** | `bot/cogs/info.py` | `/serverinfo`, `/userinfo`, `/avatar`, `/botinfo`, `/roleinfo`, `/channelinfo`. Fully localized badge and verification level mappers. |
@@ -288,7 +288,7 @@ automod.py          events.py      music.py        ticket.py          leveling.p
 | **Music** | `bot/cogs/music.py` (facade) + `bot/music/*` | yt-dlp + `FFmpegOpusAudio` playback manager with low-latency buffer tuning (<0.8s start). Spotify track auto-resolver, `/volume` (1-150%), `/shuffle`, 3-minute inactivity auto-leave, atomic play lock, `MusicControlView` (Pause, Skip, Stop, Loop buttons), Lofi 24/7 streams (SomaFM & YouTube), custom playlists. |
 | **ReactionRoles** | `bot/cogs/reactionroles.py` | Listens for raw reaction add/remove and button interactions to toggle configured roles. |
 | **Remind** | `bot/cogs/remind.py` | Smart reminders & timer scheduling (`/remindme`, `/reminders`, `/delreminder`), 15-second background loop, in-channel or DM alert fallback, full 6-language i18n support. |
-| **ServerBuilder** | `bot/cogs/server_builder.py` | Background Server Builder Studio worker claiming `server_builder_jobs`, creating roles/categories/channels, enforcing Verify Gate `pending_role_id`, 2-in-10m rename deferral, 429 `paused_rl` pause/resume, `bulk_channel_update`, and Phase 6 module bindings (0 slash commands added). |
+| **ServerBuilder** | `bot/cogs/server_builder.py` | Background Server Builder Studio worker claiming `server_builder_jobs` and executing 7-phase role/channel plans: `create_role`, `update_role` (`@everyone` permissions-only), single batch `bulk_reorder_roles` (`guild.edit_role_positions` / `http.move_role_position`), categories/channels/overwrites, `bulk_channel_update`, gated deletions (`delete_channel`/`delete_category`/`delete_role` with protected role checks & exact `(guild_id, kind, target_id)` Anti-Nuke suppression via `bot._sb_expected_deletes`), and Phase 6 channel/role module bindings (`autoroles_user`, `verify_verified`, `verify_pending`, `automod_immune`). Enforces Gate 4 live Gateway TOCTOU `_actor_role_gate`, `#99aab5 <-> 0` default color canonicalization (`discord.Color.default()`), 52-bit `discord.Permissions`, Verify Gate `pending_role_id`, 2-in-10m rename deferral, and 429 `paused_rl` pause/resume (0 slash commands added). |
 | **Stats** | `bot/cogs/stats.py` | Listens to `on_message`, `on_member_join`, `on_automod_action`, `on_ticket_action` and writes aggregated hourly counters to `guild_stats`. |
 | **TempVoice** | `bot/cogs/tempvoice.py` | Join-to-Create voice channels (`on_voice_state_update`), in-chat interactive UI button control panel (Lock/Unlock, Member Limit, Rename, Kick), auto-deletes when 0 members remain. |
 | **Ticket** | `bot/cogs/ticket.py` | Dynamic ticket panel setup with persistent views (`DynamicTicketView`), ticket channel creation with strict member permission overrides, close/delete countdown. Dispatches `ticket_action`. |
@@ -320,11 +320,19 @@ The web dashboard is hosted via Flask in `dashboard/app.py` (facade), `dashboard
 - **Module Toggle API:** Endpoints like `/api/guild/<guild_id>/modules/<module_name>` toggle modules on/off in `guild_modules` table and clear the in-memory cache immediately.
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
+- **Server Builder & Role Studio (`/dashboard/<guild_id>/server-builder`):** Preserves the **20 Modules**, **128 Commands across 17 Categories**, and **50 SQLite Tables** invariants while delivering full channel + role design in `dashboard/blueprints/server_builder.py`, `bot/server_builder_engine.py`, `bot/cogs/server_builder.py`, `dashboard/templates/server_builder.html`, and `dashboard/static/js/server_builder.js?v=16.0`:
+  - **Role Studio UI:** Segmented Dual-Tab Channels/Roles layout (`#sb-tab-channels` `0 / 500` vs `#sb-tab-roles` `0 / 250`), Role Hierarchy drag-and-drop list (`#sb-role-list`) with ceiling divider (`.sb-role-ceiling-divider` at `min(bot_top_role_pos, user_top_role_pos)`), Polymorphic Role Inspector (`#sb-role-inspector`), shared 52-bit `PERMISSION_BITS` registry (preserving unknown bits as `bit_<b>` across 4 permission accordion groups + quick role presets), `#99aab5 <-> 0` default color canonicalization, 10-column `guild_roles` fallback cache (`_cache_readonly` protection against offline permission wipes), and dangling `temp_id` overwrite cleanup with atomic Undo.
+  - **7-Phase Role & Channel Diff / Worker:** (1) `create_role`, (2) `update_role` (`@everyone` permissions-only; `managed` & ceiling roles locked), (3) single batch `bulk_reorder_roles` (`guild.edit_role_positions` / `http.move_role_position`), (4) `create_category` & `create_channel` (`id_map` resolves `temp_id` roles), (5) `sync_permissions` / `update_overwrites` / `update_channel` / `bulk_reorder`, (6) gated `delete_channel` / `delete_category` / `delete_role` (`safe_mode=False & confirm_deletions=True`, protecting `@everyone`, `managed`, ceiling roles, `bot_admin_roles`, active `verify_settings` & `ticket_panels.support_role_id`), and (7) Phase 6 `bind_modules` (channel bindings + role bindings `autoroles_user`, `verify_verified`, `verify_pending`, `automod_immune`).
+  - **4-Gate Privilege Escalation Guard & Anti-Nuke Suppression:**
+    - *Gate 1:* Role, overwrite, or role-binding diffs require `manage_roles` (or `administrator` / Guild Owner) → `403 user_missing_permissions`.
+    - *Gate 2:* Non-Owner actors (including non-Owner admins) cannot edit, delete, or reorder roles `>= user_top_role_pos` → `403 user_role_hierarchy_denied`.
+    - *Gate 3:* Dual ceiling (`bot & actor`) blocks granting or revoking permissions the Bot or non-Owner/non-Admin actor lacks (`403 bot_missing_permissions` / `403 privilege_escalation_denied`), privileged channel overwrites they lack, and editing/syncing/deleting private channels without `view_channel` (`403 channel_access_denied`).
+    - *Gate 4:* Live Gateway TOCTOU re-check in `ServerBuilder._execute_job` (`_actor_role_gate`) verifies the actor still holds `manage_roles`/`administrator` and clamps `min(options.actor_top_role_pos, live_actor_top_pos)` per role step, paired with exact `(guild_id, kind, target_id)` Anti-Nuke suppression (`bot._sb_expected_deletes` consumed by `Automod._on_delete_event`).
 - **Central Command Catalog (`_COMMANDS_DATA`):** All **128 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page. The same registry is the **only** source the AI Chat is allowed to know about itself (`ai_knowledge.get_zerynbot_knowledge()` injects it into every system prompt), so a command missing here is invisible to `/help`, `/docs` and the assistant alike — `python scripts/command_registry_audit.py` (and `tests/test_command_registry_complete.py`) keeps it equal to what the cogs actually declare.
 - **Design System V12 (Iridescent Dual-Theme):** All non-legal pages (`/`, `/dashboard`, `/home`, `/admin`, `/login`, `/docs`, `/support`) use the **Iridescent Dual-Theme** powered by `dashboard/static/css/style.css` (`:root` Light default — Iridescent Glass `#f5f4fb` / `#232136` / `#7c6cf0` / `#ff8a9b` / `#ffc07a` / `#7fe0c3` — and `[data-theme="dark"]` Iridescent Noir `#0d0b16` / `#f4f2fb` / `#8d7bff`) plus `dashboard/static/js/theme.js` (`'light' | 'dark' | 'auto'` persisted in `'zeryn-theme'`, FOUC inline guard before `style.css`, and `zeryn:themechange` CustomEvent for dynamic Chart.js sync).
   - **Frozen Legal Stylesheet:** `/tos` and `/privacy` stay isolated on `dashboard/static/css/theme_legal.css?v=1.0` (frozen V17 baseline, no `style.css` or `theme.js`).
   - **Typography:** Modern variable font stack powered by Google Fonts `Space Grotesk`, `Inter`, and `Plus Jakarta Sans`.
-  - **Asset Versioning:** All non-legal templates strictly version `style.css?v=18.0` and `theme.js?v=18.0` to eliminate stale client-side caches.
+  - **Asset Versioning:** All non-legal templates strictly version `style.css?v=19.0` and `theme.js?v=18.0` to eliminate stale client-side caches.
 
 ---
 
@@ -459,7 +467,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **2072 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **2177 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
    - Two frozen guards in `tests/test_i18n_no_hardcoded.py`: (a) every `tr()`/`t()` literal referenced in `bot/`+`dashboard/` must exist in **all 6** dictionaries — a missing key prints the raw key name on Discord, which actually happened with `common.not_your_interaction`; (b) the per-file count of Discord-facing Vietnamese literals may only **decrease** (`tests/i18n_budget.json`, currently 0), refreshed with `python scripts/i18n_audit.py --budget`.
    - Locale files are hand-grouped by module: **never** rewrite them with `json.dumps(..., sort_keys=True)` (that produces a ~1800-line diff that hides the real change); append at the end and keep CRLF.
 2. **Async vs. Sync Separation:**

@@ -82,12 +82,12 @@ Quy ước:
 - **Trang pháp lý đóng băng (`tos.html`, `privacy.html`)**: dùng riêng `dashboard/static/css/theme_legal.css?v=1.0` (bản V17 đóng băng), **tuyệt đối không** nhúng `style.css`, `theme.js`, FOUC script, hay `[data-theme="dark"]`.
 
 ### 1.2 Asset Versioning
-Mọi liên kết CSS/JS trong thẻ `<head>` / cuối `<body>` **BẮT BUỘC** gắn phiên bản (hiện hành: `style.css?v=18.0`, `theme.js?v=18.0`; riêng trang pháp lý giữ `theme_legal.css?v=1.0`):
+Mọi liên kết CSS/JS trong thẻ `<head>` / cuối `<body>` **BẮT BUỘC** gắn phiên bản (hiện hành: `style.css?v=19.0`, `theme.js?v=18.0`; riêng trang pháp lý giữ `theme_legal.css?v=1.0`, trang Server Builder dùng thêm `server_builder.js?v=16.0`):
 ```html
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=18.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=19.0">
 <script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
 ```
-Khi bump: đổi đồng bộ trong TẤT CẢ template không phải legal (`base_server.html`, `home.html`, `login.html`, `admin.html`, `admin_support.html`, `docs.html`, `support.html`, `landing.html`).
+Khi bump: đổi đồng bộ trong TẤT CẢ template không phải legal (`base_server.html`, `home.html`, `login.html`, `admin.html`, `admin_support.html`, `docs.html`, `support.html`, và `landing.html` cho `theme.js`).
 
 ---
 
@@ -100,7 +100,7 @@ Khi tạo thêm trang cài đặt module mới trong Dashboard:
 3. **Bước 3**: Thêm Route Flask trong blueprint phù hợp (`dashboard/blueprints/{guild,music,admin,support}.py`) với decorator `@login_required` và `@guild_access_required`.
 4. **Bước 4**: Tạo template HTML `dashboard/templates/server_<module>.html` kế thừa từ layout chuẩn hoặc dùng `base_server.html`.
 5. **Bước 5**: Thêm link vào Sidebar trong các template server tương ứng.
-6. **Bước 6**: Bổ sung từ điển đa ngôn ngữ (`<module>.*`) vào đủ **6 file JSON** trong `locales/`.
+6. **Bước 6**: Bổ sung từ điển đa ngôn ngữ (`<module>.*`) vào đủ **6 file JSON** trong `locales/` (hiện hành **2177 keys/file**).
 7. **Bước 7**: Chạy `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py`.
 
 ---
@@ -113,14 +113,15 @@ Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboa
 
 ---
 
-## 🔁 4. Server Builder Studio — Bất biến của Diff Engine
+## 🔁 4. Server Builder Studio — Bất biến của Diff Engine & Role Studio
 
-`bot/server_builder_engine.py::compute_diff` **PHẢI idempotent**: sau khi "Tải lên từ Server thật" (target = cây live), `total_operations` bắt buộc bằng **0** — thanh dưới cùng không được hiện thay đổi nào. Khi sửa logic so sánh, tránh các bẫy đã từng gây 15 ops ảo:
+`bot/server_builder_engine.py::compute_diff` **PHẢI idempotent**: sau khi "Tải lên từ Server thật" (target = cây live), `total_operations` bắt buộc bằng **0** — thanh dưới cùng không được hiện thay đổi nào. Khi sửa logic so sánh, tránh các bẫy đã từng gây ops ảo:
 
 1. **Tên có emoji/`・`**: không bao giờ so `sanitize_channel_name(target)` với tên gốc — chỉ tính rename khi raw target name khác tên hiện tại (người dùng thực sự sửa) VÀ tên sanitize khác tên hiện tại.
-2. **Bindings**: op `bind_modules` chỉ sinh khi bindings target khác bindings hiện tại (`compute_diff` đọc `current_tree["bindings"]`; caller phải gắn `current_tree["bindings"] = _bindings(guild_id)` trước khi gọi).
+2. **Bindings (Kênh & Role)**: op `bind_modules` chỉ sinh khi bindings target khác bindings hiện tại (`compute_diff` đọc `current_tree["bindings"]`; caller phải gắn `current_tree["bindings"] = _bindings(guild_id)` gồm cả 4 role bindings `autoroles_user`, `verify_verified`, `verify_pending`, `automod_immune` trước khi gọi).
 3. **Type lạ (15 forum / 13 stage / 20 hub...)**: client coerce về 0 trước khi gửi; không để validation chặn oan cây import.
-4. Regression tests chuẩn: `test_engine_import_live_tree_is_idempotent_for_decorated_names` + `test_engine_unchanged_current_bindings_emit_no_bind_op` trong `tests/test_server_builder.py`.
+4. **Role Studio & 52-bit Permissions**: chuẩn hóa màu mặc định `#99aab5 <-> 0` (cùng `#000000`/`""`/`0` về `#99aab5` ở JS/Blueprint/Engine, và Cog `_color()` map `#99aab5` về `discord.Color.default()`), dùng chung bảng `PERMISSION_BITS` (52-bit, bảo toàn bit lạ dạng `bit_<b>`), giữ `@everyone` chỉ sửa `permissions`, khóa chỉnh/xóa `managed` & role `>= min(bot_top_role_pos, user_top_role_pos)`, và khóa chỉnh role khi `live_source == "cache"` (`_cache_readonly`) để tránh xóa nhầm quyền khi offline fallback.
+5. Regression tests chuẩn: `test_engine_import_live_tree_is_idempotent_for_decorated_names`, `test_engine_unchanged_current_bindings_emit_no_bind_op`, và nhóm test Role Studio / Escalation Gates trong `tests/test_server_builder.py`.
 
 ---
 

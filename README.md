@@ -4,9 +4,9 @@
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Discord.py-2.3%2B-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.py">
   <img src="https://img.shields.io/badge/Flask-Web%20Dashboard-black?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(2072%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
+  <img src="https://img.shields.io/badge/i18n-6%20Languages%20(2177%20Keys)-orange?style=for-the-badge&logo=translate&logoColor=white" alt="i18n 6 Languages">
   <img src="https://img.shields.io/badge/Modules-20%20Active%20Modules-57F287?style=for-the-badge&logo=probot&logoColor=white" alt="20 Modules">
-  <img src="https://img.shields.io/badge/Commands-128%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="116 Commands">
+  <img src="https://img.shields.io/badge/Commands-128%20Slash%20Commands-blueviolet?style=for-the-badge&logo=discord&logoColor=white" alt="128 Commands">
   <img src="https://img.shields.io/badge/Cache-In--Memory%20RAM-purple?style=for-the-badge&logo=fastapi&logoColor=white" alt="Pure Python In-Memory Cache">
   <img src="https://img.shields.io/badge/Optimized-ARM%20%2F%20Termux-brightgreen?style=for-the-badge&logo=android&logoColor=white" alt="Termux Optimized">
 </p>
@@ -19,7 +19,7 @@
 
 ### 🌍 1. Đa Ngôn Ngữ Hoàn Toàn (Full i18n Engine)
 - Hỗ trợ **6 ngôn ngữ**: Tiếng Việt (🇻🇳), Tiếng Anh (🇺🇸), Tiếng Trung (🇨🇳), Tiếng Tây Ban Nha (🇪🇸), Tiếng Bồ Đào Nha (🇵🇹), Tiếng Pháp (🇫🇷).
-- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **2072 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
+- Bộ nạp RAM O(1) siêu nhanh đồng bộ chuẩn **2177 keys dịch/ngôn ngữ** (100% không lệch key giữa các file).
 - Tự động fallback linh hoạt về ngôn ngữ mặc định nếu thiếu key.
 - Thay đổi ngôn ngữ dễ dàng bằng lệnh `/lang` hoặc trực tiếp trên Web Dashboard.
 
@@ -142,7 +142,7 @@
   - 🛡️ *Quản Trị Cốt Lõi*: Moderation, Automods, Verify Gate (Xác thực thành viên), Welcome & Goodbye, Auto Roles, Logging.
   - 🤖 *Cộng Đồng & Giải Trí*: AI Assistant, Leveling, Economy, Birthday, Fun & Social, Temp Voice, Music, Reaction Roles.
   - ⚙️ *Tiện Ích & Công Cụ*: Support Tickets, Giveaways, Custom Commands, Info, Utility.
-- **Server Builder Studio (`/dashboard/<id>/server-builder`)**: Trình thiết kế cấu trúc server trực quan kiểu Discord với 4 mẫu có sẵn + mẫu tùy biến theo server (tối đa 10/server), ma trận phân quyền Role, Safe Mode bảo vệ kênh cũ, xem trước diff + ETA và thực thi nền an toàn (tạm dừng khi gặp Discord Rate Limit 429, tương thích Verify Gate).
+- **Server Builder Studio (`/dashboard/<id>/server-builder`)**: Trình thiết kế cấu trúc server & Role Studio trực quan kiểu Discord với giao diện Dual-Tab Kênh/Vai trò (`0/500` kênh, `0/250` role), kéo thả thứ bậc Role kèm vạch trần quyền hạn, Polymorphic Role Inspector (màu sắc chuẩn `#99aab5 <-> 0`, ma trận quyền 52-bit, gán nhanh role cho AutoRole / Verify / Automod), 4 mẫu có sẵn + mẫu tùy biến theo server (tối đa 10/server), Safe Mode bảo vệ kênh/role cũ, 4 lớp chặn leo thang quyền (Privilege Escalation Guard + TOCTOU), xem trước diff 7 pha + ETA và thực thi nền an toàn (tạm dừng khi gặp Discord Rate Limit 429, tương thích Verify Gate & Anti-Nuke).
 - **Trang Chủ Hiện Đại**: Lưới 20 module đối xứng cân đối kèm nút `[ + And More ]` và 9 khối showcase tính năng trực quan.
 - **Bảo Mật & Điều Khoản Chuyên Nghiệp**: Trang Điều khoản dịch vụ (`/tos`) và Chính sách bảo mật (`/privacy`) chuẩn pháp lý với thanh mục lục cố định (Sticky TOC).
 - **Trang Admin dành cho Bot Owner (`/admin`)**:
@@ -342,7 +342,7 @@ ZerynBot/
 ├── config.py            # Quản lý cấu hình & biến môi trường
 ├── database/            # Package cơ sở dữ liệu SQLite (15 modules, 50 bảng, WAL mode, async & sync, PRAGMA tuning)
 ├── cache.py             # Bộ quản lý In-Memory RAM Cache (thread-safe, TTL, 5min periodic cleanup)
-├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (2072 keys/file)
+├── i18n.py              # Động cơ dịch đa ngôn ngữ O(1) RAM-cached (2177 keys/file)
 ├── commands_data.py     # _COMMANDS_DATA — registry tập trung 128 lệnh / 17 danh mục cho /commands
 ├── requirements.txt     # Danh sách thư viện Python chạy production
 ├── requirements-dev.txt # Danh sách thư viện dev & test (pytest, ruff)
@@ -351,7 +351,7 @@ ZerynBot/
 │   ├── bot.py           # Entry point của Discord Bot & Webhook Logger
 │   ├── card_generator.py# Render ảnh Rank Card, Welcome/Goodbye Banner bằng Pillow
 │   ├── checks.py        # Kiểm tra quyền hạn & Bot Admin
-│   ├── server_builder_engine.py # Pure Python Server Builder Studio planner, presets & diff/ETA engine
+│   ├── server_builder_engine.py # Pure Python Server Builder & Role Studio planner, 4 presets, 52-bit perms & 7-phase diff/ETA engine
 │   ├── music/           # Hệ thống Audio Pipeline module hóa (extractor, player, views, embeds, voice mixin)
 │   └── cogs/            # 25 Cogs chức năng (moderation, fun, birthday, remind, ai, tempvoice, economy, customcommands, music, automod, server_builder, ...)
 ├── dashboard/           # 🌐 Flask Web Dashboard
@@ -362,9 +362,9 @@ ZerynBot/
 │   ├── blueprints/      # Các Blueprint chức năng: public, guild, music, admin, support, server_builder
 │   ├── api.py           # AJAX API Endpoints
 │   ├── auth.py          # Discord OAuth2 Session Manager, live guild structure & SSRF filter
-│   ├── static/          # CSS (style.css v18.0 V12, theme_legal.css v1.0), JS (theme.js, main.js, ...), Branding Images
+│   ├── static/          # CSS (style.css v19.0 V12, theme_legal.css v1.0), JS (theme.js v18.0, server_builder.js v16.0, main.js, ...), Branding Images
 │   └── templates/       # Giao diện HTML Jinja2 (Iridescent Dual-Theme V12, frozen legal /tos & /privacy, CSRF bootstrap)
-├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 2072 keys/file
+├── locales/             # 🌐 6 File từ điển ngôn ngữ JSON (vi, en, zh, es, pt, fr) - 2177 keys/file
 ├── scripts/             # Scripts hỗ trợ (send_status.py, watchdog.sh, termux_boot.sh, termux_mcp.py,
 │                        #   i18n_audit.py — kiểm kê chuỗi Việt hardcode theo AST,
 │                        #   i18n_migrate.py — fetch/plan/apply de-hardcode + ghi 6 locale,
