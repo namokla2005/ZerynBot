@@ -30,18 +30,17 @@ def _import_engine():
     return sbe
 
 
-def _import_cog_module():
+def _import_cog_module(module_name: str = "server_builder"):
     cogs_dir = str(ROOT / "bot" / "cogs")
     inserted = False
     if cogs_dir not in sys.path:
         sys.path.insert(0, cogs_dir)
         inserted = True
     try:
-        import server_builder as sb_cog
+        return __import__(module_name)
     finally:
         if inserted and cogs_dir in sys.path:
             sys.path.remove(cogs_dir)
-    return sb_cog
 
 
 # ---------------------------------------------------------------------------
@@ -519,26 +518,403 @@ def test_engine_unchanged_current_bindings_emit_no_bind_op():
     assert diff_moved["summary"]["total_operations"] == 1
 
 
+def test_engine_roles_idempotency_everyone_and_presets():
+    sbe = _import_engine()
+
+    # 1. 52-bit permission registry & unknown bit_60 roundtrip
+    assert len(sbe.PERMISSION_BITS) == 52
+    bits = (1 << 25) | (1 << 30) | (1 << 43) | (1 << 48) | (1 << 51) | (1 << 52) | (1 << 60)
+    expected_flags = sorted([
+        "use_vad",
+        "manage_guild_expressions",
+        "create_guild_expressions",
+        "set_voice_channel_status",
+        "pin_messages",
+        "bypass_slowmode",
+        "bit_60",
+    ])
+    assert sbe.normalize_role_permissions(bits) == expected_flags
+    assert sbe.normalize_role_permissions(str(bits)) == expected_flags
+    assert sbe.permissions_to_bitfield(expected_flags) == bits
+    assert sbe.normalize_role_permissions([
+        "use_voice_activation",
+        "manage_expressions",
+        "create_expressions",
+        "read_messages",
+        "bit_60",
+    ]) == sorted([
+        "use_vad",
+        "manage_guild_expressions",
+        "create_guild_expressions",
+        "view_channel",
+        "bit_60",
+    ])
+
+    # 2. #99aab5 <-> 0 color normalization
+    for default_val in (0, "0", "#000000", "#000", "", None, "99aab5", "#99AAB5"):
+        assert sbe.normalize_role_color(default_val) == "#99aab5"
+    assert sbe.normalize_role_color(0x3498DB) == "#3498db"
+    assert sbe.normalize_role_color("#abc") == "#aabbcc"
+
+    # 3. Live-import 0-op idempotency (@everyone, managed, >= bot_top_role_pos, bound roles)
+    live = {
+        "roles": [
+            {
+                "id": "@everyone",
+                "name": "@everyone",
+                "color": "#000000",
+                "position": 0,
+                "hoist": False,
+                "mentionable": False,
+                "managed": False,
+                "is_everyone": True,
+                "permissions": ["view_channel", "send_messages"],
+            },
+            {
+                "id": "4001",
+                "name": "ZerynBot",
+                "color": 0,
+                "position": 8,
+                "hoist": False,
+                "mentionable": False,
+                "managed": True,
+                "is_everyone": False,
+                "permissions": ["administrator"],
+            },
+            {
+                "id": "4002",
+                "name": "CoOwner",
+                "color": "#e74c3c",
+                "position": 12,
+                "hoist": True,
+                "mentionable": False,
+                "managed": False,
+                "is_everyone": False,
+                "permissions": ["administrator"],
+            },
+            {
+                "id": "4004",
+                "name": "VIP",
+                "color": "#f1c40f",
+                "position": 4,
+                "hoist": True,
+                "mentionable": True,
+                "managed": False,
+                "is_everyone": False,
+                "permissions": ["view_channel", "priority_speaker"],
+            },
+            {
+                "id": "4003",
+                "name": "Member",
+                "color": 0,
+                "position": 2,
+                "hoist": False,
+                "mentionable": False,
+                "managed": False,
+                "is_everyone": False,
+                "permissions": ["view_channel", "use_vad"],
+                "bind_role_module": "autoroles_user",
+            },
+        ],
+        "categories": [],
+        "uncategorized": [],
+        "bindings": {"autoroles_user": "4003"},
+    }
+    imported = json.loads(json.dumps(live))
+    imported["roles"][0]["color"] = 0
+    imported["roles"][4]["color"] = "#99aab5"
+    diff_idem = sbe.compute_diff(live, imported, safe_mode=True, bot_top_role_pos=10)
+    assert diff_idem["errors"] == []
+    assert diff_idem["summary"]["total_operations"] == 0
+
+    # Managed role edit skipped with warning; omitting @everyone/managed/>=bot_top never deletes them
+    managed_edit = json.loads(json.dumps(live))
+    managed_edit["roles"][1]["name"] = "RenamedBot"
+    managed_edit["roles"][1]["permissions"] = ["view_channel"]
+    diff_managed = sbe.compute_diff(live, managed_edit, safe_mode=True, bot_top_role_pos=10)
+    assert diff_managed["summary"]["total_operations"] == 0
+    assert any("Managed role" in w for w in diff_managed["warnings"])
+
+    omit_locked = json.loads(json.dumps(live))
+    omit_locked["roles"] = [r for r in omit_locked["roles"] if r["id"] in ("4003", "4004")]
+    diff_omit_locked = sbe.compute_diff(
+        live, omit_locked, safe_mode=False, confirm_deletions=True, bot_top_role_pos=10
+    )
+    assert diff_omit_locked["summary"]["delete_roles"] == 0
+    assert any("cannot be deleted" in w for w in diff_omit_locked["warnings"])
+
+    # 4. @everyone permissions-only edit (non-perm changes ignored, renames == 0)
+    ev_non_perm_only = json.loads(json.dumps(live))
+    ev_non_perm_only["roles"][0].update({
+        "name": "NotEveryone",
+        "color": "#ff0000",
+        "hoist": True,
+        "mentionable": True,
+        "position": 5,
+    })
+    diff_ev_noop = sbe.compute_diff(live, ev_non_perm_only, safe_mode=True, bot_top_role_pos=10)
+    assert diff_ev_noop["summary"]["total_operations"] == 0
+    assert diff_ev_noop["summary"]["renames"] == 0
+
+    ev_perm_edit = json.loads(json.dumps(ev_non_perm_only))
+    ev_perm_edit["roles"][0]["permissions"] = ["view_channel", "send_messages", "embed_links"]
+    diff_ev = sbe.compute_diff(live, ev_perm_edit, safe_mode=True, bot_top_role_pos=10)
+    assert diff_ev["summary"]["total_operations"] == 1
+    assert diff_ev["summary"]["update_roles"] == 1
+    assert diff_ev["summary"]["renames"] == 0
+    assert diff_ev["summary"]["bulk_reorder_roles"] is False
+    ev_op = diff_ev["operations"][0]
+    assert ev_op["op"] == "update_role"
+    assert ev_op["role_id"] == "@everyone"
+    assert ev_op["is_everyone"] is True
+    assert set(ev_op["changes"].keys()) == {"permissions", "permissions_bitfield"}
+    assert ev_op["changes"]["permissions"] == ["embed_links", "send_messages", "view_channel"]
+
+    # 5. update_role + single batch bulk_reorder_roles + create_role defer_position
+    edit_and_reorder = json.loads(json.dumps(live))
+    edit_and_reorder["roles"][3].update({
+        "name": "Super VIP",
+        "color": "#2ecc71",
+        "hoist": False,
+        "mentionable": False,
+        "permissions": ["view_channel", "priority_speaker", "pin_messages"],
+        "position": 1,
+    })
+    edit_and_reorder["roles"][4]["position"] = 4
+    edit_and_reorder["roles"].append({
+        "temp_id": "r_helper",
+        "name": "Helper",
+        "color": "#3498db",
+        "position": 3,
+        "permissions": ["view_channel", "bypass_slowmode"],
+    })
+    diff_reorder = sbe.compute_diff(live, edit_and_reorder, safe_mode=True, bot_top_role_pos=10)
+    assert diff_reorder["errors"] == []
+    assert diff_reorder["summary"]["create_roles"] == 1
+    assert diff_reorder["summary"]["update_roles"] == 1
+    assert diff_reorder["summary"]["bulk_reorder_roles"] is True
+    assert diff_reorder["summary"]["reorder_roles"] is True
+    op_names = [op["op"] for op in diff_reorder["operations"]]
+    assert op_names.count("bulk_reorder_roles") == 1
+    assert op_names.index("create_role") < op_names.index("update_role") < op_names.index("bulk_reorder_roles")
+    create_op = next(op for op in diff_reorder["operations"] if op["op"] == "create_role")
+    assert create_op["defer_position"] is True
+    reorder_op = next(op for op in diff_reorder["operations"] if op["op"] == "bulk_reorder_roles")
+    reorder_refs = {item["id"] or item["temp_id"] for item in reorder_op["items"]}
+    assert reorder_refs == {"4003", "4004", "r_helper"}
+
+    # 6. delete_role gated by safe_mode=False & confirm_deletions=True + protected_role_ids
+    del_target = json.loads(json.dumps(live))
+    del_target["roles"] = [r for r in del_target["roles"] if r["id"] not in ("4003", "4004")]
+    del_target["bindings"] = {}
+
+    diff_safe_del = sbe.compute_diff(live, del_target, safe_mode=True, confirm_deletions=True, bot_top_role_pos=10)
+    assert diff_safe_del["summary"]["has_deletions"] is False
+    assert diff_safe_del["summary"]["delete_roles"] == 0
+    assert diff_safe_del["summary"]["protected_deletions"] == 2
+
+    diff_unconf_del = sbe.compute_diff(live, del_target, safe_mode=False, confirm_deletions=False, bot_top_role_pos=10)
+    assert diff_unconf_del["summary"]["has_deletions"] is True
+    assert diff_unconf_del["summary"]["delete_roles"] == 0
+    assert {t["id"] for t in diff_unconf_del["summary"]["delete_targets"]} == {"4003", "4004"}
+
+    diff_prot_del = sbe.compute_diff(
+        live,
+        del_target,
+        safe_mode=False,
+        confirm_deletions=True,
+        bot_top_role_pos=10,
+        protected_role_ids={"4003"},
+    )
+    assert diff_prot_del["summary"]["delete_roles"] == 1
+    assert diff_prot_del["summary"]["protected_deletions"] == 1
+    assert [op["role_id"] for op in diff_prot_del["operations"] if op["op"] == "delete_role"] == ["4004"]
+    assert any("Protected role" in w for w in diff_prot_del["warnings"])
+
+    # 7. live_source="cache" and _cache_readonly wipe protection
+    diff_cache = sbe.compute_diff(
+        live,
+        edit_and_reorder,
+        safe_mode=False,
+        confirm_deletions=True,
+        bot_top_role_pos=10,
+        live_source="cache",
+    )
+    assert all(op["op"] not in ("update_role", "delete_role", "bulk_reorder_roles") for op in diff_cache["operations"])
+    assert any("Offline SQLite cache mode" in w for w in diff_cache["warnings"])
+
+    live_ro = json.loads(json.dumps(live))
+    live_ro["roles"][3]["_cache_readonly"] = True  # 4004
+    diff_ro = sbe.compute_diff(
+        live_ro, del_target, safe_mode=False, confirm_deletions=True, bot_top_role_pos=10
+    )
+    assert [op["role_id"] for op in diff_ro["operations"] if op["op"] == "delete_role"] == ["4003"]
+    assert any("Offline SQLite cache mode" in w for w in diff_ro["warnings"])
+
+    # 8. user_role_hierarchy_denied check
+    diff_hier_edit = sbe.compute_diff(
+        live,
+        edit_and_reorder,
+        safe_mode=True,
+        bot_top_role_pos=10,
+        is_guild_owner=False,
+        user_top_role_pos=4,
+    )
+    assert diff_hier_edit["operations"] == []
+    assert any("user_role_hierarchy_denied" in e for e in diff_hier_edit["errors"])
+
+    diff_hier_del = sbe.compute_diff(
+        live,
+        del_target,
+        safe_mode=False,
+        confirm_deletions=True,
+        bot_top_role_pos=10,
+        is_guild_owner=False,
+        user_top_role_pos=4,
+    )
+    assert diff_hier_del["operations"] == []
+    assert any("user_role_hierarchy_denied" in e for e in diff_hier_del["errors"])
+
+    # 9. Safe Mode MAX_GUILD_ROLES = 250 boundary
+    roles_250 = [{"temp_id": f"r_{i}", "name": f"R{i}", "position": 1} for i in range(sbe.MAX_GUILD_ROLES)]
+    assert sbe.validate_tree_limits({"roles": roles_250})["ok"] is True
+    roles_251 = [{"temp_id": f"r_{i}", "name": f"R{i}", "position": 1} for i in range(sbe.MAX_GUILD_ROLES + 1)]
+    res_251 = sbe.validate_tree_limits({"roles": roles_251})
+    assert res_251["ok"] is False and any("250" in e for e in res_251["errors"])
+
+    curr_248 = {
+        "roles": [{"id": f"90{i}", "name": f"Live{i}", "position": 1} for i in range(248)],
+        "categories": [],
+        "uncategorized": [],
+    }
+    tgt_250 = {
+        "roles": curr_248["roles"] + [
+            {"temp_id": "new_1", "name": "New1", "position": 1},
+            {"temp_id": "new_2", "name": "New2", "position": 1},
+        ],
+        "categories": [],
+        "uncategorized": [],
+    }
+    assert sbe.compute_diff(curr_248, tgt_250, safe_mode=True)["errors"] == []
+    tgt_over_250 = {
+        "roles": tgt_250["roles"] + [{"temp_id": "new_3", "name": "New3", "position": 1}],
+        "categories": [],
+        "uncategorized": [],
+    }
+    diff_over_250 = sbe.compute_diff(curr_248, tgt_over_250, safe_mode=True)
+    assert any("250" in e for e in diff_over_250["errors"])
+
+    # 10. Explicit role unbinds vs partial roles: [] tree
+    curr_bound = {
+        "roles": [
+            {"id": "@everyone", "name": "@everyone", "position": 0, "is_everyone": True, "permissions": []},
+            {"id": "4003", "name": "Member", "position": 2, "color": 0, "permissions": [], "bind_role_module": "autoroles_user"},
+            {"id": "4004", "name": "Verified", "position": 3, "color": 0, "permissions": [], "bind_role_module": "verify_verified"},
+        ],
+        "categories": [],
+        "uncategorized": [],
+        "bindings": {"autoroles_user": "4003", "verify_verified": "4004"},
+    }
+    diff_partial = sbe.compute_diff(
+        curr_bound,
+        {"roles": [], "categories": [], "uncategorized": []},
+        safe_mode=True,
+    )
+    assert diff_partial["summary"]["bind_modules"] is False
+    assert diff_partial["summary"]["total_operations"] == 0
+
+    explicit_unbind_target = json.loads(json.dumps(curr_bound))
+    explicit_unbind_target["roles"][1]["bind_role_module"] = None
+    explicit_unbind_target["bindings"] = {"verify_verified": "4004"}
+    diff_unbind = sbe.compute_diff(curr_bound, explicit_unbind_target, safe_mode=True)
+    bind_unbind_ops = [op for op in diff_unbind["operations"] if op["op"] == "bind_modules"]
+    assert len(bind_unbind_ops) == 1
+    assert bind_unbind_ops[0]["bindings"]["autoroles_user"] is None
+    assert bind_unbind_ops[0]["bindings"]["verify_verified"] == "4004"
+
+    # 11. All 4 enriched SYSTEM_PRESETS
+    presets = sbe.get_system_presets()
+    assert [p["id"] for p in presets] == ["community_4cat", "gaming_squad", "study_class", "creator_community"]
+    for preset in presets:
+        ptree = preset["tree"]
+        assert len(ptree["roles"]) >= 3
+        assert sbe.validate_tree_limits(ptree)["ok"] is True, preset["id"]
+        role_temp_ids = {r["temp_id"] for r in ptree["roles"]}
+        assert ptree["bindings"].get("automod_immune") in role_temp_ids
+        assert ptree["bindings"].get("autoroles_user") in role_temp_ids
+        pdiff = sbe.compute_diff({}, ptree, safe_mode=True)
+        assert pdiff["errors"] == [], (preset["id"], pdiff["errors"])
+        assert pdiff["summary"]["create_roles"] == len(ptree["roles"])
+        assert pdiff["summary"]["bulk_reorder_roles"] is True
+        assert pdiff["summary"]["bind_modules"] is True
+
+
 # ---------------------------------------------------------------------------
 # 3. Offline Cog Worker (Fake Discord Guild/Channel/Role harness)
 # ---------------------------------------------------------------------------
 
 class FakeRole:
-    def __init__(self, rid: int, name: str, position: int = 1, default: bool = False):
+    def __init__(
+        self,
+        rid: int,
+        name: str,
+        position: int = 1,
+        default: bool = False,
+        *,
+        colour=None,
+        color=None,
+        permissions=None,
+        hoist: bool = False,
+        mentionable: bool = False,
+        managed: bool = False,
+        guild=None,
+    ):
         self.id = rid
         self.name = name
         self.position = position
-        self.color = discord.Color.default()
+        resolved_color = colour if colour is not None else color
+        self.color = resolved_color if resolved_color is not None else discord.Color.default()
+        self.colour = self.color
+        if isinstance(permissions, discord.Permissions):
+            self.permissions = permissions
+        elif isinstance(permissions, int):
+            self.permissions = discord.Permissions(permissions)
+        else:
+            self.permissions = discord.Permissions.none()
+        self.hoist = hoist
+        self.mentionable = mentionable
+        self.managed = managed
+        self.guild = guild
         self._default = default
         self.edit_calls = []
+        self.delete_calls = []
+        self.deleted = False
 
     def is_default(self):
         return self._default
 
     async def edit(self, **kwargs):
         self.edit_calls.append(kwargs)
+        if "name" in kwargs:
+            self.name = kwargs["name"]
         if "position" in kwargs:
             self.position = kwargs["position"]
+        if "colour" in kwargs or "color" in kwargs:
+            c = kwargs.get("colour", kwargs.get("color"))
+            self.color = c
+            self.colour = c
+        if "permissions" in kwargs:
+            self.permissions = kwargs["permissions"]
+        if "hoist" in kwargs:
+            self.hoist = bool(kwargs["hoist"])
+        if "mentionable" in kwargs:
+            self.mentionable = bool(kwargs["mentionable"])
+
+    async def delete(self, **kwargs):
+        self.delete_calls.append(kwargs)
+        self.deleted = True
+        if self.guild is not None and self in self.guild.roles:
+            self.guild.roles.remove(self)
 
 
 class FakeChannel:
@@ -593,28 +969,47 @@ class FakeCategory(FakeChannel):
 class FakeHTTP:
     def __init__(self):
         self.bulk_calls = []
+        self.move_role_calls = []
 
     async def bulk_channel_update(self, guild_id, payload, reason=None):
         self.bulk_calls.append((guild_id, payload, reason))
 
+    async def move_role_position(self, guild_id, payload, reason=None):
+        self.move_role_calls.append((guild_id, payload, reason))
+
 
 class FakeGuild:
-    def __init__(self, gid: int = 999999999999999999, features=(), bitrate_limit=96000, bot_top_pos=50):
+    def __init__(
+        self,
+        gid: int = 999999999999999999,
+        features=(),
+        bitrate_limit=96000,
+        bot_top_pos=50,
+        owner_id: int = 1,
+    ):
         self.id = gid
         self.name = "Fake Guild"
         self.icon = None
+        self.owner_id = owner_id
         self.features = tuple(features)
         self.bitrate_limit = bitrate_limit
-        self.default_role = FakeRole(gid, "@everyone", position=0, default=True)
-        self.me = types.SimpleNamespace(top_role=FakeRole(888, "ZerynBot", position=bot_top_pos))
+        self.default_role = FakeRole(gid, "@everyone", position=0, default=True, guild=self)
+        self.me = types.SimpleNamespace(top_role=FakeRole(888, "ZerynBot", position=bot_top_pos, managed=True, guild=self))
         self.roles = [self.default_role]
         self.categories = []
         self.channels = []
+        self.text_channels = []
+        self._members = {}
+        self._audit_entries = []
+        self.banned_users = []
         self._next_id = 1000
         self._state = types.SimpleNamespace(http=FakeHTTP())
 
     def get_role(self, rid):
         return next((r for r in self.roles if r.id == rid), None)
+
+    def get_member(self, uid):
+        return self._members.get(uid)
 
     def get_channel(self, cid):
         for cat in self.categories:
@@ -622,12 +1017,33 @@ class FakeGuild:
                 return cat
         return next((c for c in self.channels if c.id == cid), None)
 
+    async def ban(self, user, **kwargs):
+        self.banned_users.append((user, kwargs))
+
+    async def audit_logs(self, limit=10, action=None):
+        count = 0
+        for entry in self._audit_entries:
+            if action is None or getattr(entry, "action", None) == action:
+                yield entry
+                count += 1
+                if count >= limit:
+                    break
+
     def _alloc(self):
         self._next_id += 1
         return self._next_id
 
     async def create_role(self, **kwargs):
-        r = FakeRole(self._alloc(), kwargs["name"], position=1)
+        r = FakeRole(
+            self._alloc(),
+            kwargs["name"],
+            position=1,
+            colour=kwargs.get("colour", kwargs.get("color")),
+            permissions=kwargs.get("permissions"),
+            hoist=bool(kwargs.get("hoist", False)),
+            mentionable=bool(kwargs.get("mentionable", False)),
+            guild=self,
+        )
         if self.me.top_role.position <= 1:
             self.me.top_role.position += 1
         self.roles.append(r)
@@ -661,6 +1077,7 @@ class FakeGuild:
             news=is_news,
         )
         self.channels.append(ch)
+        self.text_channels.append(ch)
         return ch
 
     async def create_voice_channel(self, **kwargs):
@@ -677,6 +1094,17 @@ class FakeGuild:
         )
         self.channels.append(ch)
         return ch
+
+
+class BatchReorderGuild(FakeGuild):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.role_position_calls = []
+
+    async def edit_role_positions(self, *, positions, reason=None):
+        self.role_position_calls.append((dict(positions), reason))
+        for role, pos in positions.items():
+            role.position = pos
 
 
 def _new_cog(guild):
@@ -993,6 +1421,448 @@ def test_cog_on_ready_stale_recovery_and_loadable(temp_db):
         tasks.Loop.start = orig_start
 
 
+def test_cog_roles_update_batch_reorder_delete_toctou_and_bindings(temp_db):
+    import sqlite3
+    import database as db
+
+    sb_cog_mod = _import_cog_module("server_builder")
+    automod_mod = _import_cog_module("automod")
+    events_mod = _import_cog_module("events")
+
+    # 1. create_role (list[str] + permissions_bitfield + #99aab5->default), update_role, @everyone permissions-only, batch reorder
+    guild = BatchReorderGuild(gid=999999999999999995, bot_top_pos=6, owner_id=1)
+    guild.default_role.permissions = discord.Permissions(1 << 10)
+    low_role = FakeRole(5010, "Member", position=1, guild=guild)
+    high_role = FakeRole(5011, "CoOwner", position=7, guild=guild)
+    managed_role = FakeRole(5012, "IntegrationBot", position=2, managed=True, guild=guild)
+    guild.roles.extend([low_role, high_role, managed_role])
+    _, cog = _new_cog(guild)
+
+    bitfield_52 = (1 << 25) | (1 << 30) | (1 << 43) | (1 << 48) | (1 << 51) | (1 << 52)
+    plan_roles = {
+        "operations": [
+            {
+                "op": "create_role",
+                "temp_id": "r_list",
+                "name": "VoiceExpr",
+                "color": "#99aab5",
+                "hoist": True,
+                "mentionable": True,
+                "permissions": ["use_vad", "manage_guild_expressions", "create_guild_expressions"],
+                "position": 10,
+                "defer_position": True,
+                "cost_seconds": 1.0,
+                "label": "Create VoiceExpr",
+            },
+            {
+                "op": "create_role",
+                "temp_id": "r_bits",
+                "name": "Full52Bit",
+                "color": "#3498db",
+                "hoist": False,
+                "mentionable": False,
+                "permissions_bitfield": str(bitfield_52),
+                "position": 2,
+                "defer_position": True,
+                "cost_seconds": 1.0,
+                "label": "Create Full52Bit",
+            },
+            {
+                "op": "update_role",
+                "role_id": str(low_role.id),
+                "is_everyone": False,
+                "changes": {
+                    "name": "MemberPlus",
+                    "color": "#2ecc71",
+                    "hoist": True,
+                    "mentionable": True,
+                    "permissions": ["view_channel", "use_vad"],
+                    "permissions_bitfield": str((1 << 10) | (1 << 25)),
+                },
+                "cost_seconds": 1.0,
+                "label": "Update Member",
+            },
+            {
+                "op": "update_role",
+                "role_id": "@everyone",
+                "is_everyone": True,
+                "changes": {
+                    "name": "HijackedName",
+                    "color": "#ff0000",
+                    "hoist": True,
+                    "mentionable": True,
+                    "permissions": ["view_channel", "send_messages"],
+                    "permissions_bitfield": str((1 << 10) | (1 << 11)),
+                },
+                "cost_seconds": 1.0,
+                "label": "Update @everyone",
+            },
+            {
+                "op": "bulk_reorder_roles",
+                "items": [
+                    {"id": str(high_role.id), "position": 1},
+                    {"id": str(managed_role.id), "position": 2},
+                    {"id": str(low_role.id), "position": 3},
+                    {"id": None, "temp_id": "r_bits", "position": 4},
+                    {"id": None, "temp_id": "r_list", "position": 10},
+                ],
+                "cost_seconds": 1.5,
+                "label": "Bulk reorder roles",
+            },
+        ]
+    }
+    j_roles = db.create_server_builder_job(
+        str(guild.id), "1", plan_roles, {"auto_bind_modules": False, "send_guides": False}, 5, 5.5
+    )
+    asyncio.run(cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(j_roles["id"])["status"] == "completed"
+
+    voice_role = next(r for r in guild.roles if r.name == "VoiceExpr")
+    assert voice_role.color == discord.Color.default()
+    assert voice_role.color.value == 0
+    assert voice_role.hoist is True
+    assert voice_role.mentionable is True
+    assert voice_role.permissions.use_voice_activation is True
+    assert voice_role.permissions.manage_expressions is True
+    assert voice_role.permissions.create_expressions is True
+    assert voice_role.edit_calls == []  # defer_position=True skipped per-role edit
+
+    bits_role = next(r for r in guild.roles if r.name == "Full52Bit")
+    assert bits_role.color.value == 0x3498DB
+    assert bits_role.permissions.value == bitfield_52
+    assert bits_role.permissions.use_voice_activation is True
+    assert bits_role.permissions.manage_expressions is True
+    assert bits_role.permissions.create_expressions is True
+    assert bits_role.permissions.set_voice_channel_status is True
+    assert bits_role.permissions.pin_messages is True
+    assert bits_role.permissions.bypass_slowmode is True
+    assert bits_role.edit_calls == []
+
+    assert low_role.name == "MemberPlus"
+    assert low_role.color.value == 0x2ECC71
+    assert low_role.hoist is True
+    assert low_role.mentionable is True
+    assert low_role.permissions.value == ((1 << 10) | (1 << 25))
+
+    assert len(guild.default_role.edit_calls) == 1
+    ev_call = guild.default_role.edit_calls[0]
+    assert set(ev_call.keys()) == {"permissions", "reason"}
+    assert ev_call["permissions"].value == ((1 << 10) | (1 << 11))
+    assert guild.default_role.name == "@everyone"
+
+    assert len(guild.role_position_calls) == 1
+    batch_positions, _ = guild.role_position_calls[0]
+    assert high_role not in batch_positions
+    assert managed_role not in batch_positions
+    assert guild.default_role not in batch_positions
+    assert set(batch_positions.keys()) == {low_role, bits_role, voice_role}
+    assert all(1 <= pos <= 5 for pos in batch_positions.values())
+    assert len(set(batch_positions.values())) == 3
+    assert batch_positions[voice_role] > batch_positions[bits_role] > batch_positions[low_role]
+
+    # 1b. http.move_role_position fallback when guild lacks edit_role_positions
+    fb_guild = FakeGuild(gid=999999999999999994, bot_top_pos=5, owner_id=1)
+    r_fb1 = FakeRole(5101, "FB1", position=1, guild=fb_guild)
+    r_fb2 = FakeRole(5102, "FB2", position=2, guild=fb_guild)
+    fb_guild.roles.extend([r_fb1, r_fb2])
+    _, fb_cog = _new_cog(fb_guild)
+    plan_fb = {
+        "operations": [
+            {
+                "op": "bulk_reorder_roles",
+                "items": [
+                    {"id": str(r_fb1.id), "position": 9},
+                    {"id": str(r_fb2.id), "position": 1},
+                ],
+                "cost_seconds": 1.5,
+                "label": "Fallback reorder",
+            }
+        ]
+    }
+    j_fb = db.create_server_builder_job(
+        str(fb_guild.id), "1", plan_fb, {"auto_bind_modules": False, "send_guides": False}, 1, 1.5
+    )
+    asyncio.run(fb_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(j_fb["id"])["status"] == "completed"
+    assert len(fb_guild._state.http.move_role_calls) == 1
+    _, move_payload, _ = fb_guild._state.http.move_role_calls[0]
+    pos_by_id = {row["id"]: row["position"] for row in move_payload}
+    assert pos_by_id[r_fb1.id] <= 4 and pos_by_id[r_fb1.id] > pos_by_id[r_fb2.id]
+
+    # 2. delete_role protections (safe_mode, confirm_deletions, bot_admin_roles, verify_settings, ticket_panels) & _sb_expected_deletes
+    del_guild = FakeGuild(gid=999999999999999993, bot_top_pos=10, owner_id=1)
+    r_admin = FakeRole(5201, "BotAdmin", position=2, guild=del_guild)
+    r_ver = FakeRole(5202, "Verified", position=3, guild=del_guild)
+    r_pend = FakeRole(5203, "Pending", position=4, guild=del_guild)
+    r_ticket = FakeRole(5204, "TicketSupport", position=5, guild=del_guild)
+    r_high = FakeRole(5205, "TooHigh", position=11, guild=del_guild)
+    r_managed = FakeRole(5206, "Managed", position=6, managed=True, guild=del_guild)
+    r_drop = FakeRole(5207, "Deletable", position=7, guild=del_guild)
+    r_fail = FakeRole(5208, "FailDelete", position=8, guild=del_guild)
+
+    async def boom_delete(**kwargs):
+        raise RuntimeError("transient delete failure")
+
+    r_fail.delete = boom_delete
+    del_guild.roles.extend([r_admin, r_ver, r_pend, r_ticket, r_high, r_managed, r_drop, r_fail])
+    _, del_cog = _new_cog(del_guild)
+
+    gid_del = str(del_guild.id)
+    db.upsert_guild(gid_del, bot_admin_roles=json.dumps([str(r_admin.id)]))
+    db.upsert_verify_settings(gid_del, enabled=1, verified_role_id=str(r_ver.id), pending_role_id=str(r_pend.id))
+    db.save_ticket_panel(gid_del, {"name": "Help", "channel_id": "3001", "support_role_id": str(r_ticket.id)}, [])
+
+    plan_del_drop = {"operations": [{"op": "delete_role", "role_id": str(r_drop.id), "name": "Deletable", "cost_seconds": 1.0, "label": "Delete Deletable"}]}
+    j_d_safe = db.create_server_builder_job(gid_del, "1", plan_del_drop, {"safe_mode": True, "confirm_deletions": True, "auto_bind_modules": False, "send_guides": False}, 1, 1.0)
+    asyncio.run(del_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(j_d_safe["id"])["status"] == "completed"
+    assert r_drop.deleted is False
+
+    j_d_unconf = db.create_server_builder_job(gid_del, "1", plan_del_drop, {"safe_mode": False, "confirm_deletions": False, "auto_bind_modules": False, "send_guides": False}, 1, 1.0)
+    asyncio.run(del_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(j_d_unconf["id"])["status"] == "completed"
+    assert r_drop.deleted is False
+
+    plan_del_all = {
+        "operations": [
+            {"op": "delete_role", "role_id": "@everyone", "name": "@everyone", "cost_seconds": 1.0, "label": "Delete @everyone"},
+            {"op": "delete_role", "role_id": str(r_admin.id), "name": "BotAdmin", "cost_seconds": 1.0, "label": "Delete BotAdmin"},
+            {"op": "delete_role", "role_id": str(r_ver.id), "name": "Verified", "cost_seconds": 1.0, "label": "Delete Verified"},
+            {"op": "delete_role", "role_id": str(r_pend.id), "name": "Pending", "cost_seconds": 1.0, "label": "Delete Pending"},
+            {"op": "delete_role", "role_id": str(r_ticket.id), "name": "TicketSupport", "cost_seconds": 1.0, "label": "Delete TicketSupport"},
+            {"op": "delete_role", "role_id": str(r_high.id), "name": "TooHigh", "cost_seconds": 1.0, "label": "Delete TooHigh"},
+            {"op": "delete_role", "role_id": str(r_managed.id), "name": "Managed", "cost_seconds": 1.0, "label": "Delete Managed"},
+            {"op": "delete_role", "role_id": str(r_drop.id), "name": "Deletable", "cost_seconds": 1.0, "label": "Delete Deletable"},
+            {"op": "delete_role", "role_id": str(r_fail.id), "name": "FailDelete", "cost_seconds": 1.0, "label": "Delete FailDelete"},
+        ]
+    }
+    j_d_exec = db.create_server_builder_job(gid_del, "1", plan_del_all, {"safe_mode": False, "confirm_deletions": True, "auto_bind_modules": False, "send_guides": False}, 9, 9.0)
+    asyncio.run(del_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    done_del = db.get_server_builder_job(j_d_exec["id"])
+    assert done_del["status"] == "failed" and done_del["failed_steps"] == 1
+    assert r_admin.deleted is False
+    assert r_ver.deleted is False
+    assert r_pend.deleted is False
+    assert r_ticket.deleted is False
+    assert r_high.deleted is False
+    assert r_managed.deleted is False
+    assert del_guild.default_role.deleted is False
+    assert r_drop.deleted is True
+    assert (gid_del, "role_delete", str(r_drop.id)) in del_cog.bot._sb_expected_deletes
+    assert (gid_del, "role_delete", str(r_fail.id)) not in del_cog.bot._sb_expected_deletes
+
+    # 3. Automod._on_delete_event suppresses expected Server Builder deletes while catching concurrent rogue deletes
+    am_guild = FakeGuild(gid=999999999999999992, bot_top_pos=10, owner_id=1)
+    rogue_actor = types.SimpleNamespace(
+        id=777,
+        bot=False,
+        mention="<@777>",
+        guild_permissions=types.SimpleNamespace(administrator=False),
+        roles=[],
+    )
+    am_guild._members[777] = rogue_actor
+    am_guild._audit_entries = [
+        types.SimpleNamespace(
+            action=discord.AuditLogAction.role_delete,
+            user=rogue_actor,
+            created_at=discord.utils.utcnow(),
+        )
+    ]
+    gid_am = str(am_guild.id)
+    db.upsert_guild(gid_am, language="en")
+    db.set_module(gid_am, "automods", True)
+    db.upsert_automod_settings(gid_am, anti_nuke_enabled=1)
+
+    _, sb_for_am = _new_cog(am_guild)
+
+    async def _run_automod_antinuke():
+        am_cog = automod_mod.Automod(sb_for_am.bot)
+        try:
+            for idx in range(3):
+                sb_for_am._register_expected_delete(am_guild.id, "role_delete", 6000 + idx)
+                await am_cog.on_guild_role_delete(FakeRole(6000 + idx, f"SBRole{idx}", guild=am_guild))
+            for idx in range(2):
+                sb_for_am._register_expected_delete(am_guild.id, "channel_delete", 6100 + idx)
+                await am_cog.on_guild_channel_delete(FakeChannel(6100 + idx, f"sb-ch-{idx}", 0, am_guild))
+
+            assert am_cog.nuke_cache[gid_am] == []
+            assert am_guild.banned_users == []
+
+            for idx in range(4):
+                await am_cog.on_guild_role_delete(FakeRole(7000 + idx, f"Rogue{idx}", guild=am_guild))
+                sb_for_am._register_expected_delete(am_guild.id, "role_delete", 6200 + idx)
+                await am_cog.on_guild_role_delete(FakeRole(6200 + idx, f"SBExtra{idx}", guild=am_guild))
+
+            assert len(am_cog.nuke_cache[gid_am]) == 4
+            assert am_guild.banned_users == []
+
+            await am_cog.on_guild_role_delete(FakeRole(7004, "RogueTrigger", guild=am_guild))
+            assert len(am_guild.banned_users) == 1
+            assert am_guild.banned_users[0][0] is rogue_actor
+        finally:
+            am_cog.cog_unload()
+
+    asyncio.run(_run_automod_antinuke())
+
+    # 4. Gate 4 TOCTOU check blocking role mutations when actor lacks manage_roles/admin or ceiling drops
+    toctou_guild = FakeGuild(gid=999999999999999991, bot_top_pos=15, owner_id=1)
+    r_existing = FakeRole(5301, "Existing", position=4, guild=toctou_guild)
+    toctou_guild.roles.append(r_existing)
+    toctou_guild._members[111] = types.SimpleNamespace(
+        guild_permissions=types.SimpleNamespace(administrator=False, manage_roles=False),
+        top_role=FakeRole(999, "RevokedUserTop", position=10),
+    )
+    _, toctou_cog = _new_cog(toctou_guild)
+    plan_toctou = {
+        "operations": [
+            {"op": "create_role", "temp_id": "r_t", "name": "Illegal", "position": 1, "cost_seconds": 1.0, "label": "Create Illegal"},
+            {"op": "update_role", "role_id": str(r_existing.id), "changes": {"name": "Hijacked"}, "cost_seconds": 1.0, "label": "Update Existing"},
+            {"op": "bulk_reorder_roles", "items": [{"id": str(r_existing.id), "position": 2}], "cost_seconds": 1.5, "label": "Reorder Existing"},
+            {"op": "delete_role", "role_id": str(r_existing.id), "name": "Existing", "cost_seconds": 1.0, "label": "Delete Existing"},
+        ]
+    }
+    j_toc = db.create_server_builder_job(
+        str(toctou_guild.id), "111", plan_toctou,
+        {"safe_mode": False, "confirm_deletions": True, "auto_bind_modules": False, "send_guides": False},
+        4, 4.5,
+    )
+    asyncio.run(toctou_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    done_toc = db.get_server_builder_job(j_toc["id"])
+    assert done_toc["status"] == "failed"
+    assert done_toc["failed_steps"] == 4
+    assert any("Actor no longer holds manage_roles or administrator" in entry["message"] for entry in done_toc["step_logs"])
+    assert r_existing.name == "Existing" and r_existing.deleted is False
+    assert all(r.name != "Illegal" for r in toctou_guild.roles)
+
+    # TOCTOU actor_top_role_pos check even when actor still has manage_roles=True
+    toctou_guild._members[111] = types.SimpleNamespace(
+        guild_permissions=types.SimpleNamespace(administrator=False, manage_roles=True),
+        top_role=FakeRole(999, "LowUserTop", position=3),
+    )
+    j_toc2 = db.create_server_builder_job(
+        str(toctou_guild.id), "111",
+        {"operations": [{"op": "update_role", "role_id": str(r_existing.id), "changes": {"name": "AboveActor"}, "cost_seconds": 1.0, "label": "Update AboveActor"}]},
+        {"auto_bind_modules": False, "send_guides": False},
+        1, 1.0,
+    )
+    asyncio.run(toctou_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    done_toc2 = db.get_server_builder_job(j_toc2["id"])
+    assert done_toc2["status"] == "failed"
+    assert r_existing.name == "Existing"
+
+    # 5. Phase 6 role module bindings (+ explicit None unbinds) & 10-column guild_roles persistence + _sb_active_guilds skip
+    bind_guild = FakeGuild(gid=999999999999999990, bot_top_pos=20, owner_id=1)
+    gid_bind = str(bind_guild.id)
+    db.upsert_guild(gid_bind, autoroles_user=json.dumps(["8000", "8001"]), autoroles_enabled=0)
+    db.upsert_automod_settings(gid_bind, immune_roles=["8003", "8002"])
+    _, bind_cog = _new_cog(bind_guild)
+
+    plan_bind = {
+        "operations": [
+            {"op": "create_role", "temp_id": "r_ar", "name": "AutoMember", "color": "#2ecc71", "position": 1, "bind_role_module": "autoroles_user", "cost_seconds": 1.0, "label": "Create AutoMember"},
+            {"op": "create_role", "temp_id": "r_ver", "name": "VerifiedRole", "color": "#3498db", "position": 2, "bind_role_module": "verify_verified", "cost_seconds": 1.0, "label": "Create VerifiedRole"},
+            {"op": "create_role", "temp_id": "r_pend", "name": "PendingRole", "color": "#95a5a6", "position": 3, "bind_role_module": "verify_pending", "cost_seconds": 1.0, "label": "Create PendingRole"},
+            {"op": "create_role", "temp_id": "r_imm", "name": "ImmuneRole", "color": "#e74c3c", "position": 4, "bind_role_module": "automod_immune", "cost_seconds": 1.0, "label": "Create ImmuneRole"},
+            {
+                "op": "bind_modules",
+                "bindings": {
+                    "autoroles_user": "r_ar",
+                    "verify_verified": "r_ver",
+                    "verify_pending": "r_pend",
+                    "automod_immune": "r_imm",
+                },
+                "cost_seconds": 0.5,
+                "label": "Bind roles",
+            },
+        ]
+    }
+    j_bind = db.create_server_builder_job(
+        gid_bind, "1", plan_bind, {"auto_bind_modules": True, "send_guides": False}, 5, 4.5
+    )
+
+    # Spy while job is running to verify _sb_active_guilds contains gid_bind mid-job
+    active_mid_job = []
+    orig_create_role = bind_guild.create_role
+
+    async def spy_create_role(**kwargs):
+        active_mid_job.append(gid_bind in getattr(bind_cog.bot, "_sb_active_guilds", set()))
+        return await orig_create_role(**kwargs)
+
+    bind_guild.create_role = spy_create_role
+    asyncio.run(bind_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(j_bind["id"])["status"] == "completed"
+    assert active_mid_job and all(active_mid_job)
+    assert gid_bind not in bind_cog.bot._sb_active_guilds
+
+    ar_role = next(r for r in bind_guild.roles if r.name == "AutoMember")
+    ver_role = next(r for r in bind_guild.roles if r.name == "VerifiedRole")
+    pend_role = next(r for r in bind_guild.roles if r.name == "PendingRole")
+    imm_role = next(r for r in bind_guild.roles if r.name == "ImmuneRole")
+
+    gs_bind = db.get_guild_settings(gid_bind)
+    assert json.loads(gs_bind["autoroles_user"]) == [str(ar_role.id), "8001"]
+    assert gs_bind["autoroles_enabled"] == 1
+    vs_bind = db.get_verify_settings(gid_bind)
+    assert vs_bind["verified_role_id"] == str(ver_role.id)
+    assert vs_bind["pending_role_id"] == str(pend_role.id)
+    am_bind = db.get_automod_settings(gid_bind)
+    assert am_bind["immune_roles"] == [str(imm_role.id), "8002"]
+
+    # Explicit None unbinds clear primary bindings cleanly
+    plan_unbind = {
+        "operations": [
+            {
+                "op": "bind_modules",
+                "bindings": {
+                    "autoroles_user": None,
+                    "verify_verified": None,
+                    "verify_pending": None,
+                    "automod_immune": None,
+                },
+                "cost_seconds": 0.5,
+                "label": "Unbind roles",
+            }
+        ]
+    }
+    j_unbind = db.create_server_builder_job(
+        gid_bind, "1", plan_unbind, {"auto_bind_modules": True, "send_guides": False}, 1, 0.5
+    )
+    asyncio.run(bind_cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(j_unbind["id"])["status"] == "completed"
+    assert json.loads(db.get_guild_settings(gid_bind)["autoroles_user"]) == ["8001"]
+    vs_unbound = db.get_verify_settings(gid_bind)
+    assert vs_unbound["verified_role_id"] is None
+    assert vs_unbound["pending_role_id"] is None
+    assert db.get_automod_settings(gid_bind)["immune_roles"] == ["8002"]
+
+    # Check 10-column guild_roles cache persisted by ServerBuilder & Events._serialize_roles + _sb_active_guilds skip
+    with sqlite3.connect(temp_db) as raw:
+        cols = [row[1] for row in raw.execute("PRAGMA table_info(guild_roles)").fetchall()]
+    assert cols == [
+        "guild_id", "role_id", "role_name", "color_hex", "position",
+        "permissions", "hoist", "mentionable", "managed", "is_everyone",
+    ]
+    cached_roles = {r["role_id"]: r for r in db.get_guild_roles(gid_bind)}
+    assert str(imm_role.id) in cached_roles
+    assert cached_roles[str(imm_role.id)]["color_hex"] == "#e74c3c"
+    assert cached_roles[str(bind_guild.default_role.id)]["is_everyone"] == 1
+
+    # Events cog skips refresh while guild is in _sb_active_guilds, and refreshes once cleared
+    ev_bot = types.SimpleNamespace(_sb_active_guilds={gid_bind})
+    events_cog = events_mod.Events(ev_bot)
+    imm_role.name = "ImmuneEditedDuringBuild"
+    asyncio.run(events_cog.on_guild_role_update(imm_role, imm_role))
+    assert db.get_guild_roles(gid_bind)[0]["role_name"] != "ImmuneEditedDuringBuild"
+
+    ev_bot._sb_active_guilds.discard(gid_bind)
+    serialized_ev = events_cog._serialize_roles(bind_guild)
+    serialized_sb = sb_cog_mod._serialize_roles(bind_guild)
+    assert {tuple(sorted(r.keys())) for r in serialized_ev} == {tuple(sorted(r.keys())) for r in serialized_sb}
+    asyncio.run(events_cog.on_guild_role_update(imm_role, imm_role))
+    refreshed = {r["role_id"]: r for r in db.get_guild_roles(gid_bind)}
+    assert refreshed[str(imm_role.id)]["role_name"] == "ImmuneEditedDuringBuild"
+
+
 # ---------------------------------------------------------------------------
 # 4. Dashboard routes, RBAC, CSRF, IDOR & XSS Checks
 # ---------------------------------------------------------------------------
@@ -1204,6 +2074,336 @@ def test_dashboard_apply_permissions_conflict_deletions_idor_and_templates(clien
     assert resp_503.status_code == 503
 
 
+def test_dashboard_role_authority_and_escalation_gates(client, temp_db, monkeypatch):
+    import config
+    import database as db
+    from dashboard import auth
+
+    bot_id = "900000000000000000"
+
+    def _mock_role_studio(
+        *,
+        user_roles,
+        bot_perm_bits=0x8,
+        bot_top_pos=20,
+        owner_id="1",
+        extra_roles=(),
+        extra_channels=(),
+    ):
+        auth.invalidate_server_builder_tree_cache(MOCK_GUILD_ID)
+        auth._member_roles_cache.clear()
+        monkeypatch.setattr(auth, "_bot_identity_cache", {"ts": time.time(), "id": bot_id})
+        monkeypatch.setattr(config, "CLIENT_ID", bot_id)
+        monkeypatch.setattr(config, "TOKEN", "fake-bot-token")
+
+        class _Resp:
+            def __init__(self, payload, ok=True):
+                self._payload = payload
+                self.ok = ok
+
+            def json(self):
+                return self._payload
+
+        channels_payload = [
+            {
+                "id": "3001", "name": "📢 ANNOUNCEMENT", "type": 4, "position": 0,
+                "permission_overwrites": [{"id": MOCK_GUILD_ID, "type": 0, "allow": "1024", "deny": "0"}],
+            },
+            {
+                "id": "3002", "name": "rules", "type": 0, "parent_id": "3001", "position": 0,
+                "permission_overwrites": [{"id": MOCK_GUILD_ID, "type": 0, "allow": "1024", "deny": "0"}],
+            },
+            {
+                "id": "3003", "name": "secret-vault", "type": 0, "parent_id": None, "position": 1,
+                "permission_overwrites": [{"id": MOCK_GUILD_ID, "type": 0, "allow": "0", "deny": "1024"}],
+            },
+            *extra_channels,
+        ]
+        roles_payload = [
+            {"id": MOCK_GUILD_ID, "name": "@everyone", "position": 0, "permissions": "0", "color": 0},
+            {"id": "4001", "name": "ZerynBot", "position": bot_top_pos, "permissions": str(bot_perm_bits), "managed": True, "color": 0},
+            *extra_roles,
+        ]
+
+        def fake_get(url, *args, **kwargs):
+            if url.endswith(f"/guilds/{MOCK_GUILD_ID}/channels"):
+                return _Resp(channels_payload)
+            if url.endswith(f"/guilds/{MOCK_GUILD_ID}/roles"):
+                return _Resp(roles_payload)
+            if url.endswith(f"/guilds/{MOCK_GUILD_ID}"):
+                return _Resp({"features": ["COMMUNITY"], "premium_tier": 1, "owner_id": owner_id})
+            if url.endswith(f"/guilds/{MOCK_GUILD_ID}/members/{bot_id}"):
+                return _Resp({"roles": ["4001"]})
+            if url.endswith(f"/guilds/{MOCK_GUILD_ID}/members/{MOCK_USER_ID}"):
+                return _Resp({"roles": list(user_roles)})
+            return _Resp({}, ok=False)
+
+        monkeypatch.setattr(auth.requests, "get", fake_get)
+
+    def _base_tree(roles, *, include_secret=True):
+        uncat = [{"id": "3003", "name": "secret-vault", "type": 0, "position": 1, "overwrites": [{"id": "@everyone", "type": "role", "allow": [], "deny": ["view_channel"]}]}] if include_secret else []
+        return {
+            "roles": roles,
+            "categories": [
+                {
+                    "id": "3001",
+                    "name": "📢 ANNOUNCEMENT",
+                    "position": 0,
+                    "overwrites": [{"id": "@everyone", "type": "role", "allow": ["view_channel"], "deny": []}],
+                    "channels": [
+                        {
+                            "id": "3002",
+                            "name": "rules",
+                            "type": 0,
+                            "position": 0,
+                            "sync_permissions": True,
+                            "overwrites": [{"id": "@everyone", "type": "role", "allow": ["view_channel"], "deny": []}],
+                        }
+                    ],
+                }
+            ],
+            "uncategorized": uncat,
+        }
+
+    token = authed_client(client)
+    headers = {"X-CSRF-Token": token}
+
+    # 1. GET /tree returns is_guild_owner, user_top_role_pos, user_permissions, and role bindings
+    db.upsert_guild(MOCK_GUILD_ID, autoroles_user=json.dumps(["4010"]))
+    db.upsert_verify_settings(MOCK_GUILD_ID, enabled=1, verified_role_id="4011", pending_role_id="4012")
+    db.upsert_automod_settings(MOCK_GUILD_ID, immune_roles=["4013"])
+    _mock_role_studio(
+        user_roles=["4013"],
+        owner_id="1",
+        extra_roles=[
+            {"id": "4010", "name": "Member", "position": 2, "permissions": "0", "color": 0},
+            {"id": "4011", "name": "Verified", "position": 3, "permissions": "0", "color": 0},
+            {"id": "4012", "name": "Pending", "position": 4, "permissions": "0", "color": 0},
+            {"id": "4013", "name": "StaffLead", "position": 7, "permissions": str(0x10000000 | 0x10), "color": 0x3498DB},
+        ],
+    )
+    tree_resp = client.get(f"/api/guild/{MOCK_GUILD_ID}/server-builder/tree")
+    assert tree_resp.status_code == 200
+    tree_data = tree_resp.get_json()
+    assert tree_data["is_guild_owner"] is False
+    assert tree_data["user_top_role_pos"] == 7
+    assert tree_data["user_permissions"]["manage_roles"] is True
+    assert tree_data["user_permissions"]["administrator"] is False
+    assert set(tree_data["user_permissions"]["member_role_ids"]) == {"4013"}
+    assert tree_data["bindings"]["autoroles_user"] == "4010"
+    assert tree_data["bindings"]["verify_verified"] == "4011"
+    assert tree_data["bindings"]["verify_pending"] == "4012"
+    assert tree_data["bindings"]["automod_immune"] == "4013"
+    role_by_id = {r["id"]: r for r in tree_data["roles"]}
+    assert role_by_id["4010"]["bind_role_module"] == "autoroles_user"
+    assert role_by_id["4011"]["bind_role_module"] == "verify_verified"
+    assert role_by_id["4012"]["bind_role_module"] == "verify_pending"
+    assert role_by_id["4013"]["bind_role_module"] == "automod_immune"
+
+    # 2. Gate 1: manage_channels + manage_guild WITHOUT manage_roles/admin -> 403 user_missing_permissions
+    _mock_role_studio(
+        user_roles=["4020"],
+        owner_id="1",
+        extra_roles=[
+            {"id": "4020", "name": "ChannelMgr", "position": 5, "permissions": str(0x10 | 0x20), "color": 0},
+        ],
+    )
+    gate1_tree = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4020", "name": "ChannelMgr", "position": 5, "permissions": ["manage_channels", "manage_guild"]},
+        {"temp_id": "r_new", "name": "NewRole", "position": 1, "permissions": []},
+    ])
+    resp_gate1 = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": gate1_tree, "safe_mode": True},
+        headers=headers,
+    )
+    assert resp_gate1.status_code == 403
+    assert resp_gate1.get_json()["error"] == "user_missing_permissions"
+    assert "manage_roles" in resp_gate1.get_json()["missing"]
+
+    # 3. Gate 2: Non-owner WITH administrator cannot edit/delete/reorder roles >= user_top_role_pos
+    gate2_roles = [
+        {"id": "4021", "name": "Helper", "position": 2, "permissions": "0", "color": 0},
+        {"id": "4030", "name": "CoAdmin", "position": 5, "permissions": "8", "color": 0},
+        {"id": "4040", "name": "SeniorAdmin", "position": 6, "permissions": "8", "color": 0},
+    ]
+    _mock_role_studio(user_roles=["4030"], owner_id="1", extra_roles=gate2_roles)
+
+    # 3a. Edit role above user_top_role_pos (pos 6 >= 5)
+    t_edit_above = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4021", "name": "Helper", "position": 2, "permissions": []},
+        {"id": "4030", "name": "CoAdmin", "position": 5, "permissions": ["administrator"]},
+        {"id": "4040", "name": "HijackedAdmin", "position": 6, "permissions": ["administrator"]},
+    ])
+    r_g2_edit = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_edit_above, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_g2_edit.status_code == 403
+    assert r_g2_edit.get_json()["error"] == "user_role_hierarchy_denied"
+
+    # 3b. Delete role equal to user_top_role_pos (pos 5 >= 5)
+    t_del_equal = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4021", "name": "Helper", "position": 2, "permissions": []},
+        {"id": "4040", "name": "SeniorAdmin", "position": 6, "permissions": ["administrator"]},
+    ])
+    r_g2_del = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_del_equal, "safe_mode": False, "confirm_deletions": True},
+        headers=headers,
+    )
+    assert r_g2_del.status_code == 403
+    assert r_g2_del.get_json()["error"] == "user_role_hierarchy_denied"
+
+    # 3c. Reorder role >= user_top_role_pos
+    t_reorder_hi = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4021", "name": "Helper", "position": 5, "permissions": []},
+        {"id": "4030", "name": "CoAdmin", "position": 2, "permissions": ["administrator"]},
+        {"id": "4040", "name": "SeniorAdmin", "position": 6, "permissions": ["administrator"]},
+    ])
+    r_g2_re = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_reorder_hi, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_g2_re.status_code == 403
+    assert r_g2_re.get_json()["error"] == "user_role_hierarchy_denied"
+
+    # 4. Gate 3: Non-owner, non-admin with manage_roles cannot grant/revoke missing flags nor touch private channels
+    user_bits_g3 = 0x10000000 | 0x10 | 0x400 | 0x800  # manage_roles, manage_channels, view_channel, send_messages
+    mod_bits_g3 = 0x400 | 0x4  # view_channel, ban_members
+    _mock_role_studio(
+        user_roles=["4050"],
+        owner_id="1",
+        extra_roles=[
+            {"id": "4022", "name": "BanMod", "position": 2, "permissions": str(mod_bits_g3), "color": 0},
+            {"id": "4050", "name": "RoleMgr", "position": 10, "permissions": str(user_bits_g3), "color": 0},
+        ],
+    )
+
+    # 4a. Grant administrator (missing)
+    t_grant_admin = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4022", "name": "BanMod", "position": 2, "permissions": ["view_channel", "ban_members"]},
+        {"id": "4050", "name": "RoleMgr", "position": 10, "permissions": ["manage_roles", "manage_channels", "view_channel", "send_messages"]},
+        {"temp_id": "r_adm", "name": "EscAdmin", "position": 1, "permissions": ["administrator"]},
+    ])
+    r_g3_admin = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_grant_admin, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_g3_admin.status_code == 403
+    assert r_g3_admin.get_json()["error"] == "privilege_escalation_denied"
+    assert "administrator" in r_g3_admin.get_json()["missing"]
+
+    # 4b. Grant ban_members (missing)
+    t_grant_ban = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4022", "name": "BanMod", "position": 2, "permissions": ["view_channel", "ban_members"]},
+        {"id": "4050", "name": "RoleMgr", "position": 10, "permissions": ["manage_roles", "manage_channels", "view_channel", "send_messages"]},
+        {"temp_id": "r_ban", "name": "EscBan", "position": 1, "permissions": ["ban_members"]},
+    ])
+    r_g3_ban = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_grant_ban, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_g3_ban.status_code == 403
+    assert r_g3_ban.get_json()["error"] == "privilege_escalation_denied"
+    assert "ban_members" in r_g3_ban.get_json()["missing"]
+
+    # 4c. Revoke ban_members from existing role 4022 (missing flag)
+    t_revoke_ban = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4022", "name": "BanMod", "position": 2, "permissions": ["view_channel"]},
+        {"id": "4050", "name": "RoleMgr", "position": 10, "permissions": ["manage_roles", "manage_channels", "view_channel", "send_messages"]},
+    ])
+    r_g3_rev = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_revoke_ban, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_g3_rev.status_code == 403
+    assert r_g3_rev.get_json()["error"] == "privilege_escalation_denied"
+    assert "ban_members" in r_g3_rev.get_json()["missing"]
+
+    # 4d. Edit overwrites / delete private channel 3003 without view_channel -> 403 channel_access_denied
+    base_g3_roles = [
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4022", "name": "BanMod", "position": 2, "permissions": ["view_channel", "ban_members"]},
+        {"id": "4050", "name": "RoleMgr", "position": 10, "permissions": ["manage_roles", "manage_channels", "view_channel", "send_messages"]},
+    ]
+    t_priv_ow = _base_tree(base_g3_roles, include_secret=True)
+    t_priv_ow["uncategorized"][0]["overwrites"] = [{"id": "@everyone", "type": "role", "allow": ["view_channel"], "deny": []}]
+    r_g3_ow = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_priv_ow, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_g3_ow.status_code == 403
+    assert r_g3_ow.get_json()["error"] == "channel_access_denied"
+
+    t_priv_del = _base_tree(base_g3_roles, include_secret=False)
+    r_g3_del = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_priv_del, "safe_mode": False, "confirm_deletions": True},
+        headers=headers,
+    )
+    assert r_g3_del.status_code == 403
+    assert r_g3_del.get_json()["error"] == "channel_access_denied"
+
+    # 5a. Non-owner holding the granted flag below user_top_role_pos succeeds with 202
+    user_bits_ok = 0x10000000 | 0x10 | 0x2 | 0x400  # manage_roles, manage_channels, kick_members, view_channel
+    _mock_role_studio(
+        user_roles=["4060"],
+        owner_id="1",
+        extra_roles=[
+            {"id": "4060", "name": "KickMgr", "position": 10, "permissions": str(user_bits_ok), "color": 0},
+        ],
+    )
+    t_ok_user = _base_tree([
+        {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+        {"id": "4060", "name": "KickMgr", "position": 10, "permissions": ["manage_roles", "manage_channels", "kick_members", "view_channel"]},
+        {"temp_id": "r_jr", "name": "JuniorMod", "position": 3, "permissions": ["kick_members", "view_channel"]},
+    ])
+    r_ok_user = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_ok_user, "safe_mode": True},
+        headers=headers,
+    )
+    assert r_ok_user.status_code == 202
+    job_user_id = r_ok_user.get_json()["job"]["id"]
+    asyncio.run(db.async_update_server_builder_job(job_user_id, expected_statuses=["queued"], status="completed"))
+
+    # 5b. Guild owner bypasses user ceiling & escalation checks and succeeds with 202
+    _mock_role_studio(
+        user_roles=[],
+        owner_id=MOCK_USER_ID,
+        extra_roles=[
+            {"id": "4040", "name": "SeniorAdmin", "position": 15, "permissions": "0", "color": 0},
+        ],
+    )
+    t_owner = _base_tree(
+        [
+            {"id": "@everyone", "name": "@everyone", "is_everyone": True, "permissions": []},
+            {"id": "4040", "name": "OwnerExec", "position": 15, "permissions": ["administrator", "ban_members"]},
+        ],
+        include_secret=False,
+    )
+    r_owner = client.post(
+        f"/api/guild/{MOCK_GUILD_ID}/server-builder/apply",
+        json={"tree": t_owner, "safe_mode": False, "confirm_deletions": True},
+        headers=headers,
+    )
+    assert r_owner.status_code == 202
+
+
 def test_server_builder_js_has_no_unsafe_dom_sinks_and_no_default_i18n_filter():
     import shutil
     import subprocess
@@ -1240,8 +2440,11 @@ const extracted = [
   sliceBetween('function allChannels(', 'function ensureSelection('),
   sliceBetween('function snapshot(', 'function isModified('),
   sliceBetween('function everyoneRoleId(', 'function isViewDenied('),
+  sliceBetween('function sortedRolesList(', 'function roleOverwriteTargets('),
   sliceBetween('function renderPermissions(', 'function renderBanners('),
+  sliceBetween('function stripRoleOverwrites(', 'function syncItem('),
   sliceBetween('function updateSelected(', 'function ensureLiveOption('),
+  sliceBetween("els.undo.addEventListener('click',", 'els.reset.addEventListener('),
 ].join('\n');
 
 function makeElement(tag) {
@@ -1277,11 +2480,18 @@ const permissionsBody = makeElement('tbody');
 const sandbox = {
   clone: v => JSON.parse(JSON.stringify(v)),
   tr: (k, f = '') => f || k,
+  notify: () => {},
   renderAll: () => {},
   schedulePreviewDiff: () => {},
+  setActiveTab: tab => { sandbox.state.activeTab = tab; },
   ensureSelection: () => {},
   els: {
-    undo: { disabled: true },
+    undo: {
+      disabled: true,
+      addEventListener(eventName, handler) {
+        if (eventName === 'click') this._clickHandler = handler;
+      },
+    },
     safeMode: { checked: true },
     permissionsBody,
   },
@@ -1300,6 +2510,7 @@ const sandbox = {
     createTextNode: text => ({ nodeType: 3, textContent: String(text) }),
   },
   state: {
+    activeTab: 'channels',
     live: { bot_top_role_pos: 5 },
     roles: [
       { id: '@everyone', name: '@everyone', color: '#000000', position: 0, is_everyone: true },
@@ -1436,6 +2647,73 @@ if (!liveHelperRow || liveHelperRow.hasLock || liveHelperRow.anyDisabled) {
 const liveAdminRow = rowSummary('900');
 if (!liveAdminRow || !liveAdminRow.hasLock || !liveAdminRow.allDisabled) {
   throw new Error('Existing role >= bot_top_role_pos should render locked: ' + JSON.stringify(liveAdminRow));
+}
+
+// 5. normalizeRoleColorHex(0) & '#000000' -> '#99aab5'
+if (sandbox.normalizeRoleColorHex(0) !== '#99aab5') throw new Error('normalizeRoleColorHex(0) must be #99aab5');
+if (sandbox.normalizeRoleColorHex('#000000') !== '#99aab5') throw new Error('normalizeRoleColorHex(#000000) must be #99aab5');
+
+// 6. updatePositions() leaves untouched live role positions unchanged
+sandbox.state.draft.roles.push(
+  { id: '900', name: 'LiveAdmin', color: '#e74c3c', position: 6, is_everyone: false },
+  { id: '901', name: 'LiveHelper', color: '#1abc9c', position: 2, is_everyone: false }
+);
+sandbox.updatePositions();
+const pos900 = sandbox.mergedRoles().find(r => r.id === '900').position;
+const pos901 = sandbox.mergedRoles().find(r => r.id === '901').position;
+if (pos900 !== 6 || pos901 !== 2) {
+  throw new Error(`updatePositions() changed live role positions: 900=${pos900}, 901=${pos901}`);
+}
+
+// 7. Editing live role 901 in state.draft.roles overrides state.roles in mergedRoles() and compactTree().roles
+const draft901 = sandbox.state.draft.roles.find(r => r.id === '901');
+draft901.name = 'EditedHelper';
+draft901.color = '#e67e22';
+const merged901 = sandbox.mergedRoles().find(r => r.id === '901');
+const compact901 = sandbox.compactTree().roles.find(r => r.id === '901');
+if (!merged901 || merged901.name !== 'EditedHelper' || merged901.color !== '#e67e22') {
+  throw new Error('Edited draft role 901 did not override state.roles in mergedRoles()');
+}
+if (!compact901 || compact901.name !== 'EditedHelper' || compact901.color !== '#e67e22') {
+  throw new Error('Edited draft role 901 did not override state.roles in compactTree().roles');
+}
+
+// 8. Marking 901 _deleted = true omits it from compactTree().roles without state.roles re-adding it
+sandbox.els.safeMode.checked = false;
+sandbox.deleteOrRestore('901');
+if (draft901._deleted !== true) throw new Error('deleteOrRestore("901") did not set _deleted = true');
+if (sandbox.mergedRoles().some(r => r.id === '901')) {
+  throw new Error('Deleted role 901 leaked back from state.roles into mergedRoles()');
+}
+if (sandbox.compactTree().roles.some(r => r.id === '901')) {
+  throw new Error('Deleted role 901 leaked back from state.roles into compactTree().roles');
+}
+
+// 9. Deleting drafted role role_tutor cleans up dangling role_tutor overwrites on channels/categories and Undo restores both
+const cat1 = sandbox.state.draft.categories[0];
+cat1.overwrites.push({ id: 'role_tutor', type: 'role', allow: ['view_channel'], deny: [] });
+chC.overwrites.push({ id: 'role_tutor', type: 'role', allow: ['send_messages'], deny: [] });
+sandbox.deleteOrRestore('role_tutor');
+if (sandbox.state.draft.roles.some(r => r.temp_id === 'role_tutor')) {
+  throw new Error('Drafted role_tutor was not removed from state.draft.roles');
+}
+if (cat1.overwrites.some(ow => ow.id === 'role_tutor')) {
+  throw new Error('Dangling role_tutor overwrite remained on category');
+}
+if (chC.overwrites.some(ow => ow.id === 'role_tutor')) {
+  throw new Error('Dangling role_tutor overwrite remained on channel');
+}
+sandbox.els.undo._clickHandler();
+const restoredCat = sandbox.state.draft.categories[0];
+const restoredChC = sandbox.findEntity('ch_c').item;
+if (!sandbox.state.draft.roles.some(r => r.temp_id === 'role_tutor')) {
+  throw new Error('Undo did not restore drafted role_tutor');
+}
+if (!restoredCat.overwrites.some(ow => ow.id === 'role_tutor')) {
+  throw new Error('Undo did not restore role_tutor overwrite on category');
+}
+if (!restoredChC.overwrites.some(ow => ow.id === 'role_tutor')) {
+  throw new Error('Undo did not restore role_tutor overwrite on channel');
 }
 """
         proc = subprocess.run([node_bin, "-e", node_script, str(js_path)], capture_output=True, text=True)
