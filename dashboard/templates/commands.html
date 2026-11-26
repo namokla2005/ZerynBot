@@ -1,19 +1,11 @@
 {% extends "base_server.html" %}
 {% block title %}Commands{% endblock %}
+{% block page_title %}{{ t('commands.title') }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{{ t('commands.title') }}</h1>
+<div class="cr-grid">
+  <section>
     <p class="page-subtitle">{{ t('commands.subtitle') }}</p>
-  </div>
-  <div style="display:flex; align-items:center; gap:8px;">
-    <span style="font-size:0.8rem; color:var(--text-muted);">
-      {{ t('commands.total_commands', count=total_count) }}
-    </span>
-  </div>
-</div>
-
 
 <!-- ── Category tabs ──────────────────────────────────────────────────────── -->
 <div class="welcome-tabs" id="cmd-tabs">
@@ -49,6 +41,15 @@
   </div>
 </div>
 {% endfor %}
+  </section>
+  <aside class="cr-side">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:0.8rem; color:var(--text-muted);">
+        {{ t('commands.total_commands', count=total_count) }}
+      </span>
+    </div>
+  </aside>
+</div>
 
 <!-- ─── Command Detail Modal ──────────────────────────────────────────────── -->
 <div id="cmd-modal" class="modal-overlay" style="display:none"

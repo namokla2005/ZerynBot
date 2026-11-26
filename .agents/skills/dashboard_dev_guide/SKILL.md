@@ -91,7 +91,19 @@ Khi bump: đổi đồng bộ trong TẤT CẢ template không phải legal (`ba
 
 ---
 
-## 🛠️ 2. Checklist 7 Bước Khi Tạo Trang Quản Lý Module Mới
+## 🧱 2. Khung Command Rail (V20) — cấu trúc bắt buộc của trang dashboard
+
+Khung nằm ở `dashboard/templates/base_server.html` (mọi trang `server_*`/module kế thừa nó). Lớp CSS cấu trúc ở **cuối `style.css`** (mục `COMMAND RAIL — STRUCTURAL LAYER (V20)`):
+
+- **Rail biểu tượng** `.cr-rail` (76px, trái): 24 mục khai báo trong biến Jinja `rail_items` (bi icon + t() + route + page key + chấm `nav-dot-<module>`). Thêm/bớt mục = sửa list này, KHÔNG viết tay HTML. Giữ nguyên class `nav-dot-<module>` — `main.js` cập nhật dot qua đó.
+- **Thanh lệnh** `.cr-cmdbar` (sticky): breadcrumb = guild + `{% block page_title %}`. Mỗi trang con BẮT BUỘC khai báo `{% block page_title %}{{ t('key') }}{% endblock %}` ngay sau `{% block title %}`; KHÔNG lặp lại `<h1 class="page-title">` trong nội dung (giữ dòng subtitle nếu có).
+- **Lưới nội dung 2 cột**: bọc `<div class="cr-grid"><section>…</section><aside class="cr-side">…</aside></div>`; cột phải `.cr-side` (330px, sticky) chứa khối ngữ cảnh CÓ SẴN (tóm tắt/trạng thái/xem trước/thao tác nhanh). Trang không có khối phù hợp → cột đơn `style="grid-template-columns:minmax(0,1fr)"`. Riêng trang Server Builder dùng workspace riêng (`sb-panel`), KHÔNG dùng cr-grid.
+- Nút Sáng/Tối + burger mobile nằm trong cmdbar; lang switcher + avatar/logout ở đáy rail (giữ nguyên class `lang-switcher`/`lang-dropdown`).
+- Trang KHÔNG kế thừa base_server (login/home/docs/support/admin) giữ lối trình bày riêng, KHÔNG thêm rail.
+- Sửa CSS khung → bump `style.css?v=` đồng bộ mọi template: `grep -rl "style.css" dashboard/templates/`.
+- Bố cục chuẩn tham chiếu: mockup đã duyệt trong `zeryn-redesign\cr-pages\pNN-*.html` + `r4-struct-2-command-rail.html`.
+
+## 🛠️ 3. Checklist 7 Bước Khi Tạo Trang Quản Lý Module Mới
 
 Khi tạo thêm trang cài đặt module mới trong Dashboard:
 
@@ -105,7 +117,7 @@ Khi tạo thêm trang cài đặt module mới trong Dashboard:
 
 ---
 
-## 📡 3. Quy Chuẩn AJAX API JSON Response
+## 📡 4. Quy Chuẩn AJAX API JSON Response
 
 Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboard/blueprints/*` phải trả về đúng cấu trúc:
 - **Thành công**: `jsonify({"ok": True, "message": "Thông báo thành công", "data": ...})`
@@ -113,7 +125,7 @@ Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboa
 
 ---
 
-## 🔁 4. Server Builder Studio — Bất biến của Diff Engine & Role Studio
+## 🔁 5. Server Builder Studio — Bất biến của Diff Engine & Role Studio
 
 `bot/server_builder_engine.py::compute_diff` **PHẢI idempotent**: sau khi "Tải lên từ Server thật" (target = cây live), `total_operations` bắt buộc bằng **0** — thanh dưới cùng không được hiện thay đổi nào. Khi sửa logic so sánh, tránh các bẫy đã từng gây ops ảo:
 
@@ -125,7 +137,7 @@ Tất cả API endpoint trong `dashboard/api.py` hoặc AJAX POST trong `dashboa
 
 ---
 
-## 🎨 5. Không để mất class CSS khi đổi theme
+## 🎨 6. Không để mất class CSS khi đổi theme
 
 Commit đồng bộ theme từng **xoá nhầm** các selector class dùng chung (`.send-section`, `.empty-state`, `.section-header`, `.section-title`, `.divider`, `.color-text-input`) khỏi `style.css` → khối "Gửi đến Discord" và "Embeds đã lưu" của trang Embeds bị mất style mà không test nào bắt được.
 
@@ -140,7 +152,7 @@ Script trích các selector class bị xoá trong diff của `style.css`, đối
 
 ---
 
-## 🌐 6. i18n trong ngữ cảnh JavaScript (`<script>`) — luôn dùng `|tojson`
+## 🌐 7. i18n trong ngữ cảnh JavaScript (`<script>`) — luôn dùng `|tojson`
 
 Chuỗi i18n chèn vào block `<script>` **BẮT BUỘC** qua `|tojson`, không bọc nháy tay:
 
@@ -153,7 +165,7 @@ Vì autoescape (đúng cho HTML) biến `< > & ' "` thành entity **ngay trong J
 
 ---
 
-## 🚦 7. Kinh nghiệm chạy pre-commit gate (`dual_model_mcp.py --pre-commit-check`)
+## 🚦 8. Kinh nghiệm chạy pre-commit gate (`dual_model_mcp.py --pre-commit-check`)
 
 - **Diff staged quá lớn → 413**: tier Groq trả `413 Request too large` khi diff dài (nhất là dòng siêu dài như dataset emoji) → tách commit theo chủ đề, mỗi commit ≲ ~300 dòng diff.
 - **Reviewer không hội tụ với code hạ tầng mới**: các roll có thể đưa lý do trôi dạt/mâu thuẫn nhau (roll sau phản đối cả pattern có sẵn trong repo, thậm chí đòi ngược roll trước). Quy trình đúng: sửa hết điểm actionable (lock/subprocess/cache chuẩn, validate input, escape, debounce...), chạy lại vài roll; nếu vẫn đỏ vì lý do không đúng thực tế → chốt bằng bằng chứng độc lập (full pytest + render/browser thật) và ghi chú minh bạch khi báo cáo.

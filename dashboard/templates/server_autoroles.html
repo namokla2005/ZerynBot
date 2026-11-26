@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('autoroles.page_title') }}{% endblock %}
+{% block page_title %}{{ t('autoroles.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -168,21 +169,9 @@
 
 {% block content %}
 
-<div class="page-header">
-  <h1 class="page-title"><i class="bi bi-person-badge-fill" style="color: var(--accent);"></i> {{ t('autoroles.page_title') }}</h1>
-  <p class="page-subtitle">{{ t('autoroles.page_subtitle') }}</p>
-</div>
-
-<div class="warning-box">
-  <div class="warning-title">
-    <i class="bi bi-exclamation-triangle-fill"></i> {{ t('autoroles.warning_title') }}
-  </div>
-  <div>
-    - {{ t('autoroles.warning_body_1') }}<br>
-    - {{ t('autoroles.warning_body_2') }}<br>
-    - {{ t('autoroles.warning_body_3') }}
-  </div>
-</div>
+<div class="cr-grid">
+  <section>
+    <p class="page-subtitle">{{ t('autoroles.page_subtitle') }}</p>
 
 <form method="POST" id="autoroles-form">
   <div class="card">
@@ -237,6 +226,20 @@
     </button>
   </div>
 </form>
+  </section>
+  <aside class="cr-side">
+    <div class="warning-box">
+      <div class="warning-title">
+        <i class="bi bi-exclamation-triangle-fill"></i> {{ t('autoroles.warning_title') }}
+      </div>
+      <div>
+        - {{ t('autoroles.warning_body_1') }}<br>
+        - {{ t('autoroles.warning_body_2') }}<br>
+        - {{ t('autoroles.warning_body_3') }}
+      </div>
+    </div>
+  </aside>
+</div>
 
 <script>
   // Data passed from backend
