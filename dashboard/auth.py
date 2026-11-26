@@ -5,6 +5,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import copy
+from concurrent.futures import ThreadPoolExecutor
 import ipaddress
 import logging
 import socket
@@ -16,6 +17,21 @@ import re
 import requests
 import config
 from cache import cache  # RAM Cache dùng chung toàn hệ thống (RLock + TTL + LRU, cache.py)
+
+try:
+    from bot.server_builder_engine import (
+        ALL_KNOWN_PERMISSIONS_MASK,
+        PERMISSION_BITS,
+        normalize_role_permissions,
+        permissions_to_bitfield,
+    )
+except (ImportError, ModuleNotFoundError):
+    from server_builder_engine import (
+        ALL_KNOWN_PERMISSIONS_MASK,
+        PERMISSION_BITS,
+        normalize_role_permissions,
+        permissions_to_bitfield,
+    )
 
 # Cung ten với dashboard/extensions.py de log van tung ra cung kenh. Khong import
 # logger tu extensions (vong tron dependency khong can thiet chi vi mot line log).
@@ -231,6 +247,46 @@ def get_member_roles(guild_id: str, user_id: str) -> list:
         return cached[1] if cached else []
 
 
+def get_member_roles_strict(guild_id: str, user_id: str, *, bypass_cache: bool = False) -> list[str] | None:
+    """Fetch member's role IDs via Discord REST; fail-closed (returns None on error)."""
+    global _member_roles_cache
+    gid = str(guild_id or "").strip()
+    uid = str(user_id or "").strip()
+    token = str(getattr(config, "TOKEN", "") or "").strip()
+    if not gid.isdigit() or not uid.isdigit() or not token:
+        return None
+
+    now = time.time()
+    cache_key = (gid, uid)
+    if not bypass_cache:
+        cached = _member_roles_cache.get(cache_key)
+        if cached and now - cached[0] < _MEMBER_ROLES_TTL:
+            return [str(r) for r in cached[1]]
+
+    if len(_member_roles_cache) > 500:
+        _member_roles_cache = {k: v for k, v in _member_roles_cache.items() if now - v[0] < _MEMBER_ROLES_TTL}
+
+    try:
+        resp = requests.get(
+            f"{config.DISCORD_API_BASE}/guilds/{gid}/members/{uid}",
+            headers={"Authorization": f"Bot {token}"},
+            timeout=5,
+        )
+        if not resp.ok:
+            return None
+        data = resp.json()
+        if not isinstance(data, dict):
+            return None
+        raw_roles = data.get("roles")
+        if not isinstance(raw_roles, list):
+            return None
+        roles = [str(r) for r in raw_roles if r is not None and str(r).strip()]
+        _member_roles_cache[cache_key] = (now, roles)
+        return list(roles)
+    except Exception:
+        return None
+
+
 _MEMBER_IDS_TTL = 300.0
 _member_ids_cache: dict[str, tuple[float, list[str]]] = {}
 
@@ -412,6 +468,11 @@ def _normalize_db_role(row: dict) -> dict:
         "name": row.get("role_name") or row.get("name") or "",
         "color": row.get("color_hex"),
         "position": row.get("position") or 0,
+        "permissions": row.get("permissions"),
+        "hoist": bool(row.get("hoist", False)),
+        "mentionable": bool(row.get("mentionable", False)),
+        "managed": bool(row.get("managed", False)),
+        "is_everyone": bool(row.get("is_everyone", False)),
     }
 
 
@@ -459,7 +520,19 @@ def get_guild_roles(guild_id: str, include_everyone: bool = False) -> list:
     if not roles:
         try:
             import database as db
-            roles = [_normalize_db_role(r) for r in (db.get_guild_roles(gid) or [])]
+            roles = []
+            for r in (db.get_guild_roles(gid) or []):
+                norm = _normalize_db_role(r)
+                if norm.get("permissions") is None and not (
+                    norm["hoist"] or norm["mentionable"] or norm["managed"] or norm["is_everyone"]
+                ):
+                    norm = {
+                        "id": norm["id"],
+                        "name": norm["name"],
+                        "color": norm["color"],
+                        "position": norm["position"],
+                    }
+                roles.append(norm)
             if not include_everyone:
                 roles = [r for r in roles if r.get("name") != "@everyone"]
         except Exception:
@@ -601,7 +674,7 @@ def _get_bot_user_id(headers: dict) -> str:
     return cached_id if cached_id.isdigit() else ""
 
 
-def get_guild_live_structure(guild_id: str) -> dict | None:
+def get_guild_live_structure(guild_id: str, *, force_refresh: bool = False) -> dict | None:
     """Return an authoritative, short-lived Discord channel/role snapshot."""
     gid = str(guild_id).strip()
     token = str(getattr(config, "TOKEN", "") or "").strip()
@@ -609,10 +682,11 @@ def get_guild_live_structure(guild_id: str) -> dict | None:
         return None
 
     with _server_builder_tree_lock:
-        now = time.time()
-        cached = _server_builder_tree_cache.get(gid)
-        if cached and now - cached[0] < _SERVER_BUILDER_TREE_TTL:
-            return copy.deepcopy(cached[1])
+        if not force_refresh:
+            now = time.time()
+            cached = _server_builder_tree_cache.get(gid)
+            if cached and now - cached[0] < _SERVER_BUILDER_TREE_TTL:
+                return copy.deepcopy(cached[1])
         guild_lock = _server_builder_guild_locks.get(gid)
         if guild_lock is None:
             if len(_server_builder_guild_locks) >= _SERVER_BUILDER_TREE_CACHE_MAX:
@@ -621,68 +695,70 @@ def get_guild_live_structure(guild_id: str) -> dict | None:
             _server_builder_guild_locks[gid] = guild_lock
 
     with guild_lock:
-        with _server_builder_tree_lock:
-            now = time.time()
-            cached = _server_builder_tree_cache.get(gid)
-            if cached and now - cached[0] < _SERVER_BUILDER_TREE_TTL:
-                return copy.deepcopy(cached[1])
+        if force_refresh:
+            with _server_builder_tree_lock:
+                _server_builder_tree_cache.pop(gid, None)
+        else:
+            with _server_builder_tree_lock:
+                now = time.time()
+                cached = _server_builder_tree_cache.get(gid)
+                if cached and now - cached[0] < _SERVER_BUILDER_TREE_TTL:
+                    return copy.deepcopy(cached[1])
 
         headers = {"Authorization": f"Bot {token}"}
+        bot_user_id = _get_bot_user_id(headers)
+
+        def _fetch(url: str):
+            return requests.get(url, headers=headers, timeout=3.5)
+
         try:
-            channels_resp = requests.get(
-                f"{config.DISCORD_API_BASE}/guilds/{gid}/channels",
-                headers=headers,
-                timeout=10,
-            )
-            roles_resp = requests.get(
-                f"{config.DISCORD_API_BASE}/guilds/{gid}/roles",
-                headers=headers,
-                timeout=10,
-            )
-            if not channels_resp.ok or not roles_resp.ok:
-                return None
-            channels = channels_resp.json()
-            raw_roles = roles_resp.json()
-            if not isinstance(channels, list) or not isinstance(raw_roles, list):
-                return None
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                fut_channels = pool.submit(_fetch, f"{config.DISCORD_API_BASE}/guilds/{gid}/channels")
+                fut_roles = pool.submit(_fetch, f"{config.DISCORD_API_BASE}/guilds/{gid}/roles")
+                fut_guild = pool.submit(_fetch, f"{config.DISCORD_API_BASE}/guilds/{gid}")
+                fut_member = (
+                    pool.submit(_fetch, f"{config.DISCORD_API_BASE}/guilds/{gid}/members/{bot_user_id}")
+                    if bot_user_id
+                    else None
+                )
+
+                channels_resp = fut_channels.result(timeout=4.0)
+                roles_resp = fut_roles.result(timeout=4.0)
+                if not channels_resp.ok or not roles_resp.ok:
+                    return None
+                channels = channels_resp.json()
+                raw_roles = roles_resp.json()
+                if not isinstance(channels, list) or not isinstance(raw_roles, list):
+                    return None
+
+                guild_features: list[str] = []
+                premium_tier = 0
+                guild_owner_id = ""
+                try:
+                    guild_resp = fut_guild.result(timeout=4.0)
+                    if guild_resp.ok:
+                        guild_data = guild_resp.json() or {}
+                        features = guild_data.get("features") or []
+                        if isinstance(features, list):
+                            guild_features = [str(item) for item in features]
+                        premium_tier = _discord_int(guild_data.get("premium_tier"), 0)
+                        guild_owner_id = str(guild_data.get("owner_id") or "")
+                except Exception:
+                    pass
+
+                bot_member = None
+                if fut_member is not None:
+                    try:
+                        member_resp = fut_member.result(timeout=4.0)
+                        if member_resp.ok:
+                            candidate = member_resp.json()
+                            if isinstance(candidate, dict):
+                                bot_member = candidate
+                    except Exception:
+                        bot_member = None
         except Exception as exc:
             logger.warning("Lỗi fetch live structure guild %s: %s", gid, exc)
             return None
-
-        guild_features: list[str] = []
-        premium_tier = 0
-        guild_owner_id = ""
-        try:
-            guild_resp = requests.get(
-                f"{config.DISCORD_API_BASE}/guilds/{gid}",
-                headers=headers,
-                timeout=5,
-            )
-            if guild_resp.ok:
-                guild_data = guild_resp.json() or {}
-                features = guild_data.get("features") or []
-                if isinstance(features, list):
-                    guild_features = [str(item) for item in features]
-                premium_tier = _discord_int(guild_data.get("premium_tier"), 0)
-                guild_owner_id = str(guild_data.get("owner_id") or "")
-        except Exception:
-            pass
-
-        bot_user_id = _get_bot_user_id(headers)
-        bot_member = None
-        if bot_user_id:
-            try:
-                member_resp = requests.get(
-                    f"{config.DISCORD_API_BASE}/guilds/{gid}/members/{bot_user_id}",
-                    headers=headers,
-                    timeout=5,
-                )
-                if member_resp.ok:
-                    candidate = member_resp.json()
-                    if isinstance(candidate, dict):
-                        bot_member = candidate
-            except Exception:
-                bot_member = None
 
         roles = []
         for raw in raw_roles:
@@ -732,6 +808,7 @@ def get_guild_live_structure(guild_id: str) -> dict | None:
         result = {
             "channels": copy.deepcopy(channels),
             "roles": roles,
+            "owner_id": guild_owner_id,
             "bot_in_guild": bot_member is not None,
             "bot_top_role_pos": bot_top_role_pos,
             "bot_permissions": bot_permissions,
@@ -749,6 +826,100 @@ def get_guild_live_structure(guild_id: str) -> dict | None:
                 _server_builder_tree_cache.pop(oldest, None)
             _server_builder_tree_cache[gid] = (now, copy.deepcopy(result))
         return copy.deepcopy(result)
+
+
+def get_actor_guild_authority(
+    guild_id: str,
+    user_id: str,
+    snapshot: dict | None,
+    *,
+    bypass_member_cache: bool = False,
+) -> dict | None:
+    """Resolve the acting user's live Discord permission ceiling and top role position."""
+    if snapshot is None:
+        return None
+
+    uid = str(user_id or "").strip()
+    owner_id = str(snapshot.get("owner_id") or "").strip()
+    is_owner = bool(uid and owner_id and uid == owner_id)
+    if is_owner:
+        return {
+            "is_owner": True,
+            "user_top_role_pos": None,
+            "administrator": True,
+            "manage_guild": True,
+            "manage_channels": True,
+            "manage_roles": True,
+            "bitfield": str(ALL_KNOWN_PERMISSIONS_MASK),
+            "granted": list(PERMISSION_BITS.values()),
+            "member_role_ids": [],
+        }
+
+    if not snapshot.get("bot_in_guild"):
+        if bypass_member_cache:
+            return None
+        return {
+            "is_owner": False,
+            "user_top_role_pos": 0,
+            "administrator": False,
+            "manage_guild": False,
+            "manage_channels": False,
+            "manage_roles": False,
+            "bitfield": "0",
+            "granted": [],
+            "member_role_ids": [],
+        }
+
+    member_role_ids = get_member_roles_strict(guild_id, uid, bypass_cache=bypass_member_cache)
+    if member_role_ids is None:
+        if bypass_member_cache:
+            return None
+        member_role_ids = []
+
+    gid = str(guild_id or "").strip()
+    everyone_bits = 0
+    role_bits: dict[str, int] = {}
+    role_positions: dict[str, int] = {}
+    for role in snapshot.get("roles") or []:
+        if not isinstance(role, dict):
+            continue
+        rid = str(role.get("id") or "").strip()
+        raw_perms = role.get("permissions", role.get("permission_bits", 0))
+        if isinstance(raw_perms, list):
+            bits = permissions_to_bitfield(raw_perms)
+        else:
+            bits = _discord_int(raw_perms, 0)
+        pos = _discord_int(role.get("position"), 0)
+        is_ev = (
+            bool(role.get("is_everyone"))
+            or rid == "@everyone"
+            or (bool(gid) and rid == gid)
+            or role.get("name") == "@everyone"
+        )
+        if is_ev:
+            everyone_bits |= bits
+        if rid:
+            role_bits[rid] = bits
+            role_positions[rid] = pos
+
+    clean_member_role_ids = [str(r) for r in member_role_ids if r is not None and str(r).strip()]
+    actor_bits = everyone_bits
+    for rid in clean_member_role_ids:
+        actor_bits |= role_bits.get(rid, 0)
+    user_top_role_pos = max((role_positions.get(rid, 0) for rid in clean_member_role_ids), default=0)
+    actor_admin = bool(actor_bits & ADMINISTRATOR)
+    effective_bits = ALL_KNOWN_PERMISSIONS_MASK if actor_admin else actor_bits
+    return {
+        "is_owner": False,
+        "user_top_role_pos": user_top_role_pos,
+        "administrator": actor_admin,
+        "manage_guild": actor_admin or bool(actor_bits & MANAGE_GUILD),
+        "manage_channels": actor_admin or bool(actor_bits & MANAGE_CHANNELS),
+        "manage_roles": actor_admin or bool(actor_bits & MANAGE_ROLES),
+        "bitfield": str(effective_bits),
+        "granted": normalize_role_permissions(effective_bits),
+        "member_role_ids": clean_member_role_ids,
+    }
 
 
 def invalidate_server_builder_tree_cache(guild_id: str) -> None:

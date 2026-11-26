@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import sys
+import threading
 
 # File nằm ở dashboard/blueprints/ → cần 3 cấp dirname để tới repo root
 _V2_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,6 +17,8 @@ import config
 import database as db
 from dashboard.api import _require_guild_access
 from dashboard.auth import (
+    _normalize_db_role,
+    get_actor_guild_authority,
     get_guild_live_structure,
     invalidate_guild_channel_cache,
     invalidate_guild_roles_cache,
@@ -26,62 +29,6 @@ from dashboard.web_helpers import _server_ctx, guild_access_required
 
 bp = Blueprint("server_builder", __name__)
 
-_PERMISSION_BITS = {
-    0: "create_instant_invite",
-    1: "kick_members",
-    2: "ban_members",
-    3: "administrator",
-    4: "manage_channels",
-    5: "manage_guild",
-    6: "add_reactions",
-    7: "view_audit_log",
-    8: "priority_speaker",
-    9: "stream",
-    10: "view_channel",
-    11: "send_messages",
-    12: "send_tts_messages",
-    13: "manage_messages",
-    14: "embed_links",
-    15: "attach_files",
-    16: "read_message_history",
-    17: "mention_everyone",
-    18: "use_external_emojis",
-    19: "view_guild_insights",
-    20: "connect",
-    21: "speak",
-    22: "mute_members",
-    23: "deafen_members",
-    24: "move_members",
-    25: "use_vad",
-    26: "change_nickname",
-    27: "manage_nicknames",
-    28: "manage_roles",
-    29: "manage_webhooks",
-    30: "manage_guild_expressions",
-    31: "use_application_commands",
-    32: "request_to_speak",
-    33: "manage_events",
-    34: "manage_threads",
-    35: "create_public_threads",
-    36: "create_private_threads",
-    37: "use_external_stickers",
-    38: "send_messages_in_threads",
-    39: "use_embedded_activities",
-    40: "moderate_members",
-    41: "view_creator_monetization_analytics",
-    42: "use_soundboard",
-    43: "create_guild_expressions",
-    44: "create_events",
-    45: "use_external_sounds",
-    46: "send_voice_messages",
-    49: "send_polls",
-    50: "use_external_apps",
-}
-
-_PERMISSION_ALIASES = {
-    "read_messages": "view_channel",
-}
-
 
 def _engine():
     try:
@@ -89,6 +36,36 @@ def _engine():
     except (ImportError, ModuleNotFoundError):
         from bot import server_builder_engine as sbe
     return sbe
+
+
+_ENGINE_CONSTS = _engine()
+_PERMISSION_BITS = _ENGINE_CONSTS.PERMISSION_BITS
+_PERMISSION_ALIASES = _ENGINE_CONSTS.PERMISSION_ALIASES
+
+_ROLE_BIND_MODULES = frozenset({
+    "autoroles_user",
+    "verify_verified",
+    "verify_pending",
+    "automod_immune",
+})
+_TARGET_ROLE_KEYS = frozenset({
+    "id",
+    "temp_id",
+    "name",
+    "color",
+    "position",
+    "permissions",
+    "hoist",
+    "mentionable",
+    "managed",
+    "is_everyone",
+    "bind_role_module",
+    "_cache_readonly",
+})
+
+_LAST_BUSTED_JOB_MAX = 200
+_last_busted_job_lock = threading.Lock()
+_last_busted_job_by_guild: dict[str, tuple[int, float]] = {}
 
 
 def _int(value, default=0):
@@ -110,32 +87,29 @@ def _json_value(value, default):
     return default
 
 
+def _clean_id(value) -> str | None:
+    if value is None or isinstance(value, bool):
+        return None
+    token = str(value).strip()
+    if not token or token.lower() in ("none", "null", "undefined"):
+        return None
+    return token
+
+
+def _first_valid_id(raw) -> str | None:
+    for item in _json_value(raw, []):
+        cleaned = _clean_id(item)
+        if cleaned:
+            return cleaned
+    return None
+
+
 def _permission_names(value) -> list[str]:
-    if isinstance(value, list):
-        names: list[str] = []
-        seen: set[str] = set()
-        for item in value:
-            raw_name = str(item or "").strip()
-            if not raw_name:
-                continue
-            name = _PERMISSION_ALIASES.get(raw_name, raw_name)
-            if name not in seen:
-                seen.add(name)
-                names.append(name)
-        return names
-    bits = _int(value, 0)
-    if bits <= 0:
-        return []
-    return [name for bit, name in _PERMISSION_BITS.items() if bits & (1 << bit)]
+    return _engine().normalize_role_permissions(value)
 
 
 def _normalize_color_hex(value) -> str:
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped.startswith("#") and len(stripped) in (4, 7):
-            return stripped.lower() if stripped.lower() != "#000000" else "#99aab5"
-    color_int = _int(value, 0)
-    return f"#{color_int:06x}" if color_int > 0 else "#99aab5"
+    return _engine().normalize_role_color(value)
 
 
 def _normalize_overwrites(raw, guild_id: str) -> list[dict]:
@@ -193,27 +167,55 @@ def _normalize_channel(raw: dict, guild_id: str, channel_to_binding: dict | None
     }
 
 
-def _normalize_roles(raw_roles, guild_id: str) -> list[dict]:
+def _normalize_roles(
+    raw_roles,
+    guild_id: str,
+    *,
+    role_to_binding: dict | None = None,
+    live_source: str = "discord",
+) -> list[dict]:
+    engine = _engine()
     roles = []
+    gid = str(guild_id)
     for raw in raw_roles or []:
         if not isinstance(raw, dict):
             continue
         role_id = str(raw.get("id") or raw.get("role_id") or "")
         name = str(raw.get("name") or raw.get("role_name") or "")
-        is_everyone = bool(raw.get("is_everyone")) or role_id == str(guild_id) or name == "@everyone"
+        is_everyone = bool(raw.get("is_everyone")) or role_id == gid or role_id == "@everyone" or name == "@everyone"
+        has_perm_data = ("permissions" in raw and raw.get("permissions") is not None) or (
+            "permission_bits" in raw and raw.get("permission_bits") is not None
+        )
+        is_cache_readonly = (live_source == "cache") or (not has_perm_data)
         permissions = raw.get("permissions", raw.get("permission_bits", "0"))
+        if is_everyone:
+            bind_role_module = None
+        else:
+            bind_role_module = (role_to_binding or {}).get(role_id) if role_id else None
+            if bind_role_module is None:
+                bind_role_module = engine.normalize_role_bind_module(raw.get("bind_role_module"))
         roles.append({
             "id": "@everyone" if is_everyone else role_id,
+            "temp_id": None if is_everyone else (_clean_id(raw.get("temp_id")) or None),
             "name": "@everyone" if is_everyone else name,
-            "color": _normalize_color_hex(raw.get("color", raw.get("color_hex", 0))),
-            "position": _int(raw.get("position"), 0),
-            "permissions": _permission_names(permissions),
-            "hoist": bool(raw.get("hoist", False)),
-            "managed": bool(raw.get("managed", False)),
-            "mentionable": bool(raw.get("mentionable", False)),
+            "color": engine.normalize_role_color(0 if is_everyone else raw.get("color", raw.get("color_hex", 0))),
+            "position": 0 if is_everyone else _int(raw.get("position"), 0),
+            "permissions": engine.normalize_role_permissions(permissions),
+            "hoist": False if is_everyone else bool(raw.get("hoist", False)),
+            "managed": False if is_everyone else bool(raw.get("managed", False)),
+            "mentionable": False if is_everyone else bool(raw.get("mentionable", False)),
             "is_everyone": is_everyone,
+            "bind_role_module": bind_role_module,
+            "_cache_readonly": bool(is_cache_readonly),
         })
-    roles.sort(key=lambda role: role["position"], reverse=True)
+    roles.sort(
+        key=lambda role: (
+            role["position"],
+            0 if role["is_everyone"] else 1,
+            str(role.get("id") or ""),
+        ),
+        reverse=True,
+    )
     return roles
 
 
@@ -228,9 +230,28 @@ def _channel_binding_map(bindings: dict | None) -> dict[str, str]:
     return mapping
 
 
-def _build_tree(guild_id: str, raw_channels, raw_roles, bindings: dict | None = None) -> dict:
+def _role_binding_map(bindings: dict | None) -> dict[str, str]:
+    if not isinstance(bindings, dict):
+        return {}
+    mapping: dict[str, str] = {}
+    for module_key in ("autoroles_user", "verify_verified", "verify_pending", "automod_immune"):
+        rid = _clean_id(bindings.get(module_key))
+        if rid and rid not in mapping:
+            mapping[rid] = module_key
+    return mapping
+
+
+def _build_tree(
+    guild_id: str,
+    raw_channels,
+    raw_roles,
+    bindings: dict | None = None,
+    *,
+    live_source: str = "discord",
+) -> dict:
     engine = _engine()
     channel_to_binding = _channel_binding_map(bindings)
+    role_to_binding = _role_binding_map(bindings)
     channels = [
         _normalize_channel(item, guild_id, channel_to_binding=channel_to_binding)
         for item in (raw_channels or [])
@@ -272,8 +293,74 @@ def _build_tree(guild_id: str, raw_channels, raw_roles, bindings: dict | None = 
     return {
         "categories": categories,
         "uncategorized": uncategorized,
-        "roles": _normalize_roles(raw_roles, guild_id),
+        "roles": _normalize_roles(
+            raw_roles,
+            guild_id,
+            role_to_binding=role_to_binding,
+            live_source=live_source,
+        ),
     }
+
+
+def _normalize_target_role(role: dict, gid: str) -> dict:
+    engine = _engine()
+    raw_id = str(role.get("id") or "").strip()
+    is_ev = (
+        bool(role.get("is_everyone"))
+        or raw_id == gid
+        or raw_id == "@everyone"
+        or str(role.get("name") or "").strip() == "@everyone"
+    )
+    if is_ev:
+        cleaned: dict = {
+            "id": "@everyone",
+            "name": "@everyone",
+            "color": engine.normalize_role_color(0),
+            "position": 0,
+            "hoist": False,
+            "mentionable": False,
+            "managed": False,
+            "is_everyone": True,
+            "bind_role_module": None,
+        }
+        if "temp_id" in role:
+            cleaned["temp_id"] = _clean_id(role.get("temp_id"))
+        if "permissions" in role or "permission_bits" in role:
+            cleaned["permissions"] = engine.normalize_role_permissions(
+                role.get("permissions", role.get("permission_bits"))
+            )
+        if "_cache_readonly" in role:
+            cleaned["_cache_readonly"] = bool(role.get("_cache_readonly", False))
+        return cleaned
+
+    cleaned = {}
+    if "id" in role:
+        cleaned["id"] = raw_id or None
+    if "temp_id" in role:
+        cleaned["temp_id"] = _clean_id(role.get("temp_id"))
+    if "name" in role and role.get("name") is not None:
+        cleaned["name"] = str(role.get("name") or "").strip()[:100]
+    if "color" in role or "color_hex" in role:
+        cleaned["color"] = engine.normalize_role_color(role.get("color", role.get("color_hex")))
+    if "position" in role and role.get("position") is not None:
+        cleaned["position"] = _int(role.get("position"), 0)
+    if "permissions" in role or "permission_bits" in role:
+        cleaned["permissions"] = engine.normalize_role_permissions(
+            role.get("permissions", role.get("permission_bits"))
+        )
+    if "hoist" in role:
+        cleaned["hoist"] = bool(role.get("hoist", False))
+    if "mentionable" in role:
+        cleaned["mentionable"] = bool(role.get("mentionable", False))
+    if "managed" in role:
+        cleaned["managed"] = bool(role.get("managed", False))
+    if "is_everyone" in role:
+        cleaned["is_everyone"] = False
+    if "bind_role_module" in role:
+        cleaned["bind_role_module"] = engine.normalize_role_bind_module(role.get("bind_role_module"))
+    if "_cache_readonly" in role:
+        cleaned["_cache_readonly"] = bool(role.get("_cache_readonly", False))
+    return {k: v for k, v in cleaned.items() if k in _TARGET_ROLE_KEYS}
 
 
 def _normalize_target_tree(tree: dict, guild_id: str) -> dict:
@@ -288,16 +375,11 @@ def _normalize_target_tree(tree: dict, guild_id: str) -> dict:
 
     roles = normalized.get("roles")
     if isinstance(roles, list):
-        for role in roles:
-            if not isinstance(role, dict):
-                continue
-            if (
-                str(role.get("id") or "") == gid
-                or role.get("name") == "@everyone"
-                or role.get("is_everyone")
-            ):
-                role["id"] = "@everyone"
-                role["is_everyone"] = True
+        normalized["roles"] = [
+            _normalize_target_role(role, gid)
+            for role in roles
+            if isinstance(role, dict)
+        ]
 
     for cat in normalized.get("categories") or []:
         if not isinstance(cat, dict):
@@ -344,7 +426,7 @@ def _db_snapshot(guild_id: str) -> dict:
         raw_channels.append(item)
     return {
         "channels": raw_channels,
-        "roles": db.get_guild_roles(guild_id) or [],
+        "roles": [_normalize_db_role(r) for r in (db.get_guild_roles(guild_id) or []) if isinstance(r, dict)],
         "bot_permissions": {
             "administrator": False,
             "manage_channels": False,
@@ -358,8 +440,18 @@ def _db_snapshot(guild_id: str) -> dict:
     }
 
 
-def _snapshot(guild_id: str, allow_cache: bool = True):
-    live = get_guild_live_structure(guild_id)
+def _get_live_structure(guild_id: str, *, force_refresh: bool = False) -> dict | None:
+    if force_refresh:
+        try:
+            return get_guild_live_structure(guild_id, force_refresh=True)
+        except TypeError:
+            invalidate_server_builder_tree_cache(guild_id)
+            return get_guild_live_structure(guild_id)
+    return get_guild_live_structure(guild_id)
+
+
+def _snapshot(guild_id: str, allow_cache: bool = True, *, force_refresh: bool = False):
+    live = _get_live_structure(guild_id, force_refresh=force_refresh)
     if live is not None:
         return live, "discord"
     if allow_cache:
@@ -383,6 +475,39 @@ def _snapshot(guild_id: str, allow_cache: bool = True):
     }, "cache"
 
 
+def _maybe_bust_cache_on_recent_job(guild_id: str) -> bool:
+    """Invalidate worker-local Discord caches once when a newly finished job is detected in SQLite."""
+    gid = str(guild_id)
+    try:
+        recent = db.list_server_builder_jobs(gid, limit=1)
+    except Exception:
+        return False
+    if not recent:
+        return False
+    job = recent[0]
+    if job.get("status") not in ("completed", "cancelled", "failed"):
+        return False
+    job_id = _int(job.get("id"), 0)
+    try:
+        finished_at = float(job.get("finished_at") or 0.0)
+    except (TypeError, ValueError):
+        finished_at = 0.0
+    if job_id <= 0 or finished_at <= 0.0:
+        return False
+
+    with _last_busted_job_lock:
+        if _last_busted_job_by_guild.get(gid) == (job_id, finished_at):
+            return False
+        if len(_last_busted_job_by_guild) >= _LAST_BUSTED_JOB_MAX:
+            _last_busted_job_by_guild.clear()
+        _last_busted_job_by_guild[gid] = (job_id, finished_at)
+
+    invalidate_guild_channel_cache(gid)
+    invalidate_guild_roles_cache(gid)
+    invalidate_server_builder_tree_cache(gid)
+    return True
+
+
 def _bindings(guild_id: str) -> dict:
     settings = db.get_guild_settings(guild_id) or {}
     verify = db.get_verify_settings(guild_id) or {}
@@ -400,7 +525,67 @@ def _bindings(guild_id: str) -> dict:
         "welcome": welcome_channel_id,
         "verify": verify_channel_id,
         "bot_logs": logger_log_channel_id or automod_log_channel_id,
+        "autoroles_user": _first_valid_id(settings.get("autoroles_user")),
+        "verify_verified": _clean_id(verify.get("verified_role_id")),
+        "verify_pending": _clean_id(verify.get("pending_role_id")),
+        "automod_immune": _first_valid_id(automod.get("immune_roles")),
     }
+
+
+def _extract_target_role_bindings(target_tree: dict | None) -> dict[str, str]:
+    if not isinstance(target_tree, dict):
+        return {}
+    engine = _engine()
+    bound: dict[str, str] = {}
+    for bdict in (target_tree.get("bindings"), target_tree.get("role_bindings")):
+        if not isinstance(bdict, dict):
+            continue
+        for k, v in bdict.items():
+            norm_k = engine.normalize_role_bind_module(k)
+            val = _clean_id(v)
+            if norm_k and val:
+                bound[norm_k] = val
+    for role in target_tree.get("roles") or []:
+        if not isinstance(role, dict) or role.get("_deleted"):
+            continue
+        norm_k = engine.normalize_role_bind_module(role.get("bind_role_module"))
+        if norm_k:
+            ref = _clean_id(role.get("id")) or _clean_id(role.get("temp_id"))
+            if ref:
+                bound[norm_k] = ref
+    return bound
+
+
+def _protected_role_ids(guild_id: str, target_tree: dict | None = None) -> set[str]:
+    protected: set[str] = set()
+    settings = db.get_guild_settings(guild_id) or {}
+    for rid in _json_value(settings.get("bot_admin_roles"), []):
+        cleaned = _clean_id(rid)
+        if cleaned:
+            protected.add(cleaned)
+
+    verify = db.get_verify_settings(guild_id) or {}
+    if _int(verify.get("enabled"), 0) == 1:
+        target_role_binds = _extract_target_role_bindings(target_tree)
+        verified_role_id = _clean_id(verify.get("verified_role_id"))
+        if verified_role_id:
+            rebound = target_role_binds.get("verify_verified")
+            if not rebound or rebound == verified_role_id:
+                protected.add(verified_role_id)
+        pending_role_id = _clean_id(verify.get("pending_role_id"))
+        if pending_role_id:
+            rebound = target_role_binds.get("verify_pending")
+            if not rebound or rebound == pending_role_id:
+                protected.add(pending_role_id)
+
+    for panel in (db.get_ticket_panels(guild_id) or []):
+        if not isinstance(panel, dict):
+            continue
+        support_role_id = _clean_id(panel.get("support_role_id"))
+        if support_role_id:
+            protected.add(support_role_id)
+
+    return protected
 
 
 def _api_guard(guild_id: str):
@@ -445,9 +630,19 @@ def _job_payload(job: dict | None) -> dict | None:
 
 
 def _diff_needs_roles(diff: dict) -> bool:
+    engine = _engine()
     summary = diff.get("summary") or {}
-    for key in ("create_roles", "sync_permissions", "update_overwrites"):
+    for key in (
+        "create_roles",
+        "update_roles",
+        "delete_roles",
+        "sync_permissions",
+        "update_overwrites",
+    ):
         if _int(summary.get(key), 0) > 0:
+            return True
+    for bool_key in ("reorder_roles", "bulk_reorder_roles"):
+        if bool(summary.get(bool_key)):
             return True
     for operation in diff.get("operations") or []:
         if not isinstance(operation, dict):
@@ -459,13 +654,265 @@ def _diff_needs_roles(diff: dict) -> bool:
             or operation.get("kind")
             or ""
         ).lower()
-        if op_name in ("create_role", "sync_permissions", "update_overwrites"):
+        if op_name in (
+            "create_role",
+            "update_role",
+            "delete_role",
+            "reorder_roles",
+            "bulk_reorder_roles",
+            "sync_permissions",
+            "update_overwrites",
+        ):
             return True
         if op_name in ("create_category", "create_channel") and operation.get("overwrites"):
             return True
+        if op_name == "bind_modules":
+            bindings = operation.get("bindings") or {}
+            if isinstance(bindings, dict) and any(
+                (engine.normalize_role_bind_module(k) or k) in _ROLE_BIND_MODULES
+                for k in bindings
+            ):
+                return True
         if "role" in op_name or "overwrite" in op_name or "permission" in op_name:
             return True
     return False
+
+
+def _enforce_actor_privilege_bounds(
+    diff: dict,
+    current_tree: dict,
+    snapshot: dict,
+    actor: dict,
+    *,
+    is_apply: bool = True,
+    user_id: str | None = None,
+):
+    """Enforce P0 privilege-escalation, hierarchy, overwrite, and channel-access gates."""
+    engine = _engine()
+    warnings: list[str] = []
+
+    def _deny(error_code: str, *, missing: list[str] | None = None, message: str = "", extra: dict | None = None):
+        payload: dict = {"ok": False, "error": error_code}
+        if missing is not None:
+            payload["missing"] = missing
+        if message:
+            payload["message"] = message
+        if extra:
+            payload.update(extra)
+        return jsonify(payload), 403
+
+    # Gate 1: Role / overwrite / role-binding mutations require manage_roles (or admin/owner)
+    if _diff_needs_roles(diff) and not (
+        actor.get("is_owner") or actor.get("administrator") or actor.get("manage_roles")
+    ):
+        msg = "You lack the Manage Roles permission required for role or permission changes."
+        if is_apply:
+            return _deny("user_missing_permissions", missing=["manage_roles"], message=msg)
+        warnings.append(f"user_missing_permissions: {msg}")
+
+    roles_by_id: dict[str, dict] = {}
+    for role in current_tree.get("roles") or []:
+        if not isinstance(role, dict):
+            continue
+        rid = str(role.get("id") or "").strip()
+        if rid:
+            roles_by_id[rid] = role
+        if role.get("is_everyone") or role.get("name") == "@everyone":
+            roles_by_id["@everyone"] = role
+
+    nodes_by_id: dict[str, dict] = {}
+    for cat in current_tree.get("categories") or []:
+        if not isinstance(cat, dict):
+            continue
+        cid = str(cat.get("id") or "").strip()
+        if cid:
+            nodes_by_id[cid] = cat
+        for ch in cat.get("channels") or []:
+            if not isinstance(ch, dict):
+                continue
+            chid = str(ch.get("id") or "").strip()
+            if chid:
+                nodes_by_id[chid] = ch
+    for ch in current_tree.get("uncategorized") or []:
+        if not isinstance(ch, dict):
+            continue
+        chid = str(ch.get("id") or "").strip()
+        if chid:
+            nodes_by_id[chid] = ch
+
+    operations = diff.get("operations") or []
+    is_owner = bool(actor.get("is_owner"))
+    is_actor_admin = bool(actor.get("administrator"))
+    user_top_role_pos = actor.get("user_top_role_pos")
+    actor_bits = _int(actor.get("bitfield"), 0)
+
+    bot_perms = snapshot.get("bot_permissions") or {}
+    is_bot_admin = bool(bot_perms.get("administrator"))
+    bot_bits = _int(bot_perms.get("bitfield"), 0)
+
+    privileged_mask = 0
+    for pname in engine.PRIVILEGED_OVERWRITE_NAMES:
+        pbit = engine.PERMISSION_BIT_BY_NAME.get(pname)
+        if pbit is not None:
+            privileged_mask |= 1 << pbit
+
+    def _ow_map(overwrites) -> dict[tuple[str, str], tuple[int, int]]:
+        mapping: dict[tuple[str, str], tuple[int, int]] = {}
+        for ow in overwrites or []:
+            if not isinstance(ow, dict):
+                continue
+            tid = str(ow.get("id") if ow.get("id") is not None else ow.get("target_id") or "").strip()
+            if not tid:
+                continue
+            raw_t = str(ow.get("type") or "role").strip().lower()
+            ow_t = "member" if raw_t in ("1", "member") else "role"
+            allow_b = engine.permissions_to_bitfield(ow.get("allow", ow.get("allow_bits", 0)))
+            deny_b = engine.permissions_to_bitfield(ow.get("deny", ow.get("deny_bits", 0)))
+            mapping[(ow_t, tid)] = (allow_b, deny_b)
+        return mapping
+
+    # Gate 2: Role hierarchy ceiling for all non-owners (including non-owner admins)
+    if not is_owner and user_top_role_pos is not None:
+        user_top_int = int(user_top_role_pos)
+        for op in operations:
+            if not isinstance(op, dict):
+                continue
+            op_name = str(op.get("op") or "").lower()
+            if op_name == "update_role":
+                rid = str(op.get("role_id") or "")
+                if op.get("is_everyone") or rid == "@everyone":
+                    continue
+                curr_role = roles_by_id.get(rid)
+                if curr_role is not None and _int(curr_role.get("position"), 0) >= user_top_int:
+                    rname = str(curr_role.get("name") or rid)
+                    msg = f"Role '@{rname}' is at or above your highest role."
+                    if is_apply:
+                        return _deny("user_role_hierarchy_denied", message=msg, extra={"role": rname})
+                    warnings.append(f"user_role_hierarchy_denied: {msg}")
+            elif op_name == "delete_role":
+                rid = str(op.get("role_id") or "")
+                curr_role = roles_by_id.get(rid)
+                if curr_role is not None and _int(curr_role.get("position"), 0) >= user_top_int:
+                    rname = str(curr_role.get("name") or rid)
+                    msg = f"Role '@{rname}' is at or above your highest role."
+                    if is_apply:
+                        return _deny("user_role_hierarchy_denied", message=msg, extra={"role": rname})
+                    warnings.append(f"user_role_hierarchy_denied: {msg}")
+            elif op_name == "bulk_reorder_roles":
+                for item in op.get("items") or []:
+                    if not isinstance(item, dict):
+                        continue
+                    rid = str(item.get("id") or "").strip()
+                    if not rid:
+                        continue
+                    curr_role = roles_by_id.get(rid)
+                    if curr_role is not None and _int(curr_role.get("position"), 0) >= user_top_int:
+                        rname = str(curr_role.get("name") or rid)
+                        msg = f"Role '@{rname}' is at or above your highest role."
+                        if is_apply:
+                            return _deny("user_role_hierarchy_denied", message=msg, extra={"role": rname})
+                        warnings.append(f"user_role_hierarchy_denied: {msg}")
+
+    # Gate 3: Role permission ceiling (Bot & Actor), privileged overwrites, & private channel access
+    for op in operations:
+        if not isinstance(op, dict):
+            continue
+        op_name = str(op.get("op") or "").lower()
+
+        if op_name in ("create_role", "update_role"):
+            if op_name == "create_role":
+                raw_perms = (
+                    op.get("permissions_bitfield")
+                    if op.get("permissions_bitfield") is not None
+                    else op.get("permissions")
+                )
+                granted_bits = engine.permissions_to_bitfield(raw_perms)
+                revoked_bits = 0
+                has_perm_change = True
+            else:
+                changes = op.get("changes") or {}
+                has_perm_change = isinstance(changes, dict) and (
+                    "permissions" in changes or "permissions_bitfield" in changes
+                )
+                if has_perm_change:
+                    rid = str(op.get("role_id") or "")
+                    curr_role = roles_by_id.get(rid)
+                    curr_bits = engine.permissions_to_bitfield(
+                        curr_role.get("permissions", 0) if curr_role is not None else 0
+                    )
+                    raw_tgt = (
+                        changes.get("permissions_bitfield")
+                        if "permissions_bitfield" in changes
+                        else changes.get("permissions")
+                    )
+                    tgt_bits = engine.permissions_to_bitfield(raw_tgt)
+                    granted_bits = tgt_bits & ~curr_bits
+                    revoked_bits = curr_bits & ~tgt_bits
+                else:
+                    granted_bits = 0
+                    revoked_bits = 0
+
+            if has_perm_change and (granted_bits or revoked_bits):
+                changed_bits = granted_bits | revoked_bits
+                if not is_bot_admin:
+                    bot_exceeded = changed_bits & ~bot_bits
+                    if bot_exceeded != 0:
+                        missing_list = engine.normalize_role_permissions(bot_exceeded)
+                        msg = f"ZerynBot lacks permissions to modify: {', '.join(missing_list)}."
+                        if is_apply:
+                            return _deny("bot_missing_permissions", missing=missing_list, message=msg)
+                        warnings.append(f"bot_missing_permissions: {msg}")
+
+                if not is_owner and not is_actor_admin:
+                    actor_exceeded = changed_bits & ~actor_bits
+                    if actor_exceeded != 0:
+                        missing_list = engine.normalize_role_permissions(actor_exceeded)
+                        msg = "Cannot grant or revoke permissions you do not personally possess."
+                        if is_apply:
+                            return _deny("privilege_escalation_denied", missing=missing_list, message=msg)
+                        warnings.append(f"privilege_escalation_denied: {', '.join(missing_list)}")
+
+        if op_name in ("create_category", "create_channel", "update_overwrites"):
+            if op_name == "update_overwrites":
+                existing_node = nodes_by_id.get(str(op.get("channel_id") or "").strip())
+                prev_ow = _ow_map(existing_node.get("overwrites") if existing_node is not None else [])
+            else:
+                prev_ow = {}
+            new_ow = _ow_map(op.get("overwrites"))
+            newly_added_priv = 0
+            for key, (allow_b, deny_b) in new_ow.items():
+                prev_allow, prev_deny = prev_ow.get(key, (0, 0))
+                newly_added_priv |= ((allow_b & ~prev_allow) | (deny_b & ~prev_deny)) & privileged_mask
+
+            if newly_added_priv and not is_owner and not is_actor_admin:
+                missing_priv = newly_added_priv & ~actor_bits
+                if missing_priv != 0:
+                    missing_list = engine.normalize_role_permissions(missing_priv)
+                    msg = "Cannot modify privileged channel overwrites you do not possess."
+                    if is_apply:
+                        return _deny("privilege_escalation_denied", missing=missing_list, message=msg)
+                    warnings.append(f"privilege_escalation_denied: {', '.join(missing_list)}")
+
+        if op_name in ("update_overwrites", "sync_permissions", "update_channel", "delete_channel", "delete_category"):
+            cid = str(op.get("channel_id") or "").strip()
+            existing_node = nodes_by_id.get(cid)
+            if existing_node is not None:
+                perm_bits = engine.compute_channel_permissions(
+                    current_tree.get("roles") or [],
+                    actor.get("member_role_ids") or [],
+                    existing_node.get("overwrites") or [],
+                    is_owner=is_owner,
+                    member_id=user_id,
+                )
+                view_bit = 1 << engine.PERMISSION_BIT_BY_NAME["view_channel"]
+                if (perm_bits & view_bit) == 0:
+                    ch_name = str(existing_node.get("name") or cid)
+                    msg = f"You do not have view_channel access to '{ch_name}'."
+                    if is_apply:
+                        return _deny("channel_access_denied", message=msg, extra={"channel": ch_name})
+                    warnings.append(f"channel_access_denied: {msg}")
+
+    return None if is_apply else warnings
 
 
 @bp.route("/dashboard/<guild_id>/server-builder")
@@ -489,17 +936,44 @@ def tree(guild_id: str):
     err = _api_guard(guild_id)
     if err:
         return err
-    if request.args.get("refresh") == "1":
+    force_refresh = request.args.get("refresh") == "1"
+    busted = _maybe_bust_cache_on_recent_job(guild_id)
+    if force_refresh:
+        invalidate_guild_channel_cache(guild_id)
+        invalidate_guild_roles_cache(guild_id)
         invalidate_server_builder_tree_cache(guild_id)
-    snapshot, live_source = _snapshot(guild_id)
+    snapshot, live_source = _snapshot(guild_id, force_refresh=force_refresh or busted)
     bindings = _bindings(guild_id)
-    result = _build_tree(guild_id, snapshot.get("channels"), snapshot.get("roles"), bindings=bindings)
+    user_id = str((session.get("user") or {}).get("id") or "")
+    actor = get_actor_guild_authority(guild_id, user_id, snapshot, bypass_member_cache=False)
+    if actor is None:
+        actor = {
+            "is_owner": False,
+            "user_top_role_pos": 0,
+            "administrator": False,
+            "manage_guild": False,
+            "manage_channels": False,
+            "manage_roles": False,
+            "bitfield": "0",
+            "granted": [],
+            "member_role_ids": [],
+        }
+    result = _build_tree(
+        guild_id,
+        snapshot.get("channels"),
+        snapshot.get("roles"),
+        bindings=bindings,
+        live_source=live_source,
+    )
     total_channels = len(result["categories"]) + sum(len(c["channels"]) for c in result["categories"]) + len(result["uncategorized"])
     result.update({
         "ok": True,
         "guild_id": str(guild_id),
         "live_source": live_source,
         "bindings": bindings,
+        "is_guild_owner": bool(actor.get("is_owner")),
+        "user_top_role_pos": actor.get("user_top_role_pos"),
+        "user_permissions": actor,
         "bot_permissions": snapshot.get("bot_permissions") or {},
         "bot_top_role_pos": snapshot.get("bot_top_role_pos"),
         "bot_in_guild": bool(snapshot.get("bot_in_guild")),
@@ -568,22 +1042,63 @@ def preview_diff(guild_id: str):
     if not isinstance(data, dict) or not isinstance(data.get("tree"), dict):
         return jsonify({"ok": False, "error": "invalid_payload"}), 400
     snapshot, live_source = _snapshot(guild_id)
-    current_tree = _build_tree(guild_id, snapshot.get("channels"), snapshot.get("roles"))
-    current_tree["bindings"] = _bindings(guild_id)
+    bindings = _bindings(guild_id)
+    current_tree = _build_tree(
+        guild_id,
+        snapshot.get("channels"),
+        snapshot.get("roles"),
+        bindings=bindings,
+        live_source=live_source,
+    )
+    current_tree["bindings"] = bindings
     target_tree = _normalize_target_tree(data["tree"], guild_id)
-    validation = _engine().validate_tree_limits(target_tree, snapshot.get("bot_top_role_pos"))
+    user_id = str((session.get("user") or {}).get("id") or "")
+    actor = (
+        get_actor_guild_authority(guild_id, user_id, snapshot, bypass_member_cache=False)
+        if live_source == "discord"
+        else None
+    )
+    is_owner = bool(actor.get("is_owner")) if actor is not None else False
+    user_top_role_pos = actor.get("user_top_role_pos") if actor is not None else None
+    engine = _engine()
+    validation = engine.validate_tree_limits(
+        target_tree,
+        snapshot.get("bot_top_role_pos"),
+        is_guild_owner=is_owner,
+        user_top_role_pos=user_top_role_pos,
+        current_bindings=bindings,
+    )
     if not validation.get("ok"):
         return _validation_error(validation)
-    diff = _engine().compute_diff(
+    protected_roles = _protected_role_ids(guild_id, target_tree)
+    diff = engine.compute_diff(
         current_tree,
         target_tree,
         safe_mode=bool(data.get("safe_mode", True)),
         confirm_deletions=bool(data.get("confirm_deletions", False)),
         bot_top_role_pos=snapshot.get("bot_top_role_pos"),
+        is_guild_owner=is_owner,
+        user_top_role_pos=user_top_role_pos,
+        protected_role_ids=protected_roles,
+        live_source=live_source,
     )
     if diff.get("errors"):
         return jsonify({"ok": False, "error": "invalid_tree", "errors": diff["errors"]}), 400
-    warnings = list(dict.fromkeys(list(validation.get("warnings") or []) + list(diff.get("warnings") or [])))
+    priv_warnings: list[str] = []
+    if actor is not None:
+        priv_warnings = _enforce_actor_privilege_bounds(
+            diff,
+            current_tree,
+            snapshot,
+            actor,
+            is_apply=False,
+            user_id=user_id,
+        ) or []
+    warnings = list(dict.fromkeys(
+        list(validation.get("warnings") or [])
+        + list(diff.get("warnings") or [])
+        + list(priv_warnings)
+    ))
     return jsonify({"ok": True, "diff": diff, "live_source": live_source, "warnings": warnings})
 
 
@@ -596,35 +1111,73 @@ def apply(guild_id: str):
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or not isinstance(data.get("tree"), dict):
         return jsonify({"ok": False, "error": "invalid_payload"}), 400
-    snapshot = get_guild_live_structure(guild_id)
+    snapshot = _get_live_structure(guild_id, force_refresh=True)
     if snapshot is None:
         return jsonify({
             "ok": False,
             "error": "discord_unavailable",
             "message": "Cannot verify live Discord guild structure and bot permissions right now.",
         }), 503
+    user_id = str((session.get("user") or {}).get("id") or "")
+    actor = get_actor_guild_authority(guild_id, user_id, snapshot, bypass_member_cache=True)
+    if actor is None:
+        return jsonify({
+            "ok": False,
+            "error": "user_missing_permissions",
+            "message": "Cannot verify user permissions in guild.",
+        }), 403
+
     engine = _engine()
     target_tree = _normalize_target_tree(data["tree"], guild_id)
-    validation = engine.validate_tree_limits(target_tree, snapshot.get("bot_top_role_pos"))
+    bindings = _bindings(guild_id)
+    is_owner = bool(actor.get("is_owner"))
+    user_top_role_pos = actor.get("user_top_role_pos")
+    validation = engine.validate_tree_limits(
+        target_tree,
+        snapshot.get("bot_top_role_pos"),
+        is_guild_owner=is_owner,
+        user_top_role_pos=user_top_role_pos,
+        current_bindings=bindings,
+    )
     if not validation.get("ok"):
+        val_errors = validation.get("errors") or []
+        if any("user_role_hierarchy_denied" in str(e) or "user top role" in str(e) for e in val_errors):
+            return jsonify({
+                "ok": False,
+                "error": "user_role_hierarchy_denied",
+                "message": "; ".join(str(e) for e in val_errors),
+            }), 403
         return _validation_error(validation)
-    current_tree = _build_tree(guild_id, snapshot.get("channels"), snapshot.get("roles"))
-    current_tree["bindings"] = _bindings(guild_id)
+
+    current_tree = _build_tree(
+        guild_id,
+        snapshot.get("channels"),
+        snapshot.get("roles"),
+        bindings=bindings,
+        live_source="discord",
+    )
+    current_tree["bindings"] = bindings
     options = {
         "safe_mode": bool(data.get("safe_mode", True)),
         "confirm_deletions": bool(data.get("confirm_deletions", False)),
         "auto_bind_modules": bool(data.get("auto_bind_modules", True)),
         "send_guides": bool(data.get("send_guides", True)),
     }
+    if not is_owner and user_top_role_pos is not None:
+        options["actor_top_role_pos"] = int(user_top_role_pos)
+
+    protected_roles = _protected_role_ids(guild_id, target_tree)
     diff = engine.compute_diff(
         current_tree,
         target_tree,
         safe_mode=options["safe_mode"],
         confirm_deletions=options["confirm_deletions"],
         bot_top_role_pos=snapshot.get("bot_top_role_pos"),
+        is_guild_owner=is_owner,
+        user_top_role_pos=user_top_role_pos,
+        protected_role_ids=protected_roles,
+        live_source="discord",
     )
-    if diff.get("errors"):
-        return jsonify({"ok": False, "error": "invalid_tree", "errors": diff["errors"]}), 400
     permissions = snapshot.get("bot_permissions") or {}
     administrator = bool(permissions.get("administrator"))
     missing = []
@@ -634,6 +1187,28 @@ def apply(guild_id: str):
         missing.append("manage_roles")
     if missing:
         return jsonify({"ok": False, "error": "bot_missing_permissions", "missing": missing}), 403
+
+    if diff.get("errors"):
+        diff_errors = diff["errors"]
+        if any("user_role_hierarchy_denied" in str(e) for e in diff_errors):
+            return jsonify({
+                "ok": False,
+                "error": "user_role_hierarchy_denied",
+                "message": "; ".join(str(e) for e in diff_errors),
+            }), 403
+        return jsonify({"ok": False, "error": "invalid_tree", "errors": diff_errors}), 400
+
+    priv_err = _enforce_actor_privilege_bounds(
+        diff,
+        current_tree,
+        snapshot,
+        actor,
+        is_apply=True,
+        user_id=user_id,
+    )
+    if priv_err is not None:
+        return priv_err
+
     summary = diff.get("summary") or {}
     if summary.get("has_deletions") and not options["confirm_deletions"]:
         return jsonify({
@@ -641,7 +1216,6 @@ def apply(guild_id: str):
             "error": "deletion_confirmation_required",
             "delete_targets": summary.get("delete_targets") or [],
         }), 400
-    user_id = str((session.get("user") or {}).get("id") or "")
     operations = diff.get("operations") or []
     plan = {
         "operations": operations,
