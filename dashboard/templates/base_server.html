@@ -22,6 +22,7 @@
   {% set rail_items = [
     ['guild.server_overview',       'overview',        'bi-grid-fill',              'nav.overview',        'Overview',           '',                      True],
     ['server_builder.studio',       'server_builder',  'bi-diagram-3-fill',         'nav.server_builder',  'Server Builder',     '',                      True],
+    ['server_builder.studio',       'server_builder__roles', 'bi-person-gear',       'server_builder.tab_roles', 'Vai trò',      '',                      True],
     ['guild.server_embeds',         'embeds',          'bi-chat-square-text-fill',  'nav.embeds',          'Embed Messages',     '',                      True],
     ['guild.server_commands',       'commands',        'bi-terminal-fill',          'nav.commands',        'Commands',           '',                      True],
     ['guild.server_modules',        'modules',         'bi-toggles',                'nav.modules',         'Modules Manager',    '',                      True],
@@ -62,8 +63,17 @@
 
       <nav class="cr-rail-nav">
         {% for route, page, icon, tkey, dflt, mod, mod_dflt in rail_items %}
-        <a href="{{ url_for(route, guild_id=guild_id) }}"
-           class="cr-btn {% if page and active_page == page %}active{% endif %}"
+        {% set req_tab = request.args.get('tab', '') %}
+        {% set is_act = false %}
+        {% if page == 'server_builder__roles' %}
+          {% set is_act = active_page == 'server_builder' and req_tab == 'roles' %}
+        {% elif page == 'server_builder' %}
+          {% set is_act = active_page == 'server_builder' and req_tab != 'roles' %}
+        {% elif page %}
+          {% set is_act = active_page == page %}
+        {% endif %}
+        <a href="{{ url_for(route, guild_id=guild_id) }}{{ '?tab=roles' if page == 'server_builder__roles' else '' }}"
+           class="cr-btn {% if is_act %}active{% endif %}"
            title="{{ t(tkey) | default(dflt) }}">
           <i class="bi {{ icon }}"></i>
           <em>{{ t(tkey) | default(dflt) }}</em>

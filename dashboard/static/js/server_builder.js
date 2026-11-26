@@ -2887,6 +2887,12 @@
   bindInspector();
 
   async function initialize() {
+    // Deep-link ?tab=roles (mục 👑 Roles trên rail) — mở thẳng tab Vai trò
+    try {
+      if (new URLSearchParams(window.location.search).get('tab') === 'roles') {
+        setActiveTab('roles');
+      }
+    } catch (e) { /* bỏ qua */ }
     await loadTemplates();
     await loadTree(true);
     if (state.activeJob && !state.pollTimer && !terminalStatuses.has(state.activeJob.status)) {
