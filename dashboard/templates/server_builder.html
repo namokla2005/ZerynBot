@@ -39,23 +39,48 @@
 
   <div class="sb-workspace">
     <section class="sb-panel sb-tree-panel">
-      <header class="sb-panel-header">
-        <div>
-          <h2>{{ t('server_builder.structure') }}</h2>
-          <span class="sb-count" id="sb-channel-count">0 / 500</span>
+      <header class="sb-panel-header sb-tree-header">
+        <div class="sb-mode-tabs" role="tablist" aria-label="{{ t('server_builder.structure') }}">
+          <button type="button" class="sb-mode-tab active" id="sb-tab-channels" role="tab" aria-selected="true" aria-controls="sb-tree" data-tab="channels">
+            <i class="bi bi-folder2-open" aria-hidden="true"></i>
+            <span>{{ t('server_builder.tab_channels') }}</span>
+            <span class="sb-count" id="sb-channel-count">0 / 500</span>
+          </button>
+          <button type="button" class="sb-mode-tab" id="sb-tab-roles" role="tab" aria-selected="false" aria-controls="sb-role-panel" data-tab="roles">
+            <i class="bi bi-shield-shaded" aria-hidden="true"></i>
+            <span>{{ t('server_builder.tab_roles') }}</span>
+            <span class="sb-count" id="sb-role-count">0 / 250</span>
+          </button>
         </div>
         <button type="button" class="btn btn-primary btn-sm" id="sb-add-category"><i class="bi bi-plus-lg"></i> {{ t('server_builder.add_category') }}</button>
+        <button type="button" class="btn btn-primary btn-sm" id="sb-add-role" hidden><i class="bi bi-plus-lg"></i> {{ t('server_builder.add_role') }}</button>
       </header>
-      <div class="sb-tree" id="sb-tree" aria-live="polite">
+      <div class="sb-tree" id="sb-tree" role="tabpanel" aria-labelledby="sb-tab-channels" aria-live="polite">
         <div class="sb-empty">{{ t('server_builder.loading') }}</div>
+      </div>
+      <div class="sb-role-panel" id="sb-role-panel" role="tabpanel" aria-labelledby="sb-tab-roles" hidden>
+        <div class="sb-role-toolbar">
+          <input type="search" class="form-control sb-role-search" id="sb-role-search" placeholder="{{ t('server_builder.role_search_placeholder') }}" maxlength="100" autocomplete="off">
+        </div>
+        <div class="sb-role-hierarchy-hint" id="sb-role-hierarchy-hint">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          <span>{{ t('server_builder.role_hierarchy_hint') }}</span>
+        </div>
+        <div class="sb-role-list" id="sb-role-list" aria-live="polite"></div>
       </div>
     </section>
 
     <aside class="sb-panel sb-inspector-panel">
-      <header class="sb-panel-header"><h2>{{ t('server_builder.inspector') }}</h2></header>
+      <header class="sb-panel-header">
+        <h2>{{ t('server_builder.inspector') }}</h2>
+        <button type="button" class="sb-icon-btn sb-mobile-back-btn" id="sb-mobile-back" title="{{ t('server_builder.structure') }}" aria-label="{{ t('server_builder.structure') }}">
+          <i class="bi bi-arrow-up" aria-hidden="true"></i>
+        </button>
+      </header>
       <div class="sb-inspector-empty" id="sb-inspector-empty">{{ t('server_builder.inspector_empty') }}</div>
       <div class="sb-inspector" id="sb-inspector" hidden>
         <span class="sb-kind" id="sb-kind"></span>
+        <div class="sb-banner sb-banner-warning" id="sb-role-lock-banner" hidden><i class="bi bi-lock-fill" aria-hidden="true"></i> <span id="sb-role-lock-text"></span></div>
         <label class="sb-field">
           <span>{{ t('server_builder.name') }}</span>
           <input class="form-control" id="sb-name" type="text" maxlength="100">
@@ -119,7 +144,7 @@
         <button type="button" class="btn btn-secondary btn-full" id="sb-sync-selected"></button>
 
         <div class="sb-bot-view-warning" id="sb-bot-view-warning" hidden><i class="bi bi-exclamation-triangle-fill"></i> {{ t('server_builder.bot_view_warning') }}</div>
-        <section class="sb-permissions">
+        <section class="sb-permissions" id="sb-channel-permissions-sec">
           <h3>{{ t('server_builder.permission_matrix') }}</h3>
           <div class="sb-table-wrap">
             <table class="sb-permission-table">
@@ -134,6 +159,61 @@
             </table>
           </div>
         </section>
+
+        <div class="sb-role-inspector" id="sb-role-inspector" hidden>
+          <div class="sb-field" id="sb-role-color-section">
+            <span>{{ t('server_builder.role_color') }}</span>
+            <div class="sb-color-row">
+              <input type="color" class="sb-color-native" id="sb-role-color-picker" value="#99aab5" aria-label="{{ t('server_builder.role_color') }}">
+              <input type="text" class="form-control sb-color-hex" id="sb-role-color-hex" maxlength="7" placeholder="#99aab5" spellcheck="false" autocomplete="off">
+              <button type="button" class="btn btn-secondary btn-sm" id="sb-role-color-reset">{{ t('server_builder.role_color_default') }}</button>
+            </div>
+            <div class="sb-color-swatches" id="sb-role-swatches"></div>
+          </div>
+
+          <div class="sb-role-flags" id="sb-role-flags-section">
+            <label class="sb-switch-wrap">
+              <input type="checkbox" id="sb-role-hoist">
+              <span class="sb-switch" aria-hidden="true"></span>
+              <span>{{ t('server_builder.role_hoist') }}</span>
+            </label>
+            <label class="sb-switch-wrap">
+              <input type="checkbox" id="sb-role-mentionable">
+              <span class="sb-switch" aria-hidden="true"></span>
+              <span>{{ t('server_builder.role_mentionable') }}</span>
+            </label>
+          </div>
+
+          <label class="sb-field" id="sb-role-module-wrap">
+            <span>{{ t('server_builder.role_module_link') }}</span>
+            <select class="form-control" id="sb-role-module">
+              <option value="none">{{ t('server_builder.module_none') }}</option>
+              <option value="autoroles_user">{{ t('server_builder.role_module_autoroles_user') }}</option>
+              <option value="verify_verified">{{ t('server_builder.role_module_verify_verified') }}</option>
+              <option value="verify_pending">{{ t('server_builder.role_module_verify_pending') }}</option>
+              <option value="automod_immune">{{ t('server_builder.role_module_automod_immune') }}</option>
+            </select>
+          </label>
+
+          <div class="sb-field" id="sb-role-quick-presets-wrap">
+            <span>{{ t('server_builder.role_quick_presets') }}</span>
+            <div class="sb-role-quick-presets" id="sb-role-quick-presets"></div>
+          </div>
+
+          <section class="sb-role-perm-matrix" id="sb-role-perm-matrix">
+            <div class="sb-role-perm-head">
+              <h3>{{ t('server_builder.permission_matrix') }}</h3>
+              <input type="search" class="form-control sb-perm-search" id="sb-perm-search" placeholder="{{ t('server_builder.perm_search_placeholder') }}" maxlength="80" autocomplete="off">
+            </div>
+            <div class="sb-banner sb-banner-warning" id="sb-role-admin-warning" hidden><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> <span>{{ t('server_builder.perm_admin_warning') }}</span></div>
+            <div class="sb-perm-groups" id="sb-role-perm-groups"></div>
+          </section>
+
+          <section class="sb-role-usage" id="sb-role-usage-section">
+            <h3>{{ t('server_builder.role_usage_title') }}</h3>
+            <div class="sb-role-usage-chips" id="sb-role-usage-chips"></div>
+          </section>
+        </div>
       </div>
 
       <section class="sb-diff-card">
@@ -221,10 +301,64 @@
   "preset_community_4cat_name": t('server_builder.preset_community_4cat_name'), "preset_community_4cat_desc": t('server_builder.preset_community_4cat_desc'),
   "preset_gaming_squad_name": t('server_builder.preset_gaming_squad_name'), "preset_gaming_squad_desc": t('server_builder.preset_gaming_squad_desc'),
   "preset_study_class_name": t('server_builder.preset_study_class_name'), "preset_study_class_desc": t('server_builder.preset_study_class_desc'),
-  "preset_creator_community_name": t('server_builder.preset_creator_community_name'), "preset_creator_community_desc": t('server_builder.preset_creator_community_desc')
+  "preset_creator_community_name": t('server_builder.preset_creator_community_name'), "preset_creator_community_desc": t('server_builder.preset_creator_community_desc'),
+  "tab_channels": t('server_builder.tab_channels'), "tab_roles": t('server_builder.tab_roles'),
+  "add_role": t('server_builder.add_role'), "new_role": t('server_builder.new_role'),
+  "selected_role": t('server_builder.selected_role'), "selected_everyone_role": t('server_builder.selected_everyone_role'),
+  "role_search_placeholder": t('server_builder.role_search_placeholder'), "role_hierarchy_hint": t('server_builder.role_hierarchy_hint'),
+  "role_ceiling_divider": t('server_builder.role_ceiling_divider'), "role_limit_warning": t('server_builder.role_limit_warning'),
+  "role_locked_user": t('server_builder.role_locked_user'), "role_locked_managed": t('server_builder.role_locked_managed'),
+  "role_locked_cache": t('server_builder.role_locked_cache'), "role_everyone_hint": t('server_builder.role_everyone_hint'),
+  "safe_mode_protected_role": t('server_builder.safe_mode_protected_role'), "role_color": t('server_builder.role_color'),
+  "role_color_default": t('server_builder.role_color_default'), "role_hoist": t('server_builder.role_hoist'),
+  "role_mentionable": t('server_builder.role_mentionable'), "role_badge_bot": t('server_builder.role_badge_bot'),
+  "role_badge_hoist": t('server_builder.role_badge_hoist'), "role_overwrites_used": t('server_builder.role_overwrites_used'),
+  "role_usage_title": t('server_builder.role_usage_title'), "role_usage_empty": t('server_builder.role_usage_empty'),
+  "role_module_link": t('server_builder.role_module_link'), "role_module_autoroles_user": t('server_builder.role_module_autoroles_user'),
+  "role_module_verify_verified": t('server_builder.role_module_verify_verified'), "role_module_verify_pending": t('server_builder.role_module_verify_pending'),
+  "role_module_automod_immune": t('server_builder.role_module_automod_immune'), "role_module_short_autoroles_user": t('server_builder.role_module_short_autoroles_user'),
+  "role_module_short_verify_verified": t('server_builder.role_module_short_verify_verified'), "role_module_short_verify_pending": t('server_builder.role_module_short_verify_pending'),
+  "role_module_short_automod_immune": t('server_builder.role_module_short_automod_immune'), "role_quick_presets": t('server_builder.role_quick_presets'),
+  "role_preset_mod": t('server_builder.role_preset_mod'), "role_preset_staff": t('server_builder.role_preset_staff'),
+  "role_preset_vip": t('server_builder.role_preset_vip'), "role_preset_member": t('server_builder.role_preset_member'),
+  "role_preset_muted": t('server_builder.role_preset_muted'), "role_preset_clear": t('server_builder.role_preset_clear'),
+  "role_preset_filtered_toast": t('server_builder.role_preset_filtered_toast'), "perm_search_placeholder": t('server_builder.perm_search_placeholder'),
+  "perm_admin_warning": t('server_builder.perm_admin_warning'), "perm_locked_bot": t('server_builder.perm_locked_bot'),
+  "perm_locked_user": t('server_builder.perm_locked_user'), "diff_roles": t('server_builder.diff_roles'),
+  "user_missing_permissions": t('server_builder.user_missing_permissions'), "privilege_escalation_error": t('server_builder.privilege_escalation_error'),
+  "role_hierarchy_error": t('server_builder.role_hierarchy_error'),
+  "perm_group_general": t('server_builder.perm_group_general'), "perm_group_membership": t('server_builder.perm_group_membership'),
+  "perm_group_text": t('server_builder.perm_group_text'), "perm_group_voice": t('server_builder.perm_group_voice'),
+  "perm_administrator": t('server_builder.perm_administrator'), "perm_manage_guild": t('server_builder.perm_manage_guild'),
+  "perm_manage_roles": t('server_builder.perm_manage_roles'), "perm_manage_channels": t('server_builder.perm_manage_channels'),
+  "perm_manage_webhooks": t('server_builder.perm_manage_webhooks'), "perm_manage_guild_expressions": t('server_builder.perm_manage_guild_expressions'),
+  "perm_create_guild_expressions": t('server_builder.perm_create_guild_expressions'), "perm_view_audit_log": t('server_builder.perm_view_audit_log'),
+  "perm_view_guild_insights": t('server_builder.perm_view_guild_insights'), "perm_manage_events": t('server_builder.perm_manage_events'),
+  "perm_create_events": t('server_builder.perm_create_events'), "perm_view_creator_monetization_analytics": t('server_builder.perm_view_creator_monetization_analytics'),
+  "perm_use_external_apps": t('server_builder.perm_use_external_apps'),
+  "perm_create_instant_invite": t('server_builder.perm_create_instant_invite'), "perm_change_nickname": t('server_builder.perm_change_nickname'),
+  "perm_manage_nicknames": t('server_builder.perm_manage_nicknames'), "perm_kick_members": t('server_builder.perm_kick_members'),
+  "perm_ban_members": t('server_builder.perm_ban_members'), "perm_moderate_members": t('server_builder.perm_moderate_members'),
+  "perm_view_channel": t('server_builder.perm_view_channel'), "perm_send_messages": t('server_builder.perm_send_messages'),
+  "perm_send_messages_in_threads": t('server_builder.perm_send_messages_in_threads'), "perm_create_public_threads": t('server_builder.perm_create_public_threads'),
+  "perm_create_private_threads": t('server_builder.perm_create_private_threads'), "perm_embed_links": t('server_builder.perm_embed_links'),
+  "perm_attach_files": t('server_builder.perm_attach_files'), "perm_add_reactions": t('server_builder.perm_add_reactions'),
+  "perm_use_external_emojis": t('server_builder.perm_use_external_emojis'), "perm_use_external_stickers": t('server_builder.perm_use_external_stickers'),
+  "perm_mention_everyone": t('server_builder.perm_mention_everyone'), "perm_manage_messages": t('server_builder.perm_manage_messages'),
+  "perm_pin_messages": t('server_builder.perm_pin_messages'), "perm_bypass_slowmode": t('server_builder.perm_bypass_slowmode'),
+  "perm_manage_threads": t('server_builder.perm_manage_threads'), "perm_read_message_history": t('server_builder.perm_read_message_history'),
+  "perm_send_tts_messages": t('server_builder.perm_send_tts_messages'), "perm_use_application_commands": t('server_builder.perm_use_application_commands'),
+  "perm_send_voice_messages": t('server_builder.perm_send_voice_messages'), "perm_send_polls": t('server_builder.perm_send_polls'),
+  "perm_connect": t('server_builder.perm_connect'), "perm_speak": t('server_builder.perm_speak'),
+  "perm_stream": t('server_builder.perm_stream'), "perm_use_soundboard": t('server_builder.perm_use_soundboard'),
+  "perm_use_external_sounds": t('server_builder.perm_use_external_sounds'), "perm_use_vad": t('server_builder.perm_use_vad'),
+  "perm_priority_speaker": t('server_builder.perm_priority_speaker'), "perm_mute_members": t('server_builder.perm_mute_members'),
+  "perm_deafen_members": t('server_builder.perm_deafen_members'), "perm_move_members": t('server_builder.perm_move_members'),
+  "perm_use_embedded_activities": t('server_builder.perm_use_embedded_activities'), "perm_request_to_speak": t('server_builder.perm_request_to_speak'),
+  "perm_set_voice_channel_status": t('server_builder.perm_set_voice_channel_status')
 } | tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/server_builder.js') }}?v=15.0"></script>
+<script src="{{ url_for('static', filename='js/server_builder.js') }}?v=16.0"></script>
 {% endblock %}
