@@ -3352,6 +3352,8 @@ html.theme-switching *::after {
     scroll-behavior: auto !important;
   }
   .sidebar,
+  .cr-rail,
+  .cr-cmdbar,
   .topbar,
   .modal-overlay,
   .theme-toggle-btn,
@@ -3359,4 +3361,133 @@ html.theme-switching *::after {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   COMMAND RAIL — STRUCTURAL LAYER (V20)
+   Khung mới: rail biểu tượng 76px + thanh lệnh cmdbar + lưới nội dung 2 cột.
+   Chỉ dựng lại BỐ CỤC — tokens/màu vẫn theo hệ Iridescent (V12/V19).
+   ═══════════════════════════════════════════════════════════════════════════════ */
+:root { --rail-width: 76px; }
+
+/* ── Rail ── */
+.cr-rail {
+  position: fixed; left: 14px; top: 14px; bottom: 14px;
+  width: var(--rail-width);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 8px;
+  background: var(--glass);
+  border: 1px solid var(--gborder);
+  border-radius: 20px;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-sm);
+  z-index: 100;
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.cr-rail::-webkit-scrollbar { width: 4px; }
+.cr-rail::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+.cr-brand {
+  display: flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; margin: 2px auto 8px; border-radius: 15px;
+  background: var(--grad-primary); color: #fff;
+  font-family: var(--font-display); font-size: 20px; font-weight: 800; text-decoration: none;
+  box-shadow: 0 8px 20px -8px var(--accent-glow); flex: none; overflow: hidden;
+}
+.cr-brand img { width: 100%; height: 100%; border-radius: 15px; object-fit: cover; }
+.cr-rail-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.cr-btn {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 7px 3px; border-radius: 13px;
+  color: var(--text-secondary); text-decoration: none;
+  border: 1px solid transparent; transition: var(--transition); flex: none;
+}
+.cr-btn i { font-size: 16px; line-height: 1; }
+.cr-btn em {
+  font-style: normal; font-size: 7.6px; font-weight: 700; letter-spacing: .01em;
+  line-height: 1.05; max-width: 58px; text-align: center;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  color: var(--text-muted);
+}
+.cr-btn:hover { background: var(--bg-hover); border-color: var(--border); color: var(--text-primary); }
+.cr-btn.active {
+  background: var(--nav-active-bg);
+  border-color: var(--nav-active-border);
+  color: var(--text-primary);
+}
+.cr-btn.active em { color: var(--text-primary); }
+.cr-btn .status-dot { position: absolute; top: 6px; right: 9px; margin: 0; width: 7px; height: 7px; }
+.cr-rail-bottom {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; flex: none;
+}
+.cr-lang-icon { font-size: 15px; }
+.cr-lang .lang-switcher-btn { height: 36px; padding: 0 8px; border-radius: 12px; }
+.cr-lang-drop {
+  left: calc(100% + 10px) !important; right: auto !important;
+  bottom: 0 !important; top: auto !important; width: 200px; z-index: 1000;
+}
+.cr-user { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 13px; text-decoration: none; }
+.cr-user .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; }
+.cr-user-ph {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--grad-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;
+}
+.cr-logout {
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 32px;
+  border-radius: 11px; color: var(--text-muted); text-decoration: none;
+}
+.cr-logout:hover { background: var(--bg-hover); color: var(--danger); }
+
+/* ── Main + cmdbar ── */
+.main { margin-left: calc(var(--rail-width) + 28px); flex: 1; min-width: 0; }
+.main-inner { padding: 14px 28px 30px 8px; }
+.cr-cmdbar {
+  position: sticky; top: 14px; z-index: 90;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin-bottom: 16px;
+  background: var(--glass); border: 1px solid var(--gborder); border-radius: 16px;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-sm);
+}
+.cr-crumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cr-crumb-guild {
+  font-size: 12.5px; color: var(--text-muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 26vw;
+}
+.cr-crumb-sep { color: var(--text-disabled); font-size: 12px; }
+.cr-crumb b {
+  font-family: var(--font-display); font-size: 18px; letter-spacing: -.02em;
+  color: var(--text-primary); white-space: nowrap;
+}
+.cr-cmdbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.cr-burger { display: none; }
+.cr-backdrop { display: none; position: fixed; inset: 0; background: rgba(10, 8, 22, .45); z-index: 290; }
+body.cr-menu-open .cr-backdrop { display: block; }
+
+/* ── Lưới nội dung 2 cột (các trang dùng ở Phase 2/3) ── */
+.cr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 15px; align-items: start; }
+.cr-side { position: sticky; top: 86px; display: flex; flex-direction: column; gap: 15px; }
+@media (max-width: 1180px) { .cr-grid { grid-template-columns: 1fr; } .cr-side { position: static; } }
+
+/* ── Responsive: rail thu gọn thành ngăn kéo ── */
+@media (max-width: 980px), (max-height: 760px) and (max-width: 1180px) {
+  .cr-rail { transform: translateX(calc(-100% - 28px)); transition: transform .25s ease; z-index: 300; }
+  .cr-rail.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .main-inner { padding: 12px 14px 26px; }
+  .cr-burger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 12px;
+    background: var(--glass); border: 1px solid var(--gborder);
+    color: var(--ink); cursor: pointer;
+  }
+  .cr-crumb-guild { display: none; }
+}
+/* Màn thấp: thu gọn nhãn phụ trong rail để đỡ phải cuộn */
+@media (max-height: 820px) and (min-width: 981px) {
+  .cr-btn { padding: 5px 3px; }
+  .cr-btn em { display: none; }
+  .cr-btn i { font-size: 17px; }
 }

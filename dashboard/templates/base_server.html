@@ -12,187 +12,74 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script>(function(){try{var m=localStorage.getItem('zeryn-theme');if(m!=='light'&&m!=='dark'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=19.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20.0">
   {% block head %}{% endblock %}
 </head>
 
 <body>
   <div class="iridescent-blob" aria-hidden="true"></div>
+
+  {% set rail_items = [
+    ['guild.server_overview',       'overview',        'bi-grid-fill',              'nav.overview',        'Overview',           '',                      True],
+    ['server_builder.studio',       'server_builder',  'bi-diagram-3-fill',         'nav.server_builder',  'Server Builder',     '',                      True],
+    ['guild.server_embeds',         'embeds',          'bi-chat-square-text-fill',  'nav.embeds',          'Embed Messages',     '',                      True],
+    ['guild.server_commands',       'commands',        'bi-terminal-fill',          'nav.commands',        'Commands',           '',                      True],
+    ['guild.server_modules',        'modules',         'bi-toggles',                'nav.modules',         'Modules Manager',    '',                      True],
+    ['guild.server_moderation',     'moderation',      'bi-shield-fill-check',      'nav.moderation',      'Moderation',         'moderation',            True],
+    ['guild.server_automod',        'automod',         'bi-shield-lock-fill',       'nav.automods',        'Automods',           'automods',              False],
+    ['guild.server_verify',         'verify',          'bi-shield-check',           'nav.verify',          'Verify Gate',        'verify',                True],
+    ['guild.server_welcome',        'welcome',         'bi-emoji-smile-fill',       'nav.welcome_goodbye', 'Welcome & Goodbye',  'welcome_goodbye',       True],
+    ['guild.server_autoroles',      'autoroles',       'bi-person-badge-fill',      'nav.autoroles',       'Auto Roles',         'autoroles',             False],
+    ['guild.server_logger',         'logger',          'bi-journal-text',           'nav.logger',          'Logging',            'logger',                False],
+    ['guild.server_ai',             'ai',              'bi-robot',                  'nav.ai',              'AI Assistant',       'ai',                    False],
+    ['guild.server_leveling',       'leveling',        'bi-star-fill',              'nav.leveling',        'Leveling & XP',      'leveling',              True],
+    ['guild.server_economy',        'economy',         'bi-coin',                   'nav.economy',         'Economy & Shop',     'economy',               True],
+    ['guild.server_birthday',       'birthday',        'bi-cake2-fill',             'nav.birthday',        'Birthday',           'birthday',              True],
+    ['guild.server_commands',       '',                'bi-emoji-heart-eyes-fill',  'nav.fun',             'Fun & Social',       'fun',                   True],
+    ['guild.server_tempvoice',      'tempvoice',       'bi-mic-fill',               'nav.tempvoice',       'Temp Voice Hub',     'tempvoice',             False],
+    ['music.server_music',          'music',           'bi-music-note-beamed',      'nav.music',           'Music',              'music',                 True],
+    ['guild.server_reactionroles',  'reactionroles',   'bi-ui-radios',              'nav.reactionroles',   'Reaction Roles',     'reactionroles',         False],
+    ['guild.server_tickets',        'tickets',         'bi-ticket-detailed-fill',   'nav.tickets',         'Tickets',            'tickets',               True],
+    ['guild.server_modules',        '',                'bi-gift-fill',              'nav.giveaways',       'Giveaways',          'giveaways',             True],
+    ['guild.server_customcommands', 'customcommands',  'bi-lightning-charge-fill',  'nav.customcommands',  'Custom Commands',    'customcommands',        True],
+    ['guild.server_commands',       '',                'bi-info-circle-fill',       'nav.info',            'Info Commands',      'info',                  True],
+    ['guild.server_commands',       '',                'bi-gear-fill',              'nav.utility',         'Utility',            'utility',               True]
+  ] %}
+
   <div class="app-wrapper">
 
-    <!-- ─── Sidebar ─────────────────────────────────────────────────────────── -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        {% set sidebar_icon = guild | guild_icon_url %}
-        {% if sidebar_icon %}
-        <img class="sidebar-guild-icon" src="{{ sidebar_icon }}" alt="icon" loading="lazy">
+    <!-- ─── Command Rail (V20) ──────────────────────────────────────────────── -->
+    <div class="cr-backdrop" id="crBackdrop" aria-hidden="true"></div>
+    <aside class="cr-rail" id="crRail">
+      {% set rail_icon = guild | guild_icon_url %}
+      <a class="cr-brand" href="{{ url_for('guild.server_overview', guild_id=guild_id) }}" title="{{ guild.get('name', 'Server') }}">
+        {% if rail_icon %}
+        <img src="{{ rail_icon }}" alt="icon" loading="lazy">
         {% else %}
-        <div class="sidebar-guild-placeholder">{{ (guild.get('name','?') or '?')[:1] | upper }}</div>
+        <span>{{ (guild.get('name','?') or '?')[:1] | upper }}</span>
         {% endif %}
-        <div class="sidebar-guild-name">{{ guild.get('name', 'Server') }}</div>
-      </div>
+      </a>
 
-      <nav class="sidebar-nav">
-        <!-- GENERAL -->
-        <div class="nav-section">
-          <div class="nav-section-title">{{ t('nav.sec_general') | default('General') }}</div>
-          <a href="{{ url_for('guild.server_overview', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'overview' %}active{% endif %}">
-            <i class="nav-icon bi bi-grid-fill"></i> {{ t('nav.overview') | default('Overview') }}
-          </a>
-          <a href="{{ url_for('server_builder.studio', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'server_builder' %}active{% endif %}">
-            <i class="nav-icon bi bi-diagram-3-fill"></i> {{ t('nav.server_builder') }}
-          </a>
-          <a href="{{ url_for('guild.server_embeds', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'embeds' %}active{% endif %}">
-            <i class="nav-icon bi bi-chat-square-text-fill"></i> {{ t('nav.embeds') | default('Embed Messages') }}
-          </a>
-          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'commands' %}active{% endif %}">
-            <i class="nav-icon bi bi-terminal-fill"></i> {{ t('nav.commands') | default('Commands') }}
-          </a>
-          <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'modules' %}active{% endif %}">
-            <i class="nav-icon bi bi-toggles"></i> {{ t('nav.modules') | default('Modules Manager') }}
-          </a>
-        </div>
-
-        <!-- 1. QUẢN TRỊ CỐT LÕI (CORE & MODERATION) -->
-        <div class="nav-section">
-          <div class="nav-section-title">{{ t('nav.sec_core') | default('Core Moderation') }}</div>
-          <a href="{{ url_for('guild.server_moderation', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'moderation' %}active{% endif %}">
-            <i class="nav-icon bi bi-shield-fill-check"></i> {{ t('nav.moderation') | default('Moderation') }}
-            <span class="status-dot nav-dot-moderation
-            {% if modules.get('moderation', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_automod', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'automod' %}active{% endif %}">
-            <i class="nav-icon bi bi-shield-lock-fill"></i> {{ t('nav.automods') | default('Automods') }}
-            <span class="status-dot nav-dot-automods
-            {% if modules.get('automods', False) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_verify', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'verify' %}active{% endif %}">
-            <i class="nav-icon bi bi-shield-check"></i> {{ t('nav.verify') | default('Verify Gate') }}
-            <span class="status-dot nav-dot-verify
-            {% if modules.get('verify', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_welcome', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'welcome' %}active{% endif %}">
-            <i class="nav-icon bi bi-emoji-smile-fill"></i> {{ t('nav.welcome_goodbye') | default('Welcome & Goodbye') }}
-            <span class="status-dot nav-dot-welcome_goodbye
-            {% if modules.get('welcome_goodbye', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_autoroles', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'autoroles' %}active{% endif %}">
-            <i class="nav-icon bi bi-person-badge-fill"></i> {{ t('nav.autoroles') | default('Auto Roles') }}
-            <span class="status-dot nav-dot-autoroles
-            {% if modules.get('autoroles', False) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_logger', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'logger' %}active{% endif %}">
-            <i class="nav-icon bi bi-journal-text"></i> {{ t('nav.logger') | default('Logging') }}
-            <span class="status-dot nav-dot-logger
-            {% if modules.get('logger', False) %}on{% else %}off{% endif %}"></span>
-          </a>
-        </div>
-
-        <!-- 2. CỘNG ĐỒNG & GIẢI TRÍ (COMMUNITY & SOCIAL) -->
-        <div class="nav-section">
-          <div class="nav-section-title">{{ t('nav.sec_community') | default('Community & Social') }}</div>
-          <a href="{{ url_for('guild.server_ai', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'ai' %}active{% endif %}">
-            <i class="nav-icon bi bi-robot"></i> {{ t('nav.ai') | default('AI Assistant') }}
-            <span class="status-dot nav-dot-ai
-            {% if modules.get('ai', False) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_leveling', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'leveling' %}active{% endif %}">
-            <i class="nav-icon bi bi-star-fill"></i> {{ t('nav.leveling') | default('Leveling & XP') }}
-            <span class="status-dot nav-dot-leveling
-            {% if modules.get('leveling', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_economy', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'economy' %}active{% endif %}">
-            <i class="nav-icon bi bi-coin"></i> {{ t('nav.economy') | default('Economy & Shop') }}
-            <span class="status-dot nav-dot-economy
-            {% if modules.get('economy', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_birthday', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'birthday' %}active{% endif %}">
-            <i class="nav-icon bi bi-cake2-fill"></i> {{ t('nav.birthday') | default('Birthday') }}
-            <span class="status-dot nav-dot-birthday
-            {% if modules.get('birthday', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="nav-item">
-            <i class="nav-icon bi bi-emoji-heart-eyes-fill"></i> {{ t('nav.fun') | default('Fun & Social') }}
-            <span class="status-dot nav-dot-fun
-            {% if modules.get('fun', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_tempvoice', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'tempvoice' %}active{% endif %}">
-            <i class="nav-icon bi bi-mic-fill"></i> {{ t('nav.tempvoice') | default('Temp Voice Hub') }}
-            <span class="status-dot nav-dot-tempvoice
-            {% if modules.get('tempvoice', False) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('music.server_music', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'music' %}active{% endif %}">
-            <i class="nav-icon bi bi-music-note-beamed"></i> {{ t('nav.music') | default('Music') }}
-            <span class="status-dot nav-dot-music
-            {% if modules.get('music', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_reactionroles', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'reactionroles' %}active{% endif %}">
-            <i class="nav-icon bi bi-ui-radios"></i> {{ t('nav.reactionroles') | default('Reaction Roles') }}
-            <span class="status-dot nav-dot-reactionroles
-            {% if modules.get('reactionroles', False) %}on{% else %}off{% endif %}"></span>
-          </a>
-        </div>
-
-        <!-- 3. TIỆN ÍCH & CÔNG CỤ (TOOLS & UTILITIES) -->
-        <div class="nav-section">
-          <div class="nav-section-title">{{ t('nav.sec_tools') | default('Tools & Utilities') }}</div>
-          <a href="{{ url_for('guild.server_tickets', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'tickets' %}active{% endif %}">
-            <i class="nav-icon bi bi-ticket-detailed-fill"></i> {{ t('nav.tickets') | default('Tickets') }}
-            <span class="status-dot nav-dot-tickets
-            {% if modules.get('tickets', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_modules', guild_id=guild_id) }}" class="nav-item">
-            <i class="nav-icon bi bi-gift-fill"></i> {{ t('nav.giveaways') | default('Giveaways') }}
-            <span class="status-dot nav-dot-giveaways
-            {% if modules.get('giveaways', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_customcommands', guild_id=guild_id) }}"
-            class="nav-item {% if active_page == 'customcommands' %}active{% endif %}">
-            <i class="nav-icon bi bi-lightning-charge-fill"></i> {{ t('nav.customcommands') | default('Custom Commands') }}
-            <span class="status-dot nav-dot-customcommands
-            {% if modules.get('customcommands', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="nav-item">
-            <i class="nav-icon bi bi-info-circle-fill"></i> {{ t('nav.info') | default('Info Commands') }}
-            <span class="status-dot nav-dot-info
-            {% if modules.get('info', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-          <a href="{{ url_for('guild.server_commands', guild_id=guild_id) }}" class="nav-item">
-            <i class="nav-icon bi bi-gear-fill"></i> {{ t('nav.utility') | default('Utility') }}
-            <span class="status-dot nav-dot-utility
-            {% if modules.get('utility', True) %}on{% else %}off{% endif %}"></span>
-          </a>
-        </div>
+      <nav class="cr-rail-nav">
+        {% for route, page, icon, tkey, dflt, mod, mod_dflt in rail_items %}
+        <a href="{{ url_for(route, guild_id=guild_id) }}"
+           class="cr-btn {% if page and active_page == page %}active{% endif %}"
+           title="{{ t(tkey) | default(dflt) }}">
+          <i class="bi {{ icon }}"></i>
+          <em>{{ t(tkey) | default(dflt) }}</em>
+          {% if mod %}
+          <span class="status-dot nav-dot-{{ mod }} {% if modules.get(mod, mod_dflt) %}on{% else %}off{% endif %}"></span>
+          {% endif %}
+        </a>
+        {% endfor %}
       </nav>
 
-      <!-- Footer: user info + logout + Language Switcher -->
-      <div class="sidebar-footer" style="overflow:visible;">
-        <!-- Language Switcher (Nekotina style) -->
-        <div class="lang-switcher" style="margin-bottom:10px;width:100%;z-index:9999;">
-          <button class="lang-switcher-btn" style="width:100%;justify-content:space-between;">
-            <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
-            <i class="bi bi-chevron-down" style="font-size:.75rem;"></i>
+      <div class="cr-rail-bottom">
+        <div class="lang-switcher cr-lang" style="width:100%;">
+          <button class="lang-switcher-btn" style="width:100%;justify-content:center;" title="{{ t('nav.select_language') }}">
+            <span class="cr-lang-icon">🌐</span>
           </button>
-          <div class="lang-dropdown" style="right:0;left:0;bottom:calc(100% + 8px);top:unset;z-index:10000;">
+          <div class="lang-dropdown cr-lang-drop">
             <div class="lang-header">{{ t('nav.select_language') }}</div>
             {% for code, name in available_languages.items() %}
             <a href="{{ url_for('public.set_ui_language', lang_code=code) }}"
@@ -203,22 +90,34 @@
             {% endfor %}
           </div>
         </div>
-        <a class="sidebar-user" href="{{ url_for('guild.home') }}">
+        <a class="cr-user" href="{{ url_for('guild.home') }}" title="{{ user.get('username','User') }}">
           {% if avatar %}
           <img class="sidebar-avatar" src="{{ avatar }}" alt="avatar">
+          {% else %}
+          <span class="cr-user-ph">{{ (user.get('username','U') or 'U')[:1] | upper }}</span>
           {% endif %}
-          <span class="sidebar-username">{{ user.get('username','User') }}</span>
-          <a href="{{ url_for('public.logout') }}" class="sidebar-logout" title="{{ t('nav.logout') }}" onclick="event.stopPropagation()">
-            <i class="bi bi-box-arrow-right"></i>
-          </a>
+        </a>
+        <a href="{{ url_for('public.logout') }}" class="cr-logout" title="{{ t('nav.logout') }}">
+          <i class="bi bi-box-arrow-right"></i>
         </a>
       </div>
-
     </aside>
 
     <!-- ─── Main ─────────────────────────────────────────────────────────────── -->
     <main class="main">
       <div class="main-inner">
+        <header class="cr-cmdbar">
+          <button type="button" class="cr-burger" id="crBurger" aria-label="Menu"><i class="bi bi-list"></i></button>
+          <div class="cr-crumb">
+            <span class="cr-crumb-guild">{{ guild.get('name', 'Server') }}</span>
+            <i class="bi bi-slash cr-crumb-sep"></i>
+            <b>{% block page_title %}{{ t('nav.overview') | default('Dashboard') }}{% endblock %}</b>
+          </div>
+          <div class="cr-cmdbar-right">
+            <button type="button" class="theme-toggle-btn" data-theme-toggle aria-label="{{ t('theme.tooltip') }}" title="{{ t('theme.tooltip') }}"><span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-text"></span></button>
+          </div>
+        </header>
+
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
         <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
@@ -229,10 +128,6 @@
         </div>
         {% endfor %}
         {% endwith %}
-
-        <div class="main-top-controls">
-          <button type="button" class="theme-toggle-btn" data-theme-toggle aria-label="{{ t('theme.tooltip') }}" title="{{ t('theme.tooltip') }}"><span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-text"></span></button>
-        </div>
 
         {% block content %}{% endblock %}
       </div>
@@ -246,6 +141,25 @@
   <script src="{{ url_for('static', filename='js/main.js') }}?v=14.0"></script>
   <script id="theme-i18n" type="application/json">{{ {"light": t("theme.to_light"), "dark": t("theme.to_dark"), "auto": t("theme.auto"), "tooltip": t("theme.tooltip")} | tojson }}</script>
   <script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
+  <script>
+    (function () {
+      var burger = document.getElementById('crBurger');
+      var rail = document.getElementById('crRail');
+      var backdrop = document.getElementById('crBackdrop');
+      if (burger && rail) {
+        burger.addEventListener('click', function () {
+          rail.classList.toggle('open');
+          document.body.classList.toggle('cr-menu-open', rail.classList.contains('open'));
+        });
+      }
+      if (backdrop && rail) {
+        backdrop.addEventListener('click', function () {
+          rail.classList.remove('open');
+          document.body.classList.remove('cr-menu-open');
+        });
+      }
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 
