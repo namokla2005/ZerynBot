@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}Welcome & Goodbye{% endblock %}
+{% block page_title %}👋 {{ t('welcome.card_welcome') }} & {{ t('welcome.card_goodbye') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -147,7 +148,6 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">👋 {{ t('welcome.card_welcome') }} & {{ t('welcome.card_goodbye') }}</h1>
   <p class="page-subtitle">{{ t('dashboard.welcome_desc') }}</p>
 </div>
 
@@ -172,9 +172,10 @@
   <!-- ── WELCOME TAB ─────────────────────────────────────────────────────── -->
   <div class="tab-pane active" id="tab-welcome">
     <div class="wg-layout">
+      <div class="cr-grid">
 
       <!-- Left: settings -->
-      <div>
+      <section>
         <div class="card">
           <div class="card-header">
             <div>
@@ -229,10 +230,10 @@
                       rows="2">{{ settings.welcome_message or '' }}</textarea>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Right: live preview -->
-      <div>
+      <aside class="cr-side">
         <div class="card">
           <div class="card-header">
             <div>
@@ -277,17 +278,19 @@
             </button>
           </div>
         </div>
-      </div>
+      </aside>
 
+      </div>
     </div>
   </div>
 
   <!-- ── GOODBYE TAB ─────────────────────────────────────────────────────── -->
   <div class="tab-pane" id="tab-goodbye">
     <div class="wg-layout">
+      <div class="cr-grid">
 
       <!-- Left: settings -->
-      <div>
+      <section>
         <div class="card">
           <div class="card-header">
             <div>
@@ -341,10 +344,10 @@
                       rows="2">{{ settings.goodbye_message or '' }}</textarea>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Right: live preview -->
-      <div>
+      <aside class="cr-side">
         <div class="card">
           <div class="card-header">
             <div>
@@ -388,8 +391,9 @@
             </button>
           </div>
         </div>
-      </div>
+      </aside>
 
+      </div>
     </div>
   </div>
 

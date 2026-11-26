@@ -1,43 +1,22 @@
 {% extends "base_server.html" %}
 
 {% block title %}{{ t('nav.ai') | default('AI Assistant') }}{% endblock %}
+{% block page_title %}{{ t('ai.page_title') | default('Trợ Lý AI & Smart Chatbot') }}{% endblock %}
 
 {% block content %}
-<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-  <div>
-    <h1 class="page-title"><i class="bi bi-robot" style="color:var(--accent); margin-right:8px;"></i>{{ t('ai.page_title') | default('Trợ Lý AI & Smart Chatbot') }}</h1>
-    <p class="page-subtitle">{{ t('ai.page_subtitle') | default('Tích hợp trí tuệ nhân tạo thế hệ mới: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện tự nhiên.') }}</p>
-  </div>
-  <div>
-    <button type="submit" form="ai-settings-form" class="btn btn-primary">
-      <i class="bi bi-floppy-fill" style="margin-right:6px;"></i> {{ t('common.save') | default('Lưu thay đổi') }}
-    </button>
-  </div>
-</div>
-
-<!-- Global AI Security & Status Banner -->
-<div style="background:linear-gradient(135deg, var(--accent-light) 0%, var(--glass-2, var(--bg-card2)) 100%); border:1px solid var(--border-hover); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
-  <div style="display:flex; align-items:center; gap:14px;">
-    <div style="width:40px; height:40px; border-radius:12px; background:var(--accent-light); display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--accent); flex-shrink:0;">
-      <i class="bi bi-shield-check"></i>
-    </div>
-    <div>
-      <div style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin-bottom:2px;">
-        {{ t('ai.banner_title') | default('Hệ Thống Trí Tuệ Nhân Tạo Toàn Cục Đang Sẵn Sàng') }}
-      </div>
-      <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-        {{ t('ai.banner_desc') | default('Mô hình AI đám mây (Groq / Gemini) được bảo mật và cấu hình tập trung từ Chủ Bot (Admin Panel). Mọi máy chủ đều có thể sử dụng mượt mà và an toàn tuyệt đối.') }}
+<div class="cr-grid">
+  <section>
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <p class="page-subtitle">{{ t('ai.page_subtitle') | default('Tích hợp trí tuệ nhân tạo thế hệ mới: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện tự nhiên.') }}</p>
+      <div>
+        <button type="submit" form="ai-settings-form" class="btn btn-primary">
+          <i class="bi bi-floppy-fill" style="margin-right:6px;"></i> {{ t('common.save') | default('Lưu thay đổi') }}
+        </button>
       </div>
     </div>
-  </div>
-  <div style="display:flex; align-items:center; gap:6px; background:var(--success-bg); border:1px solid color-mix(in srgb, var(--success) 35%, transparent); padding:6px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:var(--success);">
-    <span style="width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 8px var(--success);"></span>
-    {{ t('ai.badge_active') | default('AI Active') }}
-  </div>
-</div>
 
-<form id="ai-settings-form" method="POST" action="{{ url_for('guild.server_ai', guild_id=guild_id) }}">
-  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:20px; align-items:start;">
+    <form id="ai-settings-form" method="POST" action="{{ url_for('guild.server_ai', guild_id=guild_id) }}">
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:20px; align-items:start;">
 
     <!-- Cấu hình kênh và công tắc -->
     <div class="card">
@@ -142,6 +121,31 @@
       </div>
     </div>
 
-  </div>
-</form>
+      </div>
+    </form>
+  </section>
+
+  <aside class="cr-side">
+    <!-- Global AI Security & Status Banner -->
+    <div style="background:linear-gradient(135deg, var(--accent-light) 0%, var(--glass-2, var(--bg-card2)) 100%); border:1px solid var(--border-hover); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:40px; height:40px; border-radius:12px; background:var(--accent-light); display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--accent); flex-shrink:0;">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <div>
+          <div style="font-size:0.92rem; font-weight:700; color:var(--text-primary); margin-bottom:2px;">
+            {{ t('ai.banner_title') | default('Hệ Thống Trí Tuệ Nhân Tạo Toàn Cục Đang Sẵn Sàng') }}
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+            {{ t('ai.banner_desc') | default('Mô hình AI đám mây (Groq / Gemini) được bảo mật và cấu hình tập trung từ Chủ Bot (Admin Panel). Mọi máy chủ đều có thể sử dụng mượt mà và an toàn tuyệt đối.') }}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; background:var(--success-bg); border:1px solid color-mix(in srgb, var(--success) 35%, transparent); padding:6px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:var(--success);">
+        <span style="width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 8px var(--success);"></span>
+        {{ t('ai.badge_active') | default('AI Active') }}
+      </div>
+    </div>
+  </aside>
+</div>
 {% endblock %}

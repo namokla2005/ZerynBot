@@ -1,10 +1,10 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('dashboard.birthday_title') | default('Cấu hình Sinh nhật') }}{% endblock %}
+{% block page_title %}{{ t('dashboard.birthday_title') | default('Cấu hình Sinh nhật') }}{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-cake2-fill" style="color:var(--accent); margin-right:8px;"></i>{{ t('dashboard.birthday_title') | default('Cấu hình Sinh nhật') }}</h1>
     <p class="page-subtitle">{{ t('dashboard.birthday_desc') | default('Quản lý và tự động chúc mừng sinh nhật thành viên.') }}</p>
   </div>
   <div>
@@ -14,23 +14,8 @@
   </div>
 </div>
 
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon" style="color:var(--accent-2, var(--accent)); background:var(--accent-light);">🎈</div>
-    <div class="stat-info">
-      <div class="stat-value">{{ bday_count }}</div>
-      <div class="stat-label">{{ t('birthday.month_count') | default('Sinh nhật trong tháng này') }}</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="color:var(--success); background:var(--success-bg);">🎁</div>
-    <div class="stat-info">
-      <div class="stat-value">{% if modules.get('birthday', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
-      <div class="stat-label">{{ t('nav.birthday') | default('Trạng thái Module') }}</div>
-    </div>
-  </div>
-</div>
-
+<div class="cr-grid">
+  <section>
 <form id="birthday-form" method="POST" action="{{ url_for('guild.server_birthday', guild_id=guild_id) }}">
   <div class="card">
     <div class="card-title">
@@ -108,4 +93,24 @@
     </button>
   </div>
 </form>
+  </section>
+  <aside class="cr-side">
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon" style="color:var(--accent-2, var(--accent)); background:var(--accent-light);">🎈</div>
+    <div class="stat-info">
+      <div class="stat-value">{{ bday_count }}</div>
+      <div class="stat-label">{{ t('birthday.month_count') | default('Sinh nhật trong tháng này') }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="color:var(--success); background:var(--success-bg);">🎁</div>
+    <div class="stat-info">
+      <div class="stat-value">{% if modules.get('birthday', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
+      <div class="stat-label">{{ t('nav.birthday') | default('Trạng thái Module') }}</div>
+    </div>
+  </div>
+</div>
+  </aside>
+</div>
 {% endblock %}

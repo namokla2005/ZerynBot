@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('embeds.title') }}{% endblock %}
+{% block page_title %}{{ t('embeds.title') }}{% endblock %}
 {% block head %}
 <style>
   .preview-field { display: flex; flex-direction: column; gap: 2px; }
@@ -8,15 +9,14 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">{{ t('embeds.title') }}</h1>
   <p class="page-subtitle">{{ t('embeds.subtitle') }}</p>
 </div>
 
 <!-- Builder -->
-<div id="embed-builder" data-guild="{{ guild_id }}" class="builder-layout">
+<div id="embed-builder" data-guild="{{ guild_id }}" class="builder-layout cr-grid">
 
   <!-- ── Left: Editor ────────────────────────────────────────────────────── -->
-  <div>
+  <section>
     <div class="builder-panel">
       <div class="builder-panel-title"><i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('embeds.editor') }}</div>
 
@@ -134,10 +134,10 @@
       </div>
     </div>
 
-  </div>
+  </section>
 
   <!-- ── Right: Discord preview ──────────────────────────────────────────── -->
-  <div>
+  <aside class="cr-side">
     <div class="discord-preview">
       <div class="discord-preview-label">📱 Preview Discord</div>
       <div class="discord-msg">
@@ -173,7 +173,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </aside>
 </div>
 
 <!-- ── Saved embeds ────────────────────────────────────────────────────────── -->

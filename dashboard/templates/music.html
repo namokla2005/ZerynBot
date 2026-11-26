@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('music.page_title') }}{% endblock %}
+{% block page_title %}{{ t('music.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -140,84 +141,12 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">🎵 {{ t('music.page_title') }}</h1>
     <p class="page-subtitle">{{ t('music.page_subtitle') }}</p>
   </div>
 </div>
 
-<div class="builder-layout">
-  
-  <!-- Left Panel: Settings & Status -->
-  <div class="builder-panel">
-    <div class="section-header">
-      <div class="section-title">⚙️ {{ t('automod.section_general') }}</div>
-    </div>
-    
-    <div class="card" style="margin-bottom: 20px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <div style="font-weight:600; font-size:0.95rem; margin-bottom:4px;">{{ t('music.enable_label') }}</div>
-          <div style="font-size:0.8rem; color:var(--text-muted);">{{ t('dashboard.music_desc') }}</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" class="module-toggle"
-                 data-guild="{{ guild_id }}" data-module="music"
-                 {% if modules.get('music', False) %}checked{% endif %}>
-          <span class="switch-track"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="section-header" style="margin-top:24px;">
-      <div class="section-title">🏆 {{ t('music.top_title') }}</div>
-    </div>
-
-    <div class="card" style="margin-bottom: 20px;">
-      {% if top_songs %}
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        {% for song in top_songs %}
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-          <span style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ song.title }}">
-            {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}#{{ loop.index }}{% endif %}
-            {{ song.title.split('|')[-1] }}
-          </span>
-          <span class="badge badge-success" style="background:var(--accent-light); color:var(--accent); padding:4px 10px; border-radius:12px; font-size:0.72rem; font-weight:600; white-space:nowrap;">
-            {{ song.play_count }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p style="color:var(--text-muted); font-size:0.85rem; margin:0;">{{ t('music.top_empty') }}</p>
-      {% endif %}
-    </div>
-
-    <div class="section-header" style="margin-top:24px;">
-      <div class="section-title">🛠️ {{ t('music.system_status') }}</div>
-    </div>
-
-    <div class="card" style="margin-bottom: 20px;">
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
-          <span style="font-size:0.875rem;">{{ t('music.voice_encryption') }}</span>
-          {% if has_davey %}
-            <span class="badge badge-success" style="background:var(--success-bg); color:var(--success); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_ready') }}</span>
-          {% else %}
-            <span class="badge badge-danger" style="background:var(--danger-bg); color:var(--danger); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_missing') }}</span>
-          {% endif %}
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
-          <span style="font-size:0.875rem;">{{ t('music.audio_decoder') }}</span>
-          {% if has_ffmpeg %}
-            <span class="badge badge-success" style="background:var(--success-bg); color:var(--success); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_ready') }}</span>
-          {% else %}
-            <span class="badge badge-warning" style="background:var(--warning-bg); color:var(--warning); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_not_configured') }}</span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
+<div class="cr-grid">
+  <section>
   <!-- Right Panel: Playlists Manager -->
   <div class="builder-panel" style="flex: 1.4;">
     <div class="section-header">
@@ -324,6 +253,79 @@
 
   </div>
 
+  </section>
+  <aside class="cr-side">
+  <div class="builder-panel">
+    <div class="section-header">
+      <div class="section-title">⚙️ {{ t('automod.section_general') }}</div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:600; font-size:0.95rem; margin-bottom:4px;">{{ t('music.enable_label') }}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">{{ t('dashboard.music_desc') }}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" class="module-toggle"
+                 data-guild="{{ guild_id }}" data-module="music"
+                 {% if modules.get('music', False) %}checked{% endif %}>
+          <span class="switch-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="section-header" style="margin-top:24px;">
+      <div class="section-title">🏆 {{ t('music.top_title') }}</div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      {% if top_songs %}
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for song in top_songs %}
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+          <span style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ song.title }}">
+            {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}#{{ loop.index }}{% endif %}
+            {{ song.title.split('|')[-1] }}
+          </span>
+          <span class="badge badge-success" style="background:var(--accent-light); color:var(--accent); padding:4px 10px; border-radius:12px; font-size:0.72rem; font-weight:600; white-space:nowrap;">
+            {{ song.play_count }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--text-muted); font-size:0.85rem; margin:0;">{{ t('music.top_empty') }}</p>
+      {% endif %}
+    </div>
+
+    <div class="section-header" style="margin-top:24px;">
+      <div class="section-title">🛠️ {{ t('music.system_status') }}</div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
+          <span style="font-size:0.875rem;">{{ t('music.voice_encryption') }}</span>
+          {% if has_davey %}
+            <span class="badge badge-success" style="background:var(--success-bg); color:var(--success); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_ready') }}</span>
+          {% else %}
+            <span class="badge badge-danger" style="background:var(--danger-bg); color:var(--danger); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_missing') }}</span>
+          {% endif %}
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
+          <span style="font-size:0.875rem;">{{ t('music.audio_decoder') }}</span>
+          {% if has_ffmpeg %}
+            <span class="badge badge-success" style="background:var(--success-bg); color:var(--success); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_ready') }}</span>
+          {% else %}
+            <span class="badge badge-warning" style="background:var(--warning-bg); color:var(--warning); padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">{{ t('music.status_not_configured') }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </aside>
 </div>
 {% endblock %}
 
@@ -341,4 +343,3 @@
   }
 </script>
 {% endblock %}
-

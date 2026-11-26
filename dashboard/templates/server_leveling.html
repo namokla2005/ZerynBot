@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('leveling.page_title') }}{% endblock %}
+{% block page_title %}{{ t('leveling.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -29,19 +30,11 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-stars" style="color: var(--warning);"></i> {{ t('leveling.page_title') }}</h1>
   <p class="page-subtitle">{{ t('leveling.page_subtitle') }}</p>
 </div>
 
-<!-- Variable reference -->
-<div class="vars-box" style="margin-bottom: 24px;">
-  <strong>{{ t('leveling.vars_title') }}</strong><br>
-  <span class="var-tag">{user}</span> {{ t('leveling.var_user') }} &nbsp;
-  <span class="var-tag">{user_name}</span> {{ t('leveling.var_username') }} &nbsp;
-  <span class="var-tag">{level}</span> {{ t('leveling.var_level') }} &nbsp;
-  <span class="var-tag">{server}</span> {{ t('leveling.var_server') }}
-</div>
-
+<div class="cr-grid">
+  <section>
 <form method="POST" action="{{ url_for('guild.server_leveling', guild_id=guild_id) }}">
   
   <div class="card" style="margin-bottom: 24px;">
@@ -153,6 +146,18 @@
     </button>
   </div>
 </form>
+  </section>
+  <aside class="cr-side">
+    <!-- Variable reference -->
+    <div class="vars-box" style="margin-bottom: 24px;">
+      <strong>{{ t('leveling.vars_title') }}</strong><br>
+      <span class="var-tag">{user}</span> {{ t('leveling.var_user') }} &nbsp;
+      <span class="var-tag">{user_name}</span> {{ t('leveling.var_username') }} &nbsp;
+      <span class="var-tag">{level}</span> {{ t('leveling.var_level') }} &nbsp;
+      <span class="var-tag">{server}</span> {{ t('leveling.var_server') }}
+    </div>
+  </aside>
+</div>
 
 <script>
   window.I18N = {
@@ -214,4 +219,3 @@
   });
 </script>
 {% endblock %}
-

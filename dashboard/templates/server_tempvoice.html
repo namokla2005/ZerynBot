@@ -1,13 +1,11 @@
 {% extends "base_server.html" %}
 
 {% block title %}{{ t('nav.tempvoice') | default('Temp Voice Hub') }}{% endblock %}
+{% block page_title %}{{ t('tempvoice.page_title') | default('Kênh Voice Tạm Thời (Join-to-Create Hub)') }}{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-  <div>
-    <h1 class="page-title"><i class="bi bi-mic-fill" style="color:var(--accent); margin-right:8px;"></i>{{ t('tempvoice.page_title') | default('Kênh Voice Tạm Thời (Join-to-Create Hub)') }}</h1>
-    <p class="page-subtitle">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub và tự dọn dẹp sạch sẽ khi phòng trống.') }}</p>
-  </div>
+  <p class="page-subtitle">{{ t('tempvoice.page_subtitle') | default('Tự động tạo phòng voice riêng cho thành viên khi vào kênh Hub và tự dọn dẹp sạch sẽ khi phòng trống.') }}</p>
   <div>
     <button type="submit" form="tempvoice-settings-form" class="btn btn-primary">
       <i class="bi bi-floppy-fill" style="margin-right:6px;"></i> {{ t('common.save') | default('Lưu thay đổi') }}
@@ -15,8 +13,8 @@
   </div>
 </div>
 
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:20px; align-items:start;">
-
+<div class="cr-grid">
+  <section>
   <!-- Cấu hình Temp Voice -->
   <div class="card">
     <div class="card-title">
@@ -72,7 +70,9 @@
       </div>
     </form>
   </div>
+  </section>
 
+  <aside class="cr-side">
   <!-- Danh sách phòng đang hoạt động -->
   <div class="card">
     <div class="card-title">
@@ -128,6 +128,7 @@
       </table>
     </div>
   </div>
+  </aside>
 
 </div>
 {% endblock %}

@@ -1,33 +1,18 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('dashboard.moderation_title') | default('Cấu hình Điều hành') }}{% endblock %}
+{% block page_title %}{{ t('dashboard.moderation_title') | default('Cấu hình Điều hành') }}{% endblock %}
 
 {% block content %}
+<div class="cr-grid">
+  <section>
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-shield-fill-check" style="color:var(--accent); margin-right:8px;"></i>{{ t('dashboard.moderation_title') | default('Cấu hình Điều hành') }}</h1>
     <p class="page-subtitle">{{ t('dashboard.moderation_desc') | default('Kick, ban, timeout, cảnh cáo và quản lý kênh.') }}</p>
   </div>
   <div>
     <button type="submit" form="moderation-form" class="btn btn-primary">
       <i class="bi bi-floppy-fill" style="margin-right:6px;"></i> {{ t('common.save') | default('Lưu thay đổi') }}
     </button>
-  </div>
-</div>
-
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon" style="color:var(--warning); background:var(--warning-bg);">⚠️</div>
-    <div class="stat-info">
-      <div class="stat-value">{{ warn_count }}</div>
-      <div class="stat-label">{{ t('mod.warnings_total_label') | default('Tổng cảnh cáo đã ghi') }}</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="color:var(--success); background:var(--success-bg);">🔨</div>
-    <div class="stat-info">
-      <div class="stat-value">{% if modules.get('moderation', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
-      <div class="stat-label">{{ t('nav.moderation') | default('Trạng thái Module') }}</div>
-    </div>
   </div>
 </div>
 
@@ -84,4 +69,24 @@
     </button>
   </div>
 </form>
+  </section>
+  <aside class="cr-side">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="color:var(--warning); background:var(--warning-bg);">⚠️</div>
+        <div class="stat-info">
+          <div class="stat-value">{{ warn_count }}</div>
+          <div class="stat-label">{{ t('mod.warnings_total_label') | default('Tổng cảnh cáo đã ghi') }}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="color:var(--success); background:var(--success-bg);">🔨</div>
+        <div class="stat-info">
+          <div class="stat-value">{% if modules.get('moderation', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
+          <div class="stat-label">{{ t('nav.moderation') | default('Trạng thái Module') }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
 {% endblock %}

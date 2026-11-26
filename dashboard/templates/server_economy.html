@@ -1,11 +1,11 @@
 {% extends "base_server.html" %}
 
 {% block title %}{{ t('nav.economy') | default('Economy & Shop') }}{% endblock %}
+{% block page_title %}{{ t('economy.page_title') | default('Hệ Thống Kinh Tế & Cửa Hàng Role') }}{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
   <div>
-    <h1 class="page-title"><i class="bi bi-coin" style="color:var(--warning); margin-right:8px;"></i>{{ t('economy.page_title') | default('Hệ Thống Kinh Tế & Cửa Hàng Role') }}</h1>
     <p class="page-subtitle">{{ t('economy.page_subtitle') | default('Quản lý tiền tệ server, điểm danh hàng ngày, trò chơi và tạo shop mua role bằng tiền ảo.') }}</p>
   </div>
   <div>
@@ -15,6 +15,8 @@
   </div>
 </div>
 
+<div class="cr-grid">
+  <section>
 <!-- Thống kê tổng quan -->
 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
   <div class="stat-card">
@@ -34,49 +36,7 @@
   </div>
 </div>
 
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:20px; align-items:start;">
-
-  <!-- Cài đặt kinh tế cơ bản -->
-  <div class="card">
-    <div class="card-title">
-      <i class="bi bi-sliders" style="color:var(--accent);"></i> {{ t('economy.sec_settings') | default('Cấu Hình Phần Thưởng') }}
-    </div>
-    <div class="card-desc" style="margin-bottom:18px;">
-      {{ t('economy.sec_settings_desc') | default('Thiết lập giá trị tiền thưởng điểm danh và đơn vị tiền tệ cho server.') }}
-    </div>
-
-    <form id="economy-settings-form" method="POST" action="{{ url_for('guild.server_economy', guild_id=guild_id) }}">
-      <div class="form-group">
-        <label class="form-label">{{ t('economy.label_daily') | default('Tiền thưởng Daily cơ bản') }}</label>
-        <input type="number" name="daily_amount" class="form-control" value="{{ eco_settings.daily_amount }}" min="1" required>
-        <div class="form-hint">{{ t('economy.label_daily_hint') | default('Số tiền thưởng thành viên nhận được khi gõ lệnh /daily.') }}</div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">{{ t('economy.label_streak') | default('Thưởng chuỗi ngày (Streak bonus mỗi ngày)') }}</label>
-        <input type="number" name="streak_bonus" class="form-control" value="{{ eco_settings.streak_bonus }}" min="0" required>
-        <div class="form-hint">{{ t('economy.label_streak_hint') | default('Cộng thêm mỗi ngày liên tiếp (Ví dụ: ngày 2 +20, ngày 3 +40...).') }}</div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">{{ t('economy.label_starting') | default('Số dư ban đầu cho thành viên mới') }}</label>
-        <input type="number" name="starting_balance" class="form-control" value="{{ eco_settings.starting_balance }}" min="0" required>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">{{ t('economy.label_symbol') | default('Biểu tượng tiền') }}</label>
-          <input type="text" name="currency_symbol" class="form-control" value="{{ eco_settings.currency_symbol }}" maxlength="5">
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">{{ t('economy.label_name') | default('Tên tiền tệ') }}</label>
-          <input type="text" name="currency_name" class="form-control" value="{{ eco_settings.currency_name }}" maxlength="20">
-        </div>
-      </div>
-    </form>
-  </div>
-
-  <!-- Quản lý Cửa Hàng Role -->
+<!-- Quản lý Cửa Hàng Role -->
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <div>
@@ -146,7 +106,48 @@
       </table>
     </div>
   </div>
+  </section>
+  <aside class="cr-side">
+<!-- Cài đặt kinh tế cơ bản -->
+  <div class="card">
+    <div class="card-title">
+      <i class="bi bi-sliders" style="color:var(--accent);"></i> {{ t('economy.sec_settings') | default('Cấu Hình Phần Thưởng') }}
+    </div>
+    <div class="card-desc" style="margin-bottom:18px;">
+      {{ t('economy.sec_settings_desc') | default('Thiết lập giá trị tiền thưởng điểm danh và đơn vị tiền tệ cho server.') }}
+    </div>
 
+    <form id="economy-settings-form" method="POST" action="{{ url_for('guild.server_economy', guild_id=guild_id) }}">
+      <div class="form-group">
+        <label class="form-label">{{ t('economy.label_daily') | default('Tiền thưởng Daily cơ bản') }}</label>
+        <input type="number" name="daily_amount" class="form-control" value="{{ eco_settings.daily_amount }}" min="1" required>
+        <div class="form-hint">{{ t('economy.label_daily_hint') | default('Số tiền thưởng thành viên nhận được khi gõ lệnh /daily.') }}</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ t('economy.label_streak') | default('Thưởng chuỗi ngày (Streak bonus mỗi ngày)') }}</label>
+        <input type="number" name="streak_bonus" class="form-control" value="{{ eco_settings.streak_bonus }}" min="0" required>
+        <div class="form-hint">{{ t('economy.label_streak_hint') | default('Cộng thêm mỗi ngày liên tiếp (Ví dụ: ngày 2 +20, ngày 3 +40...).') }}</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ t('economy.label_starting') | default('Số dư ban đầu cho thành viên mới') }}</label>
+        <input type="number" name="starting_balance" class="form-control" value="{{ eco_settings.starting_balance }}" min="0" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">{{ t('economy.label_symbol') | default('Biểu tượng tiền') }}</label>
+          <input type="text" name="currency_symbol" class="form-control" value="{{ eco_settings.currency_symbol }}" maxlength="5">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">{{ t('economy.label_name') | default('Tên tiền tệ') }}</label>
+          <input type="text" name="currency_name" class="form-control" value="{{ eco_settings.currency_name }}" maxlength="20">
+        </div>
+      </div>
+    </form>
+  </div>
+  </aside>
 </div>
 
 <!-- Modal Thêm Vật Phẩm Shop -->

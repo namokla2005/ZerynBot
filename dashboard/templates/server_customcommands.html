@@ -1,13 +1,11 @@
 {% extends "base_server.html" %}
 
 {% block title %}{{ t('nav.customcommands') | default('Custom Commands') }}{% endblock %}
+{% block page_title %}{{ t('customcmd.page_title') | default('Lệnh Tùy Biến & Auto-Responders') }}{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-  <div>
-    <h1 class="page-title"><i class="bi bi-lightning-charge-fill" style="color:var(--warning); margin-right:8px;"></i>{{ t('customcmd.page_title') | default('Lệnh Tùy Biến & Auto-Responders') }}</h1>
-    <p class="page-subtitle">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed khi thành viên gõ từ khóa kích hoạt.') }}</p>
-  </div>
+  <p class="page-subtitle">{{ t('customcmd.page_subtitle') | default('Tạo phản hồi tự động bằng tin nhắn hoặc Embed khi thành viên gõ từ khóa kích hoạt.') }}</p>
   <div>
     <button type="button" class="btn btn-primary" onclick="openModal('addCmdModal')">
       <i class="bi bi-plus-lg" style="margin-right:6px;"></i> {{ t('customcmd.btn_create') | default('Tạo Lệnh Mới') }}
@@ -15,6 +13,8 @@
   </div>
 </div>
 
+<div class="cr-grid" style="grid-template-columns:minmax(0,1fr)">
+  <section>
 <div class="card">
   <div class="card-title" style="margin-bottom:4px;">
     <i class="bi bi-list-task" style="color:var(--accent);"></i> {{ t('customcmd.sec_list_title') | default('Danh Sách Lệnh Tùy Biến (Auto-Responders)') }}
@@ -85,6 +85,8 @@
       </tbody>
     </table>
   </div>
+</div>
+  </section>
 </div>
 
 <!-- Modal Tạo Lệnh Mới -->

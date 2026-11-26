@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}Ticket System{% endblock %}
+{% block page_title %}{{ t('tickets.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -296,10 +297,11 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">🎫 {{ t('tickets.page_title') }}</h1>
   <p class="page-subtitle">{{ t('tickets.page_subtitle') }}</p>
 </div>
 
+<div class="cr-grid" style="grid-template-columns:minmax(0,1fr)">
+  <section>
 <div style="margin-bottom: 24px;">
   <button id="btn-create-panel" class="btn btn-primary" onclick="showEditor()">
     <i class="bi bi-plus-lg"></i> {{ t('tickets.btn_create') }}
@@ -508,6 +510,8 @@
     </div>
   </div>
 
+</div>
+  </section>
 </div>
 
 <!-- Pass raw categories and panels data for JS access -->

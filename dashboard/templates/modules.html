@@ -1,9 +1,9 @@
 {% extends "base_server.html" %}
 {% block title %}Modules{% endblock %}
+{% block page_title %}{{ t('nav.modules') }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">🧩 Modules</h1>
   <p class="page-subtitle">{{ t('dashboard.modules_desc') }}</p>
 </div>
 
@@ -70,33 +70,8 @@
   .placeholder-text { color: var(--text-muted); font-size: 0.9rem; }
 </style>
 
-<div class="card" style="margin-bottom: 24px; border-color: var(--accent);">
-  <div class="card-title">🔐 {{ t('modules.role_whitelist_title') }}</div>
-  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
-    {{ t('modules.role_whitelist_desc') }}
-  </p>
-  
-  <form method="POST" action="{{ url_for('guild.server_modules', guild_id=guild_id) }}">
-    <div class="form-group">
-      <label class="form-label">{{ t('modules.role_whitelist_title') }}</label>
-      <div id="hidden-inputs-bot_admin_roles"></div>
-      <div class="custom-select-wrapper" id="select-bot_admin_roles">
-        <div class="custom-select-display">
-          <div class="chips-container" id="chips-bot_admin_roles"></div>
-          <div class="placeholder-text" id="placeholder-bot_admin_roles">{{ t('autoroles.select_role_placeholder') }}</div>
-          <i class="bi bi-chevron-down custom-select-arrow"></i>
-        </div>
-        <div class="custom-select-dropdown" id="dropdown-bot_admin_roles"></div>
-      </div>
-    </div>
-    <div style="margin-top: 16px; text-align: right;">
-      <button type="submit" class="btn btn-primary btn-sm">
-        <i class="bi bi-floppy-fill"></i> {{ t('common.save') }}
-      </button>
-    </div>
-  </form>
-</div>
-
+<div class="cr-grid">
+  <section>
 <div class="modules-grid">
 
   <!-- Welcome & Goodbye -->
@@ -436,6 +411,34 @@
   </div>
 
 </div>
+  </section>
+  <aside class="cr-side">
+<div class="card" style="margin-bottom: 24px; border-color: var(--accent);">
+  <div class="card-title">🔐 {{ t('modules.role_whitelist_title') }}</div>
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+    {{ t('modules.role_whitelist_desc') }}
+  </p>
+
+  <form method="POST" action="{{ url_for('guild.server_modules', guild_id=guild_id) }}">
+    <div class="form-group">
+      <label class="form-label">{{ t('modules.role_whitelist_title') }}</label>
+      <div id="hidden-inputs-bot_admin_roles"></div>
+      <div class="custom-select-wrapper" id="select-bot_admin_roles">
+        <div class="custom-select-display">
+          <div class="chips-container" id="chips-bot_admin_roles"></div>
+          <div class="placeholder-text" id="placeholder-bot_admin_roles">{{ t('autoroles.select_role_placeholder') }}</div>
+          <i class="bi bi-chevron-down custom-select-arrow"></i>
+        </div>
+        <div class="custom-select-dropdown" id="dropdown-bot_admin_roles"></div>
+      </div>
+    </div>
+    <div style="margin-top: 16px; text-align: right;">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-floppy-fill"></i> {{ t('common.save') }}
+      </button>
+    </div>
+  </form>
+</div>
 
 <div class="card" style="margin-top: 24px; border-color: var(--border-hover); background: var(--accent-light);">
   <div style="display:flex; gap:12px; align-items:flex-start;">
@@ -447,6 +450,8 @@
       </div>
     </div>
   </div>
+</div>
+  </aside>
 </div>
 
 <script>

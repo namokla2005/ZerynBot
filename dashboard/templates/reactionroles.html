@@ -1,5 +1,6 @@
 {% extends "base_server.html" %}
 {% block title %}{{ t('reactionroles.page_title') }}{% endblock %}
+{% block page_title %}{{ t('reactionroles.page_title') }}{% endblock %}
 
 {% block head %}
 <style>
@@ -421,7 +422,6 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">🎭 Reaction Roles</h1>
   <p class="page-subtitle">{{ t('reactionroles.page_subtitle') }}</p>
 </div>
 
@@ -474,10 +474,10 @@
 </div>
 
 <!-- Editor Layout (hidden by default) -->
-<div id="editor-section" class="ticket-layout" style="display: none; margin-top: 24px;">
+<div id="editor-section" class="ticket-layout cr-grid" style="display: none; margin-top: 24px; grid-template-columns: minmax(0, 1fr) 330px;">
   
   <!-- Left: Form Editor -->
-  <div class="builder-panel" style="margin: 0;">
+  <section class="builder-panel" style="margin: 0;">
     <div class="builder-panel-title" id="editor-title-text">
       <i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('reactionroles.editor_title_new') }}
     </div>
@@ -572,10 +572,10 @@
         {{ t('reactionroles.btn_cancel') }}
       </button>
     </div>
-  </div>
+  </section>
 
   <!-- Right: Live Discord Preview -->
-  <div>
+  <aside class="cr-side">
     <div class="discord-preview-wrap">
       <div class="discord-header">
         <i class="bi bi-eye-fill"></i> {{ t('tickets.live_preview') }}
@@ -602,7 +602,7 @@
         <!-- Buttons preview added via JS -->
       </div>
     </div>
-  </div>
+  </aside>
 
 </div>
 
