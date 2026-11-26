@@ -5,7 +5,7 @@
 <style>
   /* ─── Card preview ─────────────────────────────────────────── */
   .card-preview-wrap {
-    background: #191822;
+    background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 24px;
@@ -26,7 +26,7 @@
     align-items: center;
     gap: 6px;
   }
-  /* Banner card itself */
+  /* Banner card itself (intentional dark Discord PNG banner preview) */
   .banner-outer {
     --bg-url: url('/static/bg.png');
     position: relative;
@@ -42,8 +42,8 @@
     margin: 15px auto;
     overflow: hidden;
     background: linear-gradient(135deg, #2b1b24, #1a1728);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
   .banner-outer::before {
     content: "";
@@ -104,12 +104,12 @@
     z-index: 1;
     font-size: 0.95rem;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-2, #ff8a9b);
     margin-top: -2px;
     text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
 
-  /* Message above the card (Discord style) */
+  /* Message above the card */
   .dc-msg-row {
     display: flex;
     align-items: flex-start;
@@ -120,17 +120,17 @@
   .dc-avatar {
     width: 36px; height: 36px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--grad-primary, var(--accent));
     display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; font-weight: 800; color: #16121f;
+    font-size: 1rem; font-weight: 800; color: #fff;
     flex-shrink: 0;
   }
-  .dc-author { font-size: 0.85rem; font-weight: 700; color: #5865f2; }
+  .dc-author { font-size: 0.85rem; font-weight: 700; color: var(--accent); }
   .dc-bot-tag {
     font-size: 0.6rem; background: #5865f2; color: #fff;
     padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; font-weight: 700;
   }
-  .dc-content { font-size: 0.82rem; color: #dbdee1; margin-top: 2px; }
+  .dc-content { font-size: 0.82rem; color: var(--text-primary); margin-top: 2px; }
 
   /* layout: settings left, preview right */
   .wg-layout {
@@ -178,7 +178,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:#57F287"></i> {{ t('welcome.welcome_settings') }}</div>
+              <div class="card-title"><i class="bi bi-emoji-smile-fill" style="color:var(--success)"></i> {{ t('welcome.welcome_settings') }}</div>
               <div class="card-desc">{{ t('dashboard.welcome_desc') }}</div>
             </div>
           </div>
@@ -268,8 +268,8 @@
               </div>
             </div>
 
-            <div id="w-plain-preview" style="display:none; font-size:0.85rem; color:#dbdee1; width:100%;">
-              <div style="background:#2b2d31; border-radius:8px; padding:12px;" id="w-plain-text"></div>
+            <div id="w-plain-preview" style="display:none; font-size:0.85rem; color:var(--text-primary); width:100%;">
+              <div style="background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; padding:12px;" id="w-plain-text"></div>
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('welcome')" id="w-test-btn">
@@ -291,7 +291,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title"><i class="bi bi-door-open-fill" style="color:#ED4245"></i> {{ t('welcome.goodbye_settings') }}</div>
+              <div class="card-title"><i class="bi bi-door-open-fill" style="color:var(--danger)"></i> {{ t('welcome.goodbye_settings') }}</div>
             </div>
           </div>
 
@@ -379,8 +379,8 @@
               </div>
             </div>
 
-            <div id="g-plain-preview" style="display:none; font-size:0.85rem; color:#dbdee1; width:100%;">
-              <div style="background:#2b2d31; border-radius:8px; padding:12px;" id="g-plain-text"></div>
+            <div id="g-plain-preview" style="display:none; font-size:0.85rem; color:var(--text-primary); width:100%;">
+              <div style="background:var(--bg-card2); border:1px solid var(--border); border-radius:8px; padding:12px;" id="g-plain-text"></div>
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="sendTestCard('goodbye')" id="g-test-btn">
@@ -411,9 +411,17 @@ const GUILD_NAME_W  = {{ guild.get('name','Server') | tojson }};
 const USER_NAME_W   = {{ (user.get('global_name') or user.get('username') or 'User') | tojson }};
 const MEMBER_COUNT  = {{ (meta.get('member_count') if meta else '???') | tojson }};
 
+window.I18N_W = {
+  joined: {{ t('welcome.joined', user='${USER_NAME_W}', server='${GUILD_NAME_W}')|tojson }},
+  left: {{ t('welcome.left', user='${USER_NAME_W}', server='${GUILD_NAME_W}')|tojson }},
+  empty: {{ t('welcome.empty_msg')|tojson }},
+  sending: {{ t('welcome.sending')|tojson }},
+  testSuccess: {{ t('welcome.test_success')|tojson }}
+};
+
 function applyVars(text) {
   return (text || '')
-    .replace(/\{user\}/g,         `<span style="color:#5865f2;font-weight:600;">@${USER_NAME_W}</span>`)
+    .replace(/\{user\}/g,         `<span style="background:var(--accent-light);color:var(--accent);padding:0 3px;border-radius:3px;font-weight:600;">@${USER_NAME_W}</span>`)
     .replace(/\{user_name\}/g,    USER_NAME_W)
     .replace(/\{user_id\}/g,      '{{ user.get("id", "000") }}')
     .replace(/\{server\}/g,       GUILD_NAME_W)
@@ -436,20 +444,14 @@ function updateWelcomePreview() {
     document.getElementById('w-banner-outer').style.setProperty('--bg-url', `url('${bgUrl}')`);
   } else {
     document.getElementById('w-banner-outer').style.setProperty('--bg-url', `url('/static/bg.png')`);
-  window.I18N_W = {
-    joined: "{{ t('welcome.joined', user='${USER_NAME_W}', server='${GUILD_NAME_W}') }}",
-    left: "{{ t('welcome.left', user='${USER_NAME_W}', server='${GUILD_NAME_W}') }}",
-    empty: "{{ t('welcome.empty_msg') }}",
-    sending: "{{ t('welcome.sending') }}",
-    testSuccess: "{{ t('welcome.test_success') }}"
-  };
+  }
 
   document.getElementById('w-preview-msg').innerHTML = msg
     ? applyVars(msg)
     : `👋 <strong>${USER_NAME_W}</strong> ...`;
 
   if (!useCard) {
-    document.getElementById('w-plain-text').innerHTML = applyVars(msg) || `<span style="color:#52555d;font-style:italic;">${window.I18N_W.empty}</span>`;
+    document.getElementById('w-plain-text').innerHTML = applyVars(msg) || `<span style="color:var(--text-muted);font-style:italic;">${window.I18N_W.empty}</span>`;
   }
 }
 
@@ -472,7 +474,7 @@ function updateGoodbyePreview() {
     : `👋 <strong>${USER_NAME_W}</strong> ...`;
 
   if (!useCard) {
-    document.getElementById('g-plain-text').innerHTML = applyVars(msg) || `<span style="color:#52555d;font-style:italic;">${window.I18N_W.empty}</span>`;
+    document.getElementById('g-plain-text').innerHTML = applyVars(msg) || `<span style="color:var(--text-muted);font-style:italic;">${window.I18N_W.empty}</span>`;
   }
 }
 

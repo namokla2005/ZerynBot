@@ -71,7 +71,7 @@
 
       <!-- Discord preview -->
       <div class="form-label" style="margin-bottom:8px;">{{ t('commands.modal_preview') }}</div>
-      <div id="cmd-preview-wrap" style="background:#313338; border-radius:10px; padding:16px;">
+      <div id="cmd-preview-wrap" style="background:#313338; color:#dbdee1; border-radius:10px; padding:16px;">
         <div style="display:flex; gap:12px; align-items:flex-start;">
           <div style="width:38px;height:38px;border-radius:50%;background:#5865f2;
                       display:flex;align-items:center;justify-content:center;
@@ -121,12 +121,12 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(88,101,242,0.05) 0%, transparent 60%);
+  background: linear-gradient(135deg, var(--accent-light) 0%, transparent 60%);
   opacity: 0;
   transition: opacity 0.2s;
 }
-.cmd-card:hover { border-color: rgba(88,101,242,0.4); transform: translateY(-2px);
-                  box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.cmd-card:hover { border-color: var(--border-hover); transform: translateY(-2px);
+                  box-shadow: var(--shadow-sm); }
 .cmd-card:hover::before { opacity: 1; }
 .cmd-card:focus { outline: 2px solid var(--accent); }
 
@@ -135,7 +135,7 @@
 .cmd-badge {
   font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
   padding: 2px 7px; border-radius: 20px;
-  background: rgba(88,101,242,0.15); color: #7289da;
+  background: var(--accent-light); color: var(--accent);
   letter-spacing: 0.05em;
 }
 .cmd-name {
@@ -148,28 +148,28 @@
 }
 .cmd-usage-chip {
   display: inline-flex; align-items: center; gap: 5px;
-  background: var(--bg-input); border-radius: var(--radius-sm);
+  background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
   padding: 4px 9px; font-size: 0.75rem; color: var(--text-secondary);
 }
-.cmd-usage-chip code { font-size: 0.72rem; background: none; padding: 0; color: #57F287; }
+.cmd-usage-chip code { font-size: 0.72rem; background: none; padding: 0; color: var(--success); }
 
 /* ─── Arg chip ──── */
 .arg-chip {
   display: flex; align-items: center; gap: 8px;
-  background: var(--bg-input); border-radius: var(--radius-sm);
+  background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
   padding: 8px 12px; font-size: 0.82rem;
 }
-.arg-name { font-family: monospace; color: #f0b232; font-weight: 600; }
+.arg-name { font-family: monospace; color: var(--warning); font-weight: 600; }
 .arg-type { font-size: 0.7rem; color: var(--text-muted); background: var(--bg-card);
             padding: 1px 6px; border-radius: 10px; border: 1px solid var(--border); }
-.arg-req  { font-size: 0.7rem; color: #ed4245; background: rgba(237,66,69,0.1);
+.arg-req  { font-size: 0.7rem; color: var(--danger); background: var(--danger-bg);
             padding: 1px 6px; border-radius: 10px; }
-.arg-opt  { font-size: 0.7rem; color: var(--text-muted); background: rgba(148,155,164,0.1);
+.arg-opt  { font-size: 0.7rem; color: var(--text-muted); background: var(--bg-card2);
             padding: 1px 6px; border-radius: 10px; }
 .arg-desc { color: var(--text-secondary); font-size: 0.78rem; }
 
 /* ─── Meta grid ──── */
-.meta-item { background: var(--bg-input); border-radius: var(--radius-sm); padding: 10px 14px; }
+.meta-item { background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 14px; }
 .meta-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
               letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px; }
 .meta-value { font-size: 0.875rem; color: var(--text-primary); font-weight: 500; }
@@ -177,13 +177,13 @@
 
 <script>
 window.I18N = {
-  modal_desc_label: "{{ t('commands.modal_desc_label') }}",
-  modal_usage_label: "{{ t('commands.modal_usage_label') }}",
-  modal_example_label: "{{ t('commands.modal_example_label') }}",
-  arg_required: "{{ t('commands.arg_required') }}",
-  arg_optional: "{{ t('commands.arg_optional') }}",
-  no_preview: "{{ t('commands.no_preview') }}",
-  music_select_placeholder: "{{ t('commands.music_select_placeholder') }}"
+  modal_desc_label: {{ t('commands.modal_desc_label')|tojson }},
+  modal_usage_label: {{ t('commands.modal_usage_label')|tojson }},
+  modal_example_label: {{ t('commands.modal_example_label')|tojson }},
+  arg_required: {{ t('commands.arg_required')|tojson }},
+  arg_optional: {{ t('commands.arg_optional')|tojson }},
+  no_preview: {{ t('commands.no_preview')|tojson }},
+  music_select_placeholder: {{ t('commands.music_select_placeholder')|tojson }}
 };
 
 // ─── Category tabs ────────────────────────────────────────────────────────────
@@ -208,12 +208,12 @@ function openCmdModal(cmd) {
     </div>
     <div class="meta-item">
       <div class="meta-label">${window.I18N.modal_usage_label}</div>
-      <div class="meta-value" style="font-family:monospace;color:#57F287;">${cmd.usage}</div>
+      <div class="meta-value" style="font-family:monospace;color:var(--success);">${cmd.usage}</div>
     </div>
     ${cmd.example ? `
     <div class="meta-item" style="grid-column:1/-1;">
       <div class="meta-label">${window.I18N.modal_example_label}</div>
-      <div class="meta-value" style="font-family:monospace;color:#7289da;">${cmd.example}</div>
+      <div class="meta-value" style="font-family:monospace;color:var(--accent);">${cmd.example}</div>
     </div>` : ''}
   `;
 
@@ -276,7 +276,7 @@ function openCmdModal(cmd) {
       </div>`;
   }
   document.getElementById('cmd-preview-content').innerHTML = previewHtml ||
-    `<span style="color:#52555d;font-style:italic;">${window.I18N.no_preview}</span>`;
+    `<span style="color:#949ba4;font-style:italic;">${window.I18N.no_preview}</span>`;
 
   document.getElementById('cmd-modal').style.display = 'flex';
 }

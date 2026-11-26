@@ -104,18 +104,18 @@
         </thead>
         <tbody>
           {% for item in shop_items %}
-          <tr style="border-bottom:1px solid rgba(255,255,255,0.06); transition:background var(--transition);">
+          <tr style="border-bottom:1px solid var(--border-subtle); transition:background var(--transition);">
             <td style="padding:12px 8px; color:var(--text-muted);"><code>#{{ item.id }}</code></td>
             <td style="padding:12px 8px; font-weight:600; color:var(--text-primary);">{{ item.name }}</td>
             <td style="padding:12px 8px;">
               {% set r = roles | selectattr('role_id', 'equalto', item.role_id) | first %}
               {% if r %}
-              <span style="display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; background:rgba(255,255,255,0.08); color:{{ r.color_hex or 'var(--text-primary)' }}; border:1px solid rgba(255,255,255,0.15);">
+              <span style="display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; background:var(--bg-card2); color:var(--text-primary); border:1px solid var(--border);">
                 <span style="width:8px; height:8px; border-radius:50%; background:{{ r.color_hex or 'var(--accent)' }};"></span>
                 @{{ r.role_name }}
               </span>
               {% else %}
-              <span style="padding:2px 8px; border-radius:4px; font-size:0.75rem; background:rgba(255,255,255,0.08); color:var(--text-muted);">Role: {{ item.role_id }}</span>
+              <span style="padding:2px 8px; border-radius:4px; font-size:0.75rem; background:var(--bg-card2); border:1px solid var(--border); color:var(--text-muted);">Role: {{ item.role_id }}</span>
               {% endif %}
             </td>
             <td style="padding:12px 8px; font-weight:700; color:var(--warning);">{{ "{:,}".format(item.price | int) }} {{ eco_settings.currency_symbol }}</td>

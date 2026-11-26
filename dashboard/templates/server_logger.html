@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-journal-text" style="color: #00b0f4;"></i> {{ t('logger.page_title') }}</h1>
+  <h1 class="page-title"><i class="bi bi-journal-text" style="color: var(--accent-cyan);"></i> {{ t('logger.page_title') }}</h1>
   <p class="page-subtitle">{{ t('logger.page_subtitle') }}</p>
 </div>
 
@@ -42,7 +42,7 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
       
       <!-- Messages -->
-      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+      <div style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-md, 8px); border: 1px solid var(--border);">
         <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-chat-dots"></i> {{ t('logger.section_messages') }}</h4>
         <div class="form-group" style="margin-bottom: 12px;">
           <label class="toggle-switch">
@@ -61,7 +61,7 @@
       </div>
 
       <!-- Members -->
-      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+      <div style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-md, 8px); border: 1px solid var(--border);">
         <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-person"></i> {{ t('logger.section_members') }}</h4>
         <div class="form-group" style="margin-bottom: 12px;">
           <label class="toggle-switch">
@@ -87,7 +87,7 @@
       </div>
 
       <!-- Server & Channels -->
-      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+      <div style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-md, 8px); border: 1px solid var(--border);">
         <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-server"></i> {{ t('logger.section_server') }}</h4>
         <div class="form-group" style="margin-bottom: 12px;">
           <label class="toggle-switch">
@@ -106,7 +106,7 @@
       </div>
       
       <!-- Bot & Modules -->
-      <div style="background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+      <div style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-md, 8px); border: 1px solid var(--border);">
         <h4 style="margin: 0 0 12px 0; font-size: 1rem;"><i class="bi bi-robot"></i> {{ t('logger.section_bot') }}</h4>
         <div class="form-group" style="margin-bottom: 12px;">
           <label class="toggle-switch">

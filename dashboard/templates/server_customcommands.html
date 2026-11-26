@@ -38,17 +38,17 @@
       </thead>
       <tbody>
         {% for cmd in custom_cmds %}
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <tr style="border-bottom:1px solid var(--border-subtle);">
           <td style="padding:12px 8px; color:var(--text-muted);"><code>#{{ cmd.id }}</code></td>
           <td style="padding:12px 8px;">
-            <span style="padding:3px 8px; border-radius:6px; background:rgba(255,158,194,0.15); color:var(--accent); font-weight:700; font-family:monospace;">{{ cmd.trigger }}</span>
+            <span style="padding:3px 8px; border-radius:6px; background:var(--accent-light); color:var(--accent); font-weight:700; font-family:monospace;">{{ cmd.trigger }}</span>
           </td>
           <td style="padding:12px 8px;">
-            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-secondary);">{{ cmd.match_type }}</span>
+            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:var(--bg-card2); border:1px solid var(--border-subtle); color:var(--text-secondary);">{{ cmd.match_type }}</span>
           </td>
           <td style="padding:12px 8px;">
             {% if cmd.embed_json %}
-            <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; padding:2px 7px; border-radius:4px; background:rgba(88,101,242,0.25); color:#5865f2; font-weight:600; margin-right:6px;">
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; padding:2px 7px; border-radius:4px; background:var(--accent-light); color:var(--accent); font-weight:600; margin-right:6px;">
               <i class="bi bi-card-text"></i> Rich Embed
             </span>
             {% endif %}
@@ -63,7 +63,7 @@
             {% if cmd.is_enabled %}
             <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:var(--success-bg); color:var(--success); font-weight:600;">{{ t('common.active') | default('Bật') }}</span>
             {% else %}
-            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-disabled); font-weight:600;">{{ t('common.disabled') | default('Tắt') }}</span>
+            <span style="font-size:0.75rem; padding:2px 7px; border-radius:4px; background:var(--bg-card2); color:var(--text-disabled); font-weight:600;">{{ t('common.disabled') | default('Tắt') }}</span>
             {% endif %}
           </td>
           <td style="padding:12px 8px; text-align:right;">
@@ -116,11 +116,11 @@
           <textarea name="response_text" class="form-control" rows="3" placeholder="Xin chào {user}, địa chỉ IP server Minecraft là play.example.com!"></textarea>
           <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px;">
             <span style="font-size:0.75rem; color:var(--text-muted);">{{ t('customcmd.supported_vars') | default('Biến hỗ trợ:') }}</span>
-            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{user}')">{user}</span>
-            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{mention}')">{mention}</span>
-            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{server}')">{server}</span>
-            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{members}')">{members}</span>
-            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{random:1-100}')">{random:1-100}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--accent-light); border:1px solid var(--border-subtle); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{user}')">{user}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--accent-light); border:1px solid var(--border-subtle); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{mention}')">{mention}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--accent-light); border:1px solid var(--border-subtle); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{server}')">{server}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--accent-light); border:1px solid var(--border-subtle); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{members}')">{members}</span>
+            <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--accent-light); border:1px solid var(--border-subtle); color:var(--accent); cursor:pointer; font-family:monospace;" onclick="insertVar('{random:1-100}')">{random:1-100}</span>
           </div>
         </div>
 

@@ -10,9 +10,9 @@
 <style>
   .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
   .custom-select-display {
-    background: #1e1f22;
-    border: 1px solid #3f4147;
-    border-radius: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
     padding: 8px 12px;
     min-height: 42px;
     display: flex;
@@ -22,34 +22,35 @@
     cursor: pointer;
     transition: border-color 0.2s;
   }
-  .custom-select-display:hover { border-color: #5865F2; }
-  .custom-select-arrow { margin-left: auto; color: #b5bac1; }
+  .custom-select-display:hover { border-color: var(--accent); }
+  .custom-select-arrow { margin-left: auto; color: var(--text-muted); }
   .chips-container { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
   .chip {
-    background: #2b2d31;
-    color: #dbdee1;
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 0.85rem;
     display: flex;
     align-items: center;
     gap: 6px;
   }
-  .chip-remove { cursor: pointer; color: #ed4245; font-weight: bold; }
-  .chip-remove:hover { color: #ff5c5c; }
+  .chip-remove { cursor: pointer; color: var(--danger); font-weight: bold; }
+  .chip-remove:hover { opacity: 0.8; }
   
   .custom-select-dropdown {
     position: absolute;
     top: 100%; left: 0; right: 0;
     margin-top: 4px;
-    background: #2b2d31;
-    border: 1px solid #3f4147;
-    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
     max-height: 200px;
     overflow-y: auto;
     z-index: 100;
     display: none;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.24);
+    box-shadow: var(--shadow);
   }
   .custom-select-wrapper.open { z-index: 99; }
   .custom-select-wrapper.open .custom-select-dropdown { display: block; }
@@ -59,18 +60,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #dbdee1;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
     transition: background 0.2s;
   }
-  .custom-option:hover { background: #3f4147; }
-  .custom-option.selected { background: rgba(88, 101, 242, 0.1); color: #5865F2; font-weight: bold; }
+  .custom-option:hover { background: var(--bg-hover); }
+  .custom-option.selected { background: var(--accent-light); color: var(--accent); font-weight: bold; }
   .role-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .placeholder-text { color: #80848e; font-size: 0.9rem; }
+  .placeholder-text { color: var(--text-muted); font-size: 0.9rem; }
 </style>
 
-<div class="card" style="margin-bottom: 24px; border-color: #5865F2;">
+<div class="card" style="margin-bottom: 24px; border-color: var(--accent);">
   <div class="card-title">🔐 {{ t('modules.role_whitelist_title') }}</div>
-  <p style="font-size: 0.85rem; color: #b5bac1; margin-bottom: 12px;">
+  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
     {{ t('modules.role_whitelist_desc') }}
   </p>
   
@@ -88,20 +90,8 @@
       </div>
     </div>
     <div style="margin-top: 16px; text-align: right;">
-      <button type="submit" style="
-        background-color: #5865F2; 
-        color: white; 
-        border: none; 
-        border-radius: 4px; 
-        padding: 8px 16px; 
-        font-size: 0.9rem; 
-        font-weight: 500; 
-        cursor: pointer; 
-        display: inline-flex; 
-        align-items: center; 
-        gap: 6px; 
-        transition: background-color 0.2s;">
-        <i class="bi bi-floppy-fill" style="font-size: 1rem;"></i> {{ t('common.save') }}
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-floppy-fill"></i> {{ t('common.save') }}
       </button>
     </div>
   </form>
@@ -447,7 +437,7 @@
 
 </div>
 
-<div class="card" style="margin-top: 24px; border-color: rgba(88,101,242,0.2); background: rgba(88,101,242,0.05);">
+<div class="card" style="margin-top: 24px; border-color: var(--border-hover); background: var(--accent-light);">
   <div style="display:flex; gap:12px; align-items:flex-start;">
     <div style="font-size:1.2rem;">💡</div>
     <div>
@@ -493,7 +483,7 @@
           
           let prefix = '';
           if (optData.color) {
-            prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
+            prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : 'var(--text-muted)'}"></span> `;
           }
           
           chip.innerHTML = `
@@ -531,7 +521,7 @@
         
         let prefix = '';
         if (optData.color) {
-          prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : '#b9bbbe'}"></span> `;
+          prefix = `<span class="role-color" style="background-color: ${optData.color !== '#000000' && optData.color ? optData.color : 'var(--text-muted)'}"></span> `;
         }
         
         option.innerHTML = `${prefix}${optData.name}`;

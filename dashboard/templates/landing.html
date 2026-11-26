@@ -7,31 +7,185 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  
+  <script>(function(){try{var m=localStorage.getItem('zeryn-theme');if(m!=='light'&&m!=='dark'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
   <style>
+    /* ═══ IRIDESCENT TOKENS — Light Default, Iridescent Noir on [data-theme="dark"] ═══ */
     :root {
-      --bg-main: #0a0918;
-      --bg-surface: #1a1921;
-      --bg-card: rgba(26, 25, 33, 0.75);
-      --bg-card-hover: rgba(36, 34, 46, 0.88);
-      --accent-pink: #ff7ac2;
-      --accent-pink-hover: #ffa1d4;
-      --accent-pink-glow: rgba(255, 122, 194, 0.35);
-      --accent-purple: #8b5cf6;
-      --accent-blue: #7289da;
-      --accent-cyan: #ff7ac2;
-      --text-primary: #ffffff;
-      --text-secondary: #a3a1b0;
-      --text-muted: #6f6d7e;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-hover: rgba(255, 122, 194, 0.4);
+      color-scheme: light;
+      --bg: #f5f4fb;
+      --bg-main: #f5f4fb;
+      --glass: rgba(255, 255, 255, 0.62);
+      --glass2: rgba(255, 255, 255, 0.45);
+      --glass-hover: rgba(255, 255, 255, 0.84);
+      --surface: rgba(255, 255, 255, 0.94);
+      --gborder: rgba(255, 255, 255, 0.75);
+      --border: rgba(35, 33, 54, 0.10);
+      --border2: rgba(35, 33, 54, 0.06);
+      --border-subtle: rgba(35, 33, 54, 0.09);
+      --border-hover: rgba(124, 108, 240, 0.42);
+
+      --ink: #232136;
+      --mut: #6b6883;
+      --dim: #656180;
+      --text-primary: #232136;
+      --text-secondary: #5c5875;
+      --text-muted: #656180;
+
+      --vio: #7c6cf0;
+      --coral: #ff8a9b;
+      --amber: #ffc07a;
+      --mint: #7fe0c3;
+      --accent-blue: #5865f2;
+      --accent-purple: #7c6cf0;
+      --accent-pink: #ff8a9b;
+
+      --grad: linear-gradient(100deg, #7c6cf0, #ff8a9b);
+      --grad3: linear-gradient(90deg, #7c6cf0, #ff8a9b, #ffc07a);
+      --grad-text: linear-gradient(95deg, #6351e0 0%, #c23953 56%, #b85d19 100%);
+      --grad-btn: linear-gradient(100deg, #6856e8, #c64565);
+
+      --shadow: 0 18px 44px -22px rgba(80, 70, 160, 0.30);
+      --shadow-sm: 0 6px 20px -10px rgba(80, 70, 160, 0.20);
+      --shadow-btn: 0 12px 26px -12px rgba(104, 86, 232, 0.62);
+
+      /* Accessible feature palette (>= 4.5:1 text contrast on Light glass) */
+      --accent-vio-text: #5a48d6;
+      --accent-vio-bg: rgba(124, 108, 240, 0.14);
+      --accent-vio-border: rgba(124, 108, 240, 0.32);
+
+      --accent-coral-text: #b8334e;
+      --accent-coral-bg: rgba(255, 138, 155, 0.18);
+      --accent-coral-border: rgba(184, 51, 78, 0.32);
+
+      --accent-amber-text: #965b0e;
+      --accent-amber-bg: rgba(255, 192, 122, 0.24);
+      --accent-amber-border: rgba(150, 91, 14, 0.32);
+
+      --accent-mint-text: #117a52;
+      --accent-mint-bg: rgba(127, 224, 195, 0.24);
+      --accent-mint-border: rgba(17, 122, 82, 0.32);
+
+      --accent-blue-text: #1f68a8;
+      --accent-blue-bg: rgba(88, 101, 242, 0.13);
+      --accent-blue-border: rgba(31, 104, 168, 0.32);
+
+      --accent-red-text: #c93035;
+      --accent-red-bg: rgba(237, 66, 69, 0.13);
+      --accent-red-border: rgba(201, 48, 53, 0.30);
+
+      --accent-pink-text: #b83276;
+      --accent-pink-bg: rgba(255, 105, 180, 0.16);
+      --accent-pink-border: rgba(184, 50, 118, 0.30);
+
+      --blob-1: radial-gradient(circle, rgba(214, 196, 255, 0.85), transparent 65%);
+      --blob-2: radial-gradient(circle, rgba(255, 214, 214, 0.80), transparent 65%);
+      --blob-3: radial-gradient(circle, rgba(197, 244, 229, 0.90), transparent 65%);
+
+      --header-bg: rgba(245, 244, 251, 0.80);
+      --dropdown-bg: rgba(255, 255, 255, 0.96);
+      --dropdown-shadow: 0 18px 44px rgba(35, 33, 54, 0.16);
+      --cta-bg: linear-gradient(120deg, rgba(124, 108, 240, 0.15), rgba(255, 138, 155, 0.15));
+      --footer-bg: rgba(255, 255, 255, 0.40);
+
+      --mock-inner-bg: rgba(255, 255, 255, 0.65);
+      --mock-border: rgba(35, 33, 54, 0.08);
+      --vc-btn-bg: rgba(255, 255, 255, 0.78);
+      --progress-track: rgba(35, 33, 54, 0.10);
+      --btn-neutral-bg: #4e5058;
+
       --radius-pill: 9999px;
       --radius-lg: 20px;
       --radius-md: 14px;
-      --radius-sm: 8px;
+      --radius-sm: 10px;
     }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0d0b16;
+      --bg-main: #0d0b16;
+      --glass: rgba(255, 255, 255, 0.05);
+      --glass2: rgba(255, 255, 255, 0.035);
+      --glass-hover: rgba(255, 255, 255, 0.09);
+      --surface: rgba(20, 17, 36, 0.94);
+      --gborder: rgba(255, 255, 255, 0.10);
+      --border: rgba(255, 255, 255, 0.09);
+      --border2: rgba(255, 255, 255, 0.06);
+      --border-subtle: rgba(255, 255, 255, 0.09);
+      --border-hover: rgba(141, 123, 255, 0.44);
+
+      --ink: #f4f2fb;
+      --mut: #b9b5d0;
+      --dim: #9793b2;
+      --text-primary: #f4f2fb;
+      --text-secondary: #b9b5d0;
+      --text-muted: #9793b2;
+
+      --vio: #8d7bff;
+      --accent-purple: #8d7bff;
+      --grad: linear-gradient(100deg, #8d7bff, #ff8a9b);
+      --grad3: linear-gradient(90deg, #8d7bff, #ff8a9b, #ffc07a);
+      --grad-text: linear-gradient(95deg, #a799ff 0%, #ff8a9b 56%, #ffc07a 100%);
+      --grad-btn: linear-gradient(100deg, #6d5ce8, #d45270);
+
+      --shadow: 0 20px 48px -24px rgba(0, 0, 0, 0.65);
+      --shadow-sm: 0 8px 24px -12px rgba(0, 0, 0, 0.50);
+      --shadow-btn: 0 12px 26px -12px rgba(141, 123, 255, 0.55);
+
+      --accent-vio-text: #b2a4ff;
+      --accent-vio-bg: rgba(141, 123, 255, 0.16);
+      --accent-vio-border: rgba(141, 123, 255, 0.34);
+
+      --accent-coral-text: #ff99a8;
+      --accent-coral-bg: rgba(255, 138, 155, 0.16);
+      --accent-coral-border: rgba(255, 138, 155, 0.34);
+
+      --accent-amber-text: #ffd094;
+      --accent-amber-bg: rgba(255, 192, 122, 0.16);
+      --accent-amber-border: rgba(255, 192, 122, 0.34);
+
+      --accent-mint-text: #7fe0c3;
+      --accent-mint-bg: rgba(127, 224, 195, 0.16);
+      --accent-mint-border: rgba(127, 224, 195, 0.34);
+
+      --accent-blue-text: #8ccbff;
+      --accent-blue-bg: rgba(125, 211, 252, 0.15);
+      --accent-blue-border: rgba(125, 211, 252, 0.32);
+
+      --accent-red-text: #ff8c8e;
+      --accent-red-bg: rgba(237, 66, 69, 0.16);
+      --accent-red-border: rgba(255, 140, 142, 0.34);
+
+      --accent-pink-text: #ff9cd0;
+      --accent-pink-bg: rgba(255, 122, 194, 0.16);
+      --accent-pink-border: rgba(255, 122, 194, 0.34);
+
+      --blob-1: radial-gradient(circle, rgba(124, 108, 240, 0.34), transparent 65%);
+      --blob-2: radial-gradient(circle, rgba(255, 122, 140, 0.26), transparent 65%);
+      --blob-3: radial-gradient(circle, rgba(127, 224, 195, 0.20), transparent 65%);
+
+      --header-bg: rgba(13, 11, 22, 0.78);
+      --dropdown-bg: rgba(24, 21, 40, 0.96);
+      --dropdown-shadow: 0 20px 48px rgba(0, 0, 0, 0.65);
+      --cta-bg: linear-gradient(120deg, rgba(141, 123, 255, 0.16), rgba(255, 138, 155, 0.16));
+      --footer-bg: rgba(255, 255, 255, 0.02);
+
+      --mock-inner-bg: rgba(255, 255, 255, 0.045);
+      --mock-border: rgba(255, 255, 255, 0.09);
+      --vc-btn-bg: rgba(255, 255, 255, 0.06);
+      --progress-track: rgba(255, 255, 255, 0.10);
+      --btn-neutral-bg: #4e5058;
+    }
+
+    /* Per-feature semantic accent hooks */
+    .accent-vio   { --chip-color: var(--accent-vio-text);   --chip-bg: var(--accent-vio-bg);   --chip-border: var(--accent-vio-border); }
+    .accent-amber { --chip-color: var(--accent-amber-text); --chip-bg: var(--accent-amber-bg); --chip-border: var(--accent-amber-border); }
+    .accent-mint  { --chip-color: var(--accent-mint-text);  --chip-bg: var(--accent-mint-bg);  --chip-border: var(--accent-mint-border); }
+    .accent-coral { --chip-color: var(--accent-coral-text); --chip-bg: var(--accent-coral-bg); --chip-border: var(--accent-coral-border); }
+    .accent-blue  { --chip-color: var(--accent-blue-text);  --chip-bg: var(--accent-blue-bg);  --chip-border: var(--accent-blue-border); }
+    .accent-red   { --chip-color: var(--accent-red-text);   --chip-bg: var(--accent-red-bg);   --chip-border: var(--accent-red-border); }
+    .accent-pink  { --chip-color: var(--accent-pink-text);  --chip-bg: var(--accent-pink-bg);  --chip-border: var(--accent-pink-border); }
 
     * {
       box-sizing: border-box;
@@ -40,77 +194,142 @@
     }
 
     html {
+      scroll-behavior: smooth;
       overflow-x: hidden;
     }
 
     body.landing-body {
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow-x: hidden;
+      overflow-x: clip;
       line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
       position: relative;
       z-index: 0;
+      transition: background-color 0.25s ease, color 0.25s ease;
     }
 
-    /* GPU Isolated Background Layer cho Landing Page */
-    body.landing-body::before {
+    /* Ambient 3-Orb Iridescent Aura (GPU isolated) */
+    body.landing-body::before,
+    body.landing-body::after,
+    .iridescent-blob {
       content: "";
       position: fixed;
-      inset: 0;
-      z-index: -1;
+      border-radius: 50%;
+      filter: blur(90px);
       pointer-events: none;
-      background-color: var(--bg-main);
-      background-image: 
-        radial-gradient(circle at 15% 15%, rgba(255, 122, 194, 0.09) 0%, transparent 45%),
-        radial-gradient(circle at 85% 20%, rgba(139, 92, 246, 0.09) 0%, transparent 40%),
-        radial-gradient(circle at 50% 60%, rgba(255, 122, 194, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 80% 85%, rgba(139, 92, 246, 0.06) 0%, transparent 45%);
+      z-index: -1;
       transform: translateZ(0);
-      will-change: transform;
+    }
+    body.landing-body::before {
+      width: 620px;
+      height: 620px;
+      left: -180px;
+      top: -220px;
+      background: var(--blob-1);
+    }
+    body.landing-body::after {
+      width: 660px;
+      height: 660px;
+      right: -220px;
+      top: -60px;
+      background: var(--blob-2);
+    }
+    .iridescent-blob {
+      width: 600px;
+      height: 600px;
+      left: 34%;
+      top: 520px;
+      background: var(--blob-3);
+    }
+
+    .landing-page {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
     }
 
     /* ─── Header & Navigation ─────────────────────────────────────────────────── */
     .landing-header {
-      position: sticky; top: 0; z-index: 100;
-      background: rgba(19, 18, 23, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--header-bg);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       transform: translateZ(0);
       backface-visibility: hidden;
-      border-bottom: 1px solid var(--border-subtle);
-      padding: 14px 32px;
+      border-bottom: 1px solid var(--border2);
+      padding: 12px 28px;
     }
 
     .landing-nav {
-      max-width: 1200px; margin: 0 auto;
-      display: flex; align-items: center; justify-content: space-between;
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .landing-nav-left {
+      display: flex;
+      align-items: center;
+      gap: 28px;
     }
 
     .landing-brand {
-      display: flex; align-items: center; gap: 12px;
-      font-weight: 800; font-size: 1.25rem; color: #fff;
-      text-decoration: none; letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--ink);
+      text-decoration: none;
+      letter-spacing: -0.02em;
     }
     .landing-brand img {
-      width: 38px; height: 38px; border-radius: 50%;
-      box-shadow: 0 0 16px var(--accent-pink-glow);
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid var(--gborder);
+      box-shadow: 0 8px 20px -8px rgba(124, 108, 240, 0.55);
     }
 
     .landing-nav-links {
-      display: flex; align-items: center; gap: 28px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .landing-nav-links a {
-      color: var(--text-secondary); font-weight: 600; font-size: 0.92rem;
-      transition: color 0.2s ease; text-decoration: none;
+      color: var(--mut);
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 7px 12px;
+      border-radius: 10px;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      text-decoration: none;
+      white-space: nowrap;
     }
-    .landing-nav-links a:hover { color: #fff; }
+    .landing-nav-links a:hover {
+      background: var(--glass2);
+      color: var(--ink);
+    }
 
     .nav-actions {
-      display: flex; align-items: center; gap: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     /* Language Switcher */
@@ -118,179 +337,277 @@
       position: relative;
     }
     .lang-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-pill);
-      padding: 7px 14px;
-      color: var(--text-secondary);
-      font-size: 0.85rem;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 7px 13px;
+      height: 38px;
+      color: var(--ink);
+      font-size: 0.84rem;
       font-weight: 600;
-      display: inline-flex; align-items: center; gap: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       cursor: pointer;
-      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      font-family: inherit;
     }
     .lang-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.2);
+      background: var(--glass-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
     }
     .lang-dropdown {
-      position: absolute; top: calc(100% + 8px); right: 0;
-      background: #1e1c26;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--dropdown-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
       padding: 6px;
-      min-width: 170px;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      min-width: 184px;
+      box-shadow: var(--dropdown-shadow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       display: none;
       z-index: 150;
     }
-    .lang-switcher:hover .lang-dropdown { display: block; }
+    .lang-switcher:hover .lang-dropdown,
+    .lang-switcher:focus-within .lang-dropdown {
+      display: block;
+    }
+    .lang-dropdown-title {
+      font-size: 0.72rem;
+      color: var(--dim);
+      padding: 4px 10px 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
     .lang-item {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 8px 12px;
-      color: var(--text-secondary);
+      color: var(--mut);
       font-size: 0.85rem;
       font-weight: 600;
       text-decoration: none;
-      border-radius: 8px;
-      transition: all 0.15s;
+      border-radius: 9px;
+      transition: all 0.15s ease;
     }
     .lang-item:hover {
-      background: rgba(255, 122, 194, 0.15);
-      color: #fff;
+      background: var(--accent-vio-bg);
+      color: var(--ink);
     }
     .lang-item.active {
-      color: var(--accent-pink);
-      background: rgba(255, 122, 194, 0.1);
+      color: var(--accent-vio-text);
+      background: var(--accent-vio-bg);
+    }
+
+    /* Theme Toggle Button (3-state: Light / Dark / Auto) */
+    .theme-toggle-btn {
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-grid;
+      place-items: center;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+      font-family: inherit;
+    }
+    .theme-toggle-compact {
+      width: 38px;
+      padding: 0;
+    }
+    .theme-toggle-btn:hover {
+      transform: translateY(-1px);
+      background: var(--glass-hover);
+      border-color: var(--border-hover);
+    }
+    .theme-toggle-btn:focus-visible,
+    .lang-btn:focus-visible,
+    .btn-pink-pill:focus-visible,
+    .btn-outline-pill:focus-visible {
+      outline: 2px solid var(--vio);
+      outline-offset: 2px;
     }
 
     /* Buttons */
     .btn-pink-pill {
-      background: var(--accent-pink);
-      color: #16121f;
-      padding: 10px 22px;
-      border-radius: var(--radius-pill);
+      background: var(--grad-btn);
+      color: #ffffff;
+      padding: 9px 18px;
+      border-radius: 12px;
       font-weight: 700;
-      font-size: 0.92rem;
-      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       text-decoration: none;
-      border: none; cursor: pointer;
-      box-shadow: 0 4px 18px var(--accent-pink-glow);
-      transition: all 0.25s ease;
+      border: 0;
+      cursor: pointer;
+      box-shadow: var(--shadow-btn);
+      transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      white-space: nowrap;
     }
     .btn-pink-pill:hover {
-      background: var(--accent-pink-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px var(--accent-pink-glow);
-      color: #16121f;
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 30px -10px rgba(124, 108, 240, 0.72);
+      color: #ffffff;
     }
 
     .btn-outline-pill {
-      background: rgba(255, 255, 255, 0.04);
-      color: #fff;
-      padding: 10px 22px;
-      border-radius: var(--radius-pill);
+      background: var(--glass);
+      color: var(--ink);
+      padding: 9px 18px;
+      border-radius: 12px;
       font-weight: 700;
-      font-size: 0.92rem;
-      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       text-decoration: none;
-      border: 1px solid var(--border-subtle);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-sm);
       cursor: pointer;
-      transition: all 0.25s ease;
+      transition: all 0.2s ease;
+      white-space: nowrap;
     }
     .btn-outline-pill:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.25);
-      transform: translateY(-2px);
-      color: #fff;
+      background: var(--glass-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      color: var(--ink);
+    }
+
+    .btn-hero-lg {
+      padding: 12px 22px;
+      font-size: 0.94rem;
+      border-radius: 13px;
     }
 
     /* ─── Hero Section ────────────────────────────────────────────────────────── */
     .hero-section-wrapper {
-      min-height: calc(100vh - 72px);
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
-      padding: 40px 0 60px;
-      box-sizing: border-box;
+      padding: 64px 0 36px;
     }
 
     .hero-container {
-      max-width: 1200px;
+      max-width: 1120px;
       width: 100%;
       margin: 0 auto;
-      padding: 0 28px;
+      padding: 0 24px;
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 40px;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 44px;
       align-items: center;
     }
 
     .hero-badge-pill {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
       border-radius: var(--radius-pill);
-      background: rgba(255, 122, 194, 0.08);
-      border: 1px solid rgba(255, 122, 194, 0.25);
-      color: var(--accent-pink);
-      font-size: 0.85rem;
-      font-weight: 700;
-      margin-bottom: 24px;
-      box-shadow: 0 0 24px rgba(255, 122, 194, 0.12);
+      background: var(--glass);
+      border: 1px solid var(--gborder);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+    .hero-badge-pill i {
+      color: var(--accent-vio-text);
     }
 
     .hero-heading {
-      font-size: 3.6rem;
-      font-weight: 800;
-      line-height: 1.12;
-      letter-spacing: -0.025em;
-      color: #fff;
-      margin-bottom: 20px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(2.15rem, 4.6vw, 3.35rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      margin-bottom: 16px;
     }
     .hero-heading span {
-      background: linear-gradient(135deg, #ffffff 0%, var(--accent-pink) 60%, var(--accent-purple) 100%);
+      background: var(--grad-text);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
+      color: transparent;
     }
 
     .hero-lead {
-      font-size: 1.15rem;
-      color: var(--text-secondary);
-      line-height: 1.7;
-      margin-bottom: 36px;
-      max-width: 520px;
+      font-size: 1rem;
+      color: var(--mut);
+      line-height: 1.65;
+      margin-bottom: 26px;
+      max-width: 540px;
     }
 
     .hero-cta-group {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
     .hero-avatar-wrapper {
       position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      display: grid;
+      place-items: center;
+      min-height: 330px;
     }
     .hero-avatar-ring {
-      width: 340px; height: 340px;
+      width: 286px;
+      height: 286px;
       border-radius: 50%;
-      padding: 10px;
-      background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple), var(--accent-blue));
-      box-shadow: 0 20px 80px rgba(139, 92, 246, 0.35);
+      padding: 7px;
+      background: conic-gradient(from 210deg, #7c6cf0, #ff8a9b, #ffc07a, #7fe0c3, #7c6cf0);
+      box-shadow: 0 30px 70px -30px rgba(124, 108, 240, 0.55);
       position: relative;
       animation: gentleFloat 6s ease-in-out infinite;
     }
     @keyframes gentleFloat {
       0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-12px); }
+      50% { transform: translateY(-10px); }
+    }
+    .hero-avatar-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      padding: 6px;
+      background: var(--glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: grid;
+      place-items: center;
     }
     .hero-avatar-ring img {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       object-fit: cover;
       display: block;
@@ -299,96 +616,125 @@
     /* Floating Cute Stickers around avatar */
     .sticker-pill {
       position: absolute;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: #1f1c2b;
-      border: 2px solid var(--accent-pink);
-      color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.2rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      width: 50px;
+      height: 50px;
+      border-radius: 16px;
+      background: var(--glass);
+      border: 1px solid var(--gborder);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      font-size: 1.3rem;
+      box-shadow: var(--shadow);
       z-index: 5;
-      animation: pulseSticker 3s ease-in-out infinite;
+      animation: pulseSticker 3.2s ease-in-out infinite;
     }
     @keyframes pulseSticker {
       0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.08); }
+      50% { transform: scale(1.07); }
     }
-    .st-top-left { top: 10px; left: -10px; }
-    .st-top-right { top: -10px; right: 20px; }
-    .st-bottom-left { bottom: 20px; left: -15px; }
-    .st-bottom-right { bottom: 0px; right: 0px; }
+    .st-top-left { top: 8px; left: -10px; }
+    .st-top-right { top: 14px; right: -12px; }
+    .st-bottom-left { bottom: 14px; left: -12px; }
+    .st-bottom-right { bottom: 6px; right: -8px; }
 
-    /* ─── Section Spacer ─────────────────────────────────────────────────────── */
-    .section-spacer {
-      height: 60px;
-      margin: 20px auto 40px;
-      max-width: 1140px;
+    /* ─── Section Headings ────────────────────────────────────────────────────── */
+    .sec-head {
+      text-align: center;
+      margin: 56px auto 20px;
+      max-width: 720px;
+      padding: 0 24px;
+    }
+    .sec-head h2 {
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(1.65rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .sec-head p {
+      color: var(--mut);
+      font-size: 0.96rem;
     }
 
     /* ─── Zig-zag Feature Showcase Section ────────────────────────────────────── */
     .showcase-container {
-      max-width: 1140px;
-      margin: 0 auto 100px;
-      padding: 0 28px;
-      scroll-margin-top: 100px;
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto 72px;
+      padding: 0 24px;
+      scroll-margin-top: 90px;
     }
 
     #all-in-one, .all-in-one-wrapper {
-      scroll-margin-top: 100px;
+      scroll-margin-top: 90px;
     }
 
     .showcase-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 60px;
+      gap: 48px;
       align-items: center;
-      margin-bottom: 110px;
+      padding: 36px 0;
     }
     .showcase-row.reverse .showcase-copy { order: 2; }
     .showcase-row.reverse .showcase-visual { order: 1; }
 
     .showcase-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 14px;
+      --chip-color: var(--accent-vio-text);
+      --chip-bg: var(--accent-vio-bg);
+      --chip-border: var(--accent-vio-border);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 13px;
       border-radius: var(--radius-pill);
-      background: rgba(255, 122, 194, 0.1);
-      border: 1px solid rgba(255, 122, 194, 0.25);
-      color: var(--accent-pink);
-      font-size: 0.78rem;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      color: var(--chip-color);
+      font-size: 0.74rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 14px;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
     }
 
     .showcase-heading {
-      font-size: 2.2rem;
-      font-weight: 800;
-      color: #fff;
-      line-height: 1.25;
-      letter-spacing: -0.015em;
-      margin-bottom: 16px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.22;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
     }
 
     .showcase-description {
-      font-size: 1.02rem;
-      color: var(--text-secondary);
-      line-height: 1.7;
-      margin-bottom: 24px;
+      font-size: 0.95rem;
+      color: var(--mut);
+      line-height: 1.65;
+      margin-bottom: 18px;
     }
 
     .showcase-btn-link {
-      color: var(--accent-pink);
+      --chip-color: var(--accent-vio-text);
+      color: var(--chip-color);
       font-weight: 700;
-      font-size: 0.95rem;
-      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       text-decoration: none;
-      transition: gap 0.2s ease, color 0.2s ease;
+      border-bottom: 2px dotted var(--chip-border, rgba(124, 108, 240, 0.45));
+      padding-bottom: 2px;
+      transition: gap 0.2s ease, opacity 0.2s ease;
     }
     .showcase-btn-link:hover {
-      color: #fff;
       gap: 10px;
+      opacity: 0.88;
     }
 
     /* Showcase Visual Cards with Floating Corner Badges */
@@ -396,286 +742,646 @@
       position: relative;
     }
     .mockup-card {
-      background: #1b1924;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-      transition: transform 0.3s ease, border-color 0.3s ease;
+      background: var(--glass);
+      border: 1px solid var(--gborder);
+      border-radius: 18px;
+      padding: 20px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      text-align: left;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+    .mockup-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 12%;
+      right: 12%;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--grad3);
+      opacity: 0.78;
     }
     .mockup-card:hover {
-      transform: translateY(-4px);
+      transform: translateY(-3px);
       border-color: var(--border-hover);
     }
 
     .corner-badge {
+      --chip-color: var(--accent-vio-text);
       position: absolute;
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      background: #23202e;
-      border: 1.5px solid var(--accent-pink);
-      color: var(--accent-pink);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--chip-color);
+      color: var(--chip-color);
+      display: grid;
+      place-items: center;
+      font-size: 1.05rem;
+      box-shadow: var(--shadow-sm);
       z-index: 10;
     }
-    .cb-top-left { top: -14px; left: -14px; }
-    .cb-top-right { top: -14px; right: -14px; }
-    .cb-bottom-left { bottom: -14px; left: -14px; }
-    .cb-bottom-right { bottom: -14px; right: -14px; }
+    .cb-top-left { top: -13px; left: -12px; }
+    .cb-top-right { top: -13px; right: -12px; }
+    .cb-bottom-left { bottom: -13px; left: -12px; }
+    .cb-bottom-right { bottom: -13px; right: -12px; }
 
     /* Discord Chat Style Elements inside Mockups */
     .dc-chat-item {
-      display: flex; gap: 14px; align-items: flex-start;
+      display: flex;
+      gap: 13px;
+      align-items: flex-start;
     }
     .dc-avatar {
-      width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
     }
     .dc-header {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
     }
-    .dc-bot-name { font-weight: 700; color: #fff; font-size: 0.95rem; }
+    .dc-bot-name {
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.92rem;
+    }
     .dc-bot-tag {
-      background: var(--accent-blue); color: #fff;
-      font-size: 0.65rem; font-weight: 700;
-      padding: 1px 5px; border-radius: 4px;
+      background: var(--accent-blue);
+      color: #ffffff;
+      font-size: 0.64rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 5px;
+      letter-spacing: 0.03em;
     }
-    .dc-time { font-size: 0.72rem; color: var(--text-muted); }
-    .dc-content { color: #dcddde; font-size: 0.9rem; line-height: 1.5; }
-    
+    .dc-time {
+      font-size: 0.72rem;
+      color: var(--dim);
+    }
+    .dc-content {
+      color: var(--mut);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
     .dc-embed {
-      background: #23202e;
-      border-radius: 8px;
-      border-left: 4px solid var(--accent-pink);
-      padding: 14px 16px;
+      --chip-color: var(--accent-vio-text);
+      background: var(--mock-inner-bg);
+      border: 1px solid var(--mock-border);
+      border-radius: 10px;
+      border-left: 4px solid var(--chip-color);
+      padding: 12px 14px;
       margin-top: 8px;
     }
-    .dc-embed-title { font-weight: 700; color: #fff; font-size: 0.92rem; margin-bottom: 6px; }
-    .dc-embed-desc { color: #b9bbbe; font-size: 0.85rem; line-height: 1.5; }
+    .dc-embed-title {
+      font-weight: 700;
+      color: var(--chip-color);
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+    .dc-embed-desc {
+      color: var(--mut);
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
 
     /* Rank Card / Leaderboard Mockup */
-    .rank-mockup-row {
-      display: flex; justify-content: space-between; align-items: center;
-      background: #23202e; border-radius: 10px; padding: 12px 16px;
-      margin-top: 10px;
+    .mock-head-row {
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.92rem;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
     }
-    .rank-badge { font-weight: 800; color: var(--accent-pink); font-size: 0.95rem; }
-    .rank-user { font-weight: 700; color: #fff; font-size: 0.9rem; }
-    .rank-score { font-weight: 700; color: #57f287; font-size: 0.85rem; }
+    .mock-head-accent {
+      color: var(--chip-color, var(--accent-amber-text));
+    }
+    .rank-mockup-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--mock-inner-bg);
+      border: 1px solid var(--mock-border);
+      border-radius: 11px;
+      padding: 10px 14px;
+      margin-top: 8px;
+    }
+    .rank-badge {
+      font-weight: 800;
+      color: var(--accent-amber-text);
+      font-size: 0.92rem;
+    }
+    .rank-badge.second {
+      color: var(--mut);
+    }
+    .rank-user {
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.88rem;
+    }
+    .rank-score {
+      font-weight: 700;
+      color: var(--accent-amber-text);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
 
     /* Voice Controller Mockup */
     .voice-control-box {
-      background: #23202e; border-radius: 12px; padding: 16px;
+      background: var(--mock-inner-bg);
+      border: 1px solid var(--mock-border);
+      border-radius: 13px;
+      padding: 14px;
     }
     .vc-header {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .vc-room-title {
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+    .vc-users-badge {
+      color: var(--accent-mint-text);
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: var(--accent-mint-bg);
+      border: 1px solid var(--accent-mint-border);
+      padding: 2px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
     }
     .vc-btn-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
     }
     .vc-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px; padding: 8px;
-      color: #fff; font-size: 0.78rem; font-weight: 600;
+      background: var(--vc-btn-bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 8px 6px;
+      color: var(--ink);
+      font-size: 0.76rem;
+      font-weight: 600;
       text-align: center;
+    }
+
+    /* Music Mockup */
+    .mockup-card.music-accent {
+      border-left: 4px solid var(--accent-blue-text);
+    }
+    .music-mock-title {
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.96rem;
+      margin-bottom: 4px;
+    }
+    .music-mock-info {
+      color: var(--mut);
+      font-size: 0.84rem;
+      margin-bottom: 12px;
+    }
+    .music-progress-track {
+      height: 6px;
+      background: var(--progress-track);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .music-progress-fill {
+      width: 65%;
+      height: 100%;
+      background: var(--grad3);
+      border-radius: 99px;
+    }
+
+    /* Marriage Mockup Buttons */
+    .dc-action-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dc-action-btn-primary {
+      background: #4752c4;
+      color: #ffffff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 7px;
+    }
+    .dc-action-btn-secondary {
+      background: var(--btn-neutral-bg);
+      color: #ffffff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 7px;
     }
 
     /* ─── "The All in One Bot" Section ────────────────────────────────────────── */
     .all-in-one-wrapper {
-      max-width: 1140px;
-      margin: 0 auto 120px;
-      padding: 0 28px;
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto 88px;
+      padding: 0 24px;
+    }
+    .aio-shell {
+      background: var(--glass);
+      border: 1px solid var(--gborder);
+      border-radius: 26px;
+      padding: 36px 32px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
       text-align: center;
     }
     .aio-title {
-      font-size: 2.4rem; font-weight: 800; color: #fff;
-      margin-bottom: 8px; letter-spacing: -0.015em;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(1.7rem, 3vw, 2.15rem);
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
     }
     .aio-subtitle {
-      font-size: 1.05rem; color: var(--text-secondary);
-      margin-bottom: 48px;
+      font-size: 0.98rem;
+      color: var(--mut);
+      margin-bottom: 30px;
     }
 
     .aio-grid {
-      display: grid !important;
-      grid-template-columns: repeat(3, 1fr) !important;
-      gap: 16px;
-      max-width: 960px;
-      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
       text-align: left;
     }
     .aio-pill-card {
-      background: #191822;
-      border: 1px solid var(--border-subtle);
+      background: var(--glass2);
+      border: 1px solid var(--gborder);
       border-radius: 16px;
-      padding: 16px 20px;
-      display: flex; align-items: center; gap: 14px;
-      transition: all 0.2s ease;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
       cursor: default;
     }
     .aio-pill-card:hover {
-      background: #221f2e;
+      background: var(--glass-hover);
       border-color: var(--border-hover);
-      transform: translateY(-3px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      transform: translateY(-2px);
+    }
+    .aio-pill-card.aio-more {
+      background: linear-gradient(100deg, rgba(124, 108, 240, 0.14), rgba(255, 138, 155, 0.14));
     }
     .aio-icon-box {
-      width: 42px; height: 42px;
+      --chip-color: var(--accent-vio-text);
+      --chip-bg: var(--accent-vio-bg);
+      width: 40px;
+      height: 40px;
       border-radius: 12px;
-      background: rgba(255, 122, 194, 0.1);
-      color: var(--accent-pink);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem; flex-shrink: 0;
+      background: var(--chip-bg);
+      color: var(--chip-color);
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
     }
     .aio-card-title {
-      font-weight: 700; color: #fff; font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 0.92rem;
     }
     .aio-card-tag {
-      font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;
+      font-size: 0.76rem;
+      color: var(--dim);
+      margin-top: 2px;
     }
 
     /* ─── Guides & Highlights ─────────────────────────────────────────────────── */
     .guides-wrapper {
-      max-width: 1140px;
-      margin: 0 auto 120px;
-      padding: 0 28px;
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto 88px;
+      padding: 0 24px;
       text-align: center;
     }
     .guides-title {
-      font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 8px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(1.65rem, 3vw, 2rem);
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
     }
     .guides-subtitle {
-      font-size: 1rem; color: var(--text-secondary); margin-bottom: 40px;
+      font-size: 0.98rem;
+      color: var(--mut);
+      margin-bottom: 30px;
     }
     .guides-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
+      gap: 18px;
       text-align: left;
     }
     .guide-card {
-      background: #191822;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 28px 24px;
-      transition: all 0.25s ease;
+      background: var(--glass);
+      border: 1px solid var(--gborder);
+      border-radius: 18px;
+      padding: 24px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: transform 0.25s ease, border-color 0.25s ease;
     }
     .guide-card:hover {
-      background: #201e2c;
       border-color: var(--border-hover);
-      transform: translateY(-4px);
+      transform: translateY(-3px);
     }
     .guide-icon {
-      font-size: 1.8rem; color: var(--accent-pink); margin-bottom: 14px;
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--grad);
+      color: #ffffff;
+      display: grid;
+      place-items: center;
+      font-size: 1.35rem;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-btn);
     }
     .guide-card h3 {
-      font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 8px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: 1.06rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 6px;
     }
     .guide-card p {
-      font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;
+      font-size: 0.88rem;
+      color: var(--mut);
+      line-height: 1.6;
     }
 
     /* ─── Bottom CTA Banner ──────────────────────────────────────────────────── */
     .cta-container {
-      max-width: 1000px;
-      margin: 0 auto 100px;
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto 72px;
       padding: 0 24px;
       text-align: center;
     }
     .cta-card {
-      background: #191823;
-      border: 1px solid rgba(255, 122, 194, 0.25);
-      border-radius: 28px;
-      padding: 60px 32px;
-      contain: paint;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      background: var(--cta-bg);
+      border: 1px solid var(--gborder);
+      border-radius: 26px;
+      padding: 52px 32px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
       position: relative;
       overflow: hidden;
     }
+    .cta-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 20%;
+      right: 20%;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--grad3);
+    }
     .cta-sparkle {
-      font-size: 1.6rem; margin-bottom: 10px; display: inline-block;
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      display: inline-block;
     }
     .cta-title {
-      font-size: 2.4rem; font-weight: 800; color: #fff;
-      margin-bottom: 14px; letter-spacing: -0.015em;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-size: clamp(1.65rem, 3.2vw, 2.2rem);
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
     }
     .cta-desc {
-      font-size: 1.05rem; color: var(--text-secondary);
-      max-width: 580px; margin: 0 auto 30px; line-height: 1.6;
+      font-size: 0.98rem;
+      color: var(--mut);
+      max-width: 540px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
     }
 
     /* ─── Footer ──────────────────────────────────────────────────────────────── */
     .landing-footer {
-      border-top: 1px solid var(--border-subtle);
-      background: #0f0e13;
-      padding: 60px 32px 40px;
+      margin-top: auto;
+      border-top: 1px solid var(--border2);
+      background: var(--footer-bg);
+      padding: 48px 24px 28px;
     }
     .footer-inner {
-      max-width: 1140px; margin: 0 auto;
+      max-width: 1120px;
+      margin: 0 auto;
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr;
-      gap: 32px;
+      grid-template-columns: 1.8fr 1fr 1fr 1fr 1.15fr;
+      gap: 28px;
     }
     .footer-brand-title {
-      font-weight: 800; font-size: 1.3rem; color: #fff;
-      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
     }
-    .footer-brand-title img { width: 32px; height: 32px; border-radius: 50%; }
+    .footer-brand-title img {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid var(--gborder);
+    }
     .footer-desc-text {
-      color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; max-width: 320px;
-      margin-bottom: 20px;
+      color: var(--mut);
+      font-size: 0.86rem;
+      line-height: 1.6;
+      max-width: 300px;
+      margin-bottom: 18px;
     }
-    .footer-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    .footer-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .footer-column h4 {
-      font-size: 0.92rem; font-weight: 700; color: #fff;
-      margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--dim);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
     }
     .footer-column ul {
-      list-style: none; display: flex; flex-direction: column; gap: 10px;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .footer-column a {
-      color: var(--text-secondary); text-decoration: none; font-size: 0.88rem;
-      transition: color 0.2s;
+      color: var(--mut);
+      text-decoration: none;
+      font-size: 0.86rem;
+      transition: color 0.2s ease;
     }
-    .footer-column a:hover { color: var(--accent-pink); }
+    .footer-column a:hover {
+      color: var(--accent-vio-text);
+    }
     .footer-bottom-copy {
-      text-align: center; color: var(--text-muted); font-size: 0.82rem;
-      margin-top: 48px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.04);
+      max-width: 1120px;
+      margin: 36px auto 0;
+      padding-top: 20px;
+      border-top: 1px solid var(--border2);
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.8rem;
     }
 
-    /* ─── Responsive ──────────────────────────────────────────────────────────── */
+    /* ─── Responsive & Mobile GPU Optimization ───────────────────────────────── */
     @media (max-width: 960px) {
+      .landing-nav-links { display: none; }
       .hero-container {
-        grid-template-columns: 1fr; text-align: center; margin: 30px auto 60px;
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 32px;
       }
-      .hero-lead { margin-left: auto; margin-right: auto; }
-      .hero-cta-group { justify-content: center; }
-      .hero-avatar-ring { width: 280px; height: 280px; }
-      .showcase-row, .showcase-row.reverse {
-        grid-template-columns: 1fr; text-align: center; gap: 36px;
+      .hero-lead {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .hero-cta-group {
+        justify-content: center;
+      }
+      .hero-avatar-wrapper {
+        min-height: 270px;
+      }
+      .hero-avatar-ring {
+        width: 248px;
+        height: 248px;
+      }
+      .showcase-row,
+      .showcase-row.reverse {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 28px;
+        padding: 28px 0;
       }
       .showcase-row.reverse .showcase-copy { order: 1; }
       .showcase-row.reverse .showcase-visual { order: 2; }
-      .aio-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .guides-grid { grid-template-columns: 1fr; }
-      .footer-inner { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+      .aio-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .guides-grid {
+        grid-template-columns: 1fr;
+      }
+      .footer-inner {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+      }
     }
+
+    @media (hover: none), (max-width: 768px) {
+      /* Reduce overdraw blur on mobile/Termux GPUs while keeping glass clarity */
+      body.landing-body::before,
+      body.landing-body::after {
+        filter: blur(56px);
+        opacity: 0.75;
+      }
+      .iridescent-blob {
+        display: none;
+      }
+      .mockup-card,
+      .aio-shell,
+      .aio-pill-card,
+      .guide-card,
+      .cta-card,
+      .hero-badge-pill,
+      .sticker-pill,
+      .hero-avatar-inner,
+      .btn-outline-pill {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+
     @media (max-width: 580px) {
-      .landing-nav-links { display: none; }
-      .hero-heading { font-size: 2.6rem; }
-      .aio-grid { grid-template-columns: 1fr !important; }
-      .footer-inner { grid-template-columns: 1fr; gap: 24px; }
+      .landing-header {
+        padding: 10px 16px;
+      }
+      .hero-section-wrapper {
+        padding: 40px 0 20px;
+      }
+      .aio-shell {
+        padding: 24px 18px;
+      }
+      .aio-grid {
+        grid-template-columns: 1fr;
+      }
+      .vc-btn-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .footer-inner {
+        grid-template-columns: 1fr;
+        gap: 22px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+      .hero-avatar-ring,
+      .sticker-pill {
+        animation: none;
+      }
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
 <body class="landing-body">
+<div class="iridescent-blob blob" aria-hidden="true"></div>
+<div class="landing-page">
 
 <!-- Header -->
 <header class="landing-header">
   <div class="landing-nav">
-    <div style="display:flex; align-items:center; gap:36px;">
+    <div class="landing-nav-left">
       <a href="{{ url_for('public.index') }}" class="landing-brand">
         <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Logo">
         Zeryn
@@ -688,16 +1394,16 @@
         <a href="{{ url_for('public.privacy') }}">{{ t('nav.privacy') }}</a>
       </nav>
     </div>
-    
+
     <div class="nav-actions">
       <!-- Language Switcher -->
       <div class="lang-switcher">
-        <button class="lang-btn">
+        <button type="button" class="lang-btn">
           <span>🌐 {{ available_languages.get(current_ui_lang, '🇻🇳 Tiếng Việt') }}</span>
           <i class="bi bi-chevron-down" style="font-size:.7rem;"></i>
         </button>
         <div class="lang-dropdown">
-          <div style="font-size:0.75rem; color:var(--text-muted); padding:4px 10px; font-weight:700; text-transform:uppercase;">{{ t('nav.select_language') }}</div>
+          <div class="lang-dropdown-title">{{ t('nav.select_language') }}</div>
           {% for code, name in available_languages.items() %}
           <a href="{{ url_for('public.set_ui_language', lang_code=code) }}"
              class="lang-item {% if current_ui_lang == code %}active{% endif %}">
@@ -707,6 +1413,8 @@
           {% endfor %}
         </div>
       </div>
+
+      <button type="button" class="theme-toggle-btn theme-toggle-compact" data-theme-toggle aria-label="{{ t('theme.tooltip') }}" title="{{ t('theme.tooltip') }}"><span class="theme-toggle-icon" aria-hidden="true">☾</span></button>
 
       {% if session.get('user') %}
         <a href="{{ url_for('guild.home') }}" class="btn-pink-pill">
@@ -736,38 +1444,41 @@
         {{ t('landing.hero_subtitle') }}
       </p>
       <div class="hero-cta-group">
-        <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:14px 28px; font-size:1rem;">
+        <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill btn-hero-lg">
           <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
         </a>
-        <a href="#features" class="btn-outline-pill" style="padding:14px 28px; font-size:1rem;">
+        <a href="#features" class="btn-outline-pill btn-hero-lg">
           <i class="bi bi-compass"></i> {{ t('landing.btn_explore') }}
         </a>
-        <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" class="btn-outline-pill" style="padding:14px 24px; font-size:1rem;">
+        <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" class="btn-outline-pill btn-hero-lg">
           <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
         </a>
       </div>
     </div>
     <div class="hero-avatar-wrapper">
       <div class="hero-avatar-ring">
-        <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
+        <div class="hero-avatar-inner">
+          <img src="{{ url_for('static', filename='img/logo_v3.png') }}" alt="Zeryn Mascot">
+        </div>
         <!-- Cute Floating Stickers around Avatar -->
-        <div class="sticker-pill st-top-left">💖</div>
-        <div class="sticker-pill st-top-right">✨</div>
-        <div class="sticker-pill st-bottom-left">🎵</div>
-        <div class="sticker-pill st-bottom-right">⭐</div>
+        <div class="sticker-pill st-top-left" aria-hidden="true">💖</div>
+        <div class="sticker-pill st-top-right" aria-hidden="true">✨</div>
+        <div class="sticker-pill st-bottom-left" aria-hidden="true">🎵</div>
+        <div class="sticker-pill st-bottom-right" aria-hidden="true">⭐</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Section Spacer -->
-<div class="section-spacer"></div>
-
-<!-- Feature Showcase Section (Zig-zag with Cute Corner Stickers) -->
+<!-- Feature Showcase Section (Zig-zag with Iridescent Glass Cards) -->
 <section id="features" class="showcase-container">
+  <div class="sec-head">
+    <h2>{{ t('landing.feat_title') }}</h2>
+    <p>{{ t('landing.feat_subtitle') }}</p>
+  </div>
 
   <!-- 1. AI Assistant & Smart Chatbot -->
-  <div class="showcase-row">
+  <div class="showcase-row accent-vio">
     <div class="showcase-copy">
       <div class="showcase-badge"><i class="bi bi-stars"></i> {{ t('landing.f7_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f7_title') }}</h2>
@@ -777,8 +1488,8 @@
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-left">🤖</div>
-      <div class="corner-badge cb-bottom-right">⚡</div>
+      <div class="corner-badge cb-top-left" aria-hidden="true">🤖</div>
+      <div class="corner-badge cb-bottom-right" aria-hidden="true">⚡</div>
       <div class="mockup-card">
         <div class="dc-chat-item">
           <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
@@ -788,8 +1499,8 @@
               <span class="dc-bot-tag">BOT</span>
               <span class="dc-time">Today at 12:00</span>
             </div>
-            <div class="dc-embed" style="border-left-color:var(--accent-purple);">
-              <div class="dc-embed-title" style="color:var(--accent-purple);">{{ t('landing.mock_ai_title') }}</div>
+            <div class="dc-embed">
+              <div class="dc-embed-title">{{ t('landing.mock_ai_title') }}</div>
               <div class="dc-embed-desc" style="white-space:pre-line;">{{ t('landing.mock_ai_desc') }}</div>
             </div>
           </div>
@@ -799,55 +1510,55 @@
   </div>
 
   <!-- 2. Virtual Currency & Role Shop (Economy) -->
-  <div class="showcase-row reverse">
+  <div class="showcase-row reverse accent-amber">
     <div class="showcase-copy">
-      <div class="showcase-badge" style="color:#fee75c; border-color:rgba(254,231,92,0.3); background:rgba(254,231,92,0.1);"><i class="bi bi-coin"></i> {{ t('landing.f8_badge') }}</div>
+      <div class="showcase-badge"><i class="bi bi-coin"></i> {{ t('landing.f8_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f8_title') }}</h2>
       <p class="showcase-description">{{ t('landing.f8_desc') }}</p>
-      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#fee75c;">
+      <a href="{{ invite_url }}" class="showcase-btn-link">
         {{ t('landing.f8_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-right" style="border-color:#fee75c; color:#fee75c;">💰</div>
-      <div class="corner-badge cb-bottom-left" style="border-color:#fee75c; color:#fee75c;">🎲</div>
+      <div class="corner-badge cb-top-right" aria-hidden="true">💰</div>
+      <div class="corner-badge cb-bottom-left" aria-hidden="true">🎲</div>
       <div class="mockup-card">
-        <div style="font-weight:700; color:#fff; font-size:0.95rem; margin-bottom:12px; display:flex; justify-content:space-between;">
+        <div class="mock-head-row">
           <span>{{ t('landing.mock_eco_title') }}</span>
-          <span style="color:#fee75c;">{{ t('landing.mock_eco_coins') }}</span>
+          <span class="mock-head-accent">{{ t('landing.mock_eco_coins') }}</span>
         </div>
         <div class="rank-mockup-row">
           <span class="rank-badge">#1</span>
           <span class="rank-user">👑 @Sakura</span>
-          <span class="rank-score" style="color:#fee75c;">1,250,000 🪙</span>
+          <span class="rank-score">1,250,000 🪙</span>
         </div>
         <div class="rank-mockup-row">
-          <span class="rank-badge" style="color:#a3a1b0;">#2</span>
+          <span class="rank-badge second">#2</span>
           <span class="rank-user">⚔️ @Kaito</span>
-          <span class="rank-score" style="color:#fee75c;">840,500 🪙</span>
+          <span class="rank-score">840,500 🪙</span>
         </div>
       </div>
     </div>
   </div>
 
   <!-- 3. Temporary Voice Hub -->
-  <div class="showcase-row">
+  <div class="showcase-row accent-mint">
     <div class="showcase-copy">
-      <div class="showcase-badge" style="color:#57f287; border-color:rgba(87,242,135,0.3); background:rgba(87,242,135,0.1);"><i class="bi bi-mic-fill"></i> {{ t('landing.f9_badge') }}</div>
+      <div class="showcase-badge"><i class="bi bi-mic-fill"></i> {{ t('landing.f9_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f9_title') }}</h2>
       <p class="showcase-description">{{ t('landing.f9_desc') }}</p>
-      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#57f287;">
+      <a href="{{ invite_url }}" class="showcase-btn-link">
         {{ t('landing.f9_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-left" style="border-color:#57f287; color:#57f287;">🔊</div>
-      <div class="corner-badge cb-bottom-right" style="border-color:#57f287; color:#57f287;">🔒</div>
+      <div class="corner-badge cb-top-left" aria-hidden="true">🔊</div>
+      <div class="corner-badge cb-bottom-right" aria-hidden="true">🔒</div>
       <div class="mockup-card">
         <div class="voice-control-box">
           <div class="vc-header">
-            <span style="color:#fff; font-weight:700; font-size:0.95rem;">{{ t('landing.mock_voice_room') }}</span>
-            <span style="color:#57f287; font-size:0.78rem; font-weight:700; background:rgba(87,242,135,0.15); padding:2px 8px; border-radius:10px;">{{ t('landing.mock_voice_users') }}</span>
+            <span class="vc-room-title">{{ t('landing.mock_voice_room') }}</span>
+            <span class="vc-users-badge">{{ t('landing.mock_voice_users') }}</span>
           </div>
           <div class="vc-btn-grid">
             <div class="vc-btn">{{ t('landing.mock_voice_lock') }}</div>
@@ -863,7 +1574,7 @@
   </div>
 
   <!-- 4. Leveling & XP Card -->
-  <div class="showcase-row reverse">
+  <div class="showcase-row reverse accent-coral">
     <div class="showcase-copy">
       <div class="showcase-badge"><i class="bi bi-trophy-fill"></i> {{ t('landing.f1_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f1_title') }}</h2>
@@ -873,8 +1584,8 @@
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-right">🪪</div>
-      <div class="corner-badge cb-bottom-left">⭐</div>
+      <div class="corner-badge cb-top-right" aria-hidden="true">🪪</div>
+      <div class="corner-badge cb-bottom-left" aria-hidden="true">⭐</div>
       <div class="mockup-card">
         <div class="dc-chat-item">
           <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
@@ -884,8 +1595,8 @@
               <span class="dc-bot-tag">BOT</span>
               <span class="dc-time">Today at 14:20</span>
             </div>
-            <div class="dc-embed" style="border-left-color:var(--accent-pink);">
-              <div class="dc-embed-title" style="color:var(--accent-pink);">{{ t('landing.mock_lvl_title') }}</div>
+            <div class="dc-embed">
+              <div class="dc-embed-title">{{ t('landing.mock_lvl_title') }}</div>
               <div class="dc-embed-desc">
                 {{ t('landing.mock_lvl_desc') | safe }}
               </div>
@@ -897,30 +1608,30 @@
   </div>
 
   <!-- 5. Music Player & 24/7 Lofi -->
-  <div class="showcase-row">
+  <div class="showcase-row accent-blue">
     <div class="showcase-copy">
-      <div class="showcase-badge" style="color:#5865f2; border-color:rgba(88,101,242,0.3); background:rgba(88,101,242,0.1);"><i class="bi bi-music-note-beamed"></i> {{ t('landing.f3_badge') }}</div>
+      <div class="showcase-badge"><i class="bi bi-music-note-beamed"></i> {{ t('landing.f3_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f3_title') }}</h2>
       <p class="showcase-description">{{ t('landing.f3_desc') }}</p>
-      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#5865f2;">
+      <a href="{{ invite_url }}" class="showcase-btn-link">
         {{ t('landing.f3_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-left" style="border-color:#5865f2; color:#5865f2;">🎵</div>
-      <div class="corner-badge cb-bottom-right" style="border-color:#5865f2; color:#5865f2;">🎧</div>
-      <div class="mockup-card" style="border-left:4px solid var(--accent-blue);">
-        <div style="font-weight:700; color:#fff; font-size:1rem; margin-bottom:4px;">{{ t('landing.mock_music_playing') }}</div>
-        <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">{{ t('landing.mock_music_info') }}</div>
-        <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
-          <div style="width:65%; height:100%; background:var(--accent-blue);"></div>
+      <div class="corner-badge cb-top-left" aria-hidden="true">🎵</div>
+      <div class="corner-badge cb-bottom-right" aria-hidden="true">🎧</div>
+      <div class="mockup-card music-accent">
+        <div class="music-mock-title">{{ t('landing.mock_music_playing') }}</div>
+        <div class="music-mock-info">{{ t('landing.mock_music_info') }}</div>
+        <div class="music-progress-track">
+          <div class="music-progress-fill"></div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- 6. Welcome Banners & Auto Roles -->
-  <div class="showcase-row reverse">
+  <div class="showcase-row reverse accent-vio">
     <div class="showcase-copy">
       <div class="showcase-badge"><i class="bi bi-person-plus-fill"></i> {{ t('landing.f4_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f4_title') }}</h2>
@@ -930,8 +1641,8 @@
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-right">👋</div>
-      <div class="corner-badge cb-bottom-left">💖</div>
+      <div class="corner-badge cb-top-right" aria-hidden="true">👋</div>
+      <div class="corner-badge cb-bottom-left" aria-hidden="true">💖</div>
       <div class="mockup-card">
         <div class="dc-chat-item">
           <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
@@ -941,7 +1652,7 @@
               <span class="dc-bot-tag">BOT</span>
               <span class="dc-time">Today at 18:30</span>
             </div>
-            <div style="color:#dbdee1; font-size:0.9rem; line-height:1.5;">
+            <div class="dc-content">
               {{ t('landing.mock_welcome_msg') | safe }}
             </div>
           </div>
@@ -951,18 +1662,18 @@
   </div>
 
   <!-- 7. Moderation Suite & Escalation Penalties -->
-  <div class="showcase-row">
+  <div class="showcase-row accent-red">
     <div class="showcase-copy">
-      <div class="showcase-badge" style="color:#ed4245; border-color:rgba(237,66,69,0.3); background:rgba(237,66,69,0.1);"><i class="bi bi-shield-fill-check"></i> {{ t('landing.f10_badge') }}</div>
+      <div class="showcase-badge"><i class="bi bi-shield-fill-check"></i> {{ t('landing.f10_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f10_title') }}</h2>
       <p class="showcase-description">{{ t('landing.f10_desc') }}</p>
-      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#ed4245;">
+      <a href="{{ invite_url }}" class="showcase-btn-link">
         {{ t('landing.f10_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-left" style="border-color:#ed4245; color:#ed4245;">🛡️</div>
-      <div class="corner-badge cb-bottom-right" style="border-color:#ed4245; color:#ed4245;">🔨</div>
+      <div class="corner-badge cb-top-left" aria-hidden="true">🛡️</div>
+      <div class="corner-badge cb-bottom-right" aria-hidden="true">🔨</div>
       <div class="mockup-card">
         <div class="dc-chat-item">
           <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
@@ -972,8 +1683,8 @@
               <span class="dc-bot-tag">BOT</span>
               <span class="dc-time">Today at 19:15</span>
             </div>
-            <div class="dc-embed" style="border-left-color:#FEE75C;">
-              <div class="dc-embed-title" style="color:#FEE75C;">{{ t('landing.mock_mod_title') }}</div>
+            <div class="dc-embed accent-amber">
+              <div class="dc-embed-title">{{ t('landing.mock_mod_title') }}</div>
               <div class="dc-embed-desc" style="white-space:pre-line;">{{ t('landing.mock_mod_desc') }}</div>
             </div>
           </div>
@@ -983,18 +1694,18 @@
   </div>
 
   <!-- 8. Anime Fun & Marriage System -->
-  <div class="showcase-row reverse">
+  <div class="showcase-row reverse accent-pink">
     <div class="showcase-copy">
-      <div class="showcase-badge" style="color:#ff69b4; border-color:rgba(255,105,180,0.3); background:rgba(255,105,180,0.1);"><i class="bi bi-heart-fill"></i> {{ t('landing.f11_badge') }}</div>
+      <div class="showcase-badge"><i class="bi bi-heart-fill"></i> {{ t('landing.f11_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f11_title') }}</h2>
       <p class="showcase-description">{{ t('landing.f11_desc') }}</p>
-      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#ff69b4;">
+      <a href="{{ invite_url }}" class="showcase-btn-link">
         {{ t('landing.f11_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-right" style="border-color:#ff69b4; color:#ff69b4;">💍</div>
-      <div class="corner-badge cb-bottom-left" style="border-color:#ff69b4; color:#ff69b4;">💖</div>
+      <div class="corner-badge cb-top-right" aria-hidden="true">💍</div>
+      <div class="corner-badge cb-bottom-left" aria-hidden="true">💖</div>
       <div class="mockup-card">
         <div class="dc-chat-item">
           <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
@@ -1004,12 +1715,12 @@
               <span class="dc-bot-tag">BOT</span>
               <span class="dc-time">Today at 20:00</span>
             </div>
-            <div class="dc-embed" style="border-left-color:#ff69b4;">
-              <div class="dc-embed-title" style="color:#ff69b4;">{{ t('landing.mock_fun_title') }}</div>
+            <div class="dc-embed">
+              <div class="dc-embed-title">{{ t('landing.mock_fun_title') }}</div>
               <div class="dc-embed-desc" style="white-space:pre-line; margin-bottom:12px;">{{ t('landing.mock_fun_desc') }}</div>
-              <div style="display:flex; gap:8px;">
-                <span style="background:#5865f2; color:#fff; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px;">💖 Đồng ý (Yes)</span>
-                <span style="background:#4e5058; color:#fff; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:6px;">💔 Từ chối (No)</span>
+              <div class="dc-action-row">
+                <span class="dc-action-btn-primary">💖 Đồng ý (Yes)</span>
+                <span class="dc-action-btn-secondary">💔 Từ chối (No)</span>
               </div>
             </div>
           </div>
@@ -1019,18 +1730,18 @@
   </div>
 
   <!-- 9. Birthday Celebrations & Rewards -->
-  <div class="showcase-row">
+  <div class="showcase-row accent-coral">
     <div class="showcase-copy">
-      <div class="showcase-badge" style="color:#ff7ac2; border-color:rgba(255,122,194,0.3); background:rgba(255,122,194,0.1);"><i class="bi bi-cake2-fill"></i> {{ t('landing.f12_badge') }}</div>
+      <div class="showcase-badge"><i class="bi bi-cake2-fill"></i> {{ t('landing.f12_badge') }}</div>
       <h2 class="showcase-heading">{{ t('landing.f12_title') }}</h2>
       <p class="showcase-description">{{ t('landing.f12_desc') }}</p>
-      <a href="{{ invite_url }}" class="showcase-btn-link" style="color:#ff7ac2;">
+      <a href="{{ invite_url }}" class="showcase-btn-link">
         {{ t('landing.f12_btn') }} <i class="bi bi-arrow-right"></i>
       </a>
     </div>
     <div class="showcase-visual">
-      <div class="corner-badge cb-top-left" style="border-color:#ff7ac2; color:#ff7ac2;">🎂</div>
-      <div class="corner-badge cb-bottom-right" style="border-color:#ff7ac2; color:#ff7ac2;">🎁</div>
+      <div class="corner-badge cb-top-left" aria-hidden="true">🎂</div>
+      <div class="corner-badge cb-bottom-right" aria-hidden="true">🎁</div>
       <div class="mockup-card">
         <div class="dc-chat-item">
           <img src="{{ url_for('static', filename='img/logo_v3.png') }}" class="dc-avatar" alt="bot">
@@ -1040,8 +1751,8 @@
               <span class="dc-bot-tag">BOT</span>
               <span class="dc-time">00:00 UTC</span>
             </div>
-            <div class="dc-embed" style="border-left-color:#ff7ac2;">
-              <div class="dc-embed-title" style="color:#ff7ac2;">{{ t('landing.mock_bday_title') }}</div>
+            <div class="dc-embed">
+              <div class="dc-embed-title">{{ t('landing.mock_bday_title') }}</div>
               <div class="dc-embed-desc" style="white-space:pre-line;">{{ t('landing.mock_bday_desc') }}</div>
             </div>
           </div>
@@ -1054,135 +1765,137 @@
 
 <!-- "The All in One Bot" Interactive Pill Grid Section -->
 <section id="all-in-one" class="all-in-one-wrapper">
-  <h2 class="aio-title">{{ t('landing.all_in_one') }}</h2>
-  <p class="aio-subtitle">{{ t('landing.all_in_one_sub') }}</p>
+  <div class="aio-shell">
+    <h2 class="aio-title">{{ t('landing.all_in_one') }}</h2>
+    <p class="aio-subtitle">{{ t('landing.all_in_one_sub') }}</p>
 
-  <div class="aio-grid">
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#ed4245; background:rgba(237,66,69,0.1);"><i class="bi bi-shield-fill-check"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_moderation') }}</div>
-        <div class="aio-card-tag">Kick / Ban / Warn</div>
+    <div class="aio-grid">
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-red"><i class="bi bi-shield-fill-check"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_moderation') }}</div>
+          <div class="aio-card-tag">Kick / Ban / Warn</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#ed4245; background:rgba(237,66,69,0.1);"><i class="bi bi-shield-lock-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_automod') }}</div>
-        <div class="aio-card-tag">Spam / Bad words</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-red"><i class="bi bi-shield-lock-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_automod') }}</div>
+          <div class="aio-card-tag">Spam / Bad words</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box"><i class="bi bi-cpu-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_ai') }}</div>
-        <div class="aio-card-tag">Groq LPU / Gemini</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-vio"><i class="bi bi-cpu-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_ai') }}</div>
+          <div class="aio-card-tag">Groq LPU / Gemini</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-coin"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_economy') }}</div>
-        <div class="aio-card-tag">Coins & Role Shop</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-amber"><i class="bi bi-coin"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_economy') }}</div>
+          <div class="aio-card-tag">Coins &amp; Role Shop</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#ff7ac2; background:rgba(255,122,194,0.1);"><i class="bi bi-cake2-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_birthday') }}</div>
-        <div class="aio-card-tag">Auto Celebrations</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-coral"><i class="bi bi-cake2-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_birthday') }}</div>
+          <div class="aio-card-tag">Auto Celebrations</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#ff69b4; background:rgba(255,105,180,0.1);"><i class="bi bi-heart-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_fun') }}</div>
-        <div class="aio-card-tag">Anime GIFs & /marry</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-pink"><i class="bi bi-heart-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_fun') }}</div>
+          <div class="aio-card-tag">Anime GIFs &amp; /marry</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#57f287; background:rgba(87,242,135,0.1);"><i class="bi bi-mic-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_tempvoice') }}</div>
-        <div class="aio-card-tag">Join to Create Hub</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-mint"><i class="bi bi-mic-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_tempvoice') }}</div>
+          <div class="aio-card-tag">Join to Create Hub</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box"><i class="bi bi-hand-thumbs-up-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_welcome') }}</div>
-        <div class="aio-card-tag">Card Banner Pillow</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-vio"><i class="bi bi-hand-thumbs-up-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_welcome') }}</div>
+          <div class="aio-card-tag">Card Banner Pillow</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-trophy-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_leveling') }}</div>
-        <div class="aio-card-tag">Chat & Voice XP</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-amber"><i class="bi bi-trophy-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_leveling') }}</div>
+          <div class="aio-card-tag">Chat &amp; Voice XP</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#5865f2; background:rgba(88,101,242,0.1);"><i class="bi bi-music-note-beamed"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_music') }}</div>
-        <div class="aio-card-tag">YouTube / Lofi 24/7</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-blue"><i class="bi bi-music-note-beamed"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_music') }}</div>
+          <div class="aio-card-tag">YouTube / Lofi 24/7</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#57f287; background:rgba(87,242,135,0.1);"><i class="bi bi-ticket-perforated-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_tickets') }}</div>
-        <div class="aio-card-tag">Support Transcript</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-mint"><i class="bi bi-ticket-perforated-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_tickets') }}</div>
+          <div class="aio-card-tag">Support Transcript</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#ff7ac2; background:rgba(255,122,194,0.1);"><i class="bi bi-alarm-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_remind') }}</div>
-        <div class="aio-card-tag">Smart Reminders</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-coral"><i class="bi bi-alarm-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_remind') }}</div>
+          <div class="aio-card-tag">Smart Reminders</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box"><i class="bi bi-emoji-smile-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_reactionroles') }}</div>
-        <div class="aio-card-tag">Self-assign Roles</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-vio"><i class="bi bi-emoji-smile-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_reactionroles') }}</div>
+          <div class="aio-card-tag">Self-assign Roles</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:#fee75c; background:rgba(254,231,92,0.1);"><i class="bi bi-gift-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_giveaways') }}</div>
-        <div class="aio-card-tag">Auto Roll Winner</div>
+      <div class="aio-pill-card">
+        <div class="aio-icon-box accent-amber"><i class="bi bi-gift-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_giveaways') }}</div>
+          <div class="aio-card-tag">Auto Roll Winner</div>
+        </div>
       </div>
-    </div>
-    <div class="aio-pill-card">
-      <div class="aio-icon-box" style="color:var(--accent-purple); background:rgba(157,141,241,0.1);"><i class="bi bi-grid-fill"></i></div>
-      <div>
-        <div class="aio-card-title">{{ t('landing.mod_and_more') | default('+ And More') }}</div>
-        <div class="aio-card-tag">{{ t('landing.mod_and_more_sub') | default('85+ commands & features') }}</div>
+      <div class="aio-pill-card aio-more">
+        <div class="aio-icon-box accent-vio"><i class="bi bi-grid-fill"></i></div>
+        <div>
+          <div class="aio-card-title">{{ t('landing.mod_and_more') | default('+ And More') }}</div>
+          <div class="aio-card-tag">{{ t('landing.mod_and_more_sub') | default('85+ commands & features') }}</div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Tutorials and Guides Section (Nekotina Style) -->
+<!-- Tutorials and Guides Section -->
 <section class="guides-wrapper">
   <h2 class="guides-title">{{ t('landing.guides_title') }}</h2>
   <p class="guides-subtitle">{{ t('landing.guides_sub') }}</p>
 
   <div class="guides-grid">
-    <a href="{{ url_for('public.docs_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
+    <a href="{{ url_for('public.docs_page') }}" class="guide-card">
       <div class="guide-icon"><i class="bi bi-journal-bookmark-fill"></i></div>
       <h3>{{ t('landing.guide1_title') }}</h3>
       <p>{{ t('landing.guide1_desc') }}</p>
     </a>
-    <a href="{{ url_for('guild.home') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
+    <a href="{{ url_for('guild.home') }}" class="guide-card">
       <div class="guide-icon"><i class="bi bi-sliders"></i></div>
       <h3>{{ t('landing.guide2_title') }}</h3>
       <p>{{ t('landing.guide2_desc') }}</p>
     </a>
-    <a href="{{ url_for('support.support_page') }}" class="guide-card" style="text-decoration:none; color:inherit; display:block;">
+    <a href="{{ url_for('support.support_page') }}" class="guide-card">
       <div class="guide-icon"><i class="bi bi-people-fill"></i></div>
       <h3>{{ t('landing.guide3_title') }}</h3>
       <p>{{ t('landing.guide3_desc') }}</p>
@@ -1196,7 +1909,7 @@
     <div class="cta-sparkle">✨</div>
     <h2 class="cta-title">{{ t('landing.cta_title') }}</h2>
     <p class="cta-desc">{{ t('landing.cta_desc') }}</p>
-    <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:14px 32px; font-size:1.05rem;">
+    <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:13px 28px; font-size:0.98rem;">
       <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
     </a>
   </div>
@@ -1212,15 +1925,15 @@
       </div>
       <p class="footer-desc-text">{{ t('landing.footer_tagline') }}</p>
       <div class="footer-btns">
-        <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:8px 18px; font-size:0.85rem;">
+        <a href="{{ invite_url }}" target="_blank" class="btn-pink-pill" style="padding:8px 16px; font-size:0.84rem;">
           <i class="bi bi-discord"></i> {{ t('landing.btn_add') }}
         </a>
-        <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" class="btn-outline-pill" style="padding:8px 18px; font-size:0.85rem;">
+        <a href="https://github.com/namokla2005/ZerynBot" target="_blank" rel="noopener noreferrer" class="btn-outline-pill" style="padding:8px 16px; font-size:0.84rem;">
           <i class="bi bi-github"></i> {{ t('nav.github') | default('GitHub') }}
         </a>
       </div>
     </div>
-    
+
     <div class="footer-column">
       <h4>{{ t('nav.features') }}</h4>
       <ul>
@@ -1252,9 +1965,9 @@
     <div class="footer-column">
       <h4>{{ t('nav.contact') }}</h4>
       <ul>
-        <li><a href="{{ DEV_DISCORD_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-discord" style="margin-right:6px; color:#5865F2;"></i>Discord: namokla2005</a></li>
-        <li><a href="{{ SUPPORT_SERVER_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-people-fill" style="margin-right:6px; color:#ec4899;"></i>Server Discord</a></li>
-        <li><a href="{{ FACEBOOK_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-facebook" style="margin-right:6px; color:#1877F2;"></i>Facebook</a></li>
+        <li><a href="{{ DEV_DISCORD_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-discord" style="margin-right:6px; color:var(--accent-blue-text);"></i>Discord: namokla2005</a></li>
+        <li><a href="{{ SUPPORT_SERVER_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-people-fill" style="margin-right:6px; color:var(--accent-pink-text);"></i>Server Discord</a></li>
+        <li><a href="{{ FACEBOOK_URL }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-facebook" style="margin-right:6px; color:var(--accent-blue-text);"></i>Facebook</a></li>
       </ul>
     </div>
   </div>
@@ -1264,5 +1977,9 @@
   </div>
 </footer>
 
+</div>
+
+<script id="theme-i18n" type="application/json">{{ {"light": t("theme.to_light"), "dark": t("theme.to_dark"), "auto": t("theme.auto"), "tooltip": t("theme.tooltip")} | tojson }}</script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
 </body>
 </html>

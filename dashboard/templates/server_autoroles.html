@@ -4,15 +4,15 @@
 {% block head %}
 <style>
   .warning-box {
-    background: rgba(237, 66, 69, 0.1);
-    border-left: 4px solid #ED4245;
+    background: var(--danger-bg);
+    border-left: 4px solid var(--danger);
     padding: 16px;
-    border-radius: 6px;
+    border-radius: var(--radius-md, 8px);
     margin-bottom: 24px;
-    color: #e5e5e5;
+    color: var(--text-primary);
   }
   .warning-title {
-    color: #ED4245;
+    color: var(--danger);
     font-weight: 600;
     margin-bottom: 8px;
     display: flex;
@@ -28,7 +28,7 @@
   .module-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -42,9 +42,9 @@
   }
   
   .custom-select-display {
-    background: #1e1f22;
-    border: 1px solid #3f4147;
-    border-radius: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
     padding: 8px 12px;
     min-height: 42px;
     display: flex;
@@ -56,11 +56,11 @@
   }
   
   .custom-select-display:hover {
-    border-color: #5865F2;
+    border-color: var(--accent);
   }
   
   .custom-select-display.open {
-    border-color: #5865F2;
+    border-color: var(--accent);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -73,15 +73,15 @@
   }
   
   .chip {
-    background: #2b2d31;
-    border: 1px solid #3f4147;
-    border-radius: 4px;
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 4px 8px;
     font-size: 0.85rem;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #dbdee1;
+    color: var(--text-primary);
   }
   
   .chip .role-color {
@@ -92,17 +92,17 @@
   
   .chip .chip-remove {
     cursor: pointer;
-    opacity: 0.6;
+    opacity: 0.65;
     margin-left: 2px;
   }
   .chip .chip-remove:hover {
     opacity: 1;
-    color: #ED4245;
+    color: var(--danger);
   }
   
   .custom-select-arrow {
     margin-left: auto;
-    color: #80848e;
+    color: var(--text-muted);
   }
   
   .custom-select-dropdown {
@@ -110,16 +110,16 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: #2b2d31;
-    border: 1px solid #3f4147;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-top: none;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: var(--radius-md, 8px);
+    border-bottom-right-radius: var(--radius-md, 8px);
     max-height: 250px;
     overflow-y: auto;
     z-index: 100;
     display: none;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    box-shadow: var(--shadow);
   }
   
   .custom-select-wrapper.open { z-index: 99; }
@@ -133,22 +133,22 @@
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    color: #dbdee1;
-    border-bottom: 1px solid #1e1f22;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
   }
   
   .custom-option:hover {
-    background: #3f4147;
+    background: var(--bg-hover);
   }
   
   .custom-option.selected {
-    background: rgba(88, 101, 242, 0.1);
+    background: var(--accent-light);
   }
   
   .custom-option.selected:after {
     content: '\2713';
     margin-left: auto;
-    color: #5865F2;
+    color: var(--accent);
     font-weight: bold;
   }
 
@@ -160,7 +160,7 @@
   }
   
   .placeholder-text {
-    color: #80848e;
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
 </style>
@@ -169,7 +169,7 @@
 {% block content %}
 
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-person-badge-fill" style="color: #5865F2;"></i> {{ t('autoroles.page_title') }}</h1>
+  <h1 class="page-title"><i class="bi bi-person-badge-fill" style="color: var(--accent);"></i> {{ t('autoroles.page_title') }}</h1>
   <p class="page-subtitle">{{ t('autoroles.page_subtitle') }}</p>
 </div>
 
@@ -274,7 +274,7 @@
           const chip = document.createElement('div');
           chip.className = 'chip';
           chip.innerHTML = `
-            <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+            <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : 'var(--text-muted)'}"></span>
             ${roleData.name}
             <i class="bi bi-x chip-remove" data-id="${roleData.id}"></i>
           `;
@@ -310,7 +310,7 @@
         option.className = 'custom-option';
         option.dataset.id = roleData.id;
         option.innerHTML = `
-          <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+          <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : 'var(--text-muted)'}"></span>
           ${roleData.name}
         `;
         

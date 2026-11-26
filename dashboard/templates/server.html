@@ -36,22 +36,22 @@
 {% if meta %}
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon" style="background: rgba(255,122,194,0.15); color: #ff7ac2;">👥</div>
+    <div class="stat-icon" style="background: var(--accent-light); color: var(--accent);">👥</div>
     <div class="stat-value">{{ meta.get('member_count', '—') }}</div>
     <div class="stat-label">{{ t('dashboard.stat_members') }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background: rgba(16,185,129,0.15); color: #10b981;">🤖</div>
+    <div class="stat-icon" style="background: var(--success-bg); color: var(--success);">🤖</div>
     <div class="stat-value">{{ modules.values() | select() | list | length }}</div>
     <div class="stat-label">{{ t('dashboard.stat_active_modules') }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background: rgba(245,158,11,0.15); color: #f59e0b;">📦</div>
+    <div class="stat-icon" style="background: var(--warning-bg); color: var(--warning);">📦</div>
     <div class="stat-value">{{ modules | length }}</div>
     <div class="stat-label">{{ t('dashboard.stat_total_modules') }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="background: rgba(157,141,241,0.15); color: #8b5cf6;">⚡</div>
+    <div class="stat-icon" style="background: var(--accent-light); color: var(--accent-purple);">⚡</div>
     <div class="stat-value">{{ recent_events | length if recent_events else 0 }}</div>
     <div class="stat-label">{{ t('dashboard.recent_events_title') }}</div>
   </div>
@@ -157,7 +157,7 @@
     <div class="bento-card">
       <div class="bento-header">
         <div class="bento-title">
-          <i class="bi bi-pie-chart-fill" style="color:#f59e0b;"></i>
+          <i class="bi bi-pie-chart-fill" style="color:var(--warning);"></i>
           <span>{{ t('dashboard.chart_module_stats') }}</span>
         </div>
       </div>
@@ -181,7 +181,7 @@
           <option value="{{ code }}" {% if (guild_settings.get('language') if guild_settings else 'vi') == code %}selected{% endif %}>{{ name }}</option>
         {% endfor %}
       </select>
-      <button onclick="saveGuildLanguage()" class="btn btn-primary btn-sm" style="padding:9px 20px; font-weight:700; border-radius:8px; background:var(--accent); color:#fff; border:none; cursor:pointer;">
+      <button onclick="saveGuildLanguage()" class="btn btn-primary btn-sm" style="padding:9px 20px; border-radius:8px;">
         <i class="bi bi-floppy-fill"></i> {{ t('common.save') }}
       </button>
     </div>
@@ -505,8 +505,80 @@
 
 <script id="raw-stats-data" type="application/json">{{ (raw_stats or []) | tojson }}</script>
 <script id="channel-map-data" type="application/json">{{ (channel_map or {}) | tojson }}</script>
+<script id="overview-i18n" type="application/json">{{ {
+  "chart_join": t('dashboard.chart_join'),
+  "chart_leave": t('dashboard.chart_leave'),
+  "chart_join_leave": t('dashboard.chart_join_leave'),
+  "chart_messages": t('dashboard.chart_messages'),
+  "chart_chat_activity": t('dashboard.chart_chat_activity'),
+  "chart_top_channels": t('dashboard.chart_top_channels'),
+  "chart_warn": t('dashboard.chart_warn'),
+  "chart_timeout": t('dashboard.chart_timeout'),
+  "chart_open_ticket": t('dashboard.chart_open_ticket'),
+  "chart_close_ticket": t('dashboard.chart_close_ticket'),
+  "chart_count": t('dashboard.chart_count'),
+  "chart_module_stats": t('dashboard.chart_module_stats'),
+  "no_data": t('common.no_data'),
+  "save_success": t('dashboard.save_success'),
+  "save_error": t('dashboard.save_error')
+} | tojson }}</script>
 
 <script>
+const OVERVIEW_I18N = (() => {
+  try { return JSON.parse(document.getElementById('overview-i18n')?.textContent || '{}'); }
+  catch (e) { return {}; }
+})();
+
+function readChartThemeTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  const pick = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+  return {
+    textPrimary:   pick('--text-primary', '#232136'),
+    textSecondary: pick('--text-secondary', '#6b6883'),
+    textMuted:     pick('--text-muted', '#9793ad'),
+    border:        pick('--border', 'rgba(35,33,54,0.10)'),
+    accent:        pick('--accent', '#7c6cf0'),
+    accent2:       pick('--accent-2', '#ff8a9b'),
+    accentPurple:  pick('--accent-purple', '#8b5cf6'),
+    success:       pick('--success', '#2fc46f'),
+    successBg:     pick('--success-bg', 'rgba(47,196,111,0.18)'),
+    warning:       pick('--warning', '#e8a13c'),
+    danger:        pick('--danger', '#e5484d'),
+    dangerBg:      pick('--danger-bg', 'rgba(229,72,77,0.18)'),
+  };
+}
+
+function buildCartesianScales(theme) {
+  return {
+    x: { ticks: { color: theme.textSecondary }, grid: { color: theme.border }, border: { color: theme.border } },
+    y: { ticks: { color: theme.textSecondary }, grid: { color: theme.border }, border: { color: theme.border } },
+  };
+}
+
+function syncChartTheme(chart, theme) {
+  if (!chart) return;
+  chart.options.color = theme.textSecondary;
+  chart.options.borderColor = theme.border;
+  if (chart.options.plugins?.title) {
+    chart.options.plugins.title.color = theme.textPrimary;
+  }
+  if (chart.options.plugins?.legend?.labels) {
+    chart.options.plugins.legend.labels.color = theme.textSecondary;
+  }
+  if (chart.options.scales) {
+    Object.values(chart.options.scales).forEach(scale => {
+      if (!scale) return;
+      if (scale.ticks) scale.ticks.color = theme.textSecondary;
+      if (scale.grid) scale.grid.color = theme.border;
+      if (scale.border) scale.border.color = theme.border;
+    });
+  }
+  if (typeof chart._applyThemeColors === 'function') {
+    chart._applyThemeColors(theme);
+  }
+  chart.update('none');
+}
+
 window.addEventListener('load', () => {
   if (typeof Chart === 'undefined') return;
   // Parse JSON data safely from tojson application/json script tags (100% immune to XSS)
@@ -521,17 +593,16 @@ window.addEventListener('load', () => {
     channelMap = mapEl ? JSON.parse(mapEl.textContent || '{}') : {};
   } catch (e) { channelMap = {}; }
 
-  if (typeof Chart === 'undefined') return;
-
-  // Chart.js Default styling for Dark mode
-  Chart.defaults.color = '#b9bbbe';
-  Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+  const initialTheme = readChartThemeTokens();
+  Chart.defaults.color = initialTheme.textSecondary;
+  Chart.defaults.borderColor = initialTheme.border;
+  const chartInstances = [];
 
   // Data processing helpers
   // Date hour format: 'YYYY-MM-DD HH:00:00'
   const last7Days = [];
-  for(let i=6; i>=0; i--) {
-    let d = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
     d.setDate(d.getDate() - i);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -542,7 +613,7 @@ window.addEventListener('load', () => {
   // 1. Join / Leave Chart (Line)
   const joinData = Array(7).fill(0);
   const leaveData = Array(7).fill(0);
-  
+
   rawStats.forEach(stat => {
     if (stat.event_type === 'member') {
       const dateObj = new Date(stat.date_hour.replace(' ', 'T') + 'Z');
@@ -550,7 +621,7 @@ window.addEventListener('load', () => {
       const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
       const dd = String(dateObj.getDate()).padStart(2, '0');
       const dateStr = `${yyyy}-${mm}-${dd}`;
-      
+
       const idx = last7Days.indexOf(dateStr);
       if (idx !== -1) {
         if (stat.event_label === 'join') joinData[idx] += stat.count;
@@ -559,20 +630,34 @@ window.addEventListener('load', () => {
     }
   });
 
-  new Chart(document.getElementById('memberChart'), {
-    type: 'line',
-    data: {
-      labels: last7Days,
-      datasets: [
-        { label: "{{ t('dashboard.chart_join') }}", data: joinData, borderColor: '#57F287', backgroundColor: 'rgba(87,242,135,0.1)', fill: true, tension: 0.3 },
-        { label: "{{ t('dashboard.chart_leave') }}", data: leaveData, borderColor: '#ED4245', backgroundColor: 'rgba(237,66,69,0.1)', fill: true, tension: 0.3 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: "{{ t('dashboard.chart_join_leave') }}" } }
-    }
-  });
+  const memberCanvas = document.getElementById('memberChart');
+  if (memberCanvas) {
+    const memberChart = new Chart(memberCanvas, {
+      type: 'line',
+      data: {
+        labels: last7Days,
+        datasets: [
+          { label: OVERVIEW_I18N.chart_join, data: joinData, borderColor: initialTheme.success, backgroundColor: initialTheme.successBg, fill: true, tension: 0.3 },
+          { label: OVERVIEW_I18N.chart_leave, data: leaveData, borderColor: initialTheme.danger, backgroundColor: initialTheme.dangerBg, fill: true, tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: buildCartesianScales(initialTheme),
+        plugins: {
+          legend: { labels: { color: initialTheme.textSecondary } },
+          title: { display: true, text: OVERVIEW_I18N.chart_join_leave, color: initialTheme.textPrimary }
+        }
+      }
+    });
+    memberChart._applyThemeColors = t => {
+      memberChart.data.datasets[0].borderColor = t.success;
+      memberChart.data.datasets[0].backgroundColor = t.successBg;
+      memberChart.data.datasets[1].borderColor = t.danger;
+      memberChart.data.datasets[1].backgroundColor = t.dangerBg;
+    };
+    chartInstances.push(memberChart);
+  }
 
   // 2. Message Activity by Hour (Bar)
   const hourlyActivity = Array(24).fill(0);
@@ -583,19 +668,30 @@ window.addEventListener('load', () => {
       hourlyActivity[hour] += stat.count;
     }
   });
-  
+
   const hourLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
-  new Chart(document.getElementById('messageChart'), {
-    type: 'bar',
-    data: {
-      labels: hourLabels,
-      datasets: [{ label: "{{ t('dashboard.chart_messages') }}", data: hourlyActivity, backgroundColor: '#5865F2', borderRadius: 4 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: "{{ t('dashboard.chart_chat_activity') }}" } }
-    }
-  });
+  const messageCanvas = document.getElementById('messageChart');
+  if (messageCanvas) {
+    const messageChart = new Chart(messageCanvas, {
+      type: 'bar',
+      data: {
+        labels: hourLabels,
+        datasets: [{ label: OVERVIEW_I18N.chart_messages, data: hourlyActivity, backgroundColor: initialTheme.accent, borderRadius: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: buildCartesianScales(initialTheme),
+        plugins: {
+          legend: { labels: { color: initialTheme.textSecondary } },
+          title: { display: true, text: OVERVIEW_I18N.chart_chat_activity, color: initialTheme.textPrimary }
+        }
+      }
+    });
+    messageChart._applyThemeColors = t => {
+      messageChart.data.datasets[0].backgroundColor = t.accent;
+    };
+    chartInstances.push(messageChart);
+  }
 
   // 3. Top 5 Channels (Doughnut)
   const channelCounts = {};
@@ -604,29 +700,39 @@ window.addEventListener('load', () => {
       channelCounts[stat.event_label] = (channelCounts[stat.event_label] || 0) + stat.count;
     }
   });
-  
+
   const sortedChannels = Object.entries(channelCounts)
     .sort((a,b) => b[1] - a[1])
     .slice(0, 5);
-    
+
   const chLabels = sortedChannels.map(c => channelMap[c[0]] ? `#${channelMap[c[0]]}` : `Channel ${c[0]}`);
   const chData = sortedChannels.map(c => c[1]);
-  
-  new Chart(document.getElementById('channelChart'), {
-    type: 'doughnut',
-    data: {
-      labels: chLabels.length ? chLabels : ["{{ t('common.no_data') }}"],
-      datasets: [{
-        data: chData.length ? chData : [1],
-        backgroundColor: ['#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: "{{ t('dashboard.chart_top_channels') }}" } }
-    }
-  });
+
+  const channelCanvas = document.getElementById('channelChart');
+  if (channelCanvas) {
+    const channelChart = new Chart(channelCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: chLabels.length ? chLabels : [OVERVIEW_I18N.no_data],
+        datasets: [{
+          data: chData.length ? chData : [1],
+          backgroundColor: [initialTheme.accent, initialTheme.success, initialTheme.warning, initialTheme.accent2, initialTheme.danger],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: initialTheme.textSecondary } },
+          title: { display: true, text: OVERVIEW_I18N.chart_top_channels, color: initialTheme.textPrimary }
+        }
+      }
+    });
+    channelChart._applyThemeColors = t => {
+      channelChart.data.datasets[0].backgroundColor = [t.accent, t.success, t.warning, t.accent2, t.danger];
+    };
+    chartInstances.push(channelChart);
+  }
 
   // 4. Automod & Ticket Actions (Bar)
   let automodWarn = 0, automodTimeout = 0, ticketOpen = 0, ticketClose = 0;
@@ -641,22 +747,47 @@ window.addEventListener('load', () => {
     }
   });
 
-  new Chart(document.getElementById('botChart'), {
-    type: 'bar',
-    data: {
-      labels: ["{{ t('dashboard.chart_warn') }}", "{{ t('dashboard.chart_timeout') }}", "{{ t('dashboard.chart_open_ticket') }}", "{{ t('dashboard.chart_close_ticket') }}"],
-      datasets: [{
-        label: "{{ t('dashboard.chart_count') }}",
-        data: [automodWarn, automodTimeout, ticketOpen, ticketClose],
-        backgroundColor: ['#FEE75C', '#ED4245', '#57F287', '#99AAB5'],
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { title: { display: true, text: "{{ t('dashboard.chart_module_stats') }}" } }
-    }
-  });
+  const botCanvas = document.getElementById('botChart');
+  if (botCanvas) {
+    const botChart = new Chart(botCanvas, {
+      type: 'bar',
+      data: {
+        labels: [OVERVIEW_I18N.chart_warn, OVERVIEW_I18N.chart_timeout, OVERVIEW_I18N.chart_open_ticket, OVERVIEW_I18N.chart_close_ticket],
+        datasets: [{
+          label: OVERVIEW_I18N.chart_count,
+          data: [automodWarn, automodTimeout, ticketOpen, ticketClose],
+          backgroundColor: [initialTheme.warning, initialTheme.danger, initialTheme.success, initialTheme.textMuted],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: buildCartesianScales(initialTheme),
+        plugins: {
+          legend: { labels: { color: initialTheme.textSecondary } },
+          title: { display: true, text: OVERVIEW_I18N.chart_module_stats, color: initialTheme.textPrimary }
+        }
+      }
+    });
+    botChart._applyThemeColors = t => {
+      botChart.data.datasets[0].backgroundColor = [t.warning, t.danger, t.success, t.textMuted];
+    };
+    chartInstances.push(botChart);
+  }
+
+  let themeRefreshTimer = null;
+  if (!window.__zerynOverviewThemeBound) {
+    window.__zerynOverviewThemeBound = true;
+    window.addEventListener('zeryn:themechange', () => {
+      if (themeRefreshTimer) window.clearTimeout(themeRefreshTimer);
+      themeRefreshTimer = window.setTimeout(() => {
+        const theme = readChartThemeTokens();
+        Chart.defaults.color = theme.textSecondary;
+        Chart.defaults.borderColor = theme.border;
+        chartInstances.forEach(chart => syncChartTheme(chart, theme));
+      }, 50);
+    });
+  }
 });
 
   async function saveGuildLanguage() {
@@ -669,9 +800,9 @@ window.addEventListener('load', () => {
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        alert('✅ ' + (data.label || lang) + ' — ' + "{{ t('dashboard.save_success') }}");
+        alert('✅ ' + (data.label || lang) + ' — ' + OVERVIEW_I18N.save_success);
       } else {
-        alert('❌ ' + (data.error || "{{ t('dashboard.save_error') }}"));
+        alert('❌ ' + (data.error || OVERVIEW_I18N.save_error));
       }
     } catch (e) {
       alert('❌ Error: ' + e);

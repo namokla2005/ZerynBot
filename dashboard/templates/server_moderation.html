@@ -16,14 +16,14 @@
 
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon" style="color:#fee75c; background:rgba(254,231,92,0.1);">⚠️</div>
+    <div class="stat-icon" style="color:var(--warning); background:var(--warning-bg);">⚠️</div>
     <div class="stat-info">
       <div class="stat-value">{{ warn_count }}</div>
       <div class="stat-label">{{ t('mod.warnings_total_label') | default('Tổng cảnh cáo đã ghi') }}</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="color:#57f287; background:rgba(87,242,135,0.1);">🔨</div>
+    <div class="stat-icon" style="color:var(--success); background:var(--success-bg);">🔨</div>
     <div class="stat-info">
       <div class="stat-value">{% if modules.get('moderation', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
       <div class="stat-label">{{ t('nav.moderation') | default('Trạng thái Module') }}</div>
@@ -59,19 +59,19 @@
 
   <div class="card">
     <div class="card-title">
-      <i class="bi bi-lightning-charge-fill" style="color:#fee75c;"></i> {{ t('mod.escalation_rules') | default('Quy Tắc Tự Động Xử Phạt Leo Thang') }}
+      <i class="bi bi-lightning-charge-fill" style="color:var(--warning);"></i> {{ t('mod.escalation_rules') | default('Quy Tắc Tự Động Xử Phạt Leo Thang') }}
     </div>
     <div class="card-desc" style="margin-bottom:18px;">
       {{ t('mod.escalation_rules_desc') | default('Hệ thống tự động kích hoạt hình phạt khi thành viên tích lũy đủ số lần cảnh cáo (/warn).') }}
     </div>
     <div class="card-body">
       <div style="display: flex; flex-direction: column; gap: 14px;">
-        <div style="background: rgba(254, 231, 92, 0.06); border: 1px solid rgba(254, 231, 92, 0.2); border-left: 4px solid #FEE75C; padding: 14px 18px; border-radius: var(--radius-md);">
-          <div style="font-weight: 700; color: #FEE75C; font-size:0.95rem;">⚠️ {{ t('mod.escalation_3_warns') | default('3 Cảnh cáo (Warns)') }}</div>
+        <div style="background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent); border-left: 4px solid var(--warning); padding: 14px 18px; border-radius: var(--radius-md);">
+          <div style="font-weight: 700; color: var(--warning); font-size:0.95rem;">⚠️ {{ t('mod.escalation_3_warns') | default('3 Cảnh cáo (Warns)') }}</div>
           <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">{{ t('mod.auto_timeout', total=3) }}</div>
         </div>
-        <div style="background: rgba(237, 66, 69, 0.06); border: 1px solid rgba(237, 66, 69, 0.2); border-left: 4px solid #ED4245; padding: 14px 18px; border-radius: var(--radius-md);">
-          <div style="font-weight: 700; color: #ED4245; font-size:0.95rem;">🔨 {{ t('mod.escalation_5_warns') | default('5 Cảnh cáo (Warns)') }}</div>
+        <div style="background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-left: 4px solid var(--danger); padding: 14px 18px; border-radius: var(--radius-md);">
+          <div style="font-weight: 700; color: var(--danger); font-size:0.95rem;">🔨 {{ t('mod.escalation_5_warns') | default('5 Cảnh cáo (Warns)') }}</div>
           <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">{{ t('mod.auto_kick', total=5) }}</div>
         </div>
       </div>

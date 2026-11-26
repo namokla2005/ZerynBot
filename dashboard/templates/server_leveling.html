@@ -8,13 +8,13 @@
     gap: 16px;
     align-items: center;
     margin-bottom: 12px;
-    background: #1e1f22;
+    background: var(--bg-input);
     padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #3f4147;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--border);
   }
   .btn-remove-role {
-    color: #ED4245;
+    color: var(--danger);
     background: none;
     border: none;
     cursor: pointer;
@@ -22,14 +22,14 @@
     border-radius: 4px;
   }
   .btn-remove-role:hover {
-    background: rgba(237, 66, 69, 0.1);
+    background: var(--danger-bg);
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-stars" style="color: #FEE75C;"></i> {{ t('leveling.page_title') }}</h1>
+  <h1 class="page-title"><i class="bi bi-stars" style="color: var(--warning);"></i> {{ t('leveling.page_title') }}</h1>
   <p class="page-subtitle">{{ t('leveling.page_subtitle') }}</p>
 </div>
 
@@ -98,7 +98,7 @@
         <input class="form-check-input" type="checkbox" name="stack_rewards" value="1" {% if settings.stack_rewards == 1 %}checked{% endif %} style="transform: scale(1.2); margin-top: 0;">
         <span style="font-weight: 500; font-size: 0.95rem;">{{ t('leveling.stack_rewards_label') }}</span>
       </label>
-      <div style="font-size: 0.85rem; color: #b9bbbe; margin-top: 4px; margin-left: 32px;">
+      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; margin-left: 32px;">
         {{ t('leveling.stack_rewards_desc') }}
       </div>
     </div>
@@ -110,7 +110,7 @@
         <div class="card-title">{{ t('leveling.card_rewards_title') }}</div>
         <div class="card-desc">{{ t('leveling.card_rewards_desc') }}</div>
       </div>
-      <button type="button" id="btnAddRole" style="background: transparent; color: #5865F2; border: 1px solid #5865F2; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+      <button type="button" id="btnAddRole" class="btn btn-secondary btn-sm" style="color: var(--accent); border-color: var(--accent);">
         <i class="bi bi-plus-lg"></i> {{ t('leveling.add_milestone') }}
       </button>
     </div>
@@ -142,7 +142,7 @@
       {% endfor %}
     </div>
     
-    <div id="no-roles-msg" style="{% if level_roles %}display: none;{% endif %} color: #80848e; font-size: 0.9rem; padding: 12px 0;">
+    <div id="no-roles-msg" style="{% if level_roles %}display: none;{% endif %} color: var(--text-muted); font-size: 0.9rem; padding: 12px 0;">
       {{ t('leveling.no_roles') }}
     </div>
   </div>
@@ -156,12 +156,12 @@
 
 <script>
   window.I18N = {
-    prompt_level: "{{ t('leveling.prompt_level') }}",
-    invalid_level: "{{ t('leveling.invalid_level') }}",
-    level_exists: "{{ t('leveling.level_exists') }}",
-    select_role: "{{ t('leveling.select_role') }}",
-    level_label: "{{ t('leveling.level_label') }}",
-    role_reward_label: "{{ t('leveling.role_reward_label') }}"
+    prompt_level: {{ t('leveling.prompt_level')|tojson }},
+    invalid_level: {{ t('leveling.invalid_level')|tojson }},
+    level_exists: {{ t('leveling.level_exists')|tojson }},
+    select_role: {{ t('leveling.select_role')|tojson }},
+    level_label: {{ t('leveling.level_label')|tojson }},
+    role_reward_label: {{ t('leveling.role_reward_label')|tojson }}
   };
 
   const roles = [

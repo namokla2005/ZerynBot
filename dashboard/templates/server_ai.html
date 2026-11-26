@@ -16,9 +16,9 @@
 </div>
 
 <!-- Global AI Security & Status Banner -->
-<div style="background:linear-gradient(135deg, rgba(88,101,242,0.12) 0%, rgba(138,75,255,0.12) 100%); border:1px solid rgba(88,101,242,0.3); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+<div style="background:linear-gradient(135deg, var(--accent-light) 0%, var(--glass-2, var(--bg-card2)) 100%); border:1px solid var(--border-hover); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
   <div style="display:flex; align-items:center; gap:14px;">
-    <div style="width:40px; height:40px; border-radius:12px; background:rgba(88,101,242,0.2); display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--accent); flex-shrink:0;">
+    <div style="width:40px; height:40px; border-radius:12px; background:var(--accent-light); display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--accent); flex-shrink:0;">
       <i class="bi bi-shield-check"></i>
     </div>
     <div>
@@ -30,8 +30,8 @@
       </div>
     </div>
   </div>
-  <div style="display:flex; align-items:center; gap:6px; background:rgba(67,181,129,0.15); border:1px solid rgba(67,181,129,0.3); padding:6px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:#43b581;">
-    <span style="width:8px; height:8px; border-radius:50%; background:#43b581; box-shadow:0 0 8px #43b581;"></span>
+  <div style="display:flex; align-items:center; gap:6px; background:var(--success-bg); border:1px solid color-mix(in srgb, var(--success) 35%, transparent); padding:6px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:var(--success);">
+    <span style="width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 8px var(--success);"></span>
     {{ t('ai.badge_active') | default('AI Active') }}
   </div>
 </div>
@@ -129,10 +129,10 @@
       </div>
 
       <!-- Special Owner Persona Badge -->
-      <div style="background:linear-gradient(135deg, rgba(254,231,92,0.12) 0%, rgba(255,158,194,0.12) 100%); border:1px solid rgba(254,231,92,0.3); border-radius:var(--radius-md); padding:16px; margin-top:20px; display:flex; gap:12px; align-items:flex-start;">
-        <i class="bi bi-star-fill" style="color:#FEE75C; font-size:1.4rem; flex-shrink:0; margin-top:2px;"></i>
+      <div style="background:linear-gradient(135deg, var(--warning-bg) 0%, var(--accent-light) 100%); border:1px solid color-mix(in srgb, var(--warning) 35%, transparent); border-radius:var(--radius-md); padding:16px; margin-top:20px; display:flex; gap:12px; align-items:flex-start;">
+        <i class="bi bi-star-fill" style="color:var(--warning); font-size:1.4rem; flex-shrink:0; margin-top:2px;"></i>
         <div>
-          <div style="font-size:0.88rem; font-weight:700; color:#FEE75C; margin-bottom:4px;">
+          <div style="font-size:0.88rem; font-weight:700; color:var(--warning); margin-bottom:4px;">
             {{ t('ai.owner_persona_badge') | default('Đặc quyền Chủ Bot:') }}
           </div>
           <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">

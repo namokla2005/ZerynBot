@@ -17,7 +17,7 @@
   
   .panel-card {
     background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 16px;
@@ -29,7 +29,7 @@
   .panel-card:hover {
     border-color: var(--accent);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(88,101,242,0.1);
+    box-shadow: var(--shadow-sm);
   }
   .panel-info {
     display: flex;
@@ -39,7 +39,7 @@
   .panel-name {
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--text-color);
+    color: var(--text-primary);
   }
   .panel-meta {
     font-size: 0.8rem;
@@ -59,8 +59,8 @@
   
   /* Buttons manager */
   .btn-item {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border-color);
+    background: var(--glass-2, var(--bg-input));
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 10px;
@@ -199,9 +199,9 @@
     width: 100%;
   }
   .custom-select-display {
-    background: #1e1f22;
-    border: 1px solid #3f4147;
-    border-radius: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
     padding: 8px 12px;
     min-height: 42px;
     display: flex;
@@ -211,9 +211,9 @@
     cursor: pointer;
     transition: border-color 0.2s;
   }
-  .custom-select-display:hover { border-color: #5865F2; }
+  .custom-select-display:hover { border-color: var(--accent); }
   .custom-select-display.open {
-    border-color: #5865F2;
+    border-color: var(--accent);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -224,15 +224,15 @@
     align-items: center;
   }
   .chip {
-    background: #2b2d31;
-    border: 1px solid #3f4147;
-    border-radius: 4px;
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 4px 8px;
     font-size: 0.85rem;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #dbdee1;
+    color: var(--text-primary);
   }
   .chip .role-color {
     width: 10px;
@@ -241,32 +241,32 @@
   }
   .chip .chip-remove {
     cursor: pointer;
-    opacity: 0.6;
+    opacity: 0.65;
     margin-left: 2px;
   }
   .chip .chip-remove:hover {
     opacity: 1;
-    color: #ED4245;
+    color: var(--danger);
   }
   .custom-select-arrow {
     margin-left: auto;
-    color: #80848e;
+    color: var(--text-muted);
   }
   .custom-select-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
-    background: #2b2d31;
-    border: 1px solid #3f4147;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-top: none;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: var(--radius-md, 8px);
+    border-bottom-right-radius: var(--radius-md, 8px);
     max-height: 250px;
     overflow-y: auto;
     z-index: 100;
     display: none;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    box-shadow: var(--shadow);
   }
   .custom-select-wrapper.open { z-index: 99; }
   .custom-select-wrapper.open .custom-select-dropdown { display: block; }
@@ -276,19 +276,19 @@
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    color: #dbdee1;
-    border-bottom: 1px solid #1e1f22;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
   }
-  .custom-option:hover { background: #3f4147; }
-  .custom-option.selected { background: rgba(88, 101, 242, 0.1); }
+  .custom-option:hover { background: var(--bg-hover); }
+  .custom-option.selected { background: var(--accent-light); }
   .custom-option.selected:after {
     content: '\2713';
     margin-left: auto;
-    color: #5865F2;
+    color: var(--accent);
     font-weight: bold;
   }
   .placeholder-text {
-    color: #80848e;
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
 </style>
@@ -308,7 +308,7 @@
 
 <!-- Panels List -->
 <div id="panels-list-section">
-  <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-color);">
+  <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">
     {{ t('tickets.list_title', count=panels|length) }}
   </h2>
   {% if not panels %}
@@ -515,24 +515,24 @@
   const CATEGORIES = {{ categories|tojson }};
   const PANELS_DATA = {{ panels|tojson }};
   window.I18N = {
-    editor_title_new: `<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('tickets.editor_title_new') }}`,
-    editor_title_edit: `<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> {{ t('tickets.editor_title_edit') }}`,
-    btn_style_primary: "{{ t('tickets.btn_style_primary') }}",
-    btn_style_success: "{{ t('tickets.btn_style_success') }}",
-    btn_style_danger: "{{ t('tickets.btn_style_danger') }}",
-    btn_style_secondary: "{{ t('tickets.btn_style_secondary') }}",
-    cat_placeholder: "{{ t('tickets.cat_placeholder') }}",
-    alert_name_required: "{{ t('tickets.alert_name_required') }}",
-    alert_channel_required: "{{ t('tickets.alert_channel_required') }}",
-    alert_btn_label_required: "{{ t('tickets.alert_btn_label_required') }}",
-    alert_btn_cat_required: "{{ t('tickets.alert_btn_cat_required') }}",
-    alert_min_buttons: "{{ t('tickets.alert_min_buttons') }}",
-    alert_max_buttons: "{{ t('tickets.alert_max_buttons') }}",
-    alert_save_success: "{{ t('tickets.alert_save_success') }}",
-    alert_send_confirm: "{{ t('tickets.alert_send_confirm') }}",
-    alert_send_success: "{{ t('tickets.alert_send_success') }}",
-    alert_delete_confirm: "{{ t('tickets.alert_delete_confirm') }}",
-    alert_delete_success: "{{ t('tickets.alert_delete_success') }}"
+    editor_title_new: '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> ' + {{ t('tickets.editor_title_new')|tojson }},
+    editor_title_edit: '<i class="bi bi-pencil-fill" style="color:var(--accent)"></i> ' + {{ t('tickets.editor_title_edit')|tojson }},
+    btn_style_primary: {{ t('tickets.btn_style_primary')|tojson }},
+    btn_style_success: {{ t('tickets.btn_style_success')|tojson }},
+    btn_style_danger: {{ t('tickets.btn_style_danger')|tojson }},
+    btn_style_secondary: {{ t('tickets.btn_style_secondary')|tojson }},
+    cat_placeholder: {{ t('tickets.cat_placeholder')|tojson }},
+    alert_name_required: {{ t('tickets.alert_name_required')|tojson }},
+    alert_channel_required: {{ t('tickets.alert_channel_required')|tojson }},
+    alert_btn_label_required: {{ t('tickets.alert_btn_label_required')|tojson }},
+    alert_btn_cat_required: {{ t('tickets.alert_btn_cat_required')|tojson }},
+    alert_min_buttons: {{ t('tickets.alert_min_buttons')|tojson }},
+    alert_max_buttons: {{ t('tickets.alert_max_buttons')|tojson }},
+    alert_save_success: {{ t('tickets.alert_save_success')|tojson }},
+    alert_send_confirm: {{ t('tickets.alert_send_confirm')|tojson }},
+    alert_send_success: {{ t('tickets.alert_send_success')|tojson }},
+    alert_delete_confirm: {{ t('tickets.alert_delete_confirm')|tojson }},
+    alert_delete_success: {{ t('tickets.alert_delete_success')|tojson }}
   };
 </script>
 
@@ -884,7 +884,7 @@
           const chip = document.createElement('div');
           chip.className = 'chip';
           chip.innerHTML = `
-            <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+            <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : 'var(--text-muted)'}"></span>
             ${roleData.name}
             <i class="bi bi-x chip-remove" data-id="${roleData.id}"></i>
           `;
@@ -917,7 +917,7 @@
         option.className = 'custom-option';
         option.dataset.id = roleData.id;
         option.innerHTML = `
-          <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : '#b9bbbe'}"></span>
+          <span class="role-color" style="background-color: ${roleData.color !== '#000000' ? roleData.color : 'var(--text-muted)'}"></span>
           ${roleData.name}
         `;
         

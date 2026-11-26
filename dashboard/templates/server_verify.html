@@ -4,51 +4,51 @@
 {% block head %}
 <style>
   .module-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  .module-title { font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; }
-  .card { background: #1e1f22; border: 1px solid #3f4147; border-radius: 8px; padding: 24px; margin-bottom: 24px; }
-  .card-title { font-size: 1.25rem; font-weight: 600; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .module-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 12px; }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px); padding: 24px; margin-bottom: 24px; }
+  .card-title { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
   .form-group { margin-bottom: 20px; }
-  .form-label { display: block; color: #b5bac1; margin-bottom: 8px; font-size: 0.9rem; font-weight: 500; }
-  .form-control { width: 100%; background: #2b2d31; border: 1px solid #1e1f22; color: #dbdee1; padding: 10px 12px; border-radius: 4px; transition: border-color 0.2s; }
-  .form-control:focus { outline: none; border-color: #5865F2; }
+  .form-label { display: block; color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem; font-weight: 500; }
+  .form-control { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 12px; border-radius: var(--radius-md, 8px); transition: border-color 0.2s; }
+  .form-control:focus { outline: none; border-color: var(--accent); }
   textarea.form-control { min-height: 90px; resize: vertical; }
 
   .switch-container { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-  .switch-text { color: #dbdee1; font-weight: 500; }
+  .switch-text { color: var(--text-primary); font-weight: 500; }
   .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
   .switch input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #80848e; transition: .3s; border-radius: 24px; }
-  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-  input:checked+.slider { background-color: #5865F2; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: color-mix(in srgb, var(--text-muted) 45%, transparent); transition: .3s; border-radius: 24px; }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: #fff; transition: .3s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  input:checked+.slider { background: var(--grad-primary, var(--accent)); }
   input:checked+.slider:before { transform: translateX(20px); }
 
   /* Custom Single-Select */
   .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
-  .custom-select-display { background: #2b2d31; border: 1px solid #1e1f22; border-radius: 4px; padding: 8px 12px; min-height: 40px; display: flex; align-items: center; cursor: pointer; transition: border-color 0.2s; }
-  .custom-select-display:hover { border-color: #5865F2; }
-  .custom-select-display.open { border-color: #5865F2; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .custom-select-display { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); padding: 8px 12px; min-height: 40px; display: flex; align-items: center; cursor: pointer; transition: border-color 0.2s; }
+  .custom-select-display:hover { border-color: var(--accent); }
+  .custom-select-display.open { border-color: var(--accent); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
   .chips-container { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .chip { background: #1e1f22; border: 1px solid #3f4147; border-radius: 4px; padding: 4px 8px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; color: #dbdee1; }
+  .chip { background: var(--bg-card2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary); }
   .chip .role-color { width: 10px; height: 10px; border-radius: 50%; }
-  .chip .chip-remove { cursor: pointer; opacity: 0.6; margin-left: 2px; }
-  .chip .chip-remove:hover { opacity: 1; color: #ED4245; }
-  .custom-select-arrow { margin-left: auto; color: #b5bac1; font-size: 0.8rem; }
-  .custom-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #2b2d31; border: 1px solid #1e1f22; border-top: none; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 10; display: none; }
+  .chip .chip-remove { cursor: pointer; opacity: 0.65; margin-left: 2px; }
+  .chip .chip-remove:hover { opacity: 1; color: var(--danger); }
+  .custom-select-arrow { margin-left: auto; color: var(--text-muted); font-size: 0.8rem; }
+  .custom-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-top: none; border-bottom-left-radius: var(--radius-md, 8px); border-bottom-right-radius: var(--radius-md, 8px); max-height: 250px; overflow-y: auto; z-index: 10; display: none; box-shadow: var(--shadow); }
   .custom-select-wrapper.open { z-index: 99; }
   .custom-select-wrapper.open .custom-select-dropdown { display: block; }
-  .custom-option { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #dbdee1; transition: background 0.2s; }
-  .custom-option:hover { background: #3f4147; }
-  .custom-option.selected { background: rgba(88, 101, 242, 0.1); color: #5865F2; font-weight: bold; }
+  .custom-option { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); transition: background 0.2s; }
+  .custom-option:hover { background: var(--bg-hover); }
+  .custom-option.selected { background: var(--accent-light); color: var(--accent); font-weight: bold; }
   .role-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .placeholder-text { color: #80848e; font-size: 0.9rem; }
-  .hint { color: #b5bac1; font-size: 0.85rem; margin-top: 8px; }
+  .placeholder-text { color: var(--text-muted); font-size: 0.9rem; }
+  .hint { color: var(--text-secondary); font-size: 0.85rem; margin-top: 8px; }
   .bottom-actions { margin-top: 8px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title"><i class="bi bi-shield-check" style="color: #5865F2;"></i> {{ t('verify.module_name') }}</h1>
+  <h1 class="page-title"><i class="bi bi-shield-check" style="color: var(--accent);"></i> {{ t('verify.module_name') }}</h1>
   <p class="page-subtitle">{{ t('verify.panel_title') }}</p>
 </div>
 
@@ -183,9 +183,9 @@
         chip.className = 'chip';
         let prefix = '';
         if (isChannel) {
-          prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
+          prefix = '<i class="bi bi-hash" style="color: var(--text-muted);"></i> ';
         } else if (optData.color) {
-          prefix = `<span class="role-color" style="background-color: ${optData.color && optData.color !== '#000000' ? optData.color : '#b9bbbe'}"></span> `;
+          prefix = `<span class="role-color" style="background-color: ${optData.color && optData.color !== '#000000' ? optData.color : 'var(--text-muted)'}"></span> `;
         }
         chip.innerHTML = `${prefix}${optData.name}<i class="bi bi-x chip-remove" data-id="${optData.id}"></i>`;
         chipsContainer.appendChild(chip);
@@ -210,9 +210,9 @@
         option.dataset.id = optData.id;
         let prefix = '';
         if (isChannel) {
-          prefix = '<i class="bi bi-hash" style="color: #80848e;"></i> ';
+          prefix = '<i class="bi bi-hash" style="color: var(--text-muted);"></i> ';
         } else if (optData.color) {
-          prefix = `<span class="role-color" style="background-color: ${optData.color && optData.color !== '#000000' ? optData.color : '#b9bbbe'}"></span> `;
+          prefix = `<span class="role-color" style="background-color: ${optData.color && optData.color !== '#000000' ? optData.color : 'var(--text-muted)'}"></span> `;
         }
         option.innerHTML = `${prefix}${optData.name}`;
         option.addEventListener('click', (e) => {

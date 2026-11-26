@@ -17,7 +17,7 @@
   
   .panel-card {
     background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 16px;
@@ -29,7 +29,7 @@
   .panel-card:hover {
     border-color: var(--accent);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(88,101,242,0.1);
+    box-shadow: var(--shadow-sm);
   }
   .panel-info {
     display: flex;
@@ -39,7 +39,7 @@
   .panel-name {
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--text-color);
+    color: var(--text-primary);
   }
   .panel-meta {
     font-size: 0.8rem;
@@ -59,8 +59,8 @@
   
   /* Buttons manager */
   .btn-item {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border-color);
+    background: var(--glass-2, var(--bg-input));
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 10px;
@@ -80,13 +80,14 @@
     font-size: 1.25rem;
     line-height: 1;
     cursor: pointer;
-    background: #1e1f22;
-    border: 1px solid #3f4147;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
     border-radius: 8px;
     transition: border-color .2s, transform .12s;
   }
   .emoji-pick-btn:hover {
-    border-color: #5865F2;
+    border-color: var(--accent);
     transform: translateY(-1px);
   }
   
@@ -219,9 +220,9 @@
     width: 100%;
   }
   .custom-select-display {
-    background: #1e1f22;
-    border: 1px solid #3f4147;
-    border-radius: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
     padding: 8px 12px;
     min-height: 42px;
     display: flex;
@@ -231,9 +232,9 @@
     cursor: pointer;
     transition: border-color 0.2s;
   }
-  .custom-select-display:hover { border-color: #5865F2; }
+  .custom-select-display:hover { border-color: var(--accent); }
   .custom-select-display.open {
-    border-color: #5865F2;
+    border-color: var(--accent);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -244,15 +245,15 @@
     align-items: center;
   }
   .chip {
-    background: #2b2d31;
-    border: 1px solid #3f4147;
-    border-radius: 4px;
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 4px 8px;
     font-size: 0.85rem;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #dbdee1;
+    color: var(--text-primary);
   }
   .chip .role-color {
     width: 10px;
@@ -261,32 +262,32 @@
   }
   .chip .chip-remove {
     cursor: pointer;
-    opacity: 0.6;
+    opacity: 0.65;
     margin-left: 2px;
   }
   .chip .chip-remove:hover {
     opacity: 1;
-    color: #ED4245;
+    color: var(--danger);
   }
   .custom-select-arrow {
     margin-left: auto;
-    color: #80848e;
+    color: var(--text-muted);
   }
   .custom-select-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
-    background: #2b2d31;
-    border: 1px solid #3f4147;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-top: none;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: var(--radius-md, 8px);
+    border-bottom-right-radius: var(--radius-md, 8px);
     max-height: 250px;
     overflow-y: auto;
     z-index: 100;
     display: none;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    box-shadow: var(--shadow);
   }
   .custom-select-wrapper.open { z-index: 99; }
   .custom-select-wrapper.open .custom-select-dropdown { display: block; }
@@ -296,19 +297,19 @@
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    color: #dbdee1;
-    border-bottom: 1px solid #1e1f22;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
   }
-  .custom-option:hover { background: #3f4147; }
-  .custom-option.selected { background: rgba(88, 101, 242, 0.1); }
+  .custom-option:hover { background: var(--bg-hover); }
+  .custom-option.selected { background: var(--accent-light); }
   .custom-option.selected:after {
     content: '\2713';
     margin-left: auto;
-    color: #5865F2;
+    color: var(--accent);
     font-weight: bold;
   }
   .placeholder-text {
-    color: #80848e;
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
 
@@ -321,10 +322,10 @@
     z-index: 1200;
     width: 340px;
     display: none;
-    background: #1e1f22;
-    border: 1px solid #3f4147;
-    border-radius: 10px;
-    box-shadow: 0 16px 40px rgba(0,0,0,.55);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
     overflow: hidden;
   }
   .emoji-pop.open { display: block; }
@@ -332,39 +333,39 @@
     display: flex;
     gap: 6px;
     padding: 10px 10px 8px;
-    border-bottom: 1px solid #2b2d31;
+    border-bottom: 1px solid var(--border);
   }
   .emoji-pop-tab {
     flex: 1;
     padding: 7px 8px;
     border-radius: 6px;
     border: 1px solid transparent;
-    background: #2b2d31;
-    color: #dbdee1;
+    background: var(--bg-card2);
+    color: var(--text-secondary);
     font-size: 0.76rem;
     font-weight: 700;
     cursor: pointer;
     transition: background .15s, border-color .15s;
   }
-  .emoji-pop-tab:hover { background: #3f4147; }
+  .emoji-pop-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
   .emoji-pop-tab.active {
-    background: rgba(88,101,242,.18);
-    border-color: #5865F2;
-    color: #fff;
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
   }
   .emoji-pop-search { padding: 8px 10px 4px; }
   .emoji-pop-search input {
     width: 100%;
     box-sizing: border-box;
-    background: #111214;
-    color: #fff;
-    border: 1px solid #3f4147;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 8px 10px;
     font-size: 0.8rem;
     outline: none;
   }
-  .emoji-pop-search input:focus { border-color: #5865F2; }
+  .emoji-pop-search input:focus { border-color: var(--accent); }
   .emoji-pop-body {
     max-height: 264px;
     overflow-y: auto;
@@ -374,7 +375,7 @@
     font-size: 0.66rem;
     text-transform: uppercase;
     letter-spacing: .05em;
-    color: #80848e;
+    color: var(--text-muted);
     font-weight: 700;
     margin: 10px 0 6px;
   }
@@ -392,24 +393,25 @@
     font-size: 1.1rem;
     line-height: 1;
     background: none;
+    color: var(--text-primary);
     border: 0;
     border-radius: 6px;
     padding: 0;
     cursor: pointer;
   }
-  .emoji-pop-item:hover { background: #3f4147; }
+  .emoji-pop-item:hover { background: var(--bg-hover); }
   .emoji-pop-item img { width: 22px; height: 22px; object-fit: contain; }
   .emoji-pop-empty {
     padding: 18px 6px;
-    color: #80848e;
+    color: var(--text-muted);
     font-size: 0.78rem;
     text-align: center;
   }
   .emoji-pop-foot {
     padding: 8px 12px;
-    border-top: 1px solid #2b2d31;
+    border-top: 1px solid var(--border);
     font-size: 0.68rem;
-    color: #80848e;
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -431,7 +433,7 @@
 
 <!-- Panels List -->
 <div id="panels-list-section">
-  <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-color);">
+  <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">
     {{ t('tickets.list_title', count=panels|length) }}
   </h2>
   {% if not panels %}
@@ -626,19 +628,19 @@
 
 <script>
   window.I18N = {
-    editor_title_new: "{{ t('reactionroles.editor_title_new') }}",
-    editor_title_edit: "{{ t('reactionroles.editor_title_edit') }}",
-    select_role_placeholder: "{{ t('reactionroles.select_role_placeholder') }}",
+    editor_title_new: {{ t('reactionroles.editor_title_new')|tojson }},
+    editor_title_edit: {{ t('reactionroles.editor_title_edit')|tojson }},
+    select_role_placeholder: {{ t('reactionroles.select_role_placeholder')|tojson }},
     emoji_placeholder: {{ t('reactionroles.emoji_placeholder')|tojson }},
-    alert_name_required: "{{ t('reactionroles.alert_name_required') }}",
-    alert_channel_required: "{{ t('reactionroles.alert_channel_required') }}",
-    alert_emoji_required: "{{ t('reactionroles.alert_emoji_required') }}",
-    alert_role_required: "{{ t('reactionroles.alert_role_required') }}",
-    alert_min_items: "{{ t('reactionroles.alert_min_items') }}",
-    alert_save_success: "{{ t('reactionroles.alert_save_success') }}",
-    alert_send_confirm: "{{ t('reactionroles.alert_send_confirm') }}",
-    alert_send_success: "{{ t('reactionroles.alert_send_success') }}",
-    alert_delete_confirm: "{{ t('reactionroles.alert_delete_confirm') }}",
+    alert_name_required: {{ t('reactionroles.alert_name_required')|tojson }},
+    alert_channel_required: {{ t('reactionroles.alert_channel_required')|tojson }},
+    alert_emoji_required: {{ t('reactionroles.alert_emoji_required')|tojson }},
+    alert_role_required: {{ t('reactionroles.alert_role_required')|tojson }},
+    alert_min_items: {{ t('reactionroles.alert_min_items')|tojson }},
+    alert_save_success: {{ t('reactionroles.alert_save_success')|tojson }},
+    alert_send_confirm: {{ t('reactionroles.alert_send_confirm')|tojson }},
+    alert_send_success: {{ t('reactionroles.alert_send_success')|tojson }},
+    alert_delete_confirm: {{ t('reactionroles.alert_delete_confirm')|tojson }},
     pick_emoji: {{ t('reactionroles.pick_emoji')|tojson }},
     picker_common: {{ t('reactionroles.picker_common')|tojson }},
     picker_custom: {{ t('reactionroles.picker_custom')|tojson }},

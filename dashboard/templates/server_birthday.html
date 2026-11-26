@@ -16,14 +16,14 @@
 
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon" style="color:var(--accent-pink); background:rgba(255,122,194,0.1);">🎈</div>
+    <div class="stat-icon" style="color:var(--accent-2, var(--accent)); background:var(--accent-light);">🎈</div>
     <div class="stat-info">
       <div class="stat-value">{{ bday_count }}</div>
       <div class="stat-label">{{ t('birthday.month_count') | default('Sinh nhật trong tháng này') }}</div>
     </div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon" style="color:#57f287; background:rgba(87,242,135,0.1);">🎁</div>
+    <div class="stat-icon" style="color:var(--success); background:var(--success-bg);">🎁</div>
     <div class="stat-info">
       <div class="stat-value">{% if modules.get('birthday', True) %}{{ t('common.active') }}{% else %}{{ t('common.disabled') }}{% endif %}</div>
       <div class="stat-label">{{ t('nav.birthday') | default('Trạng thái Module') }}</div>
@@ -74,7 +74,7 @@
 
   <div class="card">
     <div class="card-title">
-      <i class="bi bi-gift-fill" style="color:#fee75c;"></i> {{ t('birthday.rewards_title') | default('Quà Tặng Sinh Nhật (Coins & XP)') }}
+      <i class="bi bi-gift-fill" style="color:var(--warning);"></i> {{ t('birthday.rewards_title') | default('Quà Tặng Sinh Nhật (Coins & XP)') }}
     </div>
     <div class="card-desc" style="margin-bottom:18px;">
       {{ t('birthday.rewards_desc') | default('Thiết lập phần thưởng tự động được chuyển vào tài khoản ngân hàng và cấp độ của thành viên.') }}
