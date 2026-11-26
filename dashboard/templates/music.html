@@ -226,8 +226,8 @@
 
     <!-- Create Playlist Form -->
     <div class="card" style="margin-bottom: 20px;">
-      <form action="{{ url_for('music.create_playlist_route', guild_id=guild_id) }}" method="POST" style="display:flex; gap:10px;">
-        <input type="text" name="playlist_name" class="form-control" placeholder="{{ t('music.new_playlist_placeholder') }}" required>
+      <form action="{{ url_for('music.create_playlist_route', guild_id=guild_id) }}" method="POST" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" name="playlist_name" class="form-control" style="flex: 1 1 200px; min-width: 0;" placeholder="{{ t('music.new_playlist_placeholder') }}" required>
         <button type="submit" class="btn btn-primary" style="white-space:nowrap;">
           <i class="bi bi-folder-plus"></i> {{ t('music.btn_create_playlist') }}
         </button>

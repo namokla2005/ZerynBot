@@ -50,10 +50,35 @@
     });
   }
 
+  let _raf1 = 0;
+  let _raf2 = 0;
+
   function apply(nextMode) {
     const mode = isValid(nextMode) ? nextMode : get();
     const real = resolved(mode);
-    document.documentElement.setAttribute('data-theme', real);
+    const root = document.documentElement;
+    const cl = root && root.classList;
+    if (typeof window.cancelAnimationFrame === 'function') {
+      if (_raf1) { window.cancelAnimationFrame(_raf1); _raf1 = 0; }
+      if (_raf2) { window.cancelAnimationFrame(_raf2); _raf2 = 0; }
+    }
+    if (cl) cl.add('theme-switching');
+    try {
+      if (root && typeof root.setAttribute === 'function') root.setAttribute('data-theme', real);
+      if (root) void root.offsetHeight;
+    } finally {
+      if (typeof window.requestAnimationFrame === 'function') {
+        _raf1 = window.requestAnimationFrame(function () {
+          _raf1 = 0;
+          _raf2 = window.requestAnimationFrame(function () {
+            _raf2 = 0;
+            if (cl) cl.remove('theme-switching');
+          });
+        });
+      } else if (cl) {
+        cl.remove('theme-switching');
+      }
+    }
     updateButtons(mode, real);
     window.dispatchEvent(new CustomEvent('zeryn:themechange', {
       detail: { mode: mode, resolved: real }, bubbles: false, composed: false,

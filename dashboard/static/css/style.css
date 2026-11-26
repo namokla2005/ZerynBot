@@ -67,7 +67,6 @@
   --switch-track-bg:    rgba(35, 33, 54, 0.16);
   --modal-backdrop:     rgba(35, 33, 54, 0.42);
   --select-option-bg:   #ffffff;
-  --select-arrow:       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b6883' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
   --scrollbar-thumb:       rgba(35, 33, 54, 0.18);
   --scrollbar-thumb-hover: rgba(124, 108, 240, 0.42);
 
@@ -151,7 +150,6 @@
   --switch-track-bg:    rgba(255, 255, 255, 0.15);
   --modal-backdrop:     rgba(6, 5, 12, 0.80);
   --select-option-bg:   #17142b;
-  --select-arrow:       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23b9b5d0' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
   --scrollbar-thumb:       rgba(255, 255, 255, 0.16);
   --scrollbar-thumb-hover: rgba(141, 123, 255, 0.45);
 
@@ -824,9 +822,9 @@ button { cursor: pointer; }
 .form-control::placeholder { color: var(--text-muted); }
 textarea.form-control { resize: vertical; min-height: 90px; line-height: 1.6; }
 select.form-control {
-  cursor: pointer; -webkit-appearance: none; appearance: none;
-  background-image: var(--select-arrow);
-  background-repeat: no-repeat; background-position: right 16px center; padding-right: 38px;
+  cursor: pointer;
+  padding-right: 14px;
+  background-image: none;
 }
 select.form-control option { background: var(--select-option-bg); color: var(--text-primary); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -1224,10 +1222,12 @@ select.form-control option { background: var(--select-option-bg); color: var(--t
 }
 .tab-btn.active .count-chip {
   background: rgba(255, 255, 255, 0.24);
+  border-color: transparent;
   color: #fff;
 }
 .count-chip {
-  background: var(--bg-hover);
+  background: var(--glass-2);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1704,10 +1704,11 @@ select.form-control option { background: var(--select-option-bg); color: var(--t
 
 .sb-preset-field {
   flex: 1 1 260px;
+  min-width: 260px;
 }
 
 .sb-preset-field .form-control {
-  min-width: 220px;
+  min-width: 260px;
 }
 
 .sb-switch-wrap,
@@ -2783,6 +2784,15 @@ select.form-control option { background: var(--select-option-bg); color: var(--t
 }
 .theme-toggle-text:empty {
   display: none;
+}
+
+/* Atomic theme swap — suppress 200ms transition lag across children during data-theme change */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+  transition-duration: 0s !important;
 }
 
 /* ─── Termux Mali GPU & Reduced-Motion Guardrails ─────────────────────────── */

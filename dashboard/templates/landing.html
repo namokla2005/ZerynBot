@@ -79,9 +79,9 @@
       --accent-pink-bg: rgba(255, 105, 180, 0.16);
       --accent-pink-border: rgba(184, 50, 118, 0.30);
 
-      --blob-1: radial-gradient(circle, rgba(214, 196, 255, 0.85), transparent 65%);
-      --blob-2: radial-gradient(circle, rgba(255, 214, 214, 0.80), transparent 65%);
-      --blob-3: radial-gradient(circle, rgba(197, 244, 229, 0.90), transparent 65%);
+      --blob-1: radial-gradient(circle, rgba(214, 196, 255, 0.85) 0%, rgba(214, 196, 255, 0.30) 38%, transparent 68%);
+      --blob-2: radial-gradient(circle, rgba(255, 214, 214, 0.80) 0%, rgba(255, 214, 214, 0.28) 38%, transparent 68%);
+      --blob-3: radial-gradient(circle, rgba(197, 244, 229, 0.90) 0%, rgba(197, 244, 229, 0.30) 38%, transparent 68%);
 
       --header-bg: rgba(245, 244, 251, 0.80);
       --dropdown-bg: rgba(255, 255, 255, 0.96);
@@ -161,9 +161,9 @@
       --accent-pink-bg: rgba(255, 122, 194, 0.16);
       --accent-pink-border: rgba(255, 122, 194, 0.34);
 
-      --blob-1: radial-gradient(circle, rgba(124, 108, 240, 0.34), transparent 65%);
-      --blob-2: radial-gradient(circle, rgba(255, 122, 140, 0.26), transparent 65%);
-      --blob-3: radial-gradient(circle, rgba(127, 224, 195, 0.20), transparent 65%);
+      --blob-1: radial-gradient(circle, rgba(124, 108, 240, 0.34) 0%, rgba(124, 108, 240, 0.12) 38%, transparent 68%);
+      --blob-2: radial-gradient(circle, rgba(255, 122, 140, 0.26) 0%, rgba(255, 122, 140, 0.10) 38%, transparent 68%);
+      --blob-3: radial-gradient(circle, rgba(127, 224, 195, 0.20) 0%, rgba(127, 224, 195, 0.08) 38%, transparent 68%);
 
       --header-bg: rgba(13, 11, 22, 0.78);
       --dropdown-bg: rgba(24, 21, 40, 0.96);
@@ -198,6 +198,8 @@
       overflow-x: hidden;
     }
 
+    html.theme-switching, html.theme-switching *, html.theme-switching *::before, html.theme-switching *::after { transition: none !important; transition-duration: 0s !important; }
+
     body.landing-body {
       background-color: var(--bg);
       color: var(--ink);
@@ -214,17 +216,17 @@
       transition: background-color 0.25s ease, color 0.25s ease;
     }
 
-    /* Ambient 3-Orb Iridescent Aura (GPU isolated) */
+    /* Ambient 3-Orb Iridescent Aura (soft multi-stop radial gradients, zero blur filter pass) */
     body.landing-body::before,
     body.landing-body::after,
     .iridescent-blob {
       content: "";
       position: fixed;
       border-radius: 50%;
-      filter: blur(90px);
       pointer-events: none;
       z-index: -1;
       transform: translateZ(0);
+      will-change: transform;
     }
     body.landing-body::before {
       width: 620px;
@@ -1314,10 +1316,9 @@
     }
 
     @media (hover: none), (max-width: 768px) {
-      /* Reduce overdraw blur on mobile/Termux GPUs while keeping glass clarity */
+      /* Reduce overdraw layers on mobile/Termux GPUs while keeping glass clarity */
       body.landing-body::before,
       body.landing-body::after {
-        filter: blur(56px);
         opacity: 0.75;
       }
       .iridescent-blob {

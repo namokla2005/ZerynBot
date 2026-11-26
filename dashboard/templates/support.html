@@ -260,10 +260,10 @@
       color: var(--text-secondary);
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow: visible;
     }
     .tag-badge {
       display: inline-block;
@@ -274,6 +274,8 @@
       background: var(--accent-light);
       color: var(--accent);
       border: 1px solid var(--border-hover);
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     .tag-badge.pink {
       background: rgba(255, 138, 155, 0.16);
