@@ -143,6 +143,8 @@ class Events(commands.Cog):
     async def _refresh_channels(self, guild: discord.Guild) -> None:
         """Cache lại danh sách kênh (debounce 10s/guild để tránh ghi dồn dập)."""
         guild_id = str(guild.id)
+        if guild_id in (getattr(self.bot, "_sb_active_guilds", None) or ()):
+            return
         now = time.time()
         if now - self._last_channel_refresh.get(guild_id, 0) < self.CHANNEL_REFRESH_DEBOUNCE:
             return
@@ -156,6 +158,8 @@ class Events(commands.Cog):
     async def _refresh_roles(self, guild: discord.Guild) -> None:
         """Cache lại danh sách role (debounce 10s/guild)."""
         guild_id = str(guild.id)
+        if guild_id in (getattr(self.bot, "_sb_active_guilds", None) or ()):
+            return
         now = time.time()
         if now - self._last_role_refresh.get(guild_id, 0) < self.CHANNEL_REFRESH_DEBOUNCE:
             return
@@ -179,8 +183,17 @@ class Events(commands.Cog):
             {
                 "id": str(r.id),
                 "name": r.name,
-                "color_hex": str(r.color),
-                "position": r.position,
+                "color_hex": f"#{int(getattr(getattr(r, 'color', None), 'value', 0) or 0):06x}",
+                "position": int(getattr(r, "position", 0) or 0),
+                "permissions": str(int(getattr(getattr(r, "permissions", None), "value", 0) or 0)),
+                "hoist": bool(getattr(r, "hoist", False)),
+                "mentionable": bool(getattr(r, "mentionable", False)),
+                "managed": bool(getattr(r, "managed", False)),
+                "is_everyone": bool(
+                    r.is_default()
+                    if callable(getattr(r, "is_default", None))
+                    else str(r.id) == str(guild.id)
+                ),
             }
             for r in guild.roles
         ]

@@ -893,16 +893,28 @@ class Automod(commands.Cog):
     # ══════════════════════════════════════════════════════════════════════════
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
-        await self._on_delete_event(channel.guild, "channel_delete")
+        await self._on_delete_event(channel.guild, "channel_delete", target_id=str(channel.id))
 
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role: discord.Role):
-        await self._on_delete_event(role.guild, "role_delete")
+        await self._on_delete_event(role.guild, "role_delete", target_id=str(role.id))
 
-    async def _on_delete_event(self, guild: discord.Guild, kind: str):
+    async def _on_delete_event(self, guild: discord.Guild, kind: str, target_id: str | None = None):
         if not guild:
             return
         guild_id = str(guild.id)
+
+        expected = getattr(self.bot, "_sb_expected_deletes", None)
+        if isinstance(expected, dict):
+            mono_now = time.monotonic()
+            if len(expected) > 500:
+                for key in [k for k, exp in list(expected.items()) if exp <= mono_now]:
+                    expected.pop(key, None)
+            if target_id is not None:
+                exp = expected.pop((guild_id, kind, str(target_id)), None)
+                if exp is not None and exp > mono_now:
+                    return
+
         if not await async_is_module_enabled(guild_id, "automods"):
             return
         settings = await async_get_automod_settings(guild_id)

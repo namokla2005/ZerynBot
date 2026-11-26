@@ -310,8 +310,25 @@ async def async_cache_roles(guild_id: str, roles: List[Dict]):
     async with _connect_async() as db:
         await db.execute("DELETE FROM guild_roles WHERE guild_id = ?", (guild_id,))
         await db.executemany(
-            "INSERT INTO guild_roles (guild_id, role_id, role_name, color_hex, position) VALUES (?, ?, ?, ?, ?)",
-            [(guild_id, r["id"], r["name"], r["color_hex"], r["position"]) for r in roles],
+            "INSERT INTO guild_roles "
+            "(guild_id, role_id, role_name, color_hex, position, "
+            "permissions, hoist, mentionable, managed, is_everyone) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    guild_id,
+                    r["id"],
+                    r["name"],
+                    r["color_hex"],
+                    r["position"],
+                    str(r["permissions"]) if r.get("permissions") is not None else None,
+                    int(bool(r.get("hoist", False))),
+                    int(bool(r.get("mentionable", False))),
+                    int(bool(r.get("managed", False))),
+                    int(bool(r.get("is_everyone", False))),
+                )
+                for r in roles
+            ],
         )
         await db.commit()
 

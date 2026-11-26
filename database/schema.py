@@ -70,6 +70,11 @@ def init_db():
                 role_name       TEXT,
                 color_hex       TEXT,
                 position        INTEGER,
+                permissions     TEXT DEFAULT NULL,
+                hoist           INTEGER DEFAULT 0,
+                mentionable     INTEGER DEFAULT 0,
+                managed         INTEGER DEFAULT 0,
+                is_everyone     INTEGER DEFAULT 0,
                 PRIMARY KEY (guild_id, role_id)
             );
 
@@ -708,6 +713,19 @@ def init_db():
             conn.execute("ALTER TABLE reminders ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
         if "is_dm" not in rem_cols:
             conn.execute("ALTER TABLE reminders ADD COLUMN is_dm INTEGER NOT NULL DEFAULT 0")
+
+        cursor.execute("PRAGMA table_info(guild_roles)")
+        gr_cols = [row[1] for row in cursor.fetchall()]
+        if "permissions" not in gr_cols:
+            conn.execute("ALTER TABLE guild_roles ADD COLUMN permissions TEXT DEFAULT NULL")
+        if "hoist" not in gr_cols:
+            conn.execute("ALTER TABLE guild_roles ADD COLUMN hoist INTEGER DEFAULT 0")
+        if "mentionable" not in gr_cols:
+            conn.execute("ALTER TABLE guild_roles ADD COLUMN mentionable INTEGER DEFAULT 0")
+        if "managed" not in gr_cols:
+            conn.execute("ALTER TABLE guild_roles ADD COLUMN managed INTEGER DEFAULT 0")
+        if "is_everyone" not in gr_cols:
+            conn.execute("ALTER TABLE guild_roles ADD COLUMN is_everyone INTEGER DEFAULT 0")
 
         # ─── Support thread: một người chỉ được có MỘT thread đang mở ──────────
         # get_or_create_support_thread từng kiểu SELECT-rồi-INSERT, nên hai phiên cùng
