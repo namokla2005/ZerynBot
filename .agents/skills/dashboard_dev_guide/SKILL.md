@@ -7,50 +7,87 @@ description: >
 
 # Skill: Web Dashboard Development Guide
 
-## 🎯 1. Design System Tokens (Aurora Glass 2.0 — V11)
+## 🎯 1. Design System Tokens (Iridescent Dual-Theme — V12)
 
-Tất cả các trang trên Web Dashboard (`dashboard/templates/`) phải tuân thủ chuẩn thiết kế đồng bộ. Theme hiện hành: **Aurora Glass 2.0** — nền aurora (hồng/tím/cyan) qua `body::before`, card kính mờ, accent gradient hồng→tím. Lớp override component nằm ở **cuối `style.css`** (mục "AURORA GLASS 2.0 — component layer"): đó là nơi sửa `.btn-primary`, `.tab-btn.active`, `.switch`, `.modal-box`… thay vì sửa từng section cũ phía trên.
+Tất cả các trang trên Web Dashboard (`dashboard/templates/`) — ngoại trừ hai trang pháp lý đóng băng (`tos.html`, `privacy.html`) — phải tuân thủ chuẩn thiết kế **Iridescent Dual-Theme (V12)** gồm 2 chế độ **Iridescent Glass (Light mặc định)** và **Iridescent Noir (Dark)** chuyển đổi mượt qua `dashboard/static/js/theme.js` (`'light' | 'dark' | 'auto'`, mặc định `'auto'` theo `prefers-color-scheme`). Lớp override component nằm ở **cuối `style.css`** (mục `IRIDESCENT — component layer (V12)`): đó là nơi sửa `.btn-primary`, `.nav-item.active`, `.tab-btn.active`, `.switch`, `.modal-box`, `.theme-toggle-btn`… thay vì sửa từng section cũ phía trên.
 
-### 1.1 CSS Variables & Bảng Màu
+### 1.1 CSS Variables & Bảng Màu Hai Chế Độ
 ```css
 :root {
-  --bg-body:        #0a0918;                          /* Obsidian Aurora */
-  --bg-sidebar:     rgba(17, 15, 34, 0.72);           /* Glass sidebar (blur 20px sẵn có) */
-  --bg-card:        rgba(148, 130, 255, 0.065);       /* Glass card tint */
-  --bg-card2:       rgba(148, 130, 255, 0.10);
-  --bg-card-hover:  rgba(148, 130, 255, 0.13);
-  --bg-input:       rgba(13, 11, 28, 0.60);
+  color-scheme: light;
+  --bg-body:        #f5f4fb;                          /* Iridescent Glass (Light default) */
+  --glass:          rgba(255, 255, 255, 0.62);
+  --glass-2:        rgba(255, 255, 255, 0.45);
+  --gborder:        rgba(255, 255, 255, 0.75);
+  --border:         rgba(35, 33, 54, 0.10);
+  --border-subtle:  rgba(35, 33, 54, 0.06);
+  --border-hover:   rgba(124, 108, 240, 0.38);
+  --border-focus:   #7c6cf0;
+  --surface:        rgba(255, 255, 255, 0.88);
+  --bg-sidebar:     var(--glass);
+  --bg-card:        var(--glass);
+  --bg-card2:       var(--glass-2);
+  --bg-input:       rgba(255, 255, 255, 0.72);
+
+  --ink:            #232136;
+  --mut:            #6b6883;
+  --dim:            #9793ad;
+  --text-primary:   var(--ink);
+  --text-secondary: var(--mut);
+  --text-muted:     #66627d;
+  --text-disabled:  var(--dim);
+
+  --accent:         #7c6cf0;                          /* Iridescent Violet */
+  --accent-hover:   #8f7ff5;
+  --accent-ink:     #5e4ce6;                          /* Accessible >=4.5:1 */
+  --accent-2:       #ff8a9b;                          /* Coral Rose */
+  --accent-3:       #ffc07a;                          /* Warm Amber */
+  --mint:           #7fe0c3;
+  --grad-primary:   linear-gradient(100deg, #7c6cf0, #ff8a9b);
+  --grad-hairline:  linear-gradient(90deg, transparent, rgba(124, 108, 240, 0.5), rgba(255, 138, 155, 0.5), transparent);
+
+  --success:        #168045;
+  --danger-ink:     #c92d35;
+  --warning:        #9a6012;
+
+  --font-sans:      'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-display:   'Space Grotesk', 'Inter', -apple-system, sans-serif;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-body:        #0d0b16;                          /* Iridescent Noir */
+  --glass:          rgba(255, 255, 255, 0.05);
+  --glass-2:        rgba(255, 255, 255, 0.035);
+  --gborder:        rgba(255, 255, 255, 0.10);
   --border:         rgba(255, 255, 255, 0.09);
   --border-subtle:  rgba(255, 255, 255, 0.06);
-  --border-hover:   rgba(255, 122, 194, 0.35);
-  --border-focus:   #ff7ac2;
-  --surface:        rgba(19, 16, 38, 0.92);           /* Modal / login card */
-
-  --accent:         #ff7ac2;                          /* Aurora Pink (brand) */
-  --accent-hover:   #ffa1d4;
-  --accent-light:   rgba(255, 122, 194, 0.16);
-  --accent-glow:    rgba(255, 122, 194, 0.35);
-  --accent-purple:  #8b5cf6;                          /* Aurora Violet (gradient đôi) */
-  --accent-cyan:    #38bdf8;                          /* Aurora Cyan (hairline phụ) */
-  --accent-blue:    #5865f2;
-
-  --text-primary:   #ffffff;
-  --text-secondary: #a7a3c4;
-  --text-muted:     #6d6a8c;
-  --text-disabled:  #504d6c;
-
-  --font-sans:      'Inter', 'Plus Jakarta Sans', sans-serif;   /* body */
-  --font-display:   'Space Grotesk', 'Inter', sans-serif;       /* .page-title/.card-title/.stat-value/logo */
+  --surface:        rgba(19, 16, 38, 0.92);
+  --bg-input:       rgba(255, 255, 255, 0.05);
+  --ink:            #f4f2fb;
+  --mut:            #b9b5d0;
+  --dim:            #7f7b99;
+  --text-muted:     #8f8bab;
+  --accent:         #8d7bff;
+  --accent-ink:     #a293ff;
+  --success:        #4be08e;
+  --danger-ink:     #ff8f8f;
+  --warning:        #ffcf8e;
+  --grad-primary:   linear-gradient(100deg, #8d7bff, #ff8a9b);
 }
 ```
-Quy ước: button/tab/switch active = gradient `linear-gradient(100deg, #ff7ac2, #8b5cf6)` + chữ trắng; hairline trên card = hồng→tím (stat) / hồng→cyan (bento).
+Quy ước:
+- Nền 3 quả cầu aura (`.iridescent-blob` + `body::before`/`body::after`) dùng `radial-gradient` thuần (`z-index: -1`), còn `backdrop-filter` chỉ bật cho `.sidebar`, `.topbar`, `.modal-overlay`, `.theme-toggle-btn` và tự tắt trên `@media (hover: none), (max-width: 768px)` và `prefers-reduced-motion: reduce` để giữ mượt GPU Mali trên Termux.
+- **FOUC Guard & `theme.js`**: mọi trang non-legal chèn inline script `localStorage.getItem('zeryn-theme')` trong `<head>` **trước** `style.css`, gắn `#theme-i18n` (`| tojson` gồm `theme.to_light`, `theme.to_dark`, `theme.auto`, `theme.tooltip`), nút `[data-theme-toggle]`, và nạp `js/theme.js`. Khi chuyển giao diện, `theme.js` phát `CustomEvent('zeryn:themechange', { detail: { mode, resolved }, bubbles: false, composed: false })` để biểu đồ Chart.js (`server.html`) hoặc observer cập nhật màu từ `getComputedStyle(document.documentElement)`.
+- **Trang pháp lý đóng băng (`tos.html`, `privacy.html`)**: dùng riêng `dashboard/static/css/theme_legal.css?v=1.0` (bản V17 đóng băng), **tuyệt đối không** nhúng `style.css`, `theme.js`, FOUC script, hay `[data-theme="dark"]`.
 
 ### 1.2 Asset Versioning
-Mọi liên kết CSS/JS trong thẻ `<head>` **BẮT BUỘC** gắn phiên bản (hiện hành: `?v=17.0` — bump khi đổi `style.css`/JS):
+Mọi liên kết CSS/JS trong thẻ `<head>` / cuối `<body>` **BẮT BUỘC** gắn phiên bản (hiện hành: `style.css?v=18.0`, `theme.js?v=18.0`; riêng trang pháp lý giữ `theme_legal.css?v=1.0`):
 ```html
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=18.0">
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
 ```
-Khi bump: đổi đồng bộ trong TẤT CẢ template có link (`grep -rl "style.css" templates/`) — không chỉ `base_server.html`.
+Khi bump: đổi đồng bộ trong TẤT CẢ template không phải legal (`base_server.html`, `home.html`, `login.html`, `admin.html`, `admin_support.html`, `docs.html`, `support.html`, `landing.html`).
 
 ---
 

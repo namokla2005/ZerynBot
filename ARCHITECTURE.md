@@ -46,7 +46,7 @@
 - **Music concurrency & lifecycle:** Normal queue admission is atomic with playback startup; stop/cleanup is bounded and cannot revive a stopped player. EOF events buffered during recovery are drained afterwards, source callbacks are identity-bound, and non-live recovery resumes from audio frames rather than wall time (live streams restart at the live edge). Listening stats count successful new listening occurrences rather than seeks/reconnects. Persistent control interactions keep guild-specific player/settings local; seek requires the same voice channel and playlist deletion selections are requester-restricted. Reconnect registries are task-identity-safe. Extraction uses bounded workers and shared in-flight requests, off-loop URL safety checks, expiry-aware RAM promotion, case-preserving URL keys, cookie-fingerprint refresh and deduplicated transactional cache aliases. Saved playlists enqueue metadata and resolve streams near playback rather than eagerly resolving every queued track.
 - **DevOps & MCP:** Model Context Protocol integration (`C:\Users\Nam\.gemini\antigravity-ide\mcp_config.json`) supporting SQLite inspection (`mcp-server-sqlite`) and remote Termux management (`scripts/termux_mcp.py` over Paramiko SSH port 8022).
 - **Security & Concurrency Defense:** Defense-in-depth SSRF protection with real DNS resolution (`socket.getaddrinfo`), loopback/private/decimal IP filtering, 5MB streaming limits, and manual redirect inspection; Stored XSS immunity in Embed Builder via DOM `textContent` and protocol validation; Cross-Guild IDOR isolation via `member.guild.get_channel()`; Atomic Conditional SQL Updates (`WHERE wallet >= ?`) and single-connection transaction isolation preventing SQLite deadlocks.
-- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 2061 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
+- **i18n Engine:** RAM-cached O(1) translation lookup engine supporting 6 languages (`vi`, `en`, `zh`, `es`, `pt`, `fr`) with 2072 keys per file. The first `tr()` argument **must be a guild-settings dict** (only it carries `language`); module settings dicts make every non-Vietnamese server silently read Vietnamese. Catalog labels (fish, jobs) are stored verbatim in the DB and translated at render time by `economy.cat_name()`, so no user row is ever rewritten. Discord-facing hardcode is measured by `scripts/i18n_audit.py` and frozen at 0 in `tests/i18n_budget.json`.
 
 ---
 
@@ -135,16 +135,16 @@ ZerynBot/                    # (thư mục gốc repo — clone về bất kỳ 
 │   │   ├── admin.py            # Bot Owner Admin panel, terminal, AI settings, activity console
 │   │   ├── support.py          # 24/7 Web Messenger Support ticket thread system
 │   │   └── server_builder.py   # Server Builder Studio UI & JSON APIs (tree, presets/templates, diff, apply, jobs)
-│   ├── static/                 # CSS styles, JS assets, branding images
+│   ├── static/                 # CSS styles (style.css V12, theme_legal.css frozen), JS (theme.js, main.js, ...), branding
 │   └── templates/              # Jinja2 HTML templates
 │
 ├── locales/                    # i18n Translation Dictionaries (JSON)
-│   ├── vi.json                 # Vietnamese (Default) — 2061 keys
-│   ├── en.json                 # English — 2061 keys
-│   ├── zh.json                 # Chinese — 2061 keys
-│   ├── es.json                 # Spanish — 2061 keys
-│   ├── pt.json                 # Portuguese — 2061 keys
-│   └── fr.json                 # French — 2061 keys
+│   ├── vi.json                 # Vietnamese (Default) — 2072 keys
+│   ├── en.json                 # English — 2072 keys
+│   ├── zh.json                 # Chinese — 2072 keys
+│   ├── es.json                 # Spanish — 2072 keys
+│   ├── pt.json                 # Portuguese — 2072 keys
+│   └── fr.json                 # French — 2072 keys
 │
 ├── scripts/                    # Maintenance & Operations Scripts
 │   ├── send_status.py          # Discord Webhook status notifier script
@@ -321,10 +321,10 @@ The web dashboard is hosted via Flask in `dashboard/app.py` (facade), `dashboard
 - **Bot Owner Admin Panel (`/admin`):** Access restricted to `config.BOT_OWNER_ID`. Allows viewing all active servers, launching global broadcasts, kicking the bot from toxic servers, managing the server blacklist, executing shell commands via the **Web Terminal** (`/admin/system/terminal`), updating code via **Git Pull** (`/admin/system/git-pull`), triggering system restarts (`/admin/system/restart`), and **Centralized Global AI API Key & Model Configuration & Live Tester** (`/admin/ai_key`, `/api/admin/test_ai_key` with automatic provider detection for Groq Cloud, Google Gemini, and OpenRouter).
 - **Secure Multi-Tenant AI Isolation:** API keys are stored in `bot_global_settings` and isolated entirely within the Admin Panel. Individual server dashboards (`/dashboard/<guild_id>/ai`) allow custom prompts, personalities, and channel assignments without exposing master API credentials.
 - **Central Command Catalog (`_COMMANDS_DATA`):** All **128 active commands** across **17 categories** are centrally registered in `commands_data.py` (rendered by `dashboard/commands_catalog.py`) with multi-language name, category, description, and permission requirements to power the interactive `/commands` explorer page. The same registry is the **only** source the AI Chat is allowed to know about itself (`ai_knowledge.get_zerynbot_knowledge()` injects it into every system prompt), so a command missing here is invisible to `/help`, `/docs` and the assistant alike — `python scripts/command_registry_audit.py` (and `tests/test_command_registry_complete.py`) keeps it equal to what the cogs actually declare.
-- **Design System V9.2 (Pastel Obsidian Glow):** The entire Web Dashboard (`/dashboard`, `/home`, `/admin`, `/login`, `/tos`, `/privacy`, `/commands`) is synchronized with the Nekotina-inspired Landing Page aesthetic:
-  - **Color Tokens:** Obsidian Dark Background (`#120e24` / `#131217`), Glassmorphism Surface (`rgba(25, 24, 34, 0.85)`), Primary Sakura Pink (`#f4a7bb`), Accent Purple (`#9d8df1`), Blurple (`#5865f2`), Emerald (`#57f287`), Amber Gold (`#fee75c`), Crimson (`#ed4245`).
-  - **Typography:** Modern variable font stack powered by Google Fonts `Plus Jakarta Sans` and `Inter`.
-  - **Asset Versioning:** All stylesheet references across Jinja2 templates are strictly versioned with `style.css?v=9.2` to eliminate client-side browser caching issues.
+- **Design System V12 (Iridescent Dual-Theme):** All non-legal pages (`/`, `/dashboard`, `/home`, `/admin`, `/login`, `/docs`, `/support`) use the **Iridescent Dual-Theme** powered by `dashboard/static/css/style.css` (`:root` Light default — Iridescent Glass `#f5f4fb` / `#232136` / `#7c6cf0` / `#ff8a9b` / `#ffc07a` / `#7fe0c3` — and `[data-theme="dark"]` Iridescent Noir `#0d0b16` / `#f4f2fb` / `#8d7bff`) plus `dashboard/static/js/theme.js` (`'light' | 'dark' | 'auto'` persisted in `'zeryn-theme'`, FOUC inline guard before `style.css`, and `zeryn:themechange` CustomEvent for dynamic Chart.js sync).
+  - **Frozen Legal Stylesheet:** `/tos` and `/privacy` stay isolated on `dashboard/static/css/theme_legal.css?v=1.0` (frozen V17 baseline, no `style.css` or `theme.js`).
+  - **Typography:** Modern variable font stack powered by Google Fonts `Space Grotesk`, `Inter`, and `Plus Jakarta Sans`.
+  - **Asset Versioning:** All non-legal templates strictly version `style.css?v=18.0` and `theme.js?v=18.0` to eliminate stale client-side caches.
 
 ---
 
@@ -459,7 +459,7 @@ When editing or extending the ZerynBot V2 codebase, **you must strictly follow t
 1. **i18n Translation Integrity:**
    - **NEVER** hardcode user-facing strings in Python cogs or HTML templates.
    - When adding a new `tr()` key, add it to **ALL 6 locale JSON files** (`vi.json`, `en.json`, `zh.json`, `es.json`, `pt.json`, `fr.json`).
-   - All 6 locale files must always contain the **same number of keys** (currently **2061 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
+   - All 6 locale files must always contain the **same number of keys** (currently **2072 keys**). Run `python .agents/skills/zerynbot_architecture_context/assets/validate_i18n.py` to verify key parity.
    - Two frozen guards in `tests/test_i18n_no_hardcoded.py`: (a) every `tr()`/`t()` literal referenced in `bot/`+`dashboard/` must exist in **all 6** dictionaries — a missing key prints the raw key name on Discord, which actually happened with `common.not_your_interaction`; (b) the per-file count of Discord-facing Vietnamese literals may only **decrease** (`tests/i18n_budget.json`, currently 0), refreshed with `python scripts/i18n_audit.py --budget`.
    - Locale files are hand-grouped by module: **never** rewrite them with `json.dumps(..., sort_keys=True)` (that produces a ~1800-line diff that hides the real change); append at the end and keep CRLF.
 2. **Async vs. Sync Separation:**
