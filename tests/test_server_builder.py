@@ -970,9 +970,13 @@ class FakeHTTP:
     def __init__(self):
         self.bulk_calls = []
         self.move_role_calls = []
+        self.channel_edit_calls = []
 
     async def bulk_channel_update(self, guild_id, payload, reason=None):
         self.bulk_calls.append((guild_id, payload, reason))
+
+    async def edit_channel(self, channel_id, **kwargs):
+        self.channel_edit_calls.append((channel_id, kwargs))
 
     async def move_role_position(self, guild_id, payload, reason=None):
         self.move_role_calls.append((guild_id, payload, reason))
@@ -1238,6 +1242,58 @@ def test_cog_bulk_reorder_and_deletion_guard(temp_db):
     asyncio.run(cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
     assert db.get_server_builder_job(j_unsafe["id"])["status"] == "completed"
     assert existing_ch.deleted is True
+
+
+def test_cog_bulk_reorder_splits_multi_parent_moves(temp_db):
+    """Discord 40009: KHÔNG được đổi parent_id của nhiều kênh trong 1 bulk call.
+
+    Khi >= 1 kênh đổi danh mục thật sự: chuyển từng kênh qua http.edit_channel
+    (PATCH /channels/{id}) rồi khoá thứ tự bằng 1 bulk reorder KHÔNG kèm parent_id.
+    """
+    import database as db
+
+    guild = FakeGuild()
+    cat_a = FakeCategory(4001, "CAT-A", guild, position=0)
+    cat_b = FakeCategory(4002, "CAT-B", guild, position=1)
+    ch_a = FakeChannel(4011, "alpha", 0, guild, category=cat_a, position=0)
+    ch_b = FakeChannel(4012, "beta", 0, guild, category=cat_b, position=0)
+    guild.categories.extend([cat_a, cat_b])
+    guild.channels.extend([cat_a, cat_b, ch_a, ch_b])
+    _, cog = _new_cog(guild)
+
+    plan = {
+        "operations": [
+            {
+                "op": "bulk_reorder",
+                "items": [
+                    {"id": "4001", "temp_id": None, "type": 4, "position": 0, "parent_id": None, "parent_temp_id": None},
+                    {"id": "4002", "temp_id": None, "type": 4, "position": 1, "parent_id": None, "parent_temp_id": None},
+                    {"id": "4011", "temp_id": None, "type": 0, "position": 0, "parent_id": "4002", "parent_temp_id": None},
+                    {"id": "4012", "temp_id": None, "type": 0, "position": 0, "parent_id": "4001", "parent_temp_id": None},
+                ],
+                "cost_seconds": 1.5,
+                "label": "Bulk reorder",
+            },
+        ]
+    }
+    job = db.create_server_builder_job(
+        str(guild.id), "111", plan, {"auto_bind_modules": False, "send_guides": False}, 1, 1.5
+    )
+    asyncio.run(cog._execute_job(asyncio.run(db.async_claim_next_server_builder_job())))
+    assert db.get_server_builder_job(job["id"])["status"] == "completed"
+
+    # 2 kênh đổi danh mục → 2 lần PATCH riêng, đúng parent đích
+    edits = guild._state.http.channel_edit_calls
+    assert len(edits) == 2, edits
+    by_id = {cid: kwargs for cid, kwargs in edits}
+    assert by_id[4011]["parent_id"] == 4002
+    assert by_id[4012]["parent_id"] == 4001
+
+    # Cuối cùng: ĐÚNG 1 bulk call khoá thứ tự, KHÔNG kèm parent_id nào
+    assert len(guild._state.http.bulk_calls) == 1
+    _, payload, _ = guild._state.http.bulk_calls[0]
+    assert all("parent_id" not in row for row in payload)
+    assert {row["id"] for row in payload} == {4001, 4002, 4011, 4012}
 
 
 def test_cog_create_role_succeeds_when_bot_top_role_position_is_1(temp_db):

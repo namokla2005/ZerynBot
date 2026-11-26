@@ -1645,29 +1645,95 @@ class ServerBuilder(commands.Cog, name="ServerBuilder"):
 
             if payload:
                 http = getattr(getattr(guild, "_state", None), "http", None)
-                if http is not None and hasattr(http, "bulk_channel_update"):
-                    await self._rest_call(
-                        job_id,
-                        http.bulk_channel_update,
-                        guild.id,
-                        payload,
-                        step_label=step_label,
-                        logs=logs,
-                        remaining_cost=remaining_cost,
-                        reason=reason,
-                    )
-                elif hasattr(guild, "bulk_channel_update"):
-                    await self._rest_call(
-                        job_id,
-                        guild.bulk_channel_update,
-                        payload,
-                        step_label=step_label,
-                        logs=logs,
-                        remaining_cost=remaining_cost,
-                        reason=reason,
+                guild_bulk: Any = getattr(guild, "bulk_channel_update", None)
+                if http is None or not hasattr(http, "bulk_channel_update"):
+                    if not callable(guild_bulk):
+                        raise RuntimeError("Guild HTTP client does not expose bulk_channel_update")
+
+                async def _send_bulk(rows: list[dict[str, Any]], label_suffix: str = "") -> None:
+                    if http is not None and hasattr(http, "bulk_channel_update"):
+                        bulk_fn: Any = http.bulk_channel_update
+                        await self._rest_call(
+                            job_id,
+                            bulk_fn,
+                            guild.id,
+                            rows,
+                            step_label=step_label + label_suffix,
+                            logs=logs,
+                            remaining_cost=remaining_cost,
+                            reason=reason,
+                        )
+                    else:
+                        await self._rest_call(
+                            job_id,
+                            guild_bulk,
+                            rows,
+                            step_label=step_label + label_suffix,
+                            logs=logs,
+                            remaining_cost=remaining_cost,
+                            reason=reason,
+                        )
+
+                # Discord trả 40009 "Only one channel can have a parent_id modified at a time"
+                # nếu 1 request bulk đổi parent_id của NHIỀU kênh (engine gửi kèm parent_id cho mọi kênh).
+                # → Kênh nào ĐỔI danh mục thật sự thì chuyển TỪNG kênh qua PATCH /channels/{id}
+                #   (endpoint này không có giới hạn đó), sau đó khoá thứ tự bằng 1 bulk reorder
+                #   KHÔNG kèm parent_id (thuần vị trí — luôn được phép).
+                move_rows: list[dict[str, Any]] = []
+                parent_rows = [row for row in payload if "parent_id" in row]
+                if parent_rows:
+                    current_channels: list[Any] = []
+                    fetch: Any = getattr(guild, "fetch_channels", None)
+                    if callable(fetch):
+                        try:
+                            current_channels = list(await fetch())
+                        except Exception:
+                            current_channels = []
+                    if not current_channels:
+                        current_channels = list(getattr(guild, "channels", []) or [])
+                    current_parents: dict[Any, Any] = {}
+                    for ch in current_channels:
+                        cid = _as_id(getattr(ch, "id", None))
+                        if cid is None or cid in current_parents:
+                            continue
+                        parent = getattr(ch, "category_id", None)
+                        if parent is None and getattr(ch, "category", None) is not None:
+                            parent = getattr(ch.category, "id", None)
+                        current_parents[cid] = _as_id(parent)
+                    for row in parent_rows:
+                        if row["id"] in current_parents and current_parents[row["id"]] != row["parent_id"]:
+                            move_rows.append(row)
+
+                http_move: Any = getattr(http, "edit_channel", None) if http is not None else None
+                if move_rows and callable(http_move):
+                    if logs is not None:
+                        logs.append(
+                            {
+                                "level": "info",
+                                "message": (
+                                    f"{len(move_rows)} kênh đổi danh mục — chuyển lần lượt từng kênh "
+                                    f"(né giới hạn 40009 của Discord), sau đó khoá thứ tự."
+                                ),
+                            }
+                        )
+                    for row in move_rows:
+                        await self._rest_call(
+                            job_id,
+                            http_move,
+                            row["id"],
+                            parent_id=row["parent_id"],
+                            position=row["position"],
+                            reason=reason,
+                            step_label=f"{step_label} → move #{row['id']}",
+                            logs=logs,
+                            remaining_cost=remaining_cost,
+                        )
+                    await _send_bulk(
+                        [{"id": row["id"], "position": row["position"]} for row in payload],
+                        label_suffix=" → order",
                     )
                 else:
-                    raise RuntimeError("Guild HTTP client does not expose bulk_channel_update")
+                    await _send_bulk(payload)
             return
 
         if op == "delete_role":
