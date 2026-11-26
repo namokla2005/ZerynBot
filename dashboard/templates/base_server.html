@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script>(function(){try{var m=localStorage.getItem('zeryn-theme');if(m!=='light'&&m!=='dark'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20.1">
   {% block head %}{% endblock %}
 </head>
 
@@ -76,10 +76,10 @@
 
       <div class="cr-rail-bottom">
         <div class="lang-switcher cr-lang" style="width:100%;">
-          <button class="lang-switcher-btn" style="width:100%;justify-content:center;" title="{{ t('nav.select_language') }}">
+          <button class="lang-switcher-btn" id="crLangBtn" style="width:100%;justify-content:center;" title="{{ t('nav.select_language') }}" aria-haspopup="true" aria-expanded="false">
             <span class="cr-lang-icon">🌐</span>
           </button>
-          <div class="lang-dropdown cr-lang-drop">
+          <div class="lang-dropdown cr-lang-drop" id="crLangDrop">
             <div class="lang-header">{{ t('nav.select_language') }}</div>
             {% for code, name in available_languages.items() %}
             <a href="{{ url_for('public.set_ui_language', lang_code=code) }}"
@@ -156,6 +156,46 @@
         backdrop.addEventListener('click', function () {
           rail.classList.remove('open');
           document.body.classList.remove('cr-menu-open');
+        });
+      }
+
+      // ── Language switcher trong rail: dropdown bị rail overflow cắt khi
+      // nằm trong rail → chuyển hẳn ra body + định vị fixed theo nút. ──
+      var langBtn = document.getElementById('crLangBtn');
+      var langDrop = document.getElementById('crLangDrop');
+      if (langBtn && langDrop) {
+        document.body.appendChild(langDrop);
+        var crPosLang = function () {
+          var r = langBtn.getBoundingClientRect();
+          var leftPx = Math.max(r.right + 12, 98); // 98 = mép phải rail (14 + 76 + 8)
+          langDrop.style.left = Math.round(leftPx) + 'px';
+          var bottomPx = window.innerHeight - r.bottom - 6;
+          bottomPx = Math.max(16, Math.min(bottomPx, window.innerHeight - 160));
+          langDrop.style.bottom = Math.round(bottomPx) + 'px';
+          langDrop.style.top = 'auto';
+        };
+        var crOpenLang = function () {
+          crPosLang();
+          langDrop.classList.add('open');
+          langBtn.setAttribute('aria-expanded', 'true');
+        };
+        var crCloseLang = function () {
+          langDrop.classList.remove('open');
+          langBtn.setAttribute('aria-expanded', 'false');
+        };
+        langBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (langDrop.classList.contains('open')) { crCloseLang(); } else { crOpenLang(); }
+        });
+        document.addEventListener('click', function (e) {
+          if (!langDrop.classList.contains('open')) return;
+          if (!langDrop.contains(e.target) && !langBtn.contains(e.target)) { crCloseLang(); }
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { crCloseLang(); }
+        });
+        window.addEventListener('resize', function () {
+          if (langDrop.classList.contains('open')) { crPosLang(); }
         });
       }
     })();
