@@ -25,6 +25,8 @@ MAX_OVERWRITES_PER_CHANNEL = 100
 MAX_CHANNEL_NAME_LEN = 100
 
 OP_COST_CREATE_ROLE = 1.0
+OP_COST_UPDATE_ROLE = 1.0
+OP_COST_BULK_REORDER_ROLES = 1.5
 OP_COST_CREATE_CATEGORY = 1.0
 OP_COST_CREATE_CHANNEL = 1.0
 OP_COST_OVERWRITES = 0.9
@@ -35,6 +37,220 @@ OP_COST_BIND_MODULES = 0.5
 
 _VALID_CHILD_TYPES = frozenset({CHANNEL_TYPE_TEXT, CHANNEL_TYPE_VOICE, CHANNEL_TYPE_ANNOUNCEMENT})
 _TEXT_LIKE_TYPES = frozenset({CHANNEL_TYPE_TEXT, CHANNEL_TYPE_ANNOUNCEMENT})
+
+# Canonical 52-bit Discord permission registry shared by Dashboard, Engine, and Cog.
+PERMISSION_BITS: Dict[int, str] = {
+    0: "create_instant_invite",
+    1: "kick_members",
+    2: "ban_members",
+    3: "administrator",
+    4: "manage_channels",
+    5: "manage_guild",
+    6: "add_reactions",
+    7: "view_audit_log",
+    8: "priority_speaker",
+    9: "stream",
+    10: "view_channel",
+    11: "send_messages",
+    12: "send_tts_messages",
+    13: "manage_messages",
+    14: "embed_links",
+    15: "attach_files",
+    16: "read_message_history",
+    17: "mention_everyone",
+    18: "use_external_emojis",
+    19: "view_guild_insights",
+    20: "connect",
+    21: "speak",
+    22: "mute_members",
+    23: "deafen_members",
+    24: "move_members",
+    25: "use_vad",
+    26: "change_nickname",
+    27: "manage_nicknames",
+    28: "manage_roles",
+    29: "manage_webhooks",
+    30: "manage_guild_expressions",
+    31: "use_application_commands",
+    32: "request_to_speak",
+    33: "manage_events",
+    34: "manage_threads",
+    35: "create_public_threads",
+    36: "create_private_threads",
+    37: "use_external_stickers",
+    38: "send_messages_in_threads",
+    39: "use_embedded_activities",
+    40: "moderate_members",
+    41: "view_creator_monetization_analytics",
+    42: "use_soundboard",
+    43: "create_guild_expressions",
+    44: "create_events",
+    45: "use_external_sounds",
+    46: "send_voice_messages",
+    48: "set_voice_channel_status",
+    49: "send_polls",
+    50: "use_external_apps",
+    51: "pin_messages",
+    52: "bypass_slowmode",
+}
+
+PERMISSION_BIT_BY_NAME: Dict[str, int] = {name: bit for bit, name in PERMISSION_BITS.items()}
+
+PERMISSION_ALIASES: Dict[str, str] = {
+    "read_messages": "view_channel",
+    "use_voice_activation": "use_vad",
+    "manage_expressions": "manage_guild_expressions",
+    "manage_emojis": "manage_guild_expressions",
+    "manage_emojis_and_stickers": "manage_guild_expressions",
+    "create_expressions": "create_guild_expressions",
+    "manage_permissions": "manage_roles",
+    "external_emojis": "use_external_emojis",
+    "external_stickers": "use_external_stickers",
+    "create_polls": "send_polls",
+}
+
+ALL_KNOWN_PERMISSIONS_MASK: int = 0
+for _perm_bit in PERMISSION_BITS:
+    ALL_KNOWN_PERMISSIONS_MASK |= 1 << _perm_bit
+
+PRIVILEGED_OVERWRITE_NAMES: frozenset[str] = frozenset({
+    "manage_roles",
+    "manage_webhooks",
+    "manage_channels",
+    "manage_messages",
+    "manage_threads",
+    "mention_everyone",
+    "mute_members",
+    "deafen_members",
+    "move_members",
+})
+
+ROLE_BIND_MODULE_ALIASES: Dict[str, str] = {
+    "autoroles_user": "autoroles_user",
+    "autorole_user": "autoroles_user",
+    "verify_verified": "verify_verified",
+    "verify_verified_role": "verify_verified",
+    "verify_pending": "verify_pending",
+    "verify_pending_role": "verify_pending",
+    "automod_immune": "automod_immune",
+    "automod_immune_role": "automod_immune",
+}
+
+ROLE_BIND_MODULES: frozenset[str] = frozenset({
+    "autoroles_user",
+    "verify_verified",
+    "verify_pending",
+    "automod_immune",
+})
+
+_DEFAULT_ROLE_COLOR_HEX = "#99aab5"
+_STAFF_LEAD_PERMS: List[str] = [
+    "add_reactions",
+    "attach_files",
+    "bypass_slowmode",
+    "change_nickname",
+    "connect",
+    "create_events",
+    "create_instant_invite",
+    "create_private_threads",
+    "create_public_threads",
+    "embed_links",
+    "manage_events",
+    "manage_messages",
+    "manage_nicknames",
+    "manage_threads",
+    "moderate_members",
+    "move_members",
+    "mute_members",
+    "pin_messages",
+    "priority_speaker",
+    "read_message_history",
+    "send_messages",
+    "send_messages_in_threads",
+    "send_polls",
+    "send_voice_messages",
+    "speak",
+    "stream",
+    "use_application_commands",
+    "use_embedded_activities",
+    "use_external_emojis",
+    "use_external_sounds",
+    "use_external_stickers",
+    "use_soundboard",
+    "use_vad",
+    "view_audit_log",
+    "view_channel",
+]
+_MODERATOR_PERMS: List[str] = [
+    "add_reactions",
+    "attach_files",
+    "change_nickname",
+    "connect",
+    "create_instant_invite",
+    "create_public_threads",
+    "embed_links",
+    "manage_messages",
+    "manage_nicknames",
+    "manage_threads",
+    "moderate_members",
+    "mute_members",
+    "pin_messages",
+    "read_message_history",
+    "send_messages",
+    "send_messages_in_threads",
+    "send_polls",
+    "send_voice_messages",
+    "speak",
+    "stream",
+    "use_application_commands",
+    "use_external_emojis",
+    "use_external_stickers",
+    "use_vad",
+    "view_channel",
+]
+_VIP_PERMS: List[str] = [
+    "add_reactions",
+    "attach_files",
+    "change_nickname",
+    "connect",
+    "create_instant_invite",
+    "create_public_threads",
+    "embed_links",
+    "priority_speaker",
+    "read_message_history",
+    "send_messages",
+    "send_messages_in_threads",
+    "send_polls",
+    "send_voice_messages",
+    "speak",
+    "stream",
+    "use_application_commands",
+    "use_embedded_activities",
+    "use_external_emojis",
+    "use_external_sounds",
+    "use_external_stickers",
+    "use_soundboard",
+    "use_vad",
+    "view_channel",
+]
+_MEMBER_PERMS: List[str] = [
+    "add_reactions",
+    "attach_files",
+    "change_nickname",
+    "connect",
+    "create_instant_invite",
+    "embed_links",
+    "read_message_history",
+    "send_messages",
+    "send_messages_in_threads",
+    "send_polls",
+    "send_voice_messages",
+    "speak",
+    "stream",
+    "use_application_commands",
+    "use_vad",
+    "view_channel",
+]
 
 # Presets live in an ALL-CAPS module constant so scripts/i18n_audit.py classifies
 # preset labels as CATALOG rather than hardcoded DISCORD strings.
@@ -48,15 +264,49 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
         "tree": {
             "roles": [
                 {
+                    "temp_id": "role_staff_lead",
+                    "id": None,
+                    "name": "Staff Lead",
+                    "color": "#e74c3c",
+                    "hoist": True,
+                    "mentionable": False,
+                    "permissions": list(_STAFF_LEAD_PERMS),
+                    "position": 4,
+                    "bind_role_module": "automod_immune",
+                },
+                {
                     "temp_id": "role_mod",
                     "id": None,
                     "name": "Moderator",
-                    "color": "#3498DB",
+                    "color": "#3498db",
+                    "hoist": True,
+                    "mentionable": True,
+                    "permissions": list(_MODERATOR_PERMS),
+                    "position": 3,
+                    "bind_role_module": None,
+                },
+                {
+                    "temp_id": "role_vip",
+                    "id": None,
+                    "name": "VIP",
+                    "color": "#f1c40f",
                     "hoist": True,
                     "mentionable": False,
-                    "permissions": 0,
+                    "permissions": list(_VIP_PERMS),
+                    "position": 2,
+                    "bind_role_module": None,
+                },
+                {
+                    "temp_id": "role_member",
+                    "id": None,
+                    "name": "Member",
+                    "color": "#2ecc71",
+                    "hoist": False,
+                    "mentionable": False,
+                    "permissions": list(_MEMBER_PERMS),
                     "position": 1,
-                }
+                    "bind_role_module": "autoroles_user",
+                },
             ],
             "categories": [
                 {
@@ -70,6 +320,12 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                             "type": "role",
                             "allow": ["view_channel", "read_message_history"],
                             "deny": ["send_messages", "add_reactions"],
+                        },
+                        {
+                            "id": "role_staff_lead",
+                            "type": "role",
+                            "allow": ["view_channel", "send_messages", "read_message_history", "manage_messages"],
+                            "deny": [],
                         },
                         {
                             "id": "role_mod",
@@ -333,6 +589,19 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                             "deny": ["view_channel"],
                         },
                         {
+                            "id": "role_staff_lead",
+                            "type": "role",
+                            "allow": [
+                                "view_channel",
+                                "send_messages",
+                                "read_message_history",
+                                "manage_messages",
+                                "connect",
+                                "speak",
+                            ],
+                            "deny": [],
+                        },
+                        {
                             "id": "role_mod",
                             "type": "role",
                             "allow": [
@@ -364,6 +633,12 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                                     "type": "role",
                                     "allow": ["view_channel", "read_message_history"],
                                     "deny": ["send_messages"],
+                                },
+                                {
+                                    "id": "role_staff_lead",
+                                    "type": "role",
+                                    "allow": ["view_channel", "send_messages", "read_message_history"],
+                                    "deny": [],
                                 },
                                 {
                                     "id": "role_mod",
@@ -428,6 +703,8 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                 "music": "ch_set_music",
                 "tickets": "ch_ticket_support",
                 "bot_logs": "ch_bot_logs",
+                "automod_immune": "role_staff_lead",
+                "autoroles_user": "role_member",
             },
         },
     },
@@ -440,15 +717,49 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
         "tree": {
             "roles": [
                 {
+                    "temp_id": "role_leader",
+                    "id": None,
+                    "name": "Clan Leader",
+                    "color": "#e74c3c",
+                    "hoist": True,
+                    "mentionable": False,
+                    "permissions": list(_STAFF_LEAD_PERMS),
+                    "position": 4,
+                    "bind_role_module": "automod_immune",
+                },
+                {
                     "temp_id": "role_officer",
                     "id": None,
                     "name": "Clan Officer",
-                    "color": "#E67E22",
+                    "color": "#e67e22",
+                    "hoist": True,
+                    "mentionable": True,
+                    "permissions": list(_MODERATOR_PERMS),
+                    "position": 3,
+                    "bind_role_module": None,
+                },
+                {
+                    "temp_id": "role_veteran",
+                    "id": None,
+                    "name": "Squad Veteran",
+                    "color": "#9b59b6",
                     "hoist": True,
                     "mentionable": False,
-                    "permissions": 0,
+                    "permissions": list(_VIP_PERMS),
+                    "position": 2,
+                    "bind_role_module": None,
+                },
+                {
+                    "temp_id": "role_recruit",
+                    "id": None,
+                    "name": "Clan Member",
+                    "color": "#3498db",
+                    "hoist": False,
+                    "mentionable": False,
+                    "permissions": list(_MEMBER_PERMS),
                     "position": 1,
-                }
+                    "bind_role_module": "autoroles_user",
+                },
             ],
             "categories": [
                 {
@@ -657,6 +968,12 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                     "overwrites": [
                         {"id": "@everyone", "type": "role", "allow": [], "deny": ["view_channel"]},
                         {
+                            "id": "role_leader",
+                            "type": "role",
+                            "allow": ["view_channel", "send_messages", "read_message_history", "manage_messages", "connect", "speak"],
+                            "deny": [],
+                        },
+                        {
                             "id": "role_officer",
                             "type": "role",
                             "allow": ["view_channel", "send_messages", "read_message_history", "connect", "speak"],
@@ -701,6 +1018,8 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                 "welcome": "ch_g_welcome",
                 "music": "ch_g_music",
                 "bot_logs": "ch_g_logs",
+                "automod_immune": "role_leader",
+                "autoroles_user": "role_recruit",
             },
         },
     },
@@ -713,15 +1032,38 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
         "tree": {
             "roles": [
                 {
+                    "temp_id": "role_instructor",
+                    "id": None,
+                    "name": "Instructor",
+                    "color": "#e74c3c",
+                    "hoist": True,
+                    "mentionable": False,
+                    "permissions": list(_STAFF_LEAD_PERMS),
+                    "position": 3,
+                    "bind_role_module": "automod_immune",
+                },
+                {
                     "temp_id": "role_tutor",
                     "id": None,
                     "name": "Tutor",
-                    "color": "#2ECC71",
+                    "color": "#2ecc71",
                     "hoist": True,
+                    "mentionable": True,
+                    "permissions": list(_MODERATOR_PERMS),
+                    "position": 2,
+                    "bind_role_module": None,
+                },
+                {
+                    "temp_id": "role_student",
+                    "id": None,
+                    "name": "Student",
+                    "color": "#3498db",
+                    "hoist": False,
                     "mentionable": False,
-                    "permissions": 0,
+                    "permissions": list(_MEMBER_PERMS),
                     "position": 1,
-                }
+                    "bind_role_module": "autoroles_user",
+                },
             ],
             "categories": [
                 {
@@ -735,6 +1077,12 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                             "type": "role",
                             "allow": ["view_channel", "read_message_history"],
                             "deny": ["send_messages", "add_reactions"],
+                        },
+                        {
+                            "id": "role_instructor",
+                            "type": "role",
+                            "allow": ["view_channel", "send_messages", "read_message_history", "manage_messages"],
+                            "deny": [],
                         },
                         {
                             "id": "role_tutor",
@@ -891,6 +1239,12 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                     "overwrites": [
                         {"id": "@everyone", "type": "role", "allow": [], "deny": ["view_channel"]},
                         {
+                            "id": "role_instructor",
+                            "type": "role",
+                            "allow": ["view_channel", "send_messages", "read_message_history", "manage_messages"],
+                            "deny": [],
+                        },
+                        {
                             "id": "role_tutor",
                             "type": "role",
                             "allow": ["view_channel", "send_messages", "read_message_history"],
@@ -920,6 +1274,8 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                 "welcome": "ch_s_notice",
                 "music": "ch_s_music",
                 "bot_logs": "ch_s_logs",
+                "automod_immune": "role_instructor",
+                "autoroles_user": "role_student",
             },
         },
     },
@@ -930,7 +1286,41 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
         "name": "Creator Starter (Minimal)",
         "description": "Clean minimal starter server with Welcome & Info, Community Chat, and Lounge Voice + music controls.",
         "tree": {
-            "roles": [],
+            "roles": [
+                {
+                    "temp_id": "role_c_mod",
+                    "id": None,
+                    "name": "Channel Mod",
+                    "color": "#3498db",
+                    "hoist": True,
+                    "mentionable": False,
+                    "permissions": list(_MODERATOR_PERMS),
+                    "position": 3,
+                    "bind_role_module": "automod_immune",
+                },
+                {
+                    "temp_id": "role_supporter",
+                    "id": None,
+                    "name": "Supporter",
+                    "color": "#ff8a9b",
+                    "hoist": True,
+                    "mentionable": False,
+                    "permissions": list(_VIP_PERMS),
+                    "position": 2,
+                    "bind_role_module": None,
+                },
+                {
+                    "temp_id": "role_follower",
+                    "id": None,
+                    "name": "Follower",
+                    "color": "#7c6cf0",
+                    "hoist": False,
+                    "mentionable": False,
+                    "permissions": list(_MEMBER_PERMS),
+                    "position": 1,
+                    "bind_role_module": "autoroles_user",
+                },
+            ],
             "categories": [
                 {
                     "temp_id": "cat_c_info",
@@ -943,7 +1333,13 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
                             "type": "role",
                             "allow": ["view_channel", "read_message_history"],
                             "deny": ["send_messages"],
-                        }
+                        },
+                        {
+                            "id": "role_c_mod",
+                            "type": "role",
+                            "allow": ["view_channel", "send_messages", "read_message_history"],
+                            "deny": [],
+                        },
                     ],
                     "channels": [
                         {
@@ -1089,6 +1485,8 @@ SYSTEM_PRESETS: List[Dict[str, Any]] = [
             "bindings": {
                 "welcome": "ch_c_welcome",
                 "music": "ch_c_music",
+                "automod_immune": "role_c_mod",
+                "autoroles_user": "role_follower",
             },
         },
     },
@@ -1128,6 +1526,210 @@ def _safe_int(val: Any, default: int = 0) -> int:
         return int(val)
     except (TypeError, ValueError):
         return default
+
+
+def _is_everyone_role(role: Dict[str, Any]) -> bool:
+    rid = str(role.get("id") or "").strip()
+    rname = str(role.get("name") or "").strip()
+    return bool(role.get("is_everyone")) or rid == "@everyone" or rname == "@everyone"
+
+
+def normalize_role_bind_module(value: Any) -> Optional[str]:
+    """Canonicalize a role module binding token, or return None if unset/unknown."""
+    if value is None or isinstance(value, bool):
+        return None
+    token = str(value).strip().lower()
+    if not token or token in {"none", "null", "undefined"}:
+        return None
+    return ROLE_BIND_MODULE_ALIASES.get(token)
+
+
+def _canonical_perm_flag(raw_name: str) -> Optional[str]:
+    token = raw_name.strip().lower()
+    if not token:
+        return None
+    canon = PERMISSION_ALIASES.get(token, token)
+    if canon.startswith("bit_") and canon[4:].isdigit():
+        bit = int(canon[4:])
+        if bit in PERMISSION_BITS:
+            return PERMISSION_BITS[bit]
+        if 0 <= bit < 64:
+            return f"bit_{bit}"
+        return None
+    return canon
+
+
+def _bits_to_perm_list(bitfield: int) -> List[str]:
+    bits = max(0, int(bitfield)) & ((1 << 64) - 1)
+    out: List[str] = []
+    while bits:
+        lsb = bits & -bits
+        bit_pos = lsb.bit_length() - 1
+        out.append(PERMISSION_BITS.get(bit_pos, f"bit_{bit_pos}"))
+        bits ^= lsb
+    return sorted(set(out))
+
+
+def normalize_role_permissions(value: Any) -> List[str]:
+    """Normalize role permissions (int, digit str, csv str, list/set, dict) into a sorted list[str]."""
+    if value is None or isinstance(value, bool) or value == 0 or value == "":
+        return []
+    if isinstance(value, int):
+        return _bits_to_perm_list(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        if text.isdigit():
+            return _bits_to_perm_list(int(text))
+        parts = [p.strip() for p in text.split(",") if p.strip()]
+        flags = {_canonical_perm_flag(p) for p in parts}
+        return sorted(f for f in flags if f)
+    if isinstance(value, dict):
+        flags = {_canonical_perm_flag(str(k)) for k, enabled in value.items() if enabled and k is not None}
+        return sorted(f for f in flags if f)
+    if isinstance(value, (list, tuple, set, frozenset)):
+        flags = set()
+        for item in value:
+            if item is None or isinstance(item, bool):
+                continue
+            if isinstance(item, int):
+                flags.update(_bits_to_perm_list(item))
+                continue
+            canon = _canonical_perm_flag(str(item))
+            if canon:
+                flags.add(canon)
+        return sorted(flags)
+    return []
+
+
+def permissions_to_bitfield(value: Any) -> int:
+    """Convert permission flags or bitfield inputs into a 64-bit integer mask."""
+    if value is None or isinstance(value, bool) or value == 0 or value == "":
+        return 0
+    if isinstance(value, int):
+        return max(0, value) & ((1 << 64) - 1)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return 0
+        if text.isdigit():
+            return max(0, int(text)) & ((1 << 64) - 1)
+    mask = 0
+    for name in normalize_role_permissions(value):
+        bit = PERMISSION_BIT_BY_NAME.get(name)
+        if bit is not None:
+            mask |= 1 << bit
+        elif name.startswith("bit_") and name[4:].isdigit():
+            bit_pos = int(name[4:])
+            if 0 <= bit_pos < 64:
+                mask |= 1 << bit_pos
+    return mask
+
+
+def normalize_role_color(value: Any) -> str:
+    """Canonicalize Discord role color (0 / #000000 / empty -> '#99aab5', else '#rrggbb')."""
+    if value is None or isinstance(value, bool):
+        return _DEFAULT_ROLE_COLOR_HEX
+    if isinstance(value, int):
+        if value <= 0:
+            return _DEFAULT_ROLE_COLOR_HEX
+        hex_val = f"#{value & 0xFFFFFF:06x}"
+        return _DEFAULT_ROLE_COLOR_HEX if hex_val == "#000000" else hex_val
+    text = str(value).strip()
+    if not text:
+        return _DEFAULT_ROLE_COLOR_HEX
+    if text.isdigit():
+        num = int(text)
+        if num <= 0:
+            return _DEFAULT_ROLE_COLOR_HEX
+        hex_val = f"#{num & 0xFFFFFF:06x}"
+        return _DEFAULT_ROLE_COLOR_HEX if hex_val == "#000000" else hex_val
+    raw_hex = text[1:] if text.startswith("#") else text
+    if len(raw_hex) == 3 and all(c in "0123456789abcdefABCDEF" for c in raw_hex):
+        expanded = "".join(c * 2 for c in raw_hex).lower()
+        return _DEFAULT_ROLE_COLOR_HEX if expanded == "000000" else f"#{expanded}"
+    if len(raw_hex) == 6 and all(c in "0123456789abcdefABCDEF" for c in raw_hex):
+        lowered = raw_hex.lower()
+        return _DEFAULT_ROLE_COLOR_HEX if lowered == "000000" else f"#{lowered}"
+    return _DEFAULT_ROLE_COLOR_HEX
+
+
+def compute_channel_permissions(
+    guild_roles: Optional[List[Dict[str, Any]]],
+    member_role_ids: Optional[Any],
+    channel_overwrites: Optional[List[Dict[str, Any]]],
+    *,
+    is_owner: bool = False,
+    parent_overwrites: Optional[List[Dict[str, Any]]] = None,
+    member_id: Optional[str] = None,
+) -> int:
+    """Evaluate effective channel permission bitfield via Discord's 4-step algorithm."""
+    if is_owner:
+        return ALL_KNOWN_PERMISSIONS_MASK
+
+    role_set = {str(rid).strip() for rid in (member_role_ids or []) if rid is not None and str(rid).strip()}
+    everyone_raw_id: Optional[str] = None
+    base = 0
+
+    for role in guild_roles or []:
+        if not isinstance(role, dict):
+            continue
+        rid = str(role.get("id") or "").strip()
+        perms = permissions_to_bitfield(role.get("permissions", role.get("permission_bits", 0)))
+        if _is_everyone_role(role):
+            base |= perms
+            if rid and rid != "@everyone":
+                everyone_raw_id = rid
+        elif rid and rid in role_set:
+            base |= perms
+
+    admin_bit = 1 << PERMISSION_BIT_BY_NAME["administrator"]
+    if base & admin_bit:
+        return ALL_KNOWN_PERMISSIONS_MASK
+
+    effective_overwrites = (
+        parent_overwrites
+        if (channel_overwrites is None and parent_overwrites is not None)
+        else (channel_overwrites or [])
+    )
+
+    everyone_ids = {"@everyone"}
+    if everyone_raw_id:
+        everyone_ids.add(everyone_raw_id)
+
+    role_allow = 0
+    role_deny = 0
+    member_ows: List[Tuple[int, int]] = []
+
+    # Step 1: @everyone overwrite first, collecting role/member overwrites in one pass
+    for ow in effective_overwrites:
+        if not isinstance(ow, dict):
+            continue
+        target_id = str(ow.get("id") if ow.get("id") is not None else ow.get("target_id") or "").strip()
+        if not target_id:
+            continue
+        raw_type = str(ow.get("type") or "role").strip().lower()
+        ow_type = "member" if raw_type in ("1", "member") else "role"
+        allow_bits = permissions_to_bitfield(ow.get("allow", ow.get("allow_bits", 0)))
+        deny_bits = permissions_to_bitfield(ow.get("deny", ow.get("deny_bits", 0)))
+
+        if ow_type == "role" and target_id in everyone_ids:
+            base = (base & ~deny_bits) | allow_bits
+        elif ow_type == "role" and target_id in role_set:
+            role_allow |= allow_bits
+            role_deny |= deny_bits
+        elif ow_type == "member" and member_id is not None and target_id == str(member_id).strip():
+            member_ows.append((allow_bits, deny_bits))
+
+    # Step 2: combined role overwrites
+    base = (base & ~role_deny) | role_allow
+
+    # Step 3: member-specific overwrite
+    for allow_bits, deny_bits in member_ows:
+        base = (base & ~deny_bits) | allow_bits
+
+    return base & ((1 << 64) - 1)
 
 
 def _normalize_perm_list(raw: Any) -> Tuple[str, ...]:
@@ -1209,11 +1811,56 @@ def _check_overwrites_safety(
             )
 
 
+def _validate_role_binding_target(
+    mod_key: str,
+    role_name: str,
+    is_ev: bool,
+    is_managed: bool,
+    has_real_id: bool,
+    pos: Any,
+    bot_top_role_pos: Optional[int],
+    is_guild_owner: bool,
+    user_top_role_pos: Optional[int],
+    errors: List[str],
+    *,
+    is_unchanged: bool = False,
+    warnings: Optional[List[str]] = None,
+) -> None:
+    if is_ev or is_managed:
+        errors.append(
+            f"Role '{role_name}' cannot be bound to module '{mod_key}' because it is @everyone or managed."
+        )
+        return
+    if has_real_id and isinstance(pos, int) and not isinstance(pos, bool):
+        if bot_top_role_pos is not None and pos >= bot_top_role_pos:
+            msg = (
+                f"Existing role '{role_name}' cannot be bound to module '{mod_key}' "
+                f"because its position ({pos}) >= bot top role ({bot_top_role_pos})."
+            )
+            if is_unchanged and warnings is not None:
+                warnings.append(msg)
+            else:
+                errors.append(msg)
+        if (not is_guild_owner) and user_top_role_pos is not None and pos >= user_top_role_pos:
+            msg = (
+                f"Existing role '{role_name}' cannot be bound to module '{mod_key}' "
+                f"because its position ({pos}) >= user top role ({user_top_role_pos})."
+            )
+            if is_unchanged and warnings is not None:
+                warnings.append(msg)
+            else:
+                errors.append(msg)
+
+
 def validate_tree_limits(
     tree: Dict[str, Any],
     bot_top_role_pos: Optional[int] = None,
     bot_role_ids: Optional[Any] = None,
     bot_user_id: Optional[str] = None,
+    *,
+    is_guild_owner: bool = True,
+    user_top_role_pos: Optional[int] = None,
+    current_bindings: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Validate Discord structural limits and role/permission safety warnings."""
     errors: List[str] = []
@@ -1239,8 +1886,16 @@ def validate_tree_limits(
 
     bot_role_set = {str(r) for r in (bot_role_ids or []) if r is not None}
     bot_user_str = str(bot_user_id) if bot_user_id is not None else None
+    curr_binds_norm: Dict[str, str] = {}
+    if isinstance(current_bindings, dict):
+        for k, v in current_bindings.items():
+            if _is_valid_binding_token(k) and _is_valid_binding_token(v):
+                nk = normalize_role_bind_module(str(k)) or str(k).strip()
+                curr_binds_norm[nk] = str(v).strip()
 
     role_pos_by_id: Dict[str, int] = {}
+    roles_by_ref: Dict[str, Dict[str, Any]] = {}
+    checked_role_bindings: Set[Tuple[str, str]] = set()
     if len(roles) > MAX_GUILD_ROLES:
         errors.append(
             f"Role count ({len(roles)}) exceeds Discord limit of {MAX_GUILD_ROLES}."
@@ -1249,15 +1904,85 @@ def validate_tree_limits(
         if not isinstance(role, dict):
             errors.append(f"Role entry at index {idx} must be an object.")
             continue
-        r_name = str(role.get("name") or f"role-{idx}").strip()
+        is_ev = _is_everyone_role(role)
+        r_name = "@everyone" if is_ev else str(role.get("name") or f"role-{idx}").strip()
         pos = role.get("position")
+        raw_id = str(role.get("id") or "").strip()
+        has_real_id = bool(raw_id) and not is_ev
+        for key in (role.get("id"), role.get("temp_id")):
+            if key:
+                roles_by_ref[str(key)] = role
         if isinstance(pos, int) and not isinstance(pos, bool):
             for key in (role.get("id"), role.get("temp_id")):
                 if key:
                     role_pos_by_id[str(key)] = pos
-            if bot_top_role_pos is not None and pos >= bot_top_role_pos:
+            if (not is_ev) and bot_top_role_pos is not None and pos >= bot_top_role_pos:
                 warnings.append(
                     f"Role '{r_name}' has position {pos} >= bot top role ({bot_top_role_pos}) and will be skipped."
+                )
+
+        raw_bmod = role.get("bind_role_module")
+        if _is_valid_binding_token(raw_bmod):
+            norm_bmod = normalize_role_bind_module(raw_bmod)
+            if norm_bmod is None:
+                errors.append(f"Role '{r_name}' has unknown bind_role_module {raw_bmod!r}.")
+            else:
+                ref_key = raw_id or str(role.get("temp_id") or "")
+                pair = (norm_bmod, ref_key)
+                if pair not in checked_role_bindings:
+                    checked_role_bindings.add(pair)
+                    is_unchanged = bool(raw_id) and curr_binds_norm.get(norm_bmod) == raw_id
+                    _validate_role_binding_target(
+                        norm_bmod,
+                        r_name,
+                        is_ev,
+                        bool(role.get("managed")),
+                        has_real_id,
+                        pos,
+                        bot_top_role_pos,
+                        is_guild_owner,
+                        user_top_role_pos,
+                        errors,
+                        is_unchanged=is_unchanged,
+                        warnings=warnings,
+                    )
+
+    for binding_dict in (tree.get("bindings"), tree.get("role_bindings")):
+        if not isinstance(binding_dict, dict):
+            continue
+        for raw_key, raw_ref in binding_dict.items():
+            if not _is_valid_binding_token(raw_key) or not _is_valid_binding_token(raw_ref):
+                continue
+            norm_bmod = normalize_role_bind_module(raw_key)
+            if norm_bmod is None:
+                continue
+            ref_str = str(raw_ref).strip()
+            if (norm_bmod, ref_str) in checked_role_bindings:
+                continue
+            checked_role_bindings.add((norm_bmod, ref_str))
+            if ref_str == "@everyone":
+                errors.append(f"Role '@everyone' cannot be bound to module '{norm_bmod}'.")
+                continue
+            matched = roles_by_ref.get(ref_str)
+            if matched is not None:
+                m_ev = _is_everyone_role(matched)
+                m_name = "@everyone" if m_ev else str(matched.get("name") or ref_str).strip()
+                m_raw_id = str(matched.get("id") or "").strip()
+                m_has_id = bool(m_raw_id) and not m_ev
+                is_unchanged = bool(m_raw_id) and curr_binds_norm.get(norm_bmod) == m_raw_id
+                _validate_role_binding_target(
+                    norm_bmod,
+                    m_name,
+                    m_ev,
+                    bool(matched.get("managed")),
+                    m_has_id,
+                    matched.get("position"),
+                    bot_top_role_pos,
+                    is_guild_owner,
+                    user_top_role_pos,
+                    errors,
+                    is_unchanged=is_unchanged,
+                    warnings=warnings,
                 )
 
     total_channels = len(categories) + len(uncategorized)
@@ -1398,6 +2123,8 @@ def _index_current_tree(current_tree: Dict[str, Any]) -> Tuple[
         rid = str(r.get("id") or "").strip()
         if rid:
             roles_by_id[rid] = r
+        elif _is_everyone_role(r):
+            roles_by_id["@everyone"] = r
         rname = str(r.get("name") or "").strip().lower()
         if rname and rname not in roles_by_name:
             roles_by_name[rname] = r
@@ -1449,12 +2176,36 @@ def _is_valid_binding_token(value: Any) -> bool:
     return bool(token) and token.lower() not in {"none", "null", "undefined"}
 
 
-def _normalize_bindings(target_tree: Dict[str, Any], channel_ref_by_temp: Dict[str, str]) -> Dict[str, str]:
+def _resolve_bindings_and_unbinds(
+    target_tree: Dict[str, Any],
+    channel_ref_by_temp: Dict[str, str],
+    role_ref_remap: Optional[Dict[str, str]] = None,
+    current_bindings: Optional[Dict[str, str]] = None,
+    deleted_role_ids: Optional[Set[str]] = None,
+) -> Tuple[Dict[str, str], Set[str]]:
     resolved: Dict[str, str] = {}
-    raw_bindings = target_tree.get("bindings")
-    if isinstance(raw_bindings, dict):
-        for mod_key, ref in raw_bindings.items():
-            if not _is_valid_binding_token(mod_key) or not _is_valid_binding_token(ref):
+    explicit_role_unbinds: Set[str] = set()
+    role_remap = role_ref_remap or {}
+    curr_binds = current_bindings or {}
+    del_roles = deleted_role_ids or set()
+
+    for raw_dict in (target_tree.get("bindings"), target_tree.get("role_bindings")):
+        if not isinstance(raw_dict, dict):
+            continue
+        for mod_key, ref in raw_dict.items():
+            if not _is_valid_binding_token(mod_key):
+                continue
+            norm_role_mod = normalize_role_bind_module(mod_key)
+            if norm_role_mod is not None:
+                if _is_valid_binding_token(ref):
+                    ref_str = str(ref).strip()
+                    resolved[norm_role_mod] = role_remap.get(ref_str, ref_str)
+                    explicit_role_unbinds.discard(norm_role_mod)
+                else:
+                    resolved.pop(norm_role_mod, None)
+                    explicit_role_unbinds.add(norm_role_mod)
+                continue
+            if not _is_valid_binding_token(ref):
                 continue
             ref_str = str(ref).strip()
             resolved[str(mod_key).strip()] = channel_ref_by_temp.get(ref_str, ref_str)
@@ -1484,7 +2235,82 @@ def _normalize_bindings(target_tree: Dict[str, Any], channel_ref_by_temp: Dict[s
             for k in [k for k, v in resolved.items() if v in resolved_refs]:
                 del resolved[k]
 
+    for r in target_tree.get("roles") or []:
+        if not isinstance(r, dict):
+            continue
+        if _is_everyone_role(r) or bool(r.get("managed")):
+            continue
+        raw_refs = {str(x).strip() for x in (r.get("id"), r.get("temp_id")) if _is_valid_binding_token(x)}
+        resolved_refs = {role_remap.get(x, x) for x in raw_refs} | raw_refs
+        primary_ref = str(r.get("id") or r.get("temp_id") or "").strip()
+        if not primary_ref:
+            continue
+        target_ref = role_remap.get(primary_ref, primary_ref)
+
+        if "bind_role_module" in r:
+            raw_rbmod = r.get("bind_role_module")
+            norm_rbmod = normalize_role_bind_module(raw_rbmod)
+            if norm_rbmod is not None:
+                for k in [
+                    k for k, v in resolved.items()
+                    if k in ROLE_BIND_MODULES and v in resolved_refs and k != norm_rbmod
+                ]:
+                    del resolved[k]
+                resolved[norm_rbmod] = target_ref
+                explicit_role_unbinds.discard(norm_rbmod)
+            elif raw_rbmod is None or isinstance(raw_rbmod, str):
+                for k in [k for k, v in resolved.items() if k in ROLE_BIND_MODULES and v in resolved_refs]:
+                    del resolved[k]
+                for k in ROLE_BIND_MODULES:
+                    if curr_binds.get(k) in resolved_refs:
+                        explicit_role_unbinds.add(k)
+
+    for k in ROLE_BIND_MODULES:
+        if resolved.get(k) in del_roles:
+            del resolved[k]
+            explicit_role_unbinds.add(k)
+        elif curr_binds.get(k) in del_roles and k not in resolved:
+            explicit_role_unbinds.add(k)
+
+    return resolved, explicit_role_unbinds
+
+
+def _normalize_bindings(
+    target_tree: Dict[str, Any],
+    channel_ref_by_temp: Dict[str, str],
+    role_ref_remap: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    resolved, _ = _resolve_bindings_and_unbinds(
+        target_tree, channel_ref_by_temp, role_ref_remap=role_ref_remap
+    )
     return resolved
+
+
+def _empty_diff_summary(safe_mode: bool, confirm_deletions: bool) -> Dict[str, Any]:
+    return {
+        "total_operations": 0,
+        "create_roles": 0,
+        "update_roles": 0,
+        "reorder_roles": False,
+        "bulk_reorder_roles": False,
+        "delete_roles": 0,
+        "create_categories": 0,
+        "create_channels": 0,
+        "sync_permissions": 0,
+        "update_overwrites": 0,
+        "update_channels": 0,
+        "renames": 0,
+        "rename_warning": False,
+        "bulk_reorder": False,
+        "delete_channels": 0,
+        "delete_categories": 0,
+        "has_deletions": False,
+        "delete_targets": [],
+        "protected_deletions": 0,
+        "bind_modules": False,
+        "safe_mode": bool(safe_mode),
+        "confirm_deletions": bool(confirm_deletions),
+    }
 
 
 def compute_diff(
@@ -1493,45 +2319,39 @@ def compute_diff(
     safe_mode: bool = True,
     confirm_deletions: bool = False,
     bot_top_role_pos: Optional[int] = None,
+    *,
+    is_guild_owner: bool = True,
+    user_top_role_pos: Optional[int] = None,
+    protected_role_ids: Optional[Any] = None,
+    live_source: str = "discord",
 ) -> Dict[str, Any]:
     """Compute ordered Discord Server Builder operations and ETA between current and target trees."""
     curr = current_tree if isinstance(current_tree, dict) else {}
     tgt = target_tree if isinstance(target_tree, dict) else {}
 
-    validation = validate_tree_limits(tgt, bot_top_role_pos=bot_top_role_pos)
+    validation = validate_tree_limits(
+        tgt,
+        bot_top_role_pos=bot_top_role_pos,
+        is_guild_owner=is_guild_owner,
+        user_top_role_pos=user_top_role_pos,
+        current_bindings=curr.get("bindings") if isinstance(curr.get("bindings"), dict) else None,
+    )
     warnings: List[str] = list(validation["warnings"])
     errors: List[str] = list(validation["errors"])
     if errors:
         return {
-            "summary": {
-                "total_operations": 0,
-                "create_roles": 0,
-                "create_categories": 0,
-                "create_channels": 0,
-                "sync_permissions": 0,
-                "update_overwrites": 0,
-                "update_channels": 0,
-                "renames": 0,
-                "rename_warning": False,
-                "bulk_reorder": False,
-                "delete_channels": 0,
-                "delete_categories": 0,
-                "has_deletions": False,
-                "delete_targets": [],
-                "protected_deletions": 0,
-                "bind_modules": False,
-                "safe_mode": bool(safe_mode),
-                "confirm_deletions": bool(confirm_deletions),
-            },
+            "summary": _empty_diff_summary(safe_mode, confirm_deletions),
             "operations": [],
             "eta_seconds": 0.0,
             "warnings": warnings,
             "errors": errors,
         }
 
-    roles_by_id, roles_by_name, cats_by_id, cats_by_name, channels_by_id = _index_current_tree(curr)
+    roles_by_id, _, cats_by_id, _, channels_by_id = _index_current_tree(curr)
 
-    role_ops: List[Dict[str, Any]] = []
+    role_create_ops: List[Dict[str, Any]] = []
+    role_update_ops: List[Dict[str, Any]] = []
+    role_reorder_ops: List[Dict[str, Any]] = []
     cat_create_ops: List[Dict[str, Any]] = []
     ch_create_ops: List[Dict[str, Any]] = []
     perm_ops: List[Dict[str, Any]] = []
@@ -1539,37 +2359,267 @@ def compute_diff(
     reorder_items: List[Dict[str, Any]] = []
     delete_ch_ops: List[Dict[str, Any]] = []
     delete_cat_ops: List[Dict[str, Any]] = []
+    delete_role_ops: List[Dict[str, Any]] = []
     bind_ops: List[Dict[str, Any]] = []
 
+    is_cache_mode = str(live_source or "discord").strip().lower() == "cache"
+    cache_edit_warned = False
+
+    def _warn_cache_readonly() -> None:
+        nonlocal cache_edit_warned
+        if not cache_edit_warned:
+            cache_edit_warned = True
+            warnings.append(
+                "Offline SQLite cache mode: role edits/deletions were skipped to protect existing permissions."
+            )
+
+    curr_everyone_id: Optional[str] = None
+    curr_everyone_role: Optional[Dict[str, Any]] = None
+    for cid, c_role in roles_by_id.items():
+        if _is_everyone_role(c_role):
+            curr_everyone_id = cid
+            curr_everyone_role = c_role
+            break
+
+    target_roles = [r for r in (tgt.get("roles") or []) if isinstance(r, dict)]
+    matched_role_ids: Set[str] = set()
+    role_matches: Dict[int, Optional[Dict[str, Any]]] = {}
     role_ref_remap: Dict[str, str] = {}
-    for idx, r in enumerate(tgt.get("roles") or []):
-        if not isinstance(r, dict):
+
+    # Pass 1: @everyone and explicit IDs
+    for idx, r in enumerate(target_roles):
+        if _is_everyone_role(r):
+            if curr_everyone_role is not None and curr_everyone_id and curr_everyone_id not in matched_role_ids:
+                role_matches[idx] = curr_everyone_role
+                matched_role_ids.add(curr_everyone_id)
             continue
         rid = str(r.get("id") or "").strip()
-        temp_id = str(r.get("temp_id") or f"role_tmp_{idx}").strip()
-        rname = str(r.get("name") or f"Role {idx + 1}").strip()[:100]
-        if rid and rid in roles_by_id:
-            if temp_id:
-                role_ref_remap[temp_id] = rid
+        if rid and rid in roles_by_id and rid not in matched_role_ids:
+            role_matches[idx] = roles_by_id[rid]
+            matched_role_ids.add(rid)
+
+    # Pass 2: case-insensitive name match for roles without explicit ID (e.g. presets/templates)
+    for idx, r in enumerate(target_roles):
+        if idx in role_matches or _is_everyone_role(r):
             continue
-        existing_role = roles_by_name.get(rname.lower()) if not rid else None
-        if existing_role is not None and existing_role.get("id"):
-            if temp_id:
-                role_ref_remap[temp_id] = str(existing_role["id"])
+        rid = str(r.get("id") or "").strip()
+        if rid:
             continue
-        role_ops.append({
+        rname_lower = str(r.get("name") or "").strip().lower()
+        if not rname_lower:
+            continue
+        for cid, c_role in roles_by_id.items():
+            if cid in matched_role_ids or _is_everyone_role(c_role) or bool(c_role.get("managed")):
+                continue
+            if str(c_role.get("name") or "").strip().lower() == rname_lower:
+                role_matches[idx] = c_role
+                matched_role_ids.add(cid)
+                break
+
+    movable_target_roles: List[Dict[str, Any]] = []
+    for idx, r in enumerate(target_roles):
+        is_ev = _is_everyone_role(r)
+        temp_id = "" if is_ev else str(r.get("temp_id") or f"role_tmp_{idx}").strip()
+        curr_r = role_matches.get(idx)
+
+        if curr_r is not None:
+            curr_is_ev = _is_everyone_role(curr_r)
+            curr_raw_id = str(curr_r.get("id") or ("@everyone" if curr_is_ev else "")).strip()
+            canon_id = "@everyone" if curr_is_ev else curr_raw_id
+            if temp_id and canon_id:
+                role_ref_remap[temp_id] = canon_id
+            if curr_is_ev and curr_raw_id and curr_raw_id != "@everyone":
+                role_ref_remap[curr_raw_id] = "@everyone"
+
+            curr_managed = bool(curr_r.get("managed", False))
+            curr_pos = 0 if curr_is_ev else _safe_int(curr_r.get("position"), 0)
+            curr_name = "@everyone" if curr_is_ev else str(curr_r.get("name") or "").strip()[:100]
+            curr_color = _DEFAULT_ROLE_COLOR_HEX if curr_is_ev else normalize_role_color(
+                curr_r.get("color", curr_r.get("color_hex", 0))
+            )
+            curr_hoist = False if curr_is_ev else bool(curr_r.get("hoist", False))
+            curr_mentionable = False if curr_is_ev else bool(curr_r.get("mentionable", False))
+            curr_perms = normalize_role_permissions(curr_r.get("permissions", curr_r.get("permission_bits", 0)))
+
+            has_name = ("name" in r and r.get("name") is not None)
+            has_color = ("color" in r or "color_hex" in r)
+            has_hoist = ("hoist" in r)
+            has_mentionable = ("mentionable" in r)
+            has_perms = ("permissions" in r or "permission_bits" in r)
+            has_pos = ("position" in r and r.get("position") is not None)
+
+            tgt_name = "@everyone" if curr_is_ev else (
+                (str(r.get("name") or "").strip()[:100] or curr_name) if has_name else curr_name
+            )
+            tgt_color = _DEFAULT_ROLE_COLOR_HEX if curr_is_ev else (
+                normalize_role_color(r.get("color", r.get("color_hex", 0))) if has_color else curr_color
+            )
+            tgt_hoist = False if curr_is_ev else (bool(r.get("hoist", False)) if has_hoist else curr_hoist)
+            tgt_mentionable = False if curr_is_ev else (
+                bool(r.get("mentionable", False)) if has_mentionable else curr_mentionable
+            )
+            tgt_perms = normalize_role_permissions(
+                r.get("permissions", r.get("permission_bits", 0))
+            ) if has_perms else curr_perms
+            tgt_pos = 0 if curr_is_ev else (_safe_int(r.get("position"), curr_pos) if has_pos else curr_pos)
+
+            changes: Dict[str, Any] = {}
+            if curr_is_ev:
+                if tgt_perms != curr_perms:
+                    changes["permissions"] = tgt_perms
+                    changes["permissions_bitfield"] = str(permissions_to_bitfield(tgt_perms))
+            else:
+                if tgt_name != curr_name:
+                    changes["name"] = tgt_name
+                if tgt_color != curr_color:
+                    changes["color"] = tgt_color
+                if tgt_hoist != curr_hoist:
+                    changes["hoist"] = tgt_hoist
+                if tgt_mentionable != curr_mentionable:
+                    changes["mentionable"] = tgt_mentionable
+                if tgt_perms != curr_perms:
+                    changes["permissions"] = tgt_perms
+                    changes["permissions_bitfield"] = str(permissions_to_bitfield(tgt_perms))
+
+            role_cache_readonly = is_cache_mode or bool(curr_r.get("_cache_readonly")) or bool(r.get("_cache_readonly"))
+            if role_cache_readonly:
+                if changes or (not curr_is_ev and tgt_pos != curr_pos):
+                    _warn_cache_readonly()
+                continue
+
+            if curr_managed:
+                if changes:
+                    warnings.append(f"Managed role '@{curr_name}' is read-only and was skipped.")
+                continue
+
+            if (not curr_is_ev) and (not is_guild_owner) and user_top_role_pos is not None and curr_pos >= user_top_role_pos:
+                if changes or tgt_pos != curr_pos:
+                    errors.append(
+                        f"user_role_hierarchy_denied: Role '@{curr_name}' (position {curr_pos}) >= user top role ({user_top_role_pos})."
+                    )
+                continue
+
+            if (not curr_is_ev) and bot_top_role_pos is not None and curr_pos >= bot_top_role_pos:
+                continue
+
+            if changes:
+                role_update_ops.append({
+                    "op": "update_role",
+                    "phase": "roles",
+                    "role_id": canon_id,
+                    "is_everyone": curr_is_ev,
+                    "name": tgt_name,
+                    "old_name": curr_name,
+                    "changes": changes,
+                    "cost_seconds": OP_COST_UPDATE_ROLE,
+                    "label": "Update role: @everyone" if curr_is_ev else f"Update role: @{tgt_name}",
+                })
+
+            if not curr_is_ev:
+                movable_target_roles.append({
+                    "id": canon_id,
+                    "temp_id": None,
+                    "name": tgt_name,
+                    "curr_pos": curr_pos,
+                    "target_pos": max(1, tgt_pos),
+                    "idx": idx,
+                    "is_new": False,
+                })
+            continue
+
+        # Unmatched target role -> skip @everyone/managed, else create_role
+        if is_ev:
+            continue
+        rname = str(r.get("name") or f"Role {idx + 1}").strip()[:100] or f"Role {idx + 1}"
+        if bool(r.get("managed", False)):
+            warnings.append(f"Managed role '@{rname}' cannot be created and was skipped.")
+            continue
+
+        rcolor = normalize_role_color(r.get("color", r.get("color_hex", 0)))
+        rhoist = bool(r.get("hoist", False))
+        rmentionable = bool(r.get("mentionable", False))
+        rperms = normalize_role_permissions(r.get("permissions", r.get("permission_bits", 0)))
+        rbits = permissions_to_bitfield(rperms)
+        default_new_pos = max(1, len(target_roles) - idx)
+        rpos = max(1, _safe_int(r.get("position"), default_new_pos)) if r.get("position") is not None else default_new_pos
+        rbmod = normalize_role_bind_module(r.get("bind_role_module"))
+
+        role_create_ops.append({
             "op": "create_role",
             "phase": "roles",
             "temp_id": temp_id,
             "name": rname,
-            "color": r.get("color", "#99AAB5"),
-            "hoist": bool(r.get("hoist", False)),
-            "mentionable": bool(r.get("mentionable", False)),
-            "permissions": _safe_int(r.get("permissions"), 0),
-            "position": _safe_int(r.get("position"), idx),
+            "color": rcolor,
+            "hoist": rhoist,
+            "mentionable": rmentionable,
+            "permissions": rperms,
+            "permissions_bitfield": str(rbits),
+            "position": rpos,
+            "defer_position": False,
+            "bind_role_module": rbmod,
             "cost_seconds": OP_COST_CREATE_ROLE,
-            "label": f"Create role: {rname}",
+            "label": f"Create role: @{rname}",
         })
+        movable_target_roles.append({
+            "id": None,
+            "temp_id": temp_id,
+            "name": rname,
+            "curr_pos": None,
+            "target_pos": rpos,
+            "idx": idx,
+            "is_new": True,
+        })
+
+    # Determine whether a single batch role reorder REST call is needed
+    movable_current_roles: List[Dict[str, Any]] = []
+    for cid, c_role in roles_by_id.items():
+        if _is_everyone_role(c_role) or bool(c_role.get("managed", False)):
+            continue
+        c_pos = _safe_int(c_role.get("position"), 0)
+        if bot_top_role_pos is not None and c_pos >= bot_top_role_pos:
+            continue
+        if is_cache_mode or bool(c_role.get("_cache_readonly")):
+            continue
+        movable_current_roles.append({"id": cid, "pos": c_pos})
+    movable_current_roles.sort(key=lambda item: (item["pos"], item["id"]))
+
+    matched_target_existing = [m for m in movable_target_roles if not m["is_new"]]
+    surviving_ids = {m["id"] for m in matched_target_existing if m["id"]}
+    curr_surviving_order = [m["id"] for m in movable_current_roles if m["id"] in surviving_ids]
+    tgt_surviving_sorted = sorted(matched_target_existing, key=lambda m: (m["target_pos"], -m["idx"]))
+    tgt_surviving_order = [m["id"] for m in tgt_surviving_sorted]
+
+    existing_order_changed = (
+        curr_surviving_order != tgt_surviving_order
+        or any(m["target_pos"] != m["curr_pos"] for m in matched_target_existing)
+    )
+    new_roles_need_reorder = bool(role_create_ops) and (
+        len(movable_target_roles) >= 2
+        or (
+            len(movable_target_roles) == 1
+            and movable_target_roles[0]["target_pos"] > 1
+            and len(movable_current_roles) >= 1
+        )
+    )
+    if (existing_order_changed or new_roles_need_reorder) and movable_target_roles:
+        ordered_items = sorted(movable_target_roles, key=lambda m: (m["target_pos"], -m["idx"]))
+        role_reorder_ops.append({
+            "op": "bulk_reorder_roles",
+            "phase": "roles",
+            "items": [
+                {
+                    "id": item["id"],
+                    "temp_id": item["temp_id"],
+                    "name": item["name"],
+                    "position": item["target_pos"],
+                }
+                for item in ordered_items
+            ],
+            "cost_seconds": OP_COST_BULK_REORDER_ROLES,
+            "label": "Reorder server roles hierarchy",
+        })
+        for rop in role_create_ops:
+            rop["defer_position"] = True
 
     matched_cat_ids: Set[str] = set()
     matched_ch_ids: Set[str] = set()
@@ -1919,7 +2969,7 @@ def compute_diff(
             "label": "Bulk reorder categories and channels",
         })
 
-    # Deletions: unmatched existing channels/categories
+    # Deletions: unmatched existing channels, categories, and eligible roles
     delete_targets: List[Dict[str, Any]] = []
     unmatched_channels = [ch for cid, ch in channels_by_id.items() if cid not in matched_ch_ids]
     unmatched_categories = [cat for cid, cat in cats_by_id.items() if cid not in matched_cat_ids]
@@ -1930,6 +2980,7 @@ def compute_diff(
             "name": str(ch.get("name") or ""),
             "type": int(ch.get("type", CHANNEL_TYPE_TEXT) or CHANNEL_TYPE_TEXT),
             "kind": "channel",
+            "label": f"Channel: #{ch.get('name') or ch['id']}",
         })
     for cat in unmatched_categories:
         delete_targets.append({
@@ -1937,18 +2988,64 @@ def compute_diff(
             "name": str(cat.get("name") or ""),
             "type": CHANNEL_TYPE_CATEGORY,
             "kind": "category",
+            "label": f"Category: {cat.get('name') or cat['id']}",
         })
 
-    protected_deletions = len(delete_targets) if safe_mode else 0
+    protected_set = {str(x).strip() for x in (protected_role_ids or []) if x is not None and str(x).strip()}
+    protected_role_skips = 0
+    deletable_unmatched_roles: List[Dict[str, Any]] = []
+    for rid, c_role in roles_by_id.items():
+        if rid in matched_role_ids:
+            continue
+        if _is_everyone_role(c_role) or bool(c_role.get("managed", False)):
+            continue
+        c_pos = _safe_int(c_role.get("position"), 0)
+        c_name = str(c_role.get("name") or rid)
+        if is_cache_mode or bool(c_role.get("_cache_readonly")):
+            if not safe_mode:
+                _warn_cache_readonly()
+                protected_role_skips += 1
+            continue
+        if bot_top_role_pos is not None and c_pos >= bot_top_role_pos:
+            if not safe_mode:
+                protected_role_skips += 1
+                warnings.append(
+                    f"Role '@{c_name}' (position {c_pos}) >= bot top role ({bot_top_role_pos}) cannot be deleted and was skipped."
+                )
+            continue
+        if (not is_guild_owner) and user_top_role_pos is not None and c_pos >= user_top_role_pos:
+            if not safe_mode:
+                protected_role_skips += 1
+                errors.append(
+                    f"user_role_hierarchy_denied: Cannot delete role '@{c_name}' (position {c_pos}) >= user top role ({user_top_role_pos})."
+                )
+            continue
+        if rid in protected_set:
+            if not safe_mode:
+                protected_role_skips += 1
+                warnings.append(
+                    f"Protected role '@{c_name}' is actively bound to ZerynBot modules and cannot be deleted."
+                )
+            continue
+        deletable_unmatched_roles.append(c_role)
+        delete_targets.append({
+            "id": rid,
+            "name": c_name,
+            "type": None,
+            "kind": "role",
+            "label": f"Role: @{c_name}",
+        })
+
+    protected_deletions = (len(delete_targets) if safe_mode else 0) + protected_role_skips
     has_deletions = (not safe_mode) and len(delete_targets) > 0
 
     if has_deletions and not confirm_deletions:
         warnings.append(
-            f"{len(delete_targets)} existing channel(s)/category(s) would be deleted; set confirm_deletions=True to execute deletions."
+            f"{len(delete_targets)} existing channel(s)/category(s)/role(s) would be deleted; set confirm_deletions=True to execute deletions."
         )
 
     if not safe_mode and confirm_deletions:
-        # Children MUST be deleted before categories
+        # Children MUST be deleted before categories; roles deleted after channels/categories
         for ch in unmatched_channels:
             ch_name = str(ch.get("name") or ch["id"])
             delete_ch_ops.append({
@@ -1971,29 +3068,77 @@ def compute_diff(
                 "cost_seconds": OP_COST_DELETE,
                 "label": f"Delete category: {cat_name}",
             })
+        for c_role in deletable_unmatched_roles:
+            r_id = str(c_role["id"])
+            r_name = str(c_role.get("name") or r_id)
+            delete_role_ops.append({
+                "op": "delete_role",
+                "phase": "deletions",
+                "role_id": r_id,
+                "name": r_name,
+                "cost_seconds": OP_COST_DELETE,
+                "label": f"Delete role: @{r_name}",
+            })
 
-    resolved_bindings = _normalize_bindings(tgt, channel_ref_by_temp)
+    projected_roles = len(roles_by_id) + len(role_create_ops) - len(delete_role_ops)
+    if projected_roles > MAX_GUILD_ROLES:
+        errors.append(
+            f"Post-apply role total ({projected_roles}) exceeds Discord limit of {MAX_GUILD_ROLES}."
+        )
+    elif (not safe_mode and confirm_deletions) and (len(roles_by_id) + len(role_create_ops) > MAX_GUILD_ROLES):
+        warnings.append(
+            f"Peak role count during creation ({len(roles_by_id) + len(role_create_ops)}) exceeds Discord's {MAX_GUILD_ROLES} limit before deletions run."
+        )
+
+    if errors:
+        return {
+            "summary": _empty_diff_summary(safe_mode, confirm_deletions),
+            "operations": [],
+            "eta_seconds": 0.0,
+            "warnings": warnings,
+            "errors": errors,
+        }
+
     raw_current_bindings = curr.get("bindings")
-    current_bindings = {
-        str(key).strip(): str(value).strip()
-        for key, value in (raw_current_bindings if isinstance(raw_current_bindings, dict) else {}).items()
-        if _is_valid_binding_token(key) and _is_valid_binding_token(value)
-    }
+    current_bindings: Dict[str, str] = {}
+    if isinstance(raw_current_bindings, dict):
+        for key, value in raw_current_bindings.items():
+            if not _is_valid_binding_token(key) or not _is_valid_binding_token(value):
+                continue
+            raw_k = str(key).strip()
+            canon_k = normalize_role_bind_module(raw_k) or raw_k
+            current_bindings[canon_k] = str(value).strip()
+
+    deleted_role_ids = {op["role_id"] for op in delete_role_ops}
+    resolved_bindings, explicit_role_unbinds = _resolve_bindings_and_unbinds(
+        tgt,
+        channel_ref_by_temp,
+        role_ref_remap=role_ref_remap,
+        current_bindings=current_bindings,
+        deleted_role_ids=deleted_role_ids,
+    )
+    bindings_payload: Dict[str, Any] = dict(resolved_bindings)
+    for k in sorted(explicit_role_unbinds):
+        if k in current_bindings and k not in bindings_payload:
+            bindings_payload[k] = None
+
     changed_bindings = {
-        key: value for key, value in resolved_bindings.items()
+        key: value for key, value in bindings_payload.items()
         if current_bindings.get(key) != value
     }
-    if resolved_bindings and changed_bindings:
+    if bindings_payload and changed_bindings:
         bind_ops.append({
             "op": "bind_modules",
             "phase": "bindings",
-            "bindings": resolved_bindings,
+            "bindings": bindings_payload,
             "cost_seconds": OP_COST_BIND_MODULES,
             "label": "Bind ZerynBot modules",
         })
 
     operations: List[Dict[str, Any]] = [
-        *role_ops,
+        *role_create_ops,
+        *role_update_ops,
+        *role_reorder_ops,
         *cat_create_ops,
         *ch_create_ops,
         *perm_ops,
@@ -2001,6 +3146,7 @@ def compute_diff(
         *reorder_ops,
         *delete_ch_ops,
         *delete_cat_ops,
+        *delete_role_ops,
         *bind_ops,
     ]
 
@@ -2008,7 +3154,11 @@ def compute_diff(
 
     summary = {
         "total_operations": len(operations),
-        "create_roles": len(role_ops),
+        "create_roles": len(role_create_ops),
+        "update_roles": len(role_update_ops),
+        "reorder_roles": bool(role_reorder_ops),
+        "bulk_reorder_roles": bool(role_reorder_ops),
+        "delete_roles": len(delete_role_ops),
         "create_categories": len(cat_create_ops),
         "create_channels": len(ch_create_ops),
         "sync_permissions": sum(1 for op in perm_ops if op["op"] == "sync_permissions"),
