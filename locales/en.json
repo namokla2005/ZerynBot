@@ -2066,5 +2066,9 @@
   "server_builder.unknown_error": "An unknown error occurred.",
   "server_builder.user_limit": "User Limit (0 = unlimited)",
   "server_builder.view_channel": "View",
-  "server_builder.warnings": "Warnings"
+  "server_builder.warnings": "Warnings",
+  "theme.to_light": "Light",
+  "theme.to_dark": "Dark",
+  "theme.auto": "Auto",
+  "theme.tooltip": "Switch theme (Light / Dark / Auto)"
 }

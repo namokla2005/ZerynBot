@@ -2066,5 +2066,9 @@
   "server_builder.unknown_error": "Đã xảy ra lỗi không xác định.",
   "server_builder.user_limit": "Giới hạn người (0 = không giới hạn)",
   "server_builder.view_channel": "Xem kênh",
-  "server_builder.warnings": "Cảnh báo"
+  "server_builder.warnings": "Cảnh báo",
+  "theme.to_light": "Sáng",
+  "theme.to_dark": "Tối",
+  "theme.auto": "Tự động",
+  "theme.tooltip": "Đổi giao diện (Sáng / Tối / Tự động)"
 }

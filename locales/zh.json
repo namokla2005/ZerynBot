@@ -2066,5 +2066,9 @@
   "server_builder.unknown_error": "发生未知错误。",
   "server_builder.user_limit": "人数上限（0 = 不限）",
   "server_builder.view_channel": "查看频道",
-  "server_builder.warnings": "警告"
+  "server_builder.warnings": "警告",
+  "theme.to_light": "浅色",
+  "theme.to_dark": "深色",
+  "theme.auto": "自动",
+  "theme.tooltip": "切换主题（浅色 / 深色 / 自动）"
 }

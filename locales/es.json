@@ -2066,5 +2066,9 @@
   "server_builder.unknown_error": "Ocurrió un error desconocido.",
   "server_builder.user_limit": "Límite de usuarios (0 = sin límite)",
   "server_builder.view_channel": "Ver canal",
-  "server_builder.warnings": "Avisos"
+  "server_builder.warnings": "Avisos",
+  "theme.to_light": "Claro",
+  "theme.to_dark": "Oscuro",
+  "theme.auto": "Auto",
+  "theme.tooltip": "Cambiar tema (Claro / Oscuro / Auto)"
 }

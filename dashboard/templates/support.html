@@ -7,25 +7,15 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17.0">
+  <script>(function(){try{var m=localStorage.getItem('zeryn-theme');if(m!=='light'&&m!=='dark'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=18.0">
   <style>
-    :root {
-      --bg-dark: #0a0812;
-      --bg-card: rgba(22, 18, 36, 0.85);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --accent-purple: #a855f7;
-      --accent-pink: #ec4899;
-      --user-bubble: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
-      --bot-bubble: rgba(255, 255, 255, 0.05);
-      --staff-bubble: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(249, 115, 22, 0.15));
-    }
-
     body {
-      background: var(--bg-dark);
-      color: #f8fafc;
-      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      background: var(--bg-body);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -38,8 +28,10 @@
       padding: 0 32px;
       display: flex;
       align-items: center;
-      background: rgba(10, 8, 18, 0.96);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -49,23 +41,24 @@
       align-items: center;
       gap: 12px;
       text-decoration: none;
-      color: #fff;
+      color: var(--text-primary);
+      font-family: var(--font-display);
       font-weight: 800;
       font-size: 1.25rem;
     }
-    .topbar-brand img { width: 36px; height: 36px; border-radius: 50%; }
+    .topbar-brand img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); }
     .topbar-links { display: flex; align-items: center; gap: 24px; margin-left: 40px; }
-    .topbar-link { color: #94a3b8; text-decoration: none; font-weight: 600; font-size: 0.92rem; }
-    .topbar-link:hover, .topbar-link.active { color: #fff; }
-    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+    .topbar-link { color: var(--text-secondary); text-decoration: none; font-weight: 600; font-size: 0.92rem; transition: color 0.2s; }
+    .topbar-link:hover, .topbar-link.active { color: var(--text-primary); }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
     /* Language Switcher */
     .lang-dropdown { position: relative; }
     .lang-btn {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid var(--border-color);
+      background: var(--glass);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      color: #e2e8f0;
+      color: var(--text-primary);
       padding: 7px 14px;
       font-size: 0.85rem;
       font-weight: 600;
@@ -74,17 +67,20 @@
       gap: 8px;
       cursor: pointer;
     }
+    .lang-btn:hover { background: var(--bg-hover); border-color: var(--border-hover); }
     .lang-menu {
       position: absolute;
       right: 0;
       top: calc(100% + 8px);
-      background: #171328;
-      border: 1px solid var(--border-color);
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 6px;
       min-width: 150px;
       display: none;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       z-index: 200;
     }
     .lang-menu.show { display: block; }
@@ -93,12 +89,12 @@
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      color: #94a3b8;
+      color: var(--text-secondary);
       text-decoration: none;
       font-size: 0.85rem;
       border-radius: 8px;
     }
-    .lang-opt:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    .lang-opt:hover { background: var(--accent-light); color: var(--text-primary); }
 
     /* Main Layout: 2 Columns on Desktop */
     .support-wrapper {
@@ -131,10 +127,10 @@
     }
     .contact-card {
       background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--border);
       border-radius: 20px;
       padding: 24px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -142,8 +138,8 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .contact-card.highlight-contact {
-      border-color: var(--accent-pink);
-      box-shadow: 0 0 25px rgba(236, 72, 153, 0.35);
+      border-color: var(--accent);
+      box-shadow: var(--shadow-glow);
     }
     .contact-card-header {
       display: flex;
@@ -155,9 +151,9 @@
       width: 42px;
       height: 42px;
       border-radius: 12px;
-      background: rgba(236, 72, 153, 0.15);
-      border: 1px solid rgba(236, 72, 153, 0.3);
-      color: var(--accent-pink);
+      background: var(--accent-light);
+      border: 1px solid var(--border-hover);
+      color: var(--accent);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -165,9 +161,10 @@
       flex-shrink: 0;
     }
     .contact-card-title {
+      font-family: var(--font-display);
       font-size: 1.05rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-primary);
       line-height: 1.25;
     }
     .contact-card-badge {
@@ -175,7 +172,7 @@
       align-items: center;
       gap: 6px;
       font-size: 0.75rem;
-      color: #10b981;
+      color: var(--success);
       font-weight: 600;
       margin-top: 2px;
     }
@@ -183,12 +180,12 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: #10b981;
+      background: var(--success);
       display: inline-block;
     }
     .contact-card-desc {
       font-size: 0.84rem;
-      color: #94a3b8;
+      color: var(--text-secondary);
       line-height: 1.5;
       margin: 0 0 16px 0;
     }
@@ -204,22 +201,22 @@
       gap: 12px;
       padding: 12px 14px;
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-color);
+      background: var(--glass-2);
+      border: 1px solid var(--border);
       text-decoration: none;
       color: inherit;
       transition: all 0.2s;
     }
     .contact-channel-item:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.2);
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
       transform: translateY(-1px);
     }
     .contact-channel-item.discord-user:hover {
       border-color: rgba(88, 101, 242, 0.5);
     }
     .contact-channel-item.discord-server:hover {
-      border-color: rgba(236, 72, 153, 0.5);
+      border-color: var(--border-hover);
     }
     .contact-channel-item.facebook:hover {
       border-color: rgba(24, 119, 242, 0.5);
@@ -235,16 +232,16 @@
       flex-shrink: 0;
     }
     .contact-channel-item.discord-user .channel-icon-wrap {
-      background: rgba(88, 101, 242, 0.18);
-      color: #7983f5;
+      background: rgba(88, 101, 242, 0.16);
+      color: var(--accent-blue, #5865f2);
     }
     .contact-channel-item.discord-server .channel-icon-wrap {
-      background: rgba(236, 72, 153, 0.18);
-      color: #f472b6;
+      background: var(--accent-light);
+      color: var(--accent);
     }
     .contact-channel-item.facebook .channel-icon-wrap {
-      background: rgba(24, 119, 242, 0.18);
-      color: #4599f7;
+      background: rgba(24, 119, 242, 0.16);
+      color: #1877f2;
     }
     .channel-info {
       flex: 1;
@@ -256,11 +253,11 @@
     .channel-name {
       font-size: 0.88rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-primary);
     }
     .channel-detail {
       font-size: 0.76rem;
-      color: #94a3b8;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 6px;
@@ -274,28 +271,28 @@
       font-size: 0.68rem;
       font-weight: 700;
       border-radius: 6px;
-      background: rgba(168, 85, 247, 0.2);
-      color: #c084fc;
-      border: 1px solid rgba(168, 85, 247, 0.35);
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid var(--border-hover);
     }
     .tag-badge.pink {
-      background: rgba(236, 72, 153, 0.2);
-      color: #f472b6;
-      border-color: rgba(236, 72, 153, 0.35);
+      background: rgba(255, 138, 155, 0.16);
+      color: var(--accent-2, var(--accent));
+      border-color: rgba(255, 138, 155, 0.35);
     }
     .channel-action {
-      color: #64748b;
+      color: var(--text-muted);
       font-size: 0.82rem;
     }
     .contact-channel-item:hover .channel-action {
-      color: #fff;
+      color: var(--text-primary);
     }
     .contact-meta-box {
       margin-top: auto;
       padding: 12px 14px;
       border-radius: 12px;
-      background: rgba(14, 11, 24, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: var(--glass-2);
+      border: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -305,17 +302,17 @@
       align-items: flex-start;
       gap: 10px;
       font-size: 0.78rem;
-      color: #94a3b8;
+      color: var(--text-secondary);
       line-height: 1.4;
     }
     .meta-item i {
-      color: #eab308;
+      color: var(--warning);
       font-size: 0.9rem;
       margin-top: 1px;
       flex-shrink: 0;
     }
     .meta-item strong {
-      color: #e2e8f0;
+      color: var(--text-primary);
       display: block;
       font-size: 0.8rem;
     }
@@ -323,13 +320,13 @@
     /* Chat Card */
     .chat-box {
       background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--border);
       border-radius: 20px;
       display: flex;
       flex-direction: column;
       height: 78vh;
       min-height: 550px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      box-shadow: var(--shadow);
       contain: paint;
       overflow: hidden;
     }
@@ -337,8 +334,8 @@
     /* Chat Header */
     .chat-header {
       padding: 18px 24px;
-      background: rgba(14, 11, 24, 0.8);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--glass-2);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -352,7 +349,7 @@
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #a855f7, #ec4899);
+      background: var(--grad-primary, linear-gradient(135deg, var(--accent), var(--accent-purple)));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -363,29 +360,30 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #10b981;
+      background: var(--success);
       position: absolute;
       bottom: -1px;
       right: -1px;
-      border: 2px solid #141122;
+      border: 2px solid var(--surface);
     }
     .chat-header-title {
+      font-family: var(--font-display);
       font-size: 1.1rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-primary);
     }
     .chat-header-sub {
       font-size: 0.82rem;
-      color: #94a3b8;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
     .btn-escalate {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.35);
-      color: #fca5a5;
+      background: var(--danger-bg);
+      border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+      color: var(--danger);
       padding: 8px 16px;
       border-radius: 10px;
       font-size: 0.85rem;
@@ -397,14 +395,14 @@
       transition: all 0.2s;
     }
     .btn-escalate:hover {
-      background: rgba(239, 68, 68, 0.25);
+      background: var(--danger);
       color: #fff;
       transform: translateY(-2px);
     }
     .btn-escalate.escalated {
-      background: rgba(234, 179, 8, 0.15);
-      border-color: rgba(234, 179, 8, 0.4);
-      color: #fde047;
+      background: var(--warning-bg);
+      border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+      color: var(--warning);
       cursor: default;
     }
 
@@ -442,43 +440,43 @@
       border-radius: 16px;
       font-size: 0.92rem;
       line-height: 1.6;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--border);
       word-break: break-word;
       white-space: pre-wrap;
     }
     .message-row.user .msg-bubble {
-      background: var(--user-bubble);
-      border-color: rgba(168, 85, 247, 0.3);
+      background: linear-gradient(135deg, rgba(124, 108, 240, 0.18), rgba(255, 138, 155, 0.18));
+      border-color: var(--border-hover);
       border-top-right-radius: 4px;
-      color: #fff;
+      color: var(--text-primary);
     }
     .message-row.bot .msg-bubble {
-      background: var(--bot-bubble);
+      background: var(--glass-2);
       border-top-left-radius: 4px;
-      color: #e2e8f0;
+      color: var(--text-primary);
     }
     .message-row.admin .msg-bubble {
-      background: var(--staff-bubble);
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.16), rgba(249, 115, 22, 0.16));
       border-color: rgba(234, 179, 8, 0.35);
       border-top-left-radius: 4px;
-      color: #fff;
+      color: var(--text-primary);
     }
-    .msg-bubble strong { font-weight: 700; color: #fff; }
+    .msg-bubble strong { font-weight: 700; color: var(--text-primary); }
     .msg-bubble em { font-style: italic; }
     .msg-bubble u { text-decoration: underline; }
     .msg-bubble del { text-decoration: line-through; opacity: 0.75; }
     .msg-bubble .discord-code {
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
       padding: 1px 6px;
       border-radius: 4px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.88em;
-      color: #f1f5f9;
+      color: var(--text-primary);
     }
     .msg-bubble .discord-pre {
-      background: rgba(10, 10, 20, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #141222;
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 14px;
       margin: 8px 0;
@@ -489,10 +487,10 @@
       white-space: pre;
     }
     .msg-bubble .discord-quote {
-      border-left: 4px solid #a855f7;
+      border-left: 4px solid var(--accent);
       padding-left: 10px;
       margin: 6px 0;
-      color: rgba(255, 255, 255, 0.85);
+      color: var(--text-secondary);
       font-style: italic;
     }
     .msg-author {
@@ -503,11 +501,11 @@
       align-items: center;
       gap: 6px;
     }
-    .msg-author.bot { color: #c084fc; }
-    .msg-author.admin { color: #facc15; }
+    .msg-author.bot { color: var(--accent); }
+    .msg-author.admin { color: var(--warning); }
     .msg-time {
       font-size: 0.7rem;
-      color: #64748b;
+      color: var(--text-muted);
       margin-top: 4px;
       text-align: right;
     }
@@ -518,7 +516,8 @@
       align-items: center;
       gap: 6px;
       padding: 10px 16px;
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--glass-2);
+      border: 1px solid var(--border);
       border-radius: 16px;
       width: fit-content;
       margin-left: 48px;
@@ -527,7 +526,7 @@
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: #a855f7;
+      background: var(--accent);
       animation: bounce 1.4s infinite ease-in-out both;
     }
     .typing-dot:nth-child(1) { animation-delay: -0.32s; }
@@ -543,13 +542,13 @@
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      background: rgba(14, 11, 24, 0.5);
-      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--glass-2);
+      border-top: 1px solid var(--border-subtle);
     }
     .quick-chip {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      color: #94a3b8;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
       padding: 6px 12px;
       border-radius: 999px;
       font-size: 0.78rem;
@@ -559,26 +558,26 @@
       transition: all 0.2s;
     }
     .quick-chip:hover {
-      background: rgba(168, 85, 247, 0.15);
-      border-color: var(--accent-purple);
-      color: #fff;
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--text-primary);
     }
 
     /* Input Footer */
     .chat-footer {
       padding: 18px 24px;
-      background: rgba(14, 11, 24, 0.85);
-      border-top: 1px solid var(--border-color);
+      background: var(--glass-2);
+      border-top: 1px solid var(--border);
       display: flex;
       gap: 12px;
       align-items: flex-end;
     }
     .chat-input {
       flex: 1;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
       border-radius: 12px;
-      color: #fff;
+      color: var(--text-primary);
       padding: 12px 16px;
       font-size: 0.95rem;
       font-family: inherit;
@@ -587,9 +586,10 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    .chat-input:focus { border-color: var(--accent-purple); }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-input::placeholder { color: var(--text-muted); }
     .btn-send {
-      background: linear-gradient(135deg, #a855f7, #ec4899);
+      background: var(--grad-primary, linear-gradient(135deg, var(--accent), var(--accent-purple)));
       border: none;
       color: #fff;
       width: 46px;
@@ -603,11 +603,12 @@
       transition: all 0.2s;
       flex-shrink: 0;
     }
-    .btn-send:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35); }
+    .btn-send:hover { transform: scale(1.05); box-shadow: 0 4px 16px var(--accent-glow); }
     .btn-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
   </style>
 </head>
 <body>
+  <div class="iridescent-blob" aria-hidden="true"></div>
 
   <!-- Topbar -->
   <header class="topbar">
@@ -624,6 +625,7 @@
     </div>
 
     <div class="topbar-right">
+      <button type="button" class="theme-toggle-btn" data-theme-toggle aria-label="{{ t('theme.tooltip') }}" title="{{ t('theme.tooltip') }}"><span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-text"></span></button>
       <!-- Language Dropdown -->
       <div class="lang-dropdown">
         <button class="lang-btn" onclick="toggleLangMenu()">
@@ -642,8 +644,8 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px;">
-        <img src="{{ avatar or user.get('avatar_url') or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
-        <span style="font-size:0.88rem;font-weight:600;color:#fff;">{{ user.get('username') }}</span>
+        <img src="{{ avatar or user.get('avatar_url') or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+        <span style="font-size:0.88rem;font-weight:600;color:var(--text-primary);">{{ user.get('username') }}</span>
       </div>
     </div>
   </header>
@@ -725,7 +727,7 @@
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
-        <span style="font-size:0.75rem; color:#a855f7; margin-left:4px;">{{ t('support.ai_typing') | default('Zeryn AI đang soạn câu trả lời...') }}</span>
+        <span style="font-size:0.75rem; color:var(--accent); margin-left:4px;">{{ t('support.ai_typing') | default('Zeryn AI đang soạn câu trả lời...') }}</span>
       </div>
 
       <!-- Quick Chips -->
@@ -734,7 +736,7 @@
         <div class="quick-chip" onclick="fillPrompt('Cách thiết lập tin nhắn chào mừng thành viên mới?')">👋 {{ t('support.quick_welcome') | default('Thiết lập chào mừng?') }}</div>
         <div class="quick-chip" onclick="fillPrompt('Làm sao để tạo phòng voice chat tạm thời?')">🔊 {{ t('support.quick_tempvoice') | default('Tạo phòng Voice tạm?') }}</div>
         <div class="quick-chip" onclick="fillPrompt('Tôi cần gặp trực tiếp nhân viên hỗ trợ!')">🚨 {{ t('support.quick_escalate') | default('Cần gặp nhân viên!') }}</div>
-        <div class="quick-chip" id="btn-quick-direct" style="border-color:rgba(236,72,153,0.4);color:#f472b6;">🤝 {{ t('support.quick_direct') }}</div>
+        <div class="quick-chip" id="btn-quick-direct" style="border-color:var(--border-hover);color:var(--accent);">🤝 {{ t('support.quick_direct') }}</div>
       </div>
 
       <!-- Input Footer -->
@@ -1093,5 +1095,7 @@
 
     setInterval(pollMessages, 3000);
   </script>
+  <script id="theme-i18n" type="application/json">{{ {"light": t("theme.to_light"), "dark": t("theme.to_dark"), "auto": t("theme.auto"), "tooltip": t("theme.tooltip")} | tojson }}</script>
+  <script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
 </body>
 </html>

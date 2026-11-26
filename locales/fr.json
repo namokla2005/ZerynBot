@@ -2066,5 +2066,9 @@
   "server_builder.unknown_error": "Une erreur inconnue est survenue.",
   "server_builder.user_limit": "Limite d'utilisateurs (0 = illimité)",
   "server_builder.view_channel": "Voir le salon",
-  "server_builder.warnings": "Avertissements"
+  "server_builder.warnings": "Avertissements",
+  "theme.to_light": "Clair",
+  "theme.to_dark": "Sombre",
+  "theme.auto": "Auto",
+  "theme.tooltip": "Changer de thème (Clair / Sombre / Auto)"
 }

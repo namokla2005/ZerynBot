@@ -7,24 +7,15 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_v3.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17.0">
+  <script>(function(){try{var m=localStorage.getItem('zeryn-theme');if(m!=='light'&&m!=='dark'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=18.0">
   <style>
-    :root {
-      --bg-dark: #07050e;
-      --bg-sidebar: #0f0c1b;
-      --bg-chat: #141024;
-      --border-color: rgba(255, 255, 255, 0.08);
-      --accent-purple: #a855f7;
-      --accent-pink: #ec4899;
-      --accent-gold: #eab308;
-    }
-
     body {
-      background: var(--bg-dark);
-      color: #f8fafc;
-      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      background: var(--bg-body);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -39,8 +30,10 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: #0b0914;
-      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       flex-shrink: 0;
     }
     .admin-topbar-left {
@@ -48,8 +41,13 @@
       align-items: center;
       gap: 14px;
     }
+    .admin-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
     .back-btn {
-      color: #94a3b8;
+      color: var(--text-secondary);
       text-decoration: none;
       font-size: 0.9rem;
       font-weight: 600;
@@ -58,10 +56,10 @@
       gap: 6px;
       padding: 6px 12px;
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-color);
+      background: var(--glass);
+      border: 1px solid var(--border);
     }
-    .back-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+    .back-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
     /* 2-Column Messenger Layout */
     .messenger-container {
@@ -74,14 +72,14 @@
     /* Left Sidebar: Threads List */
     .threads-sidebar {
       background: var(--bg-sidebar);
-      border-right: 1px solid var(--border-color);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
     .threads-header {
       padding: 16px 20px 12px;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border);
     }
     .threads-title-row {
       display: flex;
@@ -90,25 +88,27 @@
       margin-bottom: 12px;
     }
     .threads-title {
+      font-family: var(--font-display);
       font-size: 1.1rem;
       font-weight: 800;
-      color: #fff;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .search-thread-input {
       width: 100%;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      color: #fff;
+      color: var(--text-primary);
       padding: 8px 12px 8px 34px;
       font-size: 0.85rem;
       font-family: inherit;
       outline: none;
       box-sizing: border-box;
     }
+    .search-thread-input::placeholder { color: var(--text-muted); }
     .filter-tabs {
       display: flex;
       gap: 6px;
@@ -116,20 +116,20 @@
       overflow-x: auto;
     }
     .f-tab {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-color);
+      background: var(--glass-2);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 4px 10px;
-      color: #94a3b8;
+      color: var(--text-secondary);
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
     }
     .f-tab.active {
-      background: rgba(168, 85, 247, 0.2);
-      border-color: var(--accent-purple);
-      color: #fff;
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--text-primary);
     }
 
     /* Threads Scrollable List */
@@ -152,11 +152,11 @@
       position: relative;
     }
     .thread-item:hover {
-      background: rgba(255, 255, 255, 0.04);
+      background: var(--bg-hover);
     }
     .thread-item.active {
-      background: rgba(168, 85, 247, 0.12);
-      border-color: rgba(168, 85, 247, 0.3);
+      background: var(--accent-light);
+      border-color: var(--border-hover);
     }
     .thread-avatar {
       width: 44px;
@@ -178,18 +178,18 @@
     .thread-user-name {
       font-size: 0.92rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .thread-time {
       font-size: 0.7rem;
-      color: #64748b;
+      color: var(--text-muted);
     }
     .thread-snippet {
       font-size: 0.8rem;
-      color: #94a3b8;
+      color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -204,22 +204,22 @@
       display: inline-block;
     }
     .thread-status-badge.escalated {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
     }
     .thread-status-badge.open {
-      background: rgba(59, 130, 246, 0.2);
-      color: #60a5fa;
-      border: 1px solid rgba(59, 130, 246, 0.3);
+      background: rgba(88, 101, 242, 0.16);
+      color: var(--accent-blue, #5865f2);
+      border: 1px solid rgba(88, 101, 242, 0.32);
     }
     .thread-status-badge.resolved {
-      background: rgba(148, 163, 184, 0.15);
-      color: #94a3b8;
-      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
     }
     .unread-pill {
-      background: #ef4444;
+      background: var(--danger);
       color: #fff;
       font-size: 0.68rem;
       font-weight: 800;
@@ -230,15 +230,15 @@
 
     /* Right Pane: Chat Window */
     .chat-pane {
-      background: var(--bg-chat);
+      background: transparent;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
     .chat-pane-header {
       padding: 14px 24px;
-      background: #0e0b1c;
-      border-bottom: 1px solid var(--border-color);
+      background: var(--glass);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -256,18 +256,18 @@
     .active-user-name {
       font-size: 1.05rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-primary);
     }
     .active-user-id {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--text-muted);
       font-family: 'JetBrains Mono', monospace;
     }
 
     .status-select {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid var(--border-color);
-      color: #fff;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
       padding: 6px 12px;
       border-radius: 8px;
       font-size: 0.82rem;
@@ -304,38 +304,38 @@
       line-height: 1.5;
       word-break: break-word;
       white-space: pre-wrap;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--border);
     }
     .admin-msg-row.admin .admin-msg-bubble {
-      background: linear-gradient(135deg, rgba(234, 179, 8, 0.25), rgba(249, 115, 22, 0.25));
-      border-color: rgba(234, 179, 8, 0.4);
-      color: #fff;
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(249, 115, 22, 0.18));
+      border-color: rgba(234, 179, 8, 0.38);
+      color: var(--text-primary);
     }
     .admin-msg-row.user .admin-msg-bubble {
-      background: rgba(255, 255, 255, 0.05);
-      color: #f1f5f9;
+      background: var(--glass);
+      color: var(--text-primary);
     }
     .admin-msg-row.bot .admin-msg-bubble {
-      background: rgba(168, 85, 247, 0.1);
-      border-color: rgba(168, 85, 247, 0.25);
-      color: #e2e8f0;
+      background: var(--accent-light);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
     }
-    .admin-msg-bubble strong { font-weight: 700; color: #fff; }
+    .admin-msg-bubble strong { font-weight: 700; color: var(--text-primary); }
     .admin-msg-bubble em { font-style: italic; }
     .admin-msg-bubble u { text-decoration: underline; }
     .admin-msg-bubble del { text-decoration: line-through; opacity: 0.75; }
     .admin-msg-bubble .discord-code {
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
       padding: 1px 6px;
       border-radius: 4px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.88em;
-      color: #f1f5f9;
+      color: var(--text-primary);
     }
     .admin-msg-bubble .discord-pre {
-      background: rgba(10, 10, 20, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #141222;
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 14px;
       margin: 8px 0;
@@ -346,33 +346,33 @@
       white-space: pre;
     }
     .admin-msg-bubble .discord-quote {
-      border-left: 4px solid #a855f7;
+      border-left: 4px solid var(--accent);
       padding-left: 10px;
       margin: 6px 0;
-      color: rgba(255, 255, 255, 0.85);
+      color: var(--text-secondary);
       font-style: italic;
     }
     .admin-msg-meta {
       font-size: 0.72rem;
-      color: #64748b;
+      color: var(--text-muted);
       margin-top: 4px;
     }
 
     /* Reply Bar */
     .admin-reply-bar {
       padding: 16px 24px;
-      background: #0e0b1c;
-      border-top: 1px solid var(--border-color);
+      background: var(--glass);
+      border-top: 1px solid var(--border);
       display: flex;
       gap: 12px;
       align-items: flex-end;
     }
     .admin-reply-input {
       flex: 1;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      color: #fff;
+      color: var(--text-primary);
       padding: 12px 16px;
       font-size: 0.92rem;
       font-family: inherit;
@@ -380,11 +380,12 @@
       outline: none;
       max-height: 100px;
     }
-    .admin-reply-input:focus { border-color: var(--accent-gold); }
+    .admin-reply-input:focus { border-color: var(--border-focus, var(--accent)); }
+    .admin-reply-input::placeholder { color: var(--text-muted); }
     .btn-admin-send {
-      background: linear-gradient(135deg, #eab308, #f97316);
+      background: var(--grad-primary, linear-gradient(135deg, var(--accent), var(--accent-purple)));
       border: none;
-      color: #000;
+      color: #fff;
       font-weight: 700;
       padding: 12px 20px;
       border-radius: 10px;
@@ -395,27 +396,27 @@
       height: 44px;
       transition: all 0.2s;
     }
-    .btn-admin-send:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(234, 179, 8, 0.35); }
+    .btn-admin-send:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--accent-glow); }
 
     .canned-chips {
       display: flex;
       gap: 6px;
       padding: 8px 24px;
-      background: #0a0815;
-      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--glass-2);
+      border-top: 1px solid var(--border-subtle);
       overflow-x: auto;
     }
     .canned-chip {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-color);
-      color: #94a3b8;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
       padding: 4px 10px;
       border-radius: 6px;
       font-size: 0.75rem;
       cursor: pointer;
       white-space: nowrap;
     }
-    .canned-chip:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    .canned-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
 
     /* Empty state */
     .empty-chat {
@@ -424,12 +425,13 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #64748b;
+      color: var(--text-muted);
       gap: 12px;
     }
   </style>
 </head>
 <body>
+  <div class="iridescent-blob" aria-hidden="true"></div>
 
   <!-- Topbar -->
   <header class="admin-topbar">
@@ -437,14 +439,15 @@
       <a href="{{ url_for('admin.admin_panel') }}" class="back-btn">
         <i class="bi bi-arrow-left"></i> {{ t('admin.back_to_panel') | default('Về Trang Admin') }}
       </a>
-      <span style="font-weight: 800; font-size: 1.05rem; color: #fff;">
-        <i class="bi bi-chat-dots-fill" style="color: #eab308; margin-right: 6px;"></i>
+      <span style="font-weight: 800; font-size: 1.05rem; color: var(--text-primary); font-family: var(--font-display);">
+        <i class="bi bi-chat-dots-fill" style="color: var(--warning); margin-right: 6px;"></i>
         {{ t('admin_support.title') | default('Trung Tâm Hỗ Trợ 24/7 (Admin Messenger)') }}
       </span>
     </div>
-    <div>
-      <span style="font-size: 0.82rem; color: #94a3b8;">
-        Bot Owner: <strong style="color: #eab308;">{{ session['user'].get('username') }}</strong>
+    <div class="admin-topbar-right">
+      <button type="button" class="theme-toggle-btn" data-theme-toggle aria-label="{{ t('theme.tooltip') }}" title="{{ t('theme.tooltip') }}"><span class="theme-toggle-icon" aria-hidden="true">☾</span><span class="theme-toggle-text"></span></button>
+      <span style="font-size: 0.82rem; color: var(--text-secondary);">
+        Bot Owner: <strong style="color: var(--accent);">{{ session['user'].get('username') }}</strong>
       </span>
     </div>
   </header>
@@ -456,16 +459,16 @@
       <div class="threads-header">
         <div class="threads-title-row">
           <span class="threads-title">
-            <i class="bi bi-inbox-fill" style="color: #a855f7;"></i>
+            <i class="bi bi-inbox-fill" style="color: var(--accent);"></i>
             {{ t('admin_support.inbox') | default('Hộp Thư Yêu Cầu') }}
           </span>
-          <span id="threads-total-count" style="font-size: 0.78rem; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px; color: #cbd5e1;">
+          <span id="threads-total-count" style="font-size: 0.78rem; background: var(--bg-hover); padding: 2px 8px; border-radius: 6px; color: var(--text-secondary);">
             {{ threads | length }}
           </span>
         </div>
 
         <div style="position: relative;">
-          <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #64748b;"></i>
+          <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--text-muted);"></i>
           <input type="text" id="thread-search" class="search-thread-input" placeholder="{{ t('admin_support.search_placeholder') | default('Tìm user hoặc ID...') }}" oninput="filterThreadsList()">
         </div>
 
@@ -526,7 +529,7 @@
 
         <!-- Messages Area -->
         <div class="admin-chat-messages" id="admin-chat-messages">
-          <div style="text-align: center; color: #64748b; font-size: 0.8rem; margin-bottom: 8px;">
+          <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px;">
             Phiên hỗ trợ bắt đầu lúc {{ active_th.created_at }}
           </div>
         </div>
@@ -548,7 +551,7 @@
         </form>
       {% else %}
         <div class="empty-chat">
-          <i class="bi bi-chat-square-dots" style="font-size: 3rem; color: rgba(255,255,255,0.1);"></i>
+          <i class="bi bi-chat-square-dots" style="font-size: 3rem; color: var(--text-disabled);"></i>
           <p>{{ t('admin_support.no_threads') | default('Chưa có yêu cầu hỗ trợ nào từ người dùng.') }}</p>
         </div>
       {% endif %}
@@ -633,7 +636,7 @@
       document.getElementById('active-status-select').value = status;
 
       const msgContainer = document.getElementById('admin-chat-messages');
-      msgContainer.innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">Đang tải hội thoại...</div>';
+      msgContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">Đang tải hội thoại...</div>';
 
       loadThreadMessages(threadId);
     }
@@ -653,7 +656,7 @@
             });
             scrollAdminChatBottom();
           } else {
-            msgContainer.innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">Chưa có tin nhắn trong phiên này.</div>';
+            msgContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">Chưa có tin nhắn trong phiên này.</div>';
           }
         }
       } catch (err) {
@@ -800,5 +803,7 @@
 
     setInterval(pollAdminChat, 3000);
   </script>
+  <script id="theme-i18n" type="application/json">{{ {"light": t("theme.to_light"), "dark": t("theme.to_dark"), "auto": t("theme.auto"), "tooltip": t("theme.tooltip")} | tojson }}</script>
+  <script src="{{ url_for('static', filename='js/theme.js') }}?v=18.0"></script>
 </body>
 </html>
