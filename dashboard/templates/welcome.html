@@ -207,7 +207,7 @@
               <input type="checkbox" name="welcome_use_embed"
                      {% if settings.welcome_use_embed %}checked{% endif %}
                      id="w-embed-toggle"
-                     onchange="updateWelcomePreview()">
+                     onchange="updateWelcomePreview(); scheduleCardRefresh('welcome', 60)">
               <span class="switch-track"></span>
             </label>
           </div>
@@ -218,7 +218,7 @@
             <input type="url" name="welcome_bg_url" class="form-control" id="w-bg-url"
                    value="{{ settings.welcome_bg_url or '' }}"
                    placeholder="https://example.com/image.png"
-                   oninput="updateWelcomePreview()">
+                   oninput="onBgUrlInput('welcome')">
           </div>
 
           <!-- Message content -->
@@ -254,6 +254,9 @@
 
             <!-- Banner card -->
             <div id="w-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
+              <!-- Ảnh THẬT: PNG render từ server — đúng y hệt lúc bot gửi vào Discord -->
+              <img id="w-card-img" alt="Xem trước thẻ" style="display:none; width:100%; max-width:440px; margin:15px auto; border-radius:16px; box-shadow:var(--shadow); border:1px solid rgba(255,255,255,0.12);">
+              <div id="w-card-note" class="hint" style="display:none; text-align:center; margin-top:6px;"></div>
               <div class="banner-outer" id="w-banner-outer">
                   <div class="banner-badge" id="w-badge">Member #{{ meta.get('member_count', '???') if meta else '???' }}</div>
                   <div class="banner-avatar">
@@ -321,7 +324,7 @@
               <input type="checkbox" name="goodbye_use_embed"
                      {% if settings.goodbye_use_embed %}checked{% endif %}
                      id="g-embed-toggle"
-                     onchange="updateGoodbyePreview()">
+                     onchange="updateGoodbyePreview(); scheduleCardRefresh('goodbye', 60)">
               <span class="switch-track"></span>
             </label>
           </div>
@@ -332,7 +335,7 @@
             <input type="url" name="goodbye_bg_url" class="form-control" id="g-bg-url"
                    value="{{ settings.goodbye_bg_url or '' }}"
                    placeholder="https://example.com/image.png"
-                   oninput="updateGoodbyePreview()">
+                   oninput="onBgUrlInput('goodbye')">
           </div>
 
           <!-- Message content -->
@@ -367,6 +370,9 @@
             </div>
 
             <div id="g-banner-wrap" style="position:relative; padding: 0 35px; width:100%; box-sizing:border-box;">
+              <!-- Ảnh THẬT: PNG render từ server — đúng y hệt lúc bot gửi vào Discord -->
+              <img id="g-card-img" alt="Xem trước thẻ" style="display:none; width:100%; max-width:440px; margin:15px auto; border-radius:16px; box-shadow:var(--shadow); border:1px solid rgba(255,255,255,0.12);">
+              <div id="g-card-note" class="hint" style="display:none; text-align:center; margin-top:6px;"></div>
               <div class="banner-outer" id="g-banner-outer">
                   <div class="banner-badge" id="g-badge">Sad to see you go!</div>
                   <div class="banner-avatar">
@@ -514,8 +520,55 @@ async function sendTestCard(type) {
   btn.disabled  = false;
 }
 
+function onBgUrlInput(type) {
+  if (type === 'welcome') updateWelcomePreview(); else updateGoodbyePreview();
+  scheduleCardRefresh(type, 400);
+}
+
+const cardRefreshTimer = {};
+function scheduleCardRefresh(type, delay) {
+  clearTimeout(cardRefreshTimer[type]);
+  cardRefreshTimer[type] = setTimeout(() => refreshCard(type), delay);
+}
+
+function refreshCard(type) {
+  const prefix = type === 'welcome' ? 'w' : 'g';
+  if (!document.getElementById(prefix + '-embed-toggle').checked) return;
+  const bgUrl = document.getElementById(prefix + '-bg-url').value.trim();
+  const img   = document.getElementById(prefix + '-card-img');
+  const note  = document.getElementById(prefix + '-card-note');
+  const mock  = document.getElementById(prefix + '-banner-outer');
+  fetch(`/api/guild/${GUILD_ID_W}/welcome-card-preview?type=${type}&bg_url=${encodeURIComponent(bgUrl)}`)
+    .then(async (r) => {
+      if (!r.ok) {
+        let msg = 'HTTP ' + r.status;
+        try { const j = await r.json(); msg = j.error || msg; } catch (e) {}
+        throw new Error(msg);
+      }
+      return r.blob();
+    })
+    .then((blob) => {
+      const prev = img.dataset.objUrl;
+      const url  = URL.createObjectURL(blob);
+      img.src = url;
+      if (prev) URL.revokeObjectURL(prev);
+      img.dataset.objUrl = url;
+      img.style.display = 'block';
+      mock.style.display = 'none';
+      note.style.display = 'none';
+    })
+    .catch((err) => {
+      img.style.display = 'none';
+      mock.style.display = '';
+      note.textContent = '⚠️ ' + (err && err.message ? err.message : 'Không tải được thẻ xem trước.');
+      note.style.display = '';
+    });
+}
+
 // Run once on page load
 updateWelcomePreview();
 updateGoodbyePreview();
+refreshCard('welcome');
+refreshCard('goodbye');
 </script>
 {% endblock %}

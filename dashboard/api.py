@@ -7,7 +7,7 @@ _V2_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _V2_DIR)
 sys.path.insert(0, os.path.join(_V2_DIR, "bot"))  # cho card_generator, checks, etc.
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, Response, request, jsonify, session
 import requests
 import logging
 import database as db
@@ -609,6 +609,71 @@ def send_reaction_role_panel(guild_id: str, panel_id: int):
 
 # ─── Test welcome/goodbye banner card ─────────────────────────────────────────
 
+def _build_test_card(card_type: str, guild_id: str, bg_url):
+    """Tạo PNG thẻ welcome/goodbye y hệt lúc bot gửi — dùng CHUNG cho
+    send-test-card và welcome-card-preview (preview = ảnh thật, đồng bộ 100%).
+
+    Trả về (buf, None) khi thành công hoặc (None, (thông_báo_lỗi, http_status)).
+    """
+    from flask import session as flask_session
+
+    user         = flask_session.get("user", {})
+    avatar_url   = flask_session.get("avatar", "")
+    display_name = user.get("global_name") or user.get("username") or "User"
+
+    guild_meta   = db.get_guild_meta(guild_id) or {}
+    guild_name   = guild_meta.get("name", "Server")
+    member_count = guild_meta.get("member_count", "???")
+
+    # ── Avatar người dùng hiện tại (đúng như lúc gửi thật) ──────────────────
+    avatar_bytes = None
+    if avatar_url:
+        try:
+            r = requests.get(avatar_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
+            if r.status_code == 200:
+                avatar_bytes = r.content
+        except Exception:
+            pass
+
+    # ── Ảnh nền: tải phía SERVER (không vướng mixed-content/CORS như browser) ─
+    bg_bytes = None
+    if bg_url:
+        bg_bytes = _auth.safe_download_image(bg_url, max_bytes=5 * 1024 * 1024, timeout=8.0)
+        if bg_bytes is None and not _auth.is_safe_http_url(bg_url):
+            return None, ("URL ảnh nền không hợp lệ (chỉ cho phép http/https công khai).", 400)
+
+    try:
+        try:
+            from bot.card_generator import _render_card
+        except (ImportError, ModuleNotFoundError):
+            from card_generator import _render_card
+        if card_type == "welcome":
+            buf = _render_card(
+                avatar_bytes  = avatar_bytes,
+                top_label     = f"Member #{member_count}",
+                username      = f"Welcome {display_name}",
+                preposition   = "to",
+                server_name   = guild_name,
+                accent_color  = (0, 132, 255),    # Ignored now
+                accent_color2 = (0, 212, 255),    # Ignored now
+                bg_bytes      = bg_bytes,
+            )
+        else:
+            buf = _render_card(
+                avatar_bytes  = avatar_bytes,
+                top_label     = "Sad to see you go!",
+                username      = f"Goodbye {display_name}",
+                preposition   = "from",
+                server_name   = guild_name,
+                accent_color  = (237, 66, 69),    # Ignored now
+                accent_color2 = (255, 120, 120),  # Ignored now
+                bg_bytes      = bg_bytes,
+            )
+    except Exception as e:
+        return None, (f"Lỗi tạo card: {e}", 500)
+    return buf, None
+
+
 @api.route("/guild/<guild_id>/send-test-card", methods=["POST"])
 @limiter.limit("10/minute")
 def send_test_card(guild_id: str):
@@ -669,58 +734,16 @@ def send_test_card(guild_id: str):
         raw_msg = custom_msg or "👋 **{user_name}** đã rời khỏi **{server}**."
         content_msg = format_msg(raw_msg, f"👋 **{display_name}** đã rời khỏi **{guild_name}**.")
 
-    # ── Generate card if enabled ───────────────────────────────────────────
+    # ── Generate card if enabled (dùng CHUNG helper với card-preview) ──────
     buf = None
     if use_embed:
-        avatar_bytes = None
-        if avatar_url:
-            try:
-                r = requests.get(avatar_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=8)
-                if r.status_code == 200:
-                    avatar_bytes = r.content
-            except Exception:
-                pass
-
-        bg_bytes = None
-        # get bg_url from frontend request, fallback to db
+        # bg_url từ frontend (trạng thái chưa lưu), fallback về DB
         bg_url = data.get("bg_url")
         if bg_url is None:
             bg_url = settings.get(f"{card_type}_bg_url")
-
-        if bg_url:
-            bg_bytes = _auth.safe_download_image(bg_url, max_bytes=5 * 1024 * 1024, timeout=8.0)
-            if bg_bytes is None and not _auth.is_safe_http_url(bg_url):
-                return jsonify({"error": "URL ảnh nền không hợp lệ (chỉ cho phép http/https công khai)."}), 400
-
-        try:
-            try:
-                from bot.card_generator import _render_card
-            except (ImportError, ModuleNotFoundError):
-                from card_generator import _render_card
-            if card_type == "welcome":
-                buf = _render_card(
-                    avatar_bytes  = avatar_bytes,
-                    top_label     = f"Member #{member_count}",
-                    username      = f"Welcome {display_name}",
-                    preposition   = "to",
-                    server_name   = guild_name,
-                    accent_color  = (0, 132, 255),    # Ignored now
-                    accent_color2 = (0, 212, 255),    # Ignored now
-                    bg_bytes      = bg_bytes,
-                )
-            else:
-                buf = _render_card(
-                    avatar_bytes  = avatar_bytes,
-                    top_label     = "Sad to see you go!",
-                    username      = f"Goodbye {display_name}",
-                    preposition   = "from",
-                    server_name   = guild_name,
-                    accent_color  = (237, 66, 69),    # Ignored now
-                    accent_color2 = (255, 120, 120),  # Ignored now
-                    bg_bytes      = bg_bytes,
-                )
-        except Exception as e:
-            return jsonify({"error": f"Lỗi tạo card: {e}"}), 500
+        buf, card_err = _build_test_card(card_type, guild_id, bg_url)
+        if card_err:
+            return jsonify({"error": card_err[0]}), card_err[1]
 
     # ── Send to Discord ────────────────────────────────────────────────────
     try:
@@ -746,6 +769,37 @@ def send_test_card(guild_id: str):
     except Exception as exc:
         logger.warning("[API] send panel error: %s", exc)
         return jsonify({"error": "internal_error"}), 500
+
+
+# ─── Welcome/Goodbye: xem trước PNG thẻ (đồng bộ 100% với lúc bot gửi) ──────────────
+
+@api.route("/guild/<guild_id>/welcome-card-preview")
+@limiter.limit("30/minute")
+def welcome_card_preview(guild_id: str):
+    """Trả PNG thẻ welcome/goodbye render bằng ĐÚNG _render_card mà bot dùng.
+
+    Preview panel giờ hiển thị ẢNH THẬT sẽ gửi vào Discord — kể cả URL ảnh nền
+    http:// (server tự tải nên không vướng mixed-content như trình duyệt).
+    """
+    err = _require_guild_access(guild_id)
+    if err:
+        return err
+
+    card_type = request.args.get("type", "welcome")
+    if card_type not in ("welcome", "goodbye"):
+        card_type = "welcome"
+    bg_url = (request.args.get("bg_url") or "").strip() or None
+
+    buf, card_err = _build_test_card(card_type, guild_id, bg_url)
+    if card_err:
+        return jsonify({"error": card_err[0]}), card_err[1]
+    if not buf:
+        return jsonify({"error": "Không tạo được thẻ xem trước."}), 500
+
+    return Response(buf.getvalue(), mimetype="image/png", headers={
+        "Cache-Control": "no-store",
+        "Content-Disposition": "inline; filename=card-preview.png",
+    })
 
 
 # ─── i18n: Guild Language ────────────────────────────────────────────────────────────

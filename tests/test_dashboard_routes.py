@@ -44,6 +44,7 @@ BASELINE_ROUTES = [
     "GET /api/guild/<guild_id>/server-builder/jobs/<int:job_id>",
     "GET /api/guild/<guild_id>/server-builder/templates",
     "GET /api/guild/<guild_id>/server-builder/tree",
+    "GET /api/guild/<guild_id>/welcome-card-preview",
     "GET /api/support/messages",
     "GET /callback",
     "GET /commands",
@@ -362,4 +363,26 @@ def test_reactionroles_picker_and_embeds_sections_render(client, temp_db, monkey
     body = eb.data.decode("utf-8")
     assert "send-section" in body, "Thiếu khối Gửi đến Discord (send-section)"
     assert "empty-state" in body, "Thiếu khối Embeds đã lưu (empty-state)"
+
+
+# ─── 6. Preview PNG thẻ Welcome/Goodbye (đồng bộ với lúc bot gửi) ────────────────
+
+def test_welcome_card_preview_returns_real_png(client, temp_db, monkeypatch):
+    """Preview phải là PNG THẬT render bằng cùng pipeline _render_card của bot."""
+    _block_network(monkeypatch)
+    login(client)
+    resp = client.get(f"/api/guild/{MOCK_GUILD_ID}/welcome-card-preview?type=welcome")
+    assert resp.status_code == 200, resp.data[:300]
+    assert resp.mimetype == "image/png"
+    assert resp.data[:4].hex() == "89504e47"  # chữ ký PNG
+    assert len(resp.data) > 1000
+
+
+def test_welcome_card_preview_rejects_bad_bg_url(client, temp_db, monkeypatch):
+    """URL ảnh nền không hợp lệ → 400 kèm thông báo tiếng Việt (khớp send-test)."""
+    _block_network(monkeypatch)
+    login(client)
+    resp = client.get(f"/api/guild/{MOCK_GUILD_ID}/welcome-card-preview?type=goodbye&bg_url=not-a-url")
+    assert resp.status_code == 400
+    assert "hợp lệ" in (resp.get_json() or {}).get("error", "")
 
