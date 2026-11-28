@@ -281,9 +281,10 @@
 
 {% block content %}
 <form method="POST" action="{{ url_for('guild.server_automod', guild_id=guild_id) }}">
+  <p class="page-subtitle">{{ t('automod.page_subtitle') }}</p>
+
   <div class="cr-grid">
     <section>
-      <p class="page-subtitle">{{ t('automod.page_subtitle') }}</p>
 
   <div class="card">
     <div class="card-header">

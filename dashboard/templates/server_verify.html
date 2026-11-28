@@ -49,9 +49,10 @@
 
 {% block content %}
 <form method="POST" action="{{ url_for('guild.server_verify', guild_id=guild_id) }}">
+  <p class="page-subtitle">{{ t('verify.panel_title') }}</p>
+
   <div class="cr-grid">
     <section>
-      <p class="page-subtitle">{{ t('verify.panel_title') }}</p>
 
   <div class="card">
     <div class="card-title"><i class="bi bi-ui-radios" style="color:var(--accent)"></i> {{ t('verify.field_channel') }}</div>

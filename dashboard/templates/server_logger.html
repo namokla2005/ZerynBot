@@ -4,9 +4,10 @@
 
 {% block content %}
 <form method="POST" action="{{ url_for('guild.server_logger', guild_id=guild_id) }}">
+  <p class="page-subtitle">{{ t('logger.page_subtitle') }}</p>
+
   <div class="cr-grid">
     <section>
-      <p class="page-subtitle">{{ t('logger.page_subtitle') }}</p>
 
   <div class="card" style="margin-bottom: 24px;">
     <div class="card-header">

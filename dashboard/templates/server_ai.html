@@ -4,9 +4,7 @@
 {% block page_title %}{{ t('ai.page_title') | default('Trợ Lý AI & Smart Chatbot') }}{% endblock %}
 
 {% block content %}
-<div class="cr-grid">
-  <section>
-    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
       <p class="page-subtitle">{{ t('ai.page_subtitle') | default('Tích hợp trí tuệ nhân tạo thế hệ mới: Hỏi đáp thông minh, tóm tắt tin nhắn và trò chuyện tự nhiên.') }}</p>
       <div>
         <button type="submit" form="ai-settings-form" class="btn btn-primary">
@@ -15,6 +13,8 @@
       </div>
     </div>
 
+<div class="cr-grid">
+  <section>
     <form id="ai-settings-form" method="POST" action="{{ url_for('guild.server_ai', guild_id=guild_id) }}">
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:20px; align-items:start;">
 

@@ -19,14 +19,15 @@
 {% endblock %}
 
 {% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+  <p class="page-subtitle" style="margin:0;">{{ t('dashboard.analytics_sub') }}</p>
+  <span class="bento-badge" style="font-size:0.8rem; padding:6px 14px; display:inline-flex; align-items:center; gap:6px;">
+    <i class="bi bi-shield-check" style="color:var(--accent);"></i> {{ guild.get('name', 'Server') }}
+  </span>
+</div>
+
 <div class="cr-grid">
 <section>
-  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
-    <p class="page-subtitle" style="margin:0;">{{ t('dashboard.analytics_sub') }}</p>
-    <span class="bento-badge" style="font-size:0.8rem; padding:6px 14px; display:inline-flex; align-items:center; gap:6px;">
-      <i class="bi bi-shield-check" style="color:var(--accent);"></i> {{ guild.get('name', 'Server') }}
-    </span>
-  </div>
 
 <!-- Bento Row 1: Key Metrics -->
 {% if meta %}

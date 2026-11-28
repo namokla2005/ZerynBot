@@ -284,6 +284,7 @@ def admin_panel():
         blacklist_ids=blacklist_ids,
         total_servers=len(guilds),
         total_blacklist=len(blacklist),
+        total_members=sum(int(g.get("member_count") or 0) for g in guilds),
         global_ai_key="",
         global_ai_model=global_ai_model,
         gemini_api_keys=_pool_summary(gemini_api_keys),

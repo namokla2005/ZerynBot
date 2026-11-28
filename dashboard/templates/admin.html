@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script>(function(){try{var m=localStorage.getItem('zeryn-theme');if(m!=='light'&&m!=='dark'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',m);}catch(e){}})();</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20.1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20.2">
   <style>
     .admin-wrapper{display:flex;flex-direction:column;min-height:100vh;width:100%;}
     .admin-topbar{display:flex;align-items:center;gap:16px;padding:0 32px;height:60px;background:var(--bg-sidebar);border-bottom:1px solid var(--border);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:sticky;top:0;z-index:50;}
@@ -122,6 +122,31 @@
     .empty-tbl-icon{font-size:2.5rem;margin-bottom:8px;}
     .empty-tbl p{font-size:.9rem;}
     @media(max-width:768px){.admin-main{padding:20px 16px;}.admin-stats{grid-template-columns:repeat(2,1fr);}}
+    /* ─── Vỏ mới: sidebar điều hướng + banner + thẻ số (kiểu reference admin) ─── */
+    .admin-shell{display:flex;align-items:flex-start;width:100%;}
+    .admin-shell .admin-main{flex:1;min-width:0;max-width:none;}
+    .admin-side{width:236px;flex:none;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;padding:14px 12px 20px;border-right:1px solid var(--border);background:var(--bg-sidebar);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;flex-direction:column;gap:4px;}
+    .side-cap{font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);padding:12px 12px 4px;}
+    .side-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-md);font-size:.88rem;font-weight:600;color:var(--text-secondary);cursor:pointer;border:1px solid transparent;background:none;text-decoration:none;width:100%;text-align:left;transition:var(--transition);font-family:inherit;}
+    .side-item i{font-size:1rem;width:20px;text-align:center;flex:none;}
+    .side-item:hover{background:var(--bg-hover);color:var(--text-primary);}
+    .side-item.active{background:var(--danger-bg);border-color:color-mix(in srgb, var(--danger) 40%, transparent);color:var(--danger);}
+    .side-item .side-badge{margin-left:auto;background:var(--bg-hover);border-radius:20px;padding:1px 8px;font-size:.72rem;font-weight:700;color:var(--text-muted);}
+    .side-note{margin-top:auto;padding:12px;border:1px dashed var(--border);border-radius:var(--radius-md);font-size:.74rem;color:var(--text-muted);line-height:1.55;}
+    .admin-banner{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding:14px 18px;border-radius:var(--radius-lg);background:linear-gradient(100deg, rgba(255,71,87,.12), rgba(124,108,240,.10));border:1px solid color-mix(in srgb, var(--danger) 25%, transparent);}
+    .admin-banner .bn-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;background:linear-gradient(135deg,#ff4757,#c0392b);color:#fff;flex:none;box-shadow:0 0 16px rgba(255,71,87,.35);}
+    .admin-banner .bn-title{font-family:var(--font-display);font-weight:800;font-size:.95rem;color:var(--text-primary);}
+    .admin-banner .bn-sub{font-size:.8rem;color:var(--text-secondary);margin-top:2px;}
+    .admin-banner .bn-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex:none;}
+    .bn-chip{font-size:.72rem;font-weight:700;border-radius:20px;padding:3px 10px;background:var(--success-bg);color:var(--success);border:1px solid color-mix(in srgb, var(--success) 35%, transparent);white-space:nowrap;}
+    @media (max-width:980px){
+      .admin-shell{flex-direction:column;}
+      .admin-side{position:static;width:100%;height:auto;flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border);padding:8px 10px;gap:6px;}
+      .admin-side .side-cap,.admin-side .side-note{display:none;}
+      .side-item{width:auto;white-space:nowrap;padding:8px 12px;}
+      .admin-banner{flex-wrap:wrap;}
+      .admin-banner .bn-right{margin-left:0;}
+    }
   </style>
 </head>
 <body>
@@ -147,6 +172,19 @@
     </div>
   </header>
 
+  <div class="admin-shell">
+  <aside class="admin-side" aria-label="Điều hướng quản trị">
+    <div class="side-cap">Quản trị Bot</div>
+    <button class="side-item active" type="button" onclick="switchTab('servers',this)"><i class="bi bi-robot"></i><span>Máy chủ</span><span class="side-badge">{{ total_servers }}</span></button>
+    <button class="side-item" type="button" onclick="switchTab('blacklist',this)"><i class="bi bi-slash-circle-fill"></i><span>Blacklist</span>{% if total_blacklist %}<span class="side-badge">{{ total_blacklist }}</span>{% endif %}</button>
+    <button class="side-item" type="button" onclick="switchTab('activity',this)"><i class="bi bi-activity"></i><span>Hoạt động</span></button>
+    <button class="side-item" type="button" onclick="switchTab('ai_settings',this)"><i class="bi bi-cpu-fill"></i><span>Cấu hình AI</span></button>
+    <button class="side-item" type="button" onclick="switchTab('terminal',this)"><i class="bi bi-terminal-fill"></i><span>Terminal</span></button>
+    <div class="side-cap">Liên kết</div>
+    <a class="side-item" href="{{ url_for('admin.admin_support_center') }}"><i class="bi bi-chat-dots-fill"></i><span>Hỗ trợ 24/7</span></a>
+    <a class="side-item" href="{{ url_for('guild.home') }}"><i class="bi bi-grid-fill"></i><span>Về Dashboard</span></a>
+    <div class="side-note">🛡️ Khu vực <b>OWNER ONLY</b> — thao tác nhạy cảm đều ghi log hoạt động (giữ 7 ngày).</div>
+  </aside>
   <div class="admin-main">
     <div class="flash-container">
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -169,6 +207,18 @@
     </div>
     {% endif %}
 
+    <div class="admin-banner">
+      <div class="bn-icon">🚀</div>
+      <div>
+        <div class="bn-title">ZerynBot Dashboard V20 — Command Rail &amp; Server Roles Studio</div>
+        <div class="bn-sub">Điều hướng rail mới cho toàn bộ module · Server Builder đã vá lỗi reorder 40009 · i18n 6 ngôn ngữ · 1.008 test xanh.</div>
+      </div>
+      <div class="bn-right">
+        <span class="bn-chip">● Bản mới nhất</span>
+        <button class="btn-icon broadcast" type="button" onclick="openBroadcastModal(null,null,true)"><i class="bi bi-megaphone-fill"></i> Gửi thông báo</button>
+      </div>
+    </div>
+
     <div style="margin-bottom:28px;">
       <h1 style="font-size:1.7rem;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
         🛡️ {{ t('admin.page_title') }}
@@ -184,12 +234,16 @@
         <div><div class="stat-value">{{ total_servers }}</div><div class="stat-label">{{ t('admin.active_servers') }}</div></div>
       </div>
       <div class="stat-card">
+        <div class="stat-icon blue"><i class="bi bi-people-fill"></i></div>
+        <div><div class="stat-value">{{ total_members }}</div><div class="stat-label">Tổng thành viên (cache)</div></div>
+      </div>
+      <div class="stat-card">
         <div class="stat-icon red"><i class="bi bi-slash-circle-fill"></i></div>
         <div><div class="stat-value">{{ total_blacklist }}</div><div class="stat-label">{{ t('admin.blacklist_servers') }}</div></div>
       </div>
-      <div class="stat-card" style="cursor:pointer;" onclick="openBroadcastModal(null,null,true)">
-        <div class="stat-icon blue"><i class="bi bi-megaphone-fill"></i></div>
-        <div><div class="stat-value" style="font-size:1.4rem;">{{ t('admin.broadcast_stat') }}</div><div class="stat-label">{{ t('admin.broadcast_stat_sub') }}</div></div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--accent-light);color:var(--accent);"><i class="bi bi-activity"></i></div>
+        <div><div class="stat-value">{{ activity_logs|length }}</div><div class="stat-label">Hoạt động (7 ngày)</div></div>
       </div>
     </div>
 
@@ -237,31 +291,7 @@
       </div>
     </div>
 
-    <div class="admin-tabs">
-      <button class="admin-tab active" onclick="switchTab('servers',this)">
-        <i class="bi bi-robot"></i> {{ t('admin.tab_active_servers') }}
-        <span style="background:var(--success-bg);color:var(--success);border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_servers }}</span>
-      </button>
-      <button class="admin-tab" onclick="switchTab('blacklist',this)">
-        <i class="bi bi-slash-circle-fill"></i> {{ t('admin.tab_blacklist') }}
-        {% if total_blacklist > 0 %}
-        <span style="background:var(--danger-bg);color:var(--danger);border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">{{ total_blacklist }}</span>
-        {% endif %}
-      </button>
-      <button class="admin-tab" onclick="switchTab('activity',this)">
-        <i class="bi bi-activity"></i> Real-Time Activity Log
-        <span style="background:var(--accent-light);color:var(--accent);border-radius:20px;padding:2px 8px;margin-left:6px;font-size:.75rem;">7D TTL</span>
-      </button>
-      <button class="admin-tab" onclick="switchTab('ai_settings',this)">
-        <i class="bi bi-cpu-fill"></i> Cấu Hình AI Toàn Cục
-      </button>
-      <button class="admin-tab" onclick="switchTab('terminal',this)">
-        <i class="bi bi-terminal-fill"></i> {{ t('admin.tab_terminal') }}
-      </button>
-      <a href="{{ url_for('admin.admin_support_center') }}" class="admin-tab" style="text-decoration:none; background:var(--warning-bg); border:1px solid color-mix(in srgb, var(--warning) 40%, transparent); color:var(--warning);">
-        <i class="bi bi-chat-dots-fill"></i> Hỗ Trợ 24/7 (Messenger)
-      </a>
-    </div>
+    <!-- Điều hướng tab đã chuyển sang sidebar .admin-side -->
 
     <div class="tab-panel active" id="panel-servers">
       <div class="server-table-wrap">
@@ -835,6 +865,7 @@
     </div>
   </div>
 </div>
+</div>
 
 <!-- Modal: Kick -->
 <div class="modal-overlay" id="kickModal">
@@ -964,8 +995,9 @@
 
   function switchTab(tab, el) {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.side-item').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    el.classList.add('active');
+    if (el) el.classList.add('active');
     document.getElementById('panel-' + tab).classList.add('active');
   }
 

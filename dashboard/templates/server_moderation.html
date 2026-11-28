@@ -3,8 +3,6 @@
 {% block page_title %}{{ t('dashboard.moderation_title') | default('Cấu hình Điều hành') }}{% endblock %}
 
 {% block content %}
-<div class="cr-grid">
-  <section>
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
   <div>
     <p class="page-subtitle">{{ t('dashboard.moderation_desc') | default('Kick, ban, timeout, cảnh cáo và quản lý kênh.') }}</p>
@@ -16,6 +14,8 @@
   </div>
 </div>
 
+<div class="cr-grid">
+  <section>
 <form id="moderation-form" method="POST" action="{{ url_for('guild.server_moderation', guild_id=guild_id) }}">
   <div class="card">
     <div class="card-title">

@@ -3471,7 +3471,7 @@ body.cr-menu-open .cr-backdrop { display: block; }
 
 /* ── Lưới nội dung 2 cột (các trang dùng ở Phase 2/3) ── */
 .cr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 15px; align-items: start; }
-.cr-side { position: sticky; top: 86px; display: flex; flex-direction: column; gap: 15px; }
+.cr-side { display: flex; flex-direction: column; gap: 15px; }
 @media (max-width: 1180px) { .cr-grid { grid-template-columns: 1fr; } .cr-side { position: static; } }
 
 /* ── Responsive: rail thu gọn thành ngăn kéo ── */
